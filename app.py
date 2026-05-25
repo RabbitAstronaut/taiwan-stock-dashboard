@@ -604,8 +604,8 @@ with st.sidebar:
                         if col_bal:
                             bal = df_mg[col_bal[0]].astype(float)
                             margin_chg = (bal.iloc[-1]-bal.iloc[min(-5,len(bal)-1)])/bal.iloc[min(-5,len(bal)-1)]*100 if bal.iloc[min(-5,len(bal)-1)]!=0 else 0
-                            big_holder = margin_chg < 0
-                            chip_real  = True
+                                big_holder = margin_chg < 0
+                                chip_real  = True
                     except: pass
 
                 rows.append({
