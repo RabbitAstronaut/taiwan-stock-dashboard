@@ -942,26 +942,71 @@ with st.sidebar:
         prog=st.progress(0); stat=st.empty(); rows=[]; errors=[]
 
         def _dl(tk, retries=3):
+            """三層備援下載：yfinance → 切換後綴 → TWSE官方API"""
+            import requests as _req
+
+            def _clean(df):
+                if df is None or df.empty: return pd.DataFrame()
+                df = df.copy()
+                df.columns = [c[0] if isinstance(c,tuple) else c for c in df.columns]
+                df = df.dropna(subset=["Close","Open","High","Low","Volume"])
+                return df if len(df) >= 20 else pd.DataFrame()
+
+            # 層1：yfinance 原始
             for a in range(retries):
                 try:
-                    time.sleep(a*1.2)
+                    time.sleep(a*1.5)
                     df=yf.download(tk,period="6mo",auto_adjust=True,progress=False,timeout=15)
-                    df.columns=[c[0] if isinstance(c,tuple) else c for c in df.columns]
-                    if not df.empty and len(df)>=25: return df
+                    df=_clean(df)
+                    if not df.empty: return df
                 except: pass
+
+            # 層2：切換後綴
             alt=tk.replace(".TW",".TWO") if tk.endswith(".TW") else tk.replace(".TWO",".TW")
             for a in range(2):
                 try:
                     time.sleep(1+a)
                     df=yf.download(alt,period="6mo",auto_adjust=True,progress=False,timeout=15)
-                    df.columns=[c[0] if isinstance(c,tuple) else c for c in df.columns]
-                    if not df.empty and len(df)>=25: return df
+                    df=_clean(df)
+                    if not df.empty: return df
                 except: pass
+
+            # 層3：TWSE 官方 API（台灣IP和Streamlit Cloud都可用）
+            code = tk.replace(".TW","").replace(".TWO","")
+            try:
+                headers={"User-Agent":"Mozilla/5.0"}
+                rows=[]
+                from datetime import date
+                today=date.today()
+                for m in range(6):
+                    mo=today.month-m; yr=today.year
+                    while mo<=0: mo+=12; yr-=1
+                    url=f"https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date={yr}{mo:02d}01&stockNo={code}"
+                    try:
+                        r=_req.get(url,headers=headers,timeout=10)
+                        if r.status_code!=200: continue
+                        jd=r.json()
+                        if jd.get("stat")!="OK": continue
+                        for row in jd.get("data",[]):
+                            try:
+                                p=row[0].split("/"); yr_ad=int(p[0])+1911
+                                rows.append({"Date":pd.Timestamp(f"{yr_ad}-{p[1]}-{p[2]}"),
+                                    "Open":float(row[3].replace(",","")),
+                                    "High":float(row[4].replace(",","")),
+                                    "Low": float(row[5].replace(",","")),
+                                    "Close":float(row[6].replace(",","")),
+                                    "Volume":float(row[1].replace(",",""))*1000})
+                            except: continue
+                        time.sleep(0.3)
+                    except: continue
+                if rows:
+                    df2=pd.DataFrame(rows).set_index("Date").sort_index()
+                    if len(df2)>=20: return df2
+            except: pass
             return pd.DataFrame()
 
         for i,(sid,sname,mkt,ytk) in enumerate(scan_list):
-            prog.progress((i+1)/len(scan_list))
-            stat.markdown(f"<div style='color:#7fb3d3;font-size:0.74rem;'>[{i+1}/{len(scan_list)}] {sid} {sname}</div>", unsafe_allow_html=True)
+            prog.progress((i+1)/len(scan_list))            stat.markdown(f"<div style='color:#7fb3d3;font-size:0.74rem;'>[{i+1}/{len(scan_list)}] {sid} {sname}</div>", unsafe_allow_html=True)
             try:
                 df_tmp=_dl(ytk)
                 if df_tmp.empty: errors.append(sid); continue
@@ -983,7 +1028,8 @@ with st.sidebar:
                 for rv_ in rsv.dropna(): kv=kv*2/3+float(rv_)*1/3; dv=dv*2/3+kv*1/3
                 pe_v=gm_v=eps_v=np.nan
                 df_pb,ok_pb=load_price_basic(sid)
-                if ok_pb and not df_pb.empty:                    pe_v=df_pb["pe"].iloc[0]; eps_v=df_pb["eps_ttm"].iloc[0]; gm_v=df_pb["gross_margin"].iloc[0]
+                if ok_pb and not df_pb.empty:
+                    pe_v=df_pb["pe"].iloc[0]; eps_v=df_pb["eps_ttm"].iloc[0]; gm_v=df_pb["gross_margin"].iloc[0]
                 else:
                     try:
                         info=yf.Ticker(ytk).info or {}
