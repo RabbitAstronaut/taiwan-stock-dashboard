@@ -53,8 +53,67 @@ div[data-testid="stExpander"]{background:#0f2027;border:1px solid #1e3a5f;border
 [data-testid="stSidebarContent"]{background:#080e1a!important;}
 section[data-testid="stSidebar"]{background:#080e1a!important;}
 
-/* ── 整體背景確保深色 ── */
-.stApp, .main, .block-container{background:transparent!important;}
+/* ── 整體背景深黑色 ── */
+.stApp{background:#060b14!important;}
+.main{background:#060b14!important;}
+.block-container{
+    background:#060b14!important;
+    padding-top:1.5rem!important;
+}
+
+/* ── 主內容區模組白框立體效果 ── */
+div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlock"] {
+    background: linear-gradient(145deg, #0d1826, #0a1220)!important;
+    border: 1px solid rgba(255,255,255,0.08)!important;
+    border-radius: 12px!important;
+    padding: 16px!important;
+    margin-bottom: 8px!important;
+    box-shadow:
+        0 4px 24px rgba(0,0,0,0.4),
+        0 1px 0 rgba(255,255,255,0.05) inset!important;
+}
+
+/* ── Tab 容器背景 ── */
+.stTabs [data-baseweb="tab-panel"] {
+    background: linear-gradient(145deg, #0d1826, #0a1220)!important;
+    border: 1px solid rgba(255,255,255,0.08)!important;
+    border-radius: 0 12px 12px 12px!important;
+    padding: 20px!important;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4)!important;
+}
+
+/* ── KPI 行容器 ── */
+div[data-testid="column"] > div[data-testid="stVerticalBlock"] {
+    background: transparent!important;
+    border: none!important;
+    box-shadow: none!important;
+    padding: 0!important;
+    margin: 0!important;
+}
+
+/* ── Expander 深色 ── */
+div[data-testid="stExpander"] {
+    background: linear-gradient(145deg, #0d1826, #0a1220)!important;
+    border: 1px solid rgba(255,255,255,0.08)!important;
+    border-radius: 8px!important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3)!important;
+}
+div[data-testid="stExpander"] summary {
+    background: transparent!important;
+}
+
+/* ── Dataframe 深色 ── */
+[data-testid="stDataFrame"],
+.dvn-scroller {
+    background: #080e1a!important;
+    border-radius: 8px!important;
+}
+
+/* ── Plotly chart 容器 ── */
+[data-testid="stPlotlyChart"] {
+    background: transparent!important;
+    border-radius: 8px!important;
+}
 
 /* ── Selectbox/Radio/Slider 深色背景 ── */
 [data-baseweb="select"] div,
@@ -977,8 +1036,7 @@ with st.sidebar:
                 headers={"User-Agent":"Mozilla/5.0"}
                 rows=[]
                 from datetime import date
-                today=date.today()
-                for m in range(6):
+                today=date.today()                for m in range(6):
                     mo=today.month-m; yr=today.year
                     while mo<=0: mo+=12; yr-=1
                     url=f"https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date={yr}{mo:02d}01&stockNo={code}"
@@ -1006,7 +1064,8 @@ with st.sidebar:
             return pd.DataFrame()
 
         for i,(sid,sname,mkt,ytk) in enumerate(scan_list):
-            prog.progress((i+1)/len(scan_list))            stat.markdown(f"<div style='color:#7fb3d3;font-size:0.74rem;'>[{i+1}/{len(scan_list)}] {sid} {sname}</div>", unsafe_allow_html=True)
+            prog.progress((i+1)/len(scan_list))
+            stat.markdown(f"<div style='color:#7fb3d3;font-size:0.74rem;'>[{i+1}/{len(scan_list)}] {sid} {sname}</div>", unsafe_allow_html=True)
             try:
                 df_tmp=_dl(ytk)
                 if df_tmp.empty: errors.append(sid); continue
