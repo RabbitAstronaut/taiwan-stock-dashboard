@@ -988,7 +988,8 @@ with st.sidebar:
                         chip_real = True
                     except: pass
                 df_mg, ok_mg = fetch_margin(sid, start_chip, fm_tok)
-                if ok_mg and not df_mg.empty:                    try:
+                if ok_mg and not df_mg.empty:
+                    try:
                         col_bal = [c for c in df_mg.columns if "MarginPurchaseTodayBalance" in c or "margin_purchase_today_balance" in c]
                         if col_bal:
                             bal = df_mg[col_bal[0]].astype(float)
