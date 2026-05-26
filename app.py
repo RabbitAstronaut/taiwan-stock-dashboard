@@ -869,7 +869,8 @@ with st.sidebar:
             for attempt in range(retries):
                 try:
                     time.sleep(attempt*1.2)
-                    df = yf.download(tk, period="6mo", auto_adjust=True, progress=False, timeout=15)                    df.columns = [c[0] if isinstance(c,tuple) else c for c in df.columns]
+                    df = yf.download(tk, period="6mo", auto_adjust=True, progress=False, timeout=15)
+                    df.columns = [c[0] if isinstance(c,tuple) else c for c in df.columns]
                     if not df.empty and len(df)>=25: return df
                 except: pass
             alt = tk.replace(".TW",".TWO") if tk.endswith(".TW") else tk.replace(".TWO",".TW")
