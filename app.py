@@ -715,7 +715,7 @@ with st.sidebar:
         st.session_state.fm_stock_list = None
 
     # 載入股票清單
-    if st.button("📥 載入全市場股票清單", use_container_width=True):
+    if st.button("📥 載入全市場股票清單", width='stretch'):
         with st.spinner("從 FinMind 載入中..."):
             df_list, ok = fetch_stock_list(st.session_state.fm_token)
         if ok:
@@ -995,7 +995,7 @@ with st.sidebar:
         return r
 
     run_btn = st.button("🚀 開始掃描此群組", type="primary",
-                        use_container_width=True, disabled=len(scan_list)==0)
+                        width='stretch', disabled=len(scan_list)==0)
 
     if run_btn:
         prog=st.progress(0); stat=st.empty(); rows=[]; errors=[]
@@ -1213,7 +1213,7 @@ with st.sidebar:
             unsafe_allow_html=True
         )
 
-        if st.button("🔄 套用此模式條件", use_container_width=True, key="apply_mode4"):
+        if st.button("🔄 套用此模式條件", width='stretch', key="apply_mode4"):
             new_params = dict(
                 eps_min=mp4["eps_min"], pe_max=mp4["pe_max"], gm_min=mp4["gm_min"],
                 margin_max=mp4["margin_max"], inst_min=mp4["inst_min"],
@@ -1251,7 +1251,7 @@ with st.sidebar:
             add_code = st.text_input("代號", placeholder="輸入4位數字代號，例：2330",
                                      label_visibility="collapsed", key="wl_add")
         with col_a2:
-            if st.button("加入", use_container_width=True, key="wl_add_btn"):
+            if st.button("加入", width='stretch', key="wl_add_btn"):
                 code = add_code.strip()
                 if code.isdigit() and len(code) == 4:
                     wname = code
@@ -1275,7 +1275,7 @@ with st.sidebar:
                 c1,c2 = st.columns([5,1])
                 with c1: st.markdown(f"<span style='color:#e8f4fd;font-size:0.78rem;'>{nm}</span>", unsafe_allow_html=True)
                 with c2:
-                    if st.button("✕", key=f"wl_rm_{i}", use_container_width=True): rm_idx = i
+                    if st.button("✕", key=f"wl_rm_{i}", width='stretch'): rm_idx = i
             if rm_idx is not None:
                 st.session_state.watchlist.pop(rm_idx); st.rerun()
         else:
@@ -1295,7 +1295,7 @@ with st.sidebar:
     elif monitor_mode == "🏆 精選掃描結果":
         pool = st.session_state.selected_pool
         if pool:
-            if st.button("⭐ 全部加入觀察清單", use_container_width=True):
+            if st.button("⭐ 全部加入觀察清單", width='stretch'):
                 added = sum(1 for tk,nm in pool if not any(e[0]==tk for e in st.session_state.watchlist) or st.session_state.watchlist.append((tk,nm)))
                 st.success(f"已加入 {added} 檔")
             pool_map = {nm:tk for tk,nm in pool}
@@ -1315,7 +1315,7 @@ with st.sidebar:
                 m = st.session_state["fm_stock_list"][st.session_state["fm_stock_list"]["stock_id"]==code]
                 if not m.empty: mname = str(m["stock_name"].iloc[0])
             ticker = f"{code}.TW"; selected_name = f"{code} {mname}"
-            if st.button("⭐ 加入觀察清單", use_container_width=True, key="manual_add"):
+            if st.button("⭐ 加入觀察清單", width='stretch', key="manual_add"):
                 ent = (ticker, selected_name)
                 if not any(e[0]==ticker for e in st.session_state.watchlist):
                     st.session_state.watchlist.append(ent); st.success(f"已加入：{mname}")
@@ -1401,7 +1401,7 @@ with tab1:
                 textinfo="value+percent initial",marker=dict(color=["#1e3a5f","#00d4ff","#e040fb","#00e676"]),
                 textfont=dict(color="#e8f4fd",size=11),connector=dict(line=dict(color="#1e3a5f",width=1))))
             fig_f.update_layout(**base_layout("篩選漏斗",280))
-            st.plotly_chart(fig_f,use_container_width=True)
+            st.plotly_chart(fig_f,width='stretch')
         with fr:
             passed3=df_r[df_r["pass3"]==True]; passed2=df_r[df_r["pass2"]==True]
             st.markdown(f"<div style='color:#00e676;font-weight:700;font-size:0.86rem;margin-bottom:6px;'>✅ 精選股（{n3}檔）</div>",unsafe_allow_html=True)
@@ -1433,7 +1433,7 @@ with tab1:
         fmt={c:"{:.1f}" for c in ["毛利率%","MA20乖離%","融資5日變動%","法人買超%"]}
         fmt.update({"收盤價":"{:.1f}","EPS_TTM":"{:.2f}","PE":"{:.1f}","量比(5MA)":"{:.2f}"})
         fmt_v={k:v for k,v in fmt.items() if k in dd.columns}
-        st.dataframe(dd.style.apply(row_hl,axis=1).format(fmt_v,na_rep="—"),use_container_width=True,height=340)
+        st.dataframe(dd.style.apply(row_hl,axis=1).format(fmt_v,na_rep="—"),width='stretch',height=340)
         st.caption(f"共 {len(dd)} 檔 ｜ 🟢=真實籌碼(FinMind) 🟡=模擬籌碼")
 
         # ── 從掃描結果加入觀察清單
@@ -1446,7 +1446,7 @@ with tab1:
                 label_visibility="collapsed", placeholder="選擇股票..."
             )
         with wl_c2:
-            if st.button("⭐ 加入觀察清單", use_container_width=True, key="tab1_add_wl"):
+            if st.button("⭐ 加入觀察清單", width='stretch', key="tab1_add_wl"):
                 added = 0
                 for item in selected_to_add:
                     code = item.split(" ")[0]
@@ -1470,7 +1470,7 @@ with tab1:
             unsafe_allow_html=True
         )
 
-        if st.button("🎯 分析低風險伏擊點（從第一道以上標的分析）", use_container_width=True):
+        if st.button("🎯 分析低風險伏擊點（從第一道以上標的分析）", width='stretch'):
             analyze_pool = df_r[df_r["pass1"]==True].copy()
             if analyze_pool.empty:
                 st.warning("請先執行掃描，且至少要有通過第一道的標的")
@@ -1635,7 +1635,7 @@ with tab1:
                             marker=dict(color="#00d4ff",size=10,symbol="triangle-up"), name="目標價", showlegend=(i==0)))
                     fig_amb.update_layout(**base_layout("低風險伏擊點 · 價格區間圖", 360),
                                          barmode="overlay", yaxis_title="股價（元）")
-                    st.plotly_chart(fig_amb, use_container_width=True)
+                    st.plotly_chart(fig_amb, width='stretch')
 
                     with st.expander(f"📋 全部伏擊候選（{len(df_amb)}檔）"):
                         sc = ["代號","名稱","現價","伏擊下限","伏擊上限","停損線","目標價","風險報酬比","法人買超%","融資變動%","量比","綜合評分"]
@@ -1643,7 +1643,7 @@ with tab1:
                             "現價":"{:.1f}","伏擊下限":"{:.1f}","伏擊上限":"{:.1f}","停損線":"{:.1f}",
                             "目標價":"{:.1f}","風險報酬比":"1:{:.1f}","法人買超%":"{:+.1f}%","融資變動%":"{:+.1f}%","量比":"{:.2f}",
                         }).background_gradient(cmap="Greens",subset=["綜合評分"]),
-                        use_container_width=True, height=280)
+                        width='stretch', height=280)
                     st.caption("⚠️ 以上分析僅供參考，不構成投資建議。請結合基本面與市場環境自行判斷。")
 
 # ──────────────────────────────────────────────
@@ -1678,7 +1678,7 @@ with tab2:
             marker_color=["#00e676" if c>=o else "#ff5252" for c,o in zip(df["Close"],df["Open"])],
             opacity=0.5,showlegend=False),row=2,col=1)
         fig.update_layout(**base_layout(f"{selected_name} 日線走勢",460),xaxis_rangeslider_visible=False)
-        st.plotly_chart(fig,use_container_width=True)
+        st.plotly_chart(fig,width='stretch')
     with cr:
         kdt=df.tail(60); fk=go.Figure()
         fk.add_trace(go.Scatter(x=kdt.index,y=kdt["K"],mode="lines",name="K",line=dict(color="#ff9800",width=1.5)))
@@ -1688,12 +1688,12 @@ with tab2:
         fk.add_hline(y=80,line_dash="dot",line_color="#ff5252",line_width=1)
         fk.add_hline(y=20,line_dash="dot",line_color="#00e676",line_width=1)
         fk.update_layout(**base_layout("KD（近60日）",230))
-        st.plotly_chart(fk,use_container_width=True)
+        st.plotly_chart(fk,width='stretch')
         fv=go.Figure()
         fv.add_trace(go.Scatter(x=ti,y=pi,mode="lines",name="盤中",line=dict(color="#e8f4fd",width=1.5)))
         fv.add_trace(go.Scatter(x=ti,y=vi,mode="lines",name="VWAP",line=dict(color="#ffab40",width=1.5,dash="dot")))
         fv.update_layout(**base_layout("盤中模擬 vs VWAP",230))
-        st.plotly_chart(fv,use_container_width=True)
+        st.plotly_chart(fv,width='stretch')
 
 # ──────────────────────────────────────────────
 # TAB 3：籌碼 FinMind 真實資料
@@ -1750,14 +1750,14 @@ with tab3:
             fi2.update_layout(**base_layout(f"{selected_name} 三大法人買賣超（萬股）＋融資餘額",400))
             fi2.update_yaxes(gridcolor=GRID_COLOR,secondary_y=False)
             fi2.update_yaxes(showgrid=False,secondary_y=True)
-            st.plotly_chart(fi2,use_container_width=True)
+            st.plotly_chart(fi2,width='stretch')
         with cc2:
             i5={str(c)[:4]:inst_pivot[c].iloc[-5:].sum()/1e4 for c in inst_pivot.columns}
             fb2=go.Figure(go.Bar(x=list(i5.values()),y=list(i5.keys()),orientation="h",
                 marker_color=["#00e676" if v>=0 else "#ff5252" for v in i5.values()],
                 text=[f"{v:.1f}萬" for v in i5.values()],textposition="outside"))
             fb2.update_layout(**base_layout("近5日法人（萬股）",200))
-            st.plotly_chart(fb2,use_container_width=True)
+            st.plotly_chart(fb2,width='stretch')
     else:
         st.markdown(
             "<div class='warning-banner'>⚠️ FinMind 籌碼資料無法取得（需台灣IP或有效Token）｜顯示模擬數據</div>",
@@ -1776,11 +1776,11 @@ with tab3:
         fi2.add_trace(go.Scatter(x=dchip["日期"],y=dchip["融資餘額"],mode="lines",name="融資餘額",line=dict(color="#ff9800",width=2)),secondary_y=True)
         fi2.update_layout(**base_layout("三大法人買賣超＋融資（模擬）",400))
         fi2.update_yaxes(gridcolor=GRID_COLOR,secondary_y=False); fi2.update_yaxes(showgrid=False,secondary_y=True)
-        st.plotly_chart(fi2,use_container_width=True)
+        st.plotly_chart(fi2,width='stretch')
 
     with st.expander("📋 籌碼明細（近20日）",expanded=False):
         if ok_inst3 and not df_inst3.empty:
-            st.dataframe(df_inst3.tail(40).sort_values("date",ascending=False),use_container_width=True)
+            st.dataframe(df_inst3.tail(40).sort_values("date",ascending=False),width='stretch')
         else:
             st.caption("FinMind 不可用，請輸入 Token 後重試")
 
@@ -1827,7 +1827,7 @@ with tab4:
                     marker=dict(colors=["#00d4ff","#e040fb","#00e676","#ffab40","#546e7a"],line=dict(color="#0a0e1a",width=2)),
                     textinfo="percent+label",textfont=dict(size=10,color="#e8f4fd")))
                 fp.update_layout(**base_layout("營收結構（示意）",280),annotations=[dict(text="營收<br>結構",x=0.5,y=0.5,font_size=11,font_color="#7fb3d3",showarrow=False)])
-                st.plotly_chart(fp,use_container_width=True)
+                st.plotly_chart(fp,width='stretch')
             with cr4:
                 fm4=make_subplots(specs=[[{"secondary_y":True}]])
                 if "毛利率" in combined.columns:
@@ -1839,9 +1839,9 @@ with tab4:
                 fm4.update_layout(**base_layout(f"{selected_name} 財務趨勢（FinMind真實資料）",420))
                 fm4.update_yaxes(title_text="利率(%)",gridcolor=GRID_COLOR,secondary_y=False)
                 fm4.update_yaxes(title_text="EPS(元)",showgrid=False,secondary_y=True)
-                st.plotly_chart(fm4,use_container_width=True)
+                st.plotly_chart(fm4,width='stretch')
             with st.expander("📋 完整財報明細",expanded=False):
-                st.dataframe(combined.sort_index(ascending=False).style.format("{:.2f}",na_rep="—"),use_container_width=True)
+                st.dataframe(combined.sort_index(ascending=False).style.format("{:.2f}",na_rep="—"),width='stretch')
         else:
             st.warning("FinMind 財報資料欄位無法解析，請確認 API 回傳格式")
     else:
@@ -1861,7 +1861,7 @@ with tab4:
                 marker=dict(colors=["#00d4ff","#e040fb","#00e676","#ffab40","#546e7a"],line=dict(color="#0a0e1a",width=2)),
                 textinfo="percent+label",textfont=dict(size=10,color="#e8f4fd")))
             fp.update_layout(**base_layout("營收結構（示意）",280),annotations=[dict(text="示意",x=0.5,y=0.5,font_size=11,font_color="#ffab40",showarrow=False)])
-            st.plotly_chart(fp,use_container_width=True)
+            st.plotly_chart(fp,width='stretch')
         with cr4s:
             fm4s=make_subplots(specs=[[{"secondary_y":True}]])
             fm4s.add_trace(go.Scatter(x=df4s["季度"],y=df4s["毛利率%"],mode="lines+markers",name="毛利率%（示意）",line=dict(color="#00e676",width=2.5),marker=dict(size=6)),secondary_y=False)
@@ -1869,7 +1869,7 @@ with tab4:
             fm4s.add_trace(go.Bar(x=df4s["季度"],y=ep_,name="EPS（示意）",marker_color=["#00e676" if e>0 else "#ff5252" for e in ep_],opacity=0.7),secondary_y=True)
             fm4s.update_layout(**base_layout("財務趨勢（示意—需FinMind Token）",420))
             fm4s.update_yaxes(gridcolor=GRID_COLOR,secondary_y=False); fm4s.update_yaxes(showgrid=False,secondary_y=True)
-            st.plotly_chart(fm4s,use_container_width=True)
+            st.plotly_chart(fm4s,width='stretch')
 
 # ──────────────────────────────────────────────
 # TAB 5：崩盤預警 FinMind 自動抓取
@@ -1887,7 +1887,7 @@ with tab5:
     # FinMind 自動抓取期貨籌碼
     col_auto, col_manual = st.columns([2,1])
     with col_auto:
-        if st.button("🔄 自動抓取最新期貨籌碼（FinMind）", use_container_width=True):
+        if st.button("🔄 自動抓取最新期貨籌碼（FinMind）", width='stretch'):
             with st.spinner("從 FinMind 抓取期貨法人資料..."):
                 st.session_state.futures_data = parse_futures_chips(fm_tok)
 
@@ -2020,7 +2020,7 @@ with tab5:
         fig5_bar.add_vline(x=0,line_color="#546e7a",line_width=1)
         fig5_bar.add_vline(x=-40000,line_dash="dot",line_color="#ff5252",line_width=1.5,annotation_text="地雷線",annotation_font_color="#ff5252",annotation_position="top right")
         fig5_bar.update_layout(**base_layout("法人 vs 散戶部位對比（口）",300),xaxis_title="未平倉淨額（口）")
-        st.plotly_chart(fig5_bar,use_container_width=True)
+        st.plotly_chart(fig5_bar,width='stretch')
     with vc2:
         r_cats=["大台外資空壓","散戶導火線","散戶多空比","行為學分數","綜合危險分"]
         r_max=[80000,50000,50,100,8]
@@ -2031,7 +2031,7 @@ with tab5:
         fig5_r.add_trace(go.Scatterpolar(r=r_pc,theta=r_cc,fill="toself",name="風險",line_color="#ff5252",fillcolor="rgba(255,82,82,0.15)"))
         fig5_r.add_trace(go.Scatterpolar(r=[50]*len(r_cc),theta=r_cc,mode="lines",name="警戒線",line=dict(color="#ffab40",dash="dot",width=1.5)))
         fig5_r.update_layout(polar=dict(bgcolor="rgba(0,0,0,0)",radialaxis=dict(visible=True,range=[0,100],gridcolor=GRID_COLOR,color=TEXT_COLOR,ticksuffix="%"),angularaxis=dict(gridcolor=GRID_COLOR,color="#e8f4fd")),**base_layout("崩盤預警雷達",300),showlegend=True)
-        st.plotly_chart(fig5_r,use_container_width=True)
+        st.plotly_chart(fig5_r,width='stretch')
 
     st.markdown("<br>",unsafe_allow_html=True)
     st.markdown("<div class='section-title' style='font-size:0.8rem;'>🤖 AI 綜合診斷報告</div>",unsafe_allow_html=True)
