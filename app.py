@@ -590,6 +590,7 @@ MARKET_MODE_PARAMS = {
 # ══════════════════════════════════════════════
 for k,v in {
     "fm_token":"","fm_stock_list":None,"fm_list_ok":False,
+    "fm_industry_groups": {},   # FinMind 產業分類群組
     "scan_result":None,"scanned":False,"scanned_group":"",
     "selected_pool":[],"watch_ticker":"2454.TW","watch_name":"聯發科 (2454)",
     "custom_stocks":[],"chip_data":{},"futures_data":{},
@@ -627,84 +628,176 @@ with st.sidebar:
         if ok:
             st.session_state.fm_stock_list = df_list
             st.session_state.fm_list_ok    = True
-            st.success(f"✅ 載入 {len(df_list)} 檔（上市＋上櫃，已排除ETF）")
+
+            # ── 自動依產業分類建立群組
+            industry_groups = {}
+            if "industry_category" in df_list.columns:
+                for cat, grp in df_list.groupby("industry_category"):
+                    if not cat or str(cat).strip() == "" or str(cat) == "nan":
+                        cat = "其他"
+                    ids_in_cat = grp["stock_id"].tolist()
+                    if len(ids_in_cat) >= 2:  # 至少2檔才建群組
+                        industry_groups[str(cat)] = ids_in_cat
+            st.session_state.fm_industry_groups = industry_groups
+            n_grp = len(industry_groups)
+
+            st.success(f"✅ 載入 {len(df_list)} 檔｜自動建立 {n_grp} 個產業群組")
         else:
             st.session_state.fm_list_ok = False
             st.warning("⚠️ FinMind 無法連線（IP限制），使用內建靜態股票庫")
 
     if st.session_state.fm_list_ok and st.session_state.fm_stock_list is not None:
         n = len(st.session_state.fm_stock_list)
-        st.markdown(f"<div class='infobox'>FinMind 動態股票池：<b style='color:#00d4ff;'>{n}</b> 檔</div>", unsafe_allow_html=True)
+        n_grp = len(st.session_state.get("fm_industry_groups", {}))
+        st.markdown(
+            f"<div class='infobox'>"
+            f"FinMind 動態股票池：<b style='color:#00d4ff;'>{n}</b> 檔<br>"
+            f"產業群組：<b style='color:#00e676;'>{n_grp}</b> 個（自動分類）"
+            f"</div>",
+            unsafe_allow_html=True
+        )
 
     st.markdown("---")
 
     # ── STEP 1：選擇群組
     st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 1 ｜ 選擇掃描群組</div>", unsafe_allow_html=True)
-    group_names = list(SECTOR_MAP.keys())
+    # ══════════════════════════════════════════════
+    # 建立完整群組選單（靜態 + 全市場 + FinMind產業）
+    # ══════════════════════════════════════════════
+    fm_ok       = st.session_state.get("fm_list_ok") and st.session_state.get("fm_stock_list") is not None
+    fm_df       = st.session_state.get("fm_stock_list")
+    fm_industry = st.session_state.get("fm_industry_groups", {})
 
-    # ── 計算每個群組的實際股票數（與 FinMind 清單連動）
+    # 群組來源類型
+    SOURCE_STATIC   = "static"
+    SOURCE_ALL      = "all_market"
+    SOURCE_INDUSTRY = "industry"
+    SOURCE_CUSTOM   = "custom"
+
+    # 建立選單選項：(display_label, source_type, key)
+    menu_options = []
+
+    # ── 全市場（若已載入 FinMind）
+    if fm_ok and fm_df is not None:
+        n_all = len(fm_df)
+        menu_options.append((f"🌏 全市場掃描（{n_all}檔）", SOURCE_ALL, "ALL"))
+
+    # ── FinMind 產業分類群組（若已載入）
+    if fm_industry:
+        st.markdown(
+            "<div style='color:#00e676;font-size:0.72rem;margin:4px 0 2px;'>── FinMind 產業分類</div>",
+            unsafe_allow_html=True
+        )
+        for cat, ids_list in sorted(fm_industry.items(), key=lambda x: -len(x[1])):
+            label = f"📂 {cat}（{len(ids_list)}檔）"
+            menu_options.append((label, SOURCE_INDUSTRY, cat))
+
+    # ── 靜態內建群組
+    st.markdown(
+        "<div style='color:#7fb3d3;font-size:0.72rem;margin:4px 0 2px;'>── 靜態內建群組</div>",
+        unsafe_allow_html=True
+    )
     def get_group_count(gkey):
         if gkey == "✏️ 自訂股票組合":
             return len(st.session_state.get("custom_stocks", []))
         gids = SECTOR_MAP[gkey]["ids"]
-        if st.session_state.get("fm_list_ok") and st.session_state.get("fm_stock_list") is not None:
-            fm_ids = set(st.session_state["fm_stock_list"]["stock_id"].tolist())
+        if fm_ok and fm_df is not None:
+            fm_ids = set(fm_df["stock_id"].tolist())
             return len([i for i in gids if i in fm_ids])
         return len(gids)
 
-    # 群組名稱加上數量
-    group_display  = [g if g=="✏️ 自訂股票組合" else f"{g}（{get_group_count(g)}檔）" for g in group_names]
-    display_to_key = {d:k for d,k in zip(group_display, group_names)}
+    for g in SECTOR_MAP.keys():
+        if g == "✏️ 自訂股票組合":
+            menu_options.append((g, SOURCE_CUSTOM, g))
+        else:
+            n = get_group_count(g)
+            menu_options.append((f"{g}（{n}檔）", SOURCE_STATIC, g))
 
+    # 下拉選單
+    display_labels = [m[0] for m in menu_options]
     selected_display = st.selectbox(
-        "產業類股群組", group_display,
-        help="括號內為與 FinMind 清單連動的有效股票數"
+        "產業類股群組", display_labels,
+        help="全市場可掃描所有上市櫃股票，FinMind產業分類需先載入清單"
     )
-    selected_group = display_to_key[selected_display]
-    group_info     = SECTOR_MAP[selected_group]
+
+    # 找到選擇的選項
+    sel_item = next((m for m in menu_options if m[0] == selected_display), menu_options[0])
+    sel_source = sel_item[1]
+    sel_key    = sel_item[2]
+
+    # 依來源類型決定 selected_group 和 group_info
+    if sel_source == SOURCE_ALL:
+        selected_group = "🌏 全市場掃描"
+        group_info = {
+            "color": "#00d4ff",
+            "desc": f"全部上市櫃股票（共 {len(fm_df)} 檔，已排除ETF）",
+            "ids": fm_df["stock_id"].tolist() if fm_df is not None else [],
+        }
+    elif sel_source == SOURCE_INDUSTRY:
+        selected_group = f"📂 {sel_key}"
+        ids_list = fm_industry.get(sel_key, [])
+        group_info = {
+            "color": "#00e676",
+            "desc": f"FinMind 產業分類：{sel_key}（{len(ids_list)}檔）",
+            "ids": ids_list,
+        }
+    elif sel_source == SOURCE_CUSTOM:
+        selected_group = "✏️ 自訂股票組合"
+        group_info = SECTOR_MAP["✏️ 自訂股票組合"]
+    else:
+        selected_group = sel_key
+        group_info = SECTOR_MAP.get(sel_key, {"color":"#7fb3d3","desc":"","ids":[]})
 
     if selected_group != "✏️ 自訂股票組合":
-        # 若有 FinMind 清單，從中撈出對應股票資訊
         ids = group_info["ids"]
-        if st.session_state.fm_list_ok and st.session_state.fm_stock_list is not None:
-            df_grp = st.session_state.fm_stock_list[
-                st.session_state.fm_stock_list["stock_id"].isin(ids)].copy()
-            # ★ 去重：同一 stock_id 只保留第一筆（避免上市+上櫃重複）
+
+        if fm_ok and fm_df is not None:
+            # ── 從 FinMind 清單取得完整資訊，嚴格去重
+            df_grp = fm_df[fm_df["stock_id"].isin(ids)].copy()
             df_grp = df_grp.drop_duplicates(subset="stock_id", keep="first")
-            # ★ 保持原始 ids 的順序
-            id_set = set(df_grp["stock_id"].tolist())
+            id_set      = set(df_grp["stock_id"].tolist())
             ordered_ids = [i for i in ids if i in id_set]
-            df_grp = df_grp.set_index("stock_id").loc[ordered_ids].reset_index()
+            if ordered_ids:
+                df_grp = df_grp.set_index("stock_id").loc[ordered_ids].reset_index()
             stocks_in_group = [
                 (str(r.stock_id), str(r.stock_name), str(r.market), str(r.yf_ticker))
                 for _, r in df_grp.iterrows()
             ]
-            src_label = "FinMind 動態"
+            src_badge = "FinMind 動態"; src_color = "#00e676"
         else:
-            # 靜態對照（只有代號，名稱待掃描時由 yfinance 補）
             stocks_in_group = [(i, i, "上市", f"{i}.TW") for i in ids]
-            src_label = "靜態內建"
+            src_badge = "靜態內建"; src_color = "#ffab40"
+
+        # 全市場掃描警告
+        warn_full = ""
+        if len(stocks_in_group) > 200:
+            est_min = int(len(stocks_in_group)*1.3/60)
+            warn_full = (f"<br><span style='color:#ff9800;font-size:0.72rem;'>"
+                         f"⚠️ 股票數量多，預估約 {est_min} 分鐘，建議先選特定產業測試</span>")
 
         st.markdown(
-            f"<div class='infobox'><span style='color:{group_info['color']};font-weight:600;'>{selected_group}</span><br>"
+            f"<div class='infobox'>"
+            f"<span style='color:{group_info['color']};font-weight:600;'>{selected_group}</span><br>"
             f"{group_info['desc']}<br>"
             f"共 <b style='color:#e8f4fd;'>{len(stocks_in_group)}</b> 檔 "
-            f"<span style='background:rgba(0,212,255,0.1);border:1px solid #00d4ff;color:#00d4ff;"
-            f"border-radius:4px;padding:1px 6px;font-size:0.66rem;'>{src_label}</span></div>",
+            f"<span style='background:rgba(0,212,255,0.1);border:1px solid {src_color};"
+            f"color:{src_color};border-radius:4px;padding:1px 6px;font-size:0.66rem;'>"
+            f"{src_badge}</span>{warn_full}</div>",
             unsafe_allow_html=True
         )
-        with st.expander("📋 查看群組股票清單", expanded=False):
-            for sid, sname, mkt, _ in stocks_in_group[:30]:
-                mc = "#00d4ff" if mkt=="上市" else "#ffab40"
+        preview_limit = 50 if len(stocks_in_group) > 100 else 30
+        with st.expander(f"📋 查看股票清單（前{min(preview_limit,len(stocks_in_group))}檔）", expanded=False):
+            for sid, sname, mkt, _ in stocks_in_group[:preview_limit]:
+                mc = "#00d4ff" if mkt in ["上市","twse"] else "#ffab40"
                 st.markdown(
-                    f"<span style='background:#162535;border-radius:4px;padding:1px 7px;"
-                    f"font-size:0.78rem;color:#e8f4fd;font-family:monospace;'>{sid}</span> "
-                    f"<span style='color:#e8f4fd;font-size:0.8rem;'>{sname}</span> "
+                    f"<span style='background:#162535;border-radius:4px;padding:1px 6px;"
+                    f"font-size:0.76rem;color:#e8f4fd;font-family:monospace;'>{sid}</span> "
+                    f"<span style='color:#e8f4fd;font-size:0.78rem;'>{sname}</span> "
                     f"<span style='color:{mc};font-size:0.68rem;'>{mkt}</span>",
                     unsafe_allow_html=True
                 )
-            if len(stocks_in_group) > 30:
-                st.markdown(f"<span style='color:#546e7a;font-size:0.74rem;'>... 還有 {len(stocks_in_group)-30} 檔</span>", unsafe_allow_html=True)
+            if len(stocks_in_group) > preview_limit:
+                st.caption(f"... 還有 {len(stocks_in_group)-preview_limit} 檔未顯示")
     else:
         st.markdown("<div style='color:#7fb3d3;font-size:0.76rem;margin-bottom:6px;'>輸入股票代號（逗號或換行分隔）</div>", unsafe_allow_html=True)
         custom_input = st.text_area("股票代號", placeholder="例：2330,2454,2308", height=90, label_visibility="collapsed")
@@ -717,11 +810,14 @@ with st.sidebar:
         else:
             stocks_in_group = []
 
-    # 合併額外群組
+    # 合併額外群組（只顯示靜態內建群組）
     with st.expander("➕ 合併多個群組掃描", expanded=False):
-        extra_groups = st.multiselect("額外加入群組",
-            [g for g in group_names if g != selected_group and g != "✏️ 自訂股票組合"],
-            label_visibility="collapsed")
+        static_group_names = [g for g in SECTOR_MAP.keys()
+                              if g != selected_group and g != "✏️ 自訂股票組合"]
+        extra_groups = st.multiselect(
+            "額外加入群組", static_group_names,
+            label_visibility="collapsed"
+        )
 
     # 最終掃描清單
     def build_scan_list():
@@ -822,7 +918,6 @@ with st.sidebar:
                   margin_max=margin_max, inst_min=inst_min,
                   bias_max=bias_max, vol_max=vol_max,
                   market_mode=mode_key)
-
     st.markdown("---")
     st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 3 ｜ 執行掃描</div>", unsafe_allow_html=True)
     if total_count > 0:
