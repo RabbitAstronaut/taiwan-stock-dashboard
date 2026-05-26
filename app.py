@@ -1072,17 +1072,17 @@ with st.sidebar:
 
     def apply_filters(df, p):
         r = df.copy()
-        c1_eps = (r["EPS_TTM"] > p["eps_min"]).fillna(False)
+        c1_eps = (r["EPS_TTM"] > p["eps_min"]).fillna(True)
         c1_pe  = (r["PE"] < p["pe_max"]).fillna(True)
-        c1_gm  = (r["毛利率%"] > p["gm_min"]).fillna(False)
+        c1_gm  = (r["毛利率%"] > p["gm_min"]).fillna(True)
         r["pass1"] = c1_eps & c1_pe & c1_gm
-        c2_mg   = r["融資5日變動%"] < p["margin_max"]
-        c2_inst = r["法人買超%"]    > p["inst_min"]
+        c2_mg   = (r["融資5日變動%"] < p["margin_max"]).fillna(True)
+        c2_inst = (r["法人買超%"] > p["inst_min"]).fillna(True)
         req_big = p.get("req_big_holder", False)
         c2_big  = (r["大戶持股增"] == True) if req_big else pd.Series([True]*len(r), index=r.index)
         r["pass2"] = r["pass1"] & c2_mg & c2_inst & c2_big
-        c3_bias = (r["MA20乖離%"] > 0) & (r["MA20乖離%"] < p["bias_max"])
-        c3_vol  = r["量比(5MA)"] < p["vol_max"]
+        c3_bias = ((r["MA20乖離%"] > 0) & (r["MA20乖離%"] < p["bias_max"])).fillna(True)
+        c3_vol  = (r["量比(5MA)"] < p["vol_max"]).fillna(True)
         c3_hl   = pd.Series([True]*len(r), index=r.index) if p.get("bias_max", 6) >= 12 else (r["底部墊高"] == True)
         r["pass3"] = r["pass2"] & c3_bias & c3_vol & c3_hl
         return r
@@ -1182,15 +1182,43 @@ with st.sidebar:
                 rsv=(s-lm)/(hm-lm+1e-9)*100; kv=dv=50.0
                 for rv_ in rsv.dropna(): kv=kv*2/3+float(rv_)*1/3; dv=dv*2/3+kv*1/3
                 pe_v=gm_v=eps_v=np.nan
+
+                # ── 優先從 price_basic.csv 取得（yfinance 爬蟲結果）
                 df_pb,ok_pb=load_price_basic(sid)
                 if ok_pb and not df_pb.empty:
-                    pe_v=df_pb["pe"].iloc[0]; eps_v=df_pb["eps_ttm"].iloc[0]; gm_v=df_pb["gross_margin"].iloc[0]
-                else:
+                    pe_v  = df_pb["pe"].iloc[0]
+                    eps_v = df_pb["eps_ttm"].iloc[0]
+                    gm_v  = df_pb["gross_margin"].iloc[0]
+
+                # ── 若 price_basic 沒有，從 financials.csv 取（FinMind真實財報）
+                df_fin_s, ok_fin_s = load_financials(sid)
+                if ok_fin_s and not df_fin_s.empty:
+                    name_col = "origin_name" if "origin_name" in df_fin_s.columns else df_fin_s.columns[2]
+                    val_col  = "value" if "value" in df_fin_s.columns else df_fin_s.columns[-1]
+                    try:
+                        # EPS
+                        if np.isnan(float(eps_v)) if eps_v is not None else True:
+                            eps_rows = df_fin_s[df_fin_s[name_col].str.contains("每股盈餘|BasicEPS|EPS", case=False, na=False)]
+                            if not eps_rows.empty:
+                                eps_v = float(pd.to_numeric(eps_rows[val_col], errors="coerce").dropna().iloc[-1])
+                        # 毛利率
+                        if np.isnan(float(gm_v)) if gm_v is not None else True:
+                            gm_rows = df_fin_s[df_fin_s[name_col].str.contains("毛利率|GrossMargin", case=False, na=False)]
+                            if not gm_rows.empty:
+                                gm_v = float(pd.to_numeric(gm_rows[val_col], errors="coerce").dropna().iloc[-1])
+                    except: pass
+
+                # ── 最後備援：yfinance 即時抓取
+                if (eps_v is None or (isinstance(eps_v, float) and np.isnan(eps_v))) or                    (gm_v  is None or (isinstance(gm_v,  float) and np.isnan(gm_v))):
                     try:
                         info=yf.Ticker(ytk).info or {}
-                        pe_v=info.get("trailingPE",np.nan); eps_v=info.get("trailingEps",np.nan)
-                        gm_v=info.get("grossMargins",np.nan)
-                        if gm_v and not np.isnan(float(gm_v)) and float(gm_v)<1: gm_v=float(gm_v)*100
+                        if eps_v is None or (isinstance(eps_v,float) and np.isnan(eps_v)):
+                            eps_v=info.get("trailingEps",np.nan)
+                        if pe_v  is None or (isinstance(pe_v, float) and np.isnan(pe_v)):
+                            pe_v =info.get("trailingPE",np.nan)
+                        if gm_v  is None or (isinstance(gm_v, float) and np.isnan(gm_v)):
+                            gm_v =info.get("grossMargins",np.nan)
+                            if gm_v and not np.isnan(float(gm_v)) and float(gm_v)<1: gm_v=float(gm_v)*100
                     except: pass
                 margin_chg=np.random.uniform(-7,4); inst_buy=np.random.uniform(-5,25)
                 big_holder=bool(np.random.choice([True,False],p=[0.45,0.55])); chip_real=False
