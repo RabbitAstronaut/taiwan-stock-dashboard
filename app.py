@@ -70,12 +70,44 @@ section[data-testid="stSidebar"]{background:#080e1a!important;}
     background:transparent!important;
 }
 [data-testid="stRadio"] label {
-    color:#c8dff0!important;
+    color:#ffffff!important;
+    font-size:0.84rem!important;
     padding:6px 10px!important;
     border-radius:6px!important;
+    border:1px solid #1e3a5f!important;
+    margin:2px 0!important;
+    background:#0d1a2a!important;
 }
 [data-testid="stRadio"] label:hover {
-    background:rgba(0,212,255,0.08)!important;
+    background:rgba(0,212,255,0.1)!important;
+    border-color:#00d4ff!important;
+    color:#ffffff!important;
+}
+[data-testid="stRadio"] label[data-checked="true"],
+[data-testid="stRadio"] label[aria-checked="true"] {
+    background:rgba(0,212,255,0.12)!important;
+    border-color:#00d4ff!important;
+    color:#00d4ff!important;
+    font-weight:600!important;
+}
+/* ── 所有 Sidebar 文字強制白色 ── */
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] div {
+    color:#ddeeff!important;
+}
+[data-testid="stSidebar"] b,
+[data-testid="stSidebar"] strong {
+    color:#ffffff!important;
+}
+/* ── Selectbox 文字 ── */
+[data-testid="stSidebar"] [data-baseweb="select"] span {
+    color:#ffffff!important;
+}
+/* ── Slider 數值 ── */
+[data-testid="stSidebar"] [data-testid="stSlider"] p {
+    color:#b0d4f0!important;
 }
 
 /* ── Expander 內部 ── */
@@ -594,6 +626,8 @@ for k,v in {
     "scan_result":None,"scanned":False,"scanned_group":"",
     "selected_pool":[],"watch_ticker":"2454.TW","watch_name":"聯發科 (2454)",
     "custom_stocks":[],"chip_data":{},"futures_data":{},
+    "watchlist": [],        # 我的觀察清單 [(ticker, name), ...]
+    "watchlist_manual": "", # 手動輸入的代號
 }.items():
     if k not in st.session_state: st.session_state[k] = v
 
@@ -852,74 +886,7 @@ with st.sidebar:
     est_str     = f"{int(est_sec//60)}分{int(est_sec%60)}秒" if est_sec>=60 else f"{int(est_sec)}秒"
 
     st.markdown("---")
-    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 2 ｜ 市場環境 ＋ 篩選條件</div>", unsafe_allow_html=True)
-
-    # ── 大盤自動偵測
-    auto_mode_key, auto_mode_label, auto_mode_desc, auto_color = detect_market_mode()
-
-    st.markdown(
-        f"<div class='infobox'>📡 大盤自動偵測：<b style='color:{auto_color};'>{auto_mode_label}</b><br>"
-        f"<span style='font-size:0.74rem;'>{auto_mode_desc}</span></div>",
-        unsafe_allow_html=True
-    )
-
-    # ── 手動切換市場模式
-    mode_options = {
-        "🚀 多頭追蹤｜法人持續買、量能放大": "bull",
-        "📊 盤整低接｜量縮回測、融資減少":   "range",
-        "🛡️ 弱市防守｜籌碼極乾淨、強勢抗跌": "bear",
-    }
-    mode_labels  = list(mode_options.keys())
-    # 預設選自動偵測的模式
-    auto_idx = {"bull":0,"range":1,"bear":2}.get(auto_mode_key, 1)
-    selected_mode_label = st.radio(
-        "市場模式（可手動覆蓋）",
-        mode_labels,
-        index=auto_idx,
-        horizontal=False,
-        label_visibility="collapsed",
-    )
-    mode_key    = mode_options[selected_mode_label]
-    mode_params = MARKET_MODE_PARAMS[mode_key]
-
-    # ── 顯示模式說明
-    mode_colors = {"bull":"#00e676","range":"#ffab40","bear":"#ff5252"}
-    mc = mode_colors[mode_key]
-    st.markdown(
-        f"<div style='background:rgba({"0,230,118" if mode_key=="bull" else "255,171,64" if mode_key=="range" else "255,82,82"},0.08);"
-        f"border:1px solid {mc};border-radius:8px;padding:8px 12px;margin:4px 0;'>"
-        f"<span style='color:{mc};font-weight:600;font-size:0.8rem;'>{mode_params["label"]}</span>"
-        f"<span style='color:#7fb3d3;font-size:0.74rem;'> ｜ {mode_params["desc"]}</span></div>",
-        unsafe_allow_html=True
-    )
-
-    # ── 篩選條件滑桿（預設值自動帶入選擇的模式）
-    with st.expander("第一道：基本面護城河", expanded=False):
-        eps_min = st.slider("EPS(TTM) 最低", 0.0, 20.0,
-                            float(mode_params["eps_min"]), 0.5)
-        pe_max  = st.slider("P/E 最高",       0,   80,
-                            int(mode_params["pe_max"]),  1)
-        gm_min  = st.slider("毛利率% 最低",   0,   60,
-                            int(mode_params["gm_min"]),  1)
-    with st.expander("第二道：籌碼黃金交叉", expanded=False):
-        margin_max = st.slider("融資5日變動% 上限", -10.0, 5.0,
-                               float(mode_params["margin_max"]), 0.5)
-        inst_min   = st.slider("法人買超% 下限",     0.0,  30.0,
-                               float(mode_params["inst_min"]),   0.5)
-        st.caption("⚠️ 多頭模式下融資上限放寬至正值，允許適度追多")
-    with st.expander("第三道：右側均線防守", expanded=False):
-        bias_max  = st.slider("MA20乖離% 上限", 1.0, 15.0,
-                              float(mode_params["bias_max"]), 0.5)
-        vol_max   = st.slider("量比(5MA) 上限", 0.3,  1.5,
-                              float(mode_params["vol_max"]),  0.05)
-        st.caption("多頭模式允許量比放大到1.2，盤整模式要求量縮0.7以下")
-
-    params = dict(eps_min=eps_min, pe_max=pe_max, gm_min=gm_min,
-                  margin_max=margin_max, inst_min=inst_min,
-                  bias_max=bias_max, vol_max=vol_max,
-                  market_mode=mode_key)
-    st.markdown("---")
-    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 3 ｜ 執行掃描</div>", unsafe_allow_html=True)
+    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 2 ｜ 執行掃描</div>", unsafe_allow_html=True)
     if total_count > 0:
         st.markdown(f"<div class='infobox'>掃描 <b style='color:#00d4ff;'>{total_count}</b> 檔 ｜ 預估 <b style='color:#ffab40;'>{est_str}</b></div>", unsafe_allow_html=True)
 
@@ -1021,8 +988,7 @@ with st.sidebar:
                         chip_real = True
                     except: pass
                 df_mg, ok_mg = fetch_margin(sid, start_chip, fm_tok)
-                if ok_mg and not df_mg.empty:
-                    try:
+                if ok_mg and not df_mg.empty:                    try:
                         col_bal = [c for c in df_mg.columns if "MarginPurchaseTodayBalance" in c or "margin_purchase_today_balance" in c]
                         if col_bal:
                             bal = df_mg[col_bal[0]].astype(float)
@@ -1097,20 +1063,173 @@ with st.sidebar:
             st.rerun()
 
     st.markdown("---")
-    st.markdown("<div style='color:#7fb3d3;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;'>🎯 監控標的</div>", unsafe_allow_html=True)
-    pool = st.session_state.selected_pool
-    if pool:
-        pool_map = {label:tick for tick,label in pool}
-        chosen   = st.selectbox("精選標的", list(pool_map.keys()), label_visibility="collapsed")
-        ticker   = pool_map[chosen]; selected_name = chosen
-    else:
-        fb = {"聯發科 (2454)":"2454.TW","台積電 (2330)":"2330.TW","台達電 (2308)":"2308.TW","廣達 (2382)":"2382.TW"}
-        selected_name = st.selectbox("預設標的", list(fb.keys()), label_visibility="collapsed")
-        ticker = fb[selected_name]
-        st.markdown("<div style='color:#ffab40;font-size:0.7rem;'>💡 掃描後自動填入精選股</div>", unsafe_allow_html=True)
-    st.session_state.watch_ticker = ticker; st.session_state.watch_name = selected_name
+    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 3 ｜ 篩選條件（即時調整，不重新下載）</div>", unsafe_allow_html=True)
+
+    # ── 說明
+    st.markdown(
+        "<div style='background:rgba(0,212,255,0.06);border:1px solid #1e3a5f;"
+        "border-radius:6px;padding:8px 12px;margin-bottom:8px;'>"
+        "<span style='color:#00d4ff;font-size:0.76rem;'>"
+        "💡 調整條件後點「🔄 重新套用條件」即可，無需重新掃描</span></div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 大盤自動偵測
+    auto_mode_key, auto_mode_label, auto_mode_desc, auto_color = detect_market_mode()
+
+    st.markdown(
+        f"<div class='infobox'>📡 大盤自動偵測：<b style='color:{auto_color};'>{auto_mode_label}</b><br>"
+        f"<span style='font-size:0.74rem;'>{auto_mode_desc}</span></div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 手動切換市場模式
+    mode_options = {
+        "🚀 多頭追蹤｜法人持續買、量能放大": "bull",
+        "📊 盤整低接｜量縮回測、融資減少":   "range",
+        "🛡️ 弱市防守｜籌碼極乾淨、強勢抗跌": "bear",
+    }
+    mode_labels  = list(mode_options.keys())
+    # 預設選自動偵測的模式
+    auto_idx = {"bull":0,"range":1,"bear":2}.get(auto_mode_key, 1)
+    selected_mode_label = st.radio(
+        "市場模式（可手動覆蓋）",
+        mode_labels,
+        index=auto_idx,
+        horizontal=False,
+        label_visibility="collapsed",
+    )
+    mode_key    = mode_options[selected_mode_label]
+    mode_params = MARKET_MODE_PARAMS[mode_key]
+
+    # ── 顯示模式說明
+    mode_colors = {"bull":"#00e676","range":"#ffab40","bear":"#ff5252"}
+    mc = mode_colors[mode_key]
+    st.markdown(
+        f"<div style='background:rgba({"0,230,118" if mode_key=="bull" else "255,171,64" if mode_key=="range" else "255,82,82"},0.08);"
+        f"border:1px solid {mc};border-radius:8px;padding:8px 12px;margin:4px 0;'>"
+        f"<span style='color:{mc};font-weight:600;font-size:0.8rem;'>{mode_params["label"]}</span>"
+        f"<span style='color:#7fb3d3;font-size:0.74rem;'> ｜ {mode_params["desc"]}</span></div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 篩選條件滑桿（預設值自動帶入選擇的模式）
+    with st.expander("第一道：基本面護城河", expanded=False):
+        eps_min = st.slider("EPS(TTM) 最低", 0.0, 20.0,
+                            float(mode_params["eps_min"]), 0.5)
+        pe_max  = st.slider("P/E 最高",       0,   80,
+                            int(mode_params["pe_max"]),  1)
+        gm_min  = st.slider("毛利率% 最低",   0,   60,
+                            int(mode_params["gm_min"]),  1)
+    with st.expander("第二道：籌碼黃金交叉", expanded=False):
+        margin_max = st.slider("融資5日變動% 上限", -10.0, 5.0,
+                               float(mode_params["margin_max"]), 0.5)
+        inst_min   = st.slider("法人買超% 下限",     0.0,  30.0,
+                               float(mode_params["inst_min"]),   0.5)
+        st.caption("⚠️ 多頭模式下融資上限放寬至正值，允許適度追多")
+    with st.expander("第三道：右側均線防守", expanded=False):
+        bias_max  = st.slider("MA20乖離% 上限", 1.0, 15.0,
+                              float(mode_params["bias_max"]), 0.5)
+        vol_max   = st.slider("量比(5MA) 上限", 0.3,  1.5,
+                              float(mode_params["vol_max"]),  0.05)
+        st.caption("多頭模式允許量比放大到1.2，盤整模式要求量縮0.7以下")
+
+    params = dict(eps_min=eps_min, pe_max=pe_max, gm_min=gm_min,
+                  margin_max=margin_max, inst_min=inst_min,
+                  bias_max=bias_max, vol_max=vol_max,
+                  market_mode=mode_key)
 
     st.markdown("---")
+    st.markdown("<div style='color:#7fb3d3;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>🎯 監控標的</div>", unsafe_allow_html=True)
+
+    # ── 監控標的選擇方式
+    monitor_mode = st.radio(
+        "選擇方式",
+        ["⭐ 我的觀察清單", "🏆 精選掃描結果", "🔍 手動輸入代號"],
+        horizontal=False, label_visibility="collapsed"
+    )
+
+    # ── 加入觀察清單（隨時可用）
+    with st.expander("➕ 管理觀察清單", expanded=False):
+        col_a1, col_a2 = st.columns([3,1])
+        with col_a1:
+            add_code = st.text_input("代號", placeholder="輸入4位數字代號，例：2330",
+                                     label_visibility="collapsed", key="wl_add")
+        with col_a2:
+            if st.button("加入", use_container_width=True, key="wl_add_btn"):
+                code = add_code.strip()
+                if code.isdigit() and len(code) == 4:
+                    wname = code
+                    if st.session_state.get("fm_list_ok") and st.session_state.get("fm_stock_list") is not None:
+                        m = st.session_state["fm_stock_list"][
+                            st.session_state["fm_stock_list"]["stock_id"]==code]
+                        if not m.empty: wname = str(m["stock_name"].iloc[0])
+                    wtk = f"{code}.TW"
+                    ent = (wtk, f"{code} {wname}")
+                    if not any(e[0]==wtk for e in st.session_state.watchlist):
+                        st.session_state.watchlist.append(ent)
+                        st.success(f"✅ 已加入：{wname}")
+                    else: st.info("已在清單中")
+                else: st.warning("請輸入4位數字代號")
+
+        # 清單顯示與刪除
+        if st.session_state.watchlist:
+            st.markdown("<div style='color:#7fb3d3;font-size:0.72rem;margin:6px 0 3px;'>觀察清單：</div>", unsafe_allow_html=True)
+            rm_idx = None
+            for i,(tk,nm) in enumerate(st.session_state.watchlist):
+                c1,c2 = st.columns([5,1])
+                with c1: st.markdown(f"<span style='color:#e8f4fd;font-size:0.78rem;'>{nm}</span>", unsafe_allow_html=True)
+                with c2:
+                    if st.button("✕", key=f"wl_rm_{i}", use_container_width=True): rm_idx = i
+            if rm_idx is not None:
+                st.session_state.watchlist.pop(rm_idx); st.rerun()
+        else:
+            st.caption("清單是空的，輸入代號後點加入")
+
+    # ── 依模式選擇
+    if monitor_mode == "⭐ 我的觀察清單":
+        wl = st.session_state.watchlist
+        if wl:
+            wl_map = {nm:tk for tk,nm in wl}
+            chosen = st.selectbox("觀察清單", list(wl_map.keys()), label_visibility="collapsed")
+            ticker = wl_map[chosen]; selected_name = chosen
+        else:
+            st.markdown("<div style='color:#ffab40;font-size:0.74rem;'>清單是空的，請先加入股票</div>", unsafe_allow_html=True)
+            ticker = "2454.TW"; selected_name = "聯發科 (2454)"
+
+    elif monitor_mode == "🏆 精選掃描結果":
+        pool = st.session_state.selected_pool
+        if pool:
+            if st.button("⭐ 全部加入觀察清單", use_container_width=True):
+                added = sum(1 for tk,nm in pool if not any(e[0]==tk for e in st.session_state.watchlist) or st.session_state.watchlist.append((tk,nm)))
+                st.success(f"已加入 {added} 檔")
+            pool_map = {nm:tk for tk,nm in pool}
+            chosen = st.selectbox("精選標的", list(pool_map.keys()), label_visibility="collapsed")
+            ticker = pool_map[chosen]; selected_name = chosen
+        else:
+            st.markdown("<div style='color:#ffab40;font-size:0.74rem;'>請先執行掃描</div>", unsafe_allow_html=True)
+            ticker = "2454.TW"; selected_name = "聯發科 (2454)"
+
+    else:  # 手動輸入
+        manual_code = st.text_input("輸入股票代號", placeholder="例：2330",
+                                     label_visibility="collapsed", key="monitor_manual")
+        code = manual_code.strip()
+        if code.isdigit() and len(code) == 4:
+            mname = code
+            if st.session_state.get("fm_list_ok") and st.session_state.get("fm_stock_list") is not None:
+                m = st.session_state["fm_stock_list"][st.session_state["fm_stock_list"]["stock_id"]==code]
+                if not m.empty: mname = str(m["stock_name"].iloc[0])
+            ticker = f"{code}.TW"; selected_name = f"{code} {mname}"
+            if st.button("⭐ 加入觀察清單", use_container_width=True, key="manual_add"):
+                ent = (ticker, selected_name)
+                if not any(e[0]==ticker for e in st.session_state.watchlist):
+                    st.session_state.watchlist.append(ent); st.success(f"已加入：{mname}")
+                else: st.info("已在清單中")
+        else:
+            ticker = "2454.TW"; selected_name = "聯發科 (2454)"
+            st.markdown("<div style='color:#7fb3d3;font-size:0.72rem;'>輸入4位數字代號</div>", unsafe_allow_html=True)
+
+
     ma_short = st.slider("短均線",3,10,5); ma_mid=st.slider("中均線",10,30,20); ma_long=st.slider("長均線",40,120,60)
     period   = st.select_slider("K線週期",["3mo","6mo","1y","2y"],value="1y")
     st.markdown(f"""
@@ -1220,7 +1339,30 @@ with tab1:
         fmt.update({"收盤價":"{:.1f}","EPS_TTM":"{:.2f}","PE":"{:.1f}","量比(5MA)":"{:.2f}"})
         fmt_v={k:v for k,v in fmt.items() if k in dd.columns}
         st.dataframe(dd.style.apply(row_hl,axis=1).format(fmt_v,na_rep="—"),use_container_width=True,height=340)
-        st.caption(f"共 {len(dd)} 檔 ｜ 綠色=真實籌碼(FinMind) 黃色=模擬籌碼")
+        st.caption(f"共 {len(dd)} 檔 ｜ 🟢=真實籌碼(FinMind) 🟡=模擬籌碼")
+
+        # ── 從掃描結果加入觀察清單
+        st.markdown("<div class='section-title' style='font-size:0.78rem;'>⭐ 加入觀察清單</div>", unsafe_allow_html=True)
+        wl_c1, wl_c2 = st.columns([3,2])
+        with wl_c1:
+            add_candidates = [f"{r['代號']} {r['名稱']}" for _,r in dv.iterrows()] if not dv.empty else []
+            selected_to_add = st.multiselect(
+                "選擇要加入觀察清單的股票", add_candidates,
+                label_visibility="collapsed", placeholder="選擇股票..."
+            )
+        with wl_c2:
+            if st.button("⭐ 加入觀察清單", use_container_width=True, key="tab1_add_wl"):
+                added = 0
+                for item in selected_to_add:
+                    code = item.split(" ")[0]
+                    tk_match = dv[dv["代號"]==code] if "代號" in dv.columns else pd.DataFrame()
+                    ytk = str(tk_match["yf_ticker"].iloc[0]) if not tk_match.empty and "yf_ticker" in tk_match.columns else f"{code}.TW"
+                    ent = (ytk, item)
+                    if not any(e[0]==ytk for e in st.session_state.watchlist):
+                        st.session_state.watchlist.append(ent); added += 1
+                if added:
+                    st.success(f"✅ 已加入 {added} 檔到觀察清單")
+                    st.info("切換 Sidebar「⭐ 我的觀察清單」可監控這些股票")
         # ════════════════════════════════════════
         # 第四層：低風險伏擊點分析
         # ════════════════════════════════════════
