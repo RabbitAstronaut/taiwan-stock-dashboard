@@ -856,7 +856,8 @@ with st.sidebar:
                 except: pass
             return pd.DataFrame()
 
-        for i,(sid,sname,mkt,ytk) in enumerate(scan_list):            prog.progress((i+1)/len(scan_list))
+        for i,(sid,sname,mkt,ytk) in enumerate(scan_list):
+            prog.progress((i+1)/len(scan_list))
             stat.markdown(f"<div style='color:#7fb3d3;font-size:0.74rem;'>[{i+1}/{len(scan_list)}] {sid} {sname}</div>", unsafe_allow_html=True)
             try:
                 df_tmp = _dl(ytk)
