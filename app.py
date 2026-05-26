@@ -640,18 +640,45 @@ with st.sidebar:
 
     # ── STEP 1：選擇群組
     st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 1 ｜ 選擇掃描群組</div>", unsafe_allow_html=True)
-    group_names  = list(SECTOR_MAP.keys())
-    selected_group = st.selectbox("產業類股群組", group_names, help="選擇後預覽股票再執行掃描")
-    group_info   = SECTOR_MAP[selected_group]
+    group_names = list(SECTOR_MAP.keys())
+
+    # ── 計算每個群組的實際股票數（與 FinMind 清單連動）
+    def get_group_count(gkey):
+        if gkey == "✏️ 自訂股票組合":
+            return len(st.session_state.get("custom_stocks", []))
+        gids = SECTOR_MAP[gkey]["ids"]
+        if st.session_state.get("fm_list_ok") and st.session_state.get("fm_stock_list") is not None:
+            fm_ids = set(st.session_state["fm_stock_list"]["stock_id"].tolist())
+            return len([i for i in gids if i in fm_ids])
+        return len(gids)
+
+    # 群組名稱加上數量
+    group_display  = [g if g=="✏️ 自訂股票組合" else f"{g}（{get_group_count(g)}檔）" for g in group_names]
+    display_to_key = {d:k for d,k in zip(group_display, group_names)}
+
+    selected_display = st.selectbox(
+        "產業類股群組", group_display,
+        help="括號內為與 FinMind 清單連動的有效股票數"
+    )
+    selected_group = display_to_key[selected_display]
+    group_info     = SECTOR_MAP[selected_group]
 
     if selected_group != "✏️ 自訂股票組合":
         # 若有 FinMind 清單，從中撈出對應股票資訊
         ids = group_info["ids"]
         if st.session_state.fm_list_ok and st.session_state.fm_stock_list is not None:
             df_grp = st.session_state.fm_stock_list[
-                st.session_state.fm_stock_list["stock_id"].isin(ids)]
-            stocks_in_group = [(r.stock_id, r.stock_name, r.market, r.yf_ticker)
-                               for _, r in df_grp.iterrows()]
+                st.session_state.fm_stock_list["stock_id"].isin(ids)].copy()
+            # ★ 去重：同一 stock_id 只保留第一筆（避免上市+上櫃重複）
+            df_grp = df_grp.drop_duplicates(subset="stock_id", keep="first")
+            # ★ 保持原始 ids 的順序
+            id_set = set(df_grp["stock_id"].tolist())
+            ordered_ids = [i for i in ids if i in id_set]
+            df_grp = df_grp.set_index("stock_id").loc[ordered_ids].reset_index()
+            stocks_in_group = [
+                (str(r.stock_id), str(r.stock_name), str(r.market), str(r.yf_ticker))
+                for _, r in df_grp.iterrows()
+            ]
             src_label = "FinMind 動態"
         else:
             # 靜態對照（只有代號，名稱待掃描時由 yfinance 補）
@@ -842,8 +869,7 @@ with st.sidebar:
             for attempt in range(retries):
                 try:
                     time.sleep(attempt*1.2)
-                    df = yf.download(tk, period="6mo", auto_adjust=True, progress=False, timeout=15)
-                    df.columns = [c[0] if isinstance(c,tuple) else c for c in df.columns]
+                    df = yf.download(tk, period="6mo", auto_adjust=True, progress=False, timeout=15)                    df.columns = [c[0] if isinstance(c,tuple) else c for c in df.columns]
                     if not df.empty and len(df)>=25: return df
                 except: pass
             alt = tk.replace(".TW",".TWO") if tk.endswith(".TW") else tk.replace(".TWO",".TW")
