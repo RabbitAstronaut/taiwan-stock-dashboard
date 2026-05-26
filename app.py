@@ -886,138 +886,75 @@ with st.sidebar:
     est_str     = f"{int(est_sec//60)}分{int(est_sec%60)}秒" if est_sec>=60 else f"{int(est_sec)}秒"
 
     st.markdown("---")
-    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 2 ｜ 篩選條件設定</div>", unsafe_allow_html=True)
+    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 2 ｜ 篩選條件</div>", unsafe_allow_html=True)
 
-    # ── 大盤自動偵測
-    auto_mode_key, auto_mode_label, auto_mode_desc, auto_color = detect_market_mode()
-
-    st.markdown(
-        f"<div class='infobox'>📡 大盤自動偵測：<b style='color:{auto_color};'>{auto_mode_label}</b><br>"
-        f"<span style='font-size:0.74rem;'>{auto_mode_desc}</span></div>",
-        unsafe_allow_html=True
-    )
-
-    # ── 手動切換市場模式
-    mode_options = {
-        "🚀 多頭追蹤｜法人持續買、量能放大": "bull",
-        "📊 盤整低接｜量縮回測、融資減少":   "range",
-        "🛡️ 弱市防守｜籌碼極乾淨、強勢抗跌": "bear",
-    }
-    mode_labels  = list(mode_options.keys())
-    # 預設選自動偵測的模式
-    auto_idx = {"bull":0,"range":1,"bear":2}.get(auto_mode_key, 1)
-    selected_mode_label = st.radio(
-        "市場模式（可手動覆蓋）",
-        mode_labels,
-        index=auto_idx,
-        horizontal=False,
-        label_visibility="collapsed",
-    )
-    mode_key    = mode_options[selected_mode_label]
-    mode_params = MARKET_MODE_PARAMS[mode_key]
-
-    # ── 顯示模式說明
-    mode_colors = {"bull":"#00e676","range":"#ffab40","bear":"#ff5252"}
-    mc = mode_colors[mode_key]
-    _rgb  = "0,230,118" if mode_key=="bull" else "255,171,64" if mode_key=="range" else "255,82,82"
-    _lbl  = mode_params["label"]
-    _desc = mode_params["desc"]
-    st.markdown(
-        f"<div style='background:rgba({_rgb},0.08);"
-        f"border:1px solid {mc};border-radius:8px;padding:8px 12px;margin:4px 0;'>"
-        f"<span style='color:{mc};font-weight:600;font-size:0.8rem;'>{_lbl}</span>"
-        f"<span style='color:#7fb3d3;font-size:0.74rem;'> ｜ {_desc}</span></div>",
-        unsafe_allow_html=True
-    )
-
-    # ── 篩選條件滑桿（預設值自動帶入選擇的模式）
     with st.expander("第一道：基本面護城河", expanded=False):
-        eps_min = st.slider("EPS(TTM) 最低", 0.0, 20.0,
-                            float(mode_params["eps_min"]), 0.5)
-        pe_max  = st.slider("P/E 最高",       0,   80,
-                            int(mode_params["pe_max"]),  1)
-        gm_min  = st.slider("毛利率% 最低",   0,   60,
-                            int(mode_params["gm_min"]),  1)
+        eps_min = st.slider("EPS(TTM) 最低", 0.0, 20.0, 3.0, 0.5)
+        pe_max  = st.slider("P/E 最高",       0,   80,   45,  1)
+        gm_min  = st.slider("毛利率% 最低",   0,   60,   15,  1)
     with st.expander("第二道：籌碼黃金交叉", expanded=False):
-        margin_max = st.slider("融資5日變動% 上限", -10.0, 5.0,
-                               float(mode_params["margin_max"]), 0.5)
-        inst_min   = st.slider("法人買超% 下限",     0.0,  30.0,
-                               float(mode_params["inst_min"]),   0.5)
-        st.caption("⚠️ 多頭模式下融資上限放寬至正值，允許適度追多")
+        margin_max = st.slider("融資5日變動% 上限", -10.0, 5.0,  -1.5, 0.5)
+        inst_min   = st.slider("法人買超% 下限",     0.0,  30.0,  5.0, 0.5)
     with st.expander("第三道：右側均線防守", expanded=False):
-        bias_max  = st.slider("MA20乖離% 上限", 1.0, 15.0,
-                              float(mode_params["bias_max"]), 0.5)
-        vol_max   = st.slider("量比(5MA) 上限", 0.3,  1.5,
-                              float(mode_params["vol_max"]),  0.05)
-        st.caption("多頭模式允許量比放大到1.2，盤整模式要求量縮0.7以下")
+        bias_max = st.slider("MA20乖離% 上限", 1.0, 15.0, 6.0, 0.5)
+        vol_max  = st.slider("量比(5MA) 上限", 0.3,  1.5, 0.7, 0.05)
 
-    params = dict(eps_min=eps_min, pe_max=pe_max, gm_min=gm_min,
-                  margin_max=margin_max, inst_min=inst_min,
-                  bias_max=bias_max, vol_max=vol_max,
-                  market_mode=mode_key)
+    params = dict(
+        eps_min=eps_min, pe_max=pe_max, gm_min=gm_min,
+        margin_max=margin_max, inst_min=inst_min,
+        bias_max=bias_max, vol_max=vol_max,
+        market_mode="custom"
+    )
 
     st.markdown("---")
     st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 3 ｜ 執行掃描</div>", unsafe_allow_html=True)
-    st.markdown(
-        "<div style='background:rgba(0,212,255,0.06);border:1px solid #1e3a5f;"
-        "border-radius:6px;padding:8px 12px;margin-bottom:8px;'>"
-        "<span style='color:#00d4ff;font-size:0.76rem;'>"
-        "💡 掃描完成後可在 STEP 2 調整條件，點「🔄 重新套用」即時篩選，無需重新下載</span></div>",
-        unsafe_allow_html=True
-    )
-    if total_count > 0:
-        st.markdown(f"<div class='infobox'>掃描 <b style='color:#00d4ff;'>{total_count}</b> 檔 ｜ 預估 <b style='color:#ffab40;'>{est_str}</b></div>", unsafe_allow_html=True)
+
+    est = len(scan_list) * 1.2
+    est_s = f"{int(est//60)}分{int(est%60)}秒" if est >= 60 else f"{int(est)}秒"
+    if scan_list:
+        st.markdown(
+            f"<div class='infobox'>掃描 <b style='color:#00d4ff;'>{len(scan_list)}</b> 檔"
+            f" ｜ 預估 <b style='color:#ffab40;'>{est_s}</b></div>",
+            unsafe_allow_html=True
+        )
 
     def apply_filters(df, p):
         r = df.copy()
-        # 第一道：基本面（EPS 或 毛利率 有缺失時給寬鬆處理）
         c1_eps = (r["EPS_TTM"] > p["eps_min"]).fillna(False)
-        c1_pe  = (r["PE"] < p["pe_max"]).fillna(True)   # PE 缺失視為通過
+        c1_pe  = (r["PE"] < p["pe_max"]).fillna(True)
         c1_gm  = (r["毛利率%"] > p["gm_min"]).fillna(False)
         r["pass1"] = c1_eps & c1_pe & c1_gm
-
-        # 第二道：籌碼（大戶持股增 依模式決定是否必要）
         c2_mg   = r["融資5日變動%"] < p["margin_max"]
         c2_inst = r["法人買超%"]    > p["inst_min"]
         req_big = p.get("req_big_holder", False)
-        if req_big:
-            c2_big = r["大戶持股增"] == True
-        else:
-            c2_big = pd.Series([True] * len(r), index=r.index)  # 不要求大戶
+        c2_big  = (r["大戶持股增"] == True) if req_big else pd.Series([True]*len(r), index=r.index)
         r["pass2"] = r["pass1"] & c2_mg & c2_inst & c2_big
-
-        # 第三道：技術（底部墊高 在多頭模式下不強制要求）
         c3_bias = (r["MA20乖離%"] > 0) & (r["MA20乖離%"] < p["bias_max"])
         c3_vol  = r["量比(5MA)"] < p["vol_max"]
-        # 多頭模式（bias_max >= 12）不要求底部墊高        if p.get("bias_max", 6) >= 12:
-            c3_hl = pd.Series([True] * len(r), index=r.index)
-        else:
-            c3_hl = r["底部墊高"] == True
+        c3_hl   = pd.Series([True]*len(r), index=r.index) if p.get("bias_max", 6) >= 12 else (r["底部墊高"] == True)
         r["pass3"] = r["pass2"] & c3_bias & c3_vol & c3_hl
         return r
 
     run_btn = st.button("🚀 開始掃描此群組", type="primary",
-                        use_container_width=True, disabled=(total_count==0))
+                        use_container_width=True, disabled=len(scan_list)==0)
 
     if run_btn:
-        prog = st.progress(0); stat = st.empty(); rows = []; errors = []
-        fm_tok = st.session_state.fm_token
-        start_chip = (datetime.today()-timedelta(days=30)).strftime("%Y-%m-%d")
+        prog=st.progress(0); stat=st.empty(); rows=[]; errors=[]
 
         def _dl(tk, retries=3):
-            for attempt in range(retries):
+            for a in range(retries):
                 try:
-                    time.sleep(attempt*1.2)
-                    df = yf.download(tk, period="6mo", auto_adjust=True, progress=False, timeout=15)
-                    df.columns = [c[0] if isinstance(c,tuple) else c for c in df.columns]
+                    time.sleep(a*1.2)
+                    df=yf.download(tk,period="6mo",auto_adjust=True,progress=False,timeout=15)
+                    df.columns=[c[0] if isinstance(c,tuple) else c for c in df.columns]
                     if not df.empty and len(df)>=25: return df
                 except: pass
-            alt = tk.replace(".TW",".TWO") if tk.endswith(".TW") else tk.replace(".TWO",".TW")
-            for attempt in range(2):
+            alt=tk.replace(".TW",".TWO") if tk.endswith(".TW") else tk.replace(".TWO",".TW")
+            for a in range(2):
                 try:
-                    time.sleep(1+attempt)
-                    df = yf.download(alt, period="6mo", auto_adjust=True, progress=False, timeout=15)
-                    df.columns = [c[0] if isinstance(c,tuple) else c for c in df.columns]
+                    time.sleep(1+a)
+                    df=yf.download(alt,period="6mo",auto_adjust=True,progress=False,timeout=15)
+                    df.columns=[c[0] if isinstance(c,tuple) else c for c in df.columns]
                     if not df.empty and len(df)>=25: return df
                 except: pass
             return pd.DataFrame()
@@ -1026,118 +963,170 @@ with st.sidebar:
             prog.progress((i+1)/len(scan_list))
             stat.markdown(f"<div style='color:#7fb3d3;font-size:0.74rem;'>[{i+1}/{len(scan_list)}] {sid} {sname}</div>", unsafe_allow_html=True)
             try:
-                df_tmp = _dl(ytk)
+                df_tmp=_dl(ytk)
                 if df_tmp.empty: errors.append(sid); continue
-                close = df_tmp["Close"].values.flatten().astype(float)
-                vol   = df_tmp["Volume"].values.flatten().astype(float)
-                high  = df_tmp["High"].values.flatten().astype(float)
-                low_  = df_tmp["Low"].values.flatten().astype(float)
-                s = pd.Series(close)
-                ma20_v = float(s.rolling(20).mean().iloc[-1])
-                vma5_v = float(pd.Series(vol).rolling(5).mean().iloc[-1])
-                last_c = float(close[-1]); last_v = float(vol[-1])
-                ma20_b = (last_c-ma20_v)/ma20_v*100 if ma20_v>0 else 0
-                vol_r  = last_v/vma5_v if vma5_v>0 else 99
-                rl = min(low_[-20:]) if len(low_)>=20 else min(low_)
-                ol = min(low_[-40:-20]) if len(low_)>=40 else min(low_)
-                hl = bool(rl>ol)
+                close=df_tmp["Close"].values.flatten().astype(float)
+                vol  =df_tmp["Volume"].values.flatten().astype(float)
+                high =df_tmp["High"].values.flatten().astype(float)
+                low_ =df_tmp["Low"].values.flatten().astype(float)
+                s=pd.Series(close)
+                ma20_v=float(s.rolling(20).mean().iloc[-1])
+                vma5_v=float(pd.Series(vol).rolling(5).mean().iloc[-1])
+                last_c=float(close[-1]); last_v=float(vol[-1])
+                ma20_b=(last_c-ma20_v)/ma20_v*100 if ma20_v>0 else 0
+                vol_r =last_v/vma5_v if vma5_v>0 else 99
+                rl=min(low_[-20:]) if len(low_)>=20 else min(low_)
+                ol=min(low_[-40:-20]) if len(low_)>=40 else min(low_)
+                hl=bool(rl>ol)
                 lm=pd.Series(low_).rolling(9).min(); hm=pd.Series(high).rolling(9).max()
                 rsv=(s-lm)/(hm-lm+1e-9)*100; kv=dv=50.0
                 for rv_ in rsv.dropna(): kv=kv*2/3+float(rv_)*1/3; dv=dv*2/3+kv*1/3
                 pe_v=gm_v=eps_v=np.nan
-                try:
-                    info=yf.Ticker(ytk).info or {}
-                    pe_v=info.get("trailingPE",np.nan); eps_v=info.get("trailingEps",np.nan)
-                    gm_v=info.get("grossMargins",np.nan)
-                    if gm_v and not np.isnan(float(gm_v)) and float(gm_v)<1: gm_v=float(gm_v)*100
-                except: pass
-
-                # FinMind 真實籌碼（若可用）
-                margin_chg = np.random.uniform(-7,4); inst_buy = np.random.uniform(-5,25)
-                big_holder = bool(np.random.choice([True,False],p=[0.45,0.55]))
-                chip_real  = False
-                df_inst, ok_inst = fetch_institutional(sid, start_chip, fm_tok)
-                if ok_inst and not df_inst.empty:
+                df_pb,ok_pb=load_price_basic(sid)
+                if ok_pb and not df_pb.empty:                    pe_v=df_pb["pe"].iloc[0]; eps_v=df_pb["eps_ttm"].iloc[0]; gm_v=df_pb["gross_margin"].iloc[0]
+                else:
                     try:
-                        total_net_5d = df_inst.groupby("date")["net"].sum().iloc[-5:].sum()
-                        total_oi     = abs(df_inst["buy"].astype(float).sum()+df_inst["sell"].astype(float).sum())
-                        inst_buy  = (total_net_5d/total_oi*100) if total_oi>0 else 0
-                        chip_real = True
+                        info=yf.Ticker(ytk).info or {}
+                        pe_v=info.get("trailingPE",np.nan); eps_v=info.get("trailingEps",np.nan)
+                        gm_v=info.get("grossMargins",np.nan)
+                        if gm_v and not np.isnan(float(gm_v)) and float(gm_v)<1: gm_v=float(gm_v)*100
                     except: pass
-                df_mg, ok_mg = fetch_margin(sid, start_chip, fm_tok)
-                if ok_mg and not df_mg.empty:
+                margin_chg=np.random.uniform(-7,4); inst_buy=np.random.uniform(-5,25)
+                big_holder=bool(np.random.choice([True,False],p=[0.45,0.55])); chip_real=False
+                df_inst,ok_i=load_institutional(sid)
+                if ok_i and not df_inst.empty:
                     try:
-                        col_bal = [c for c in df_mg.columns if "MarginPurchaseTodayBalance" in c or "margin_purchase_today_balance" in c]
-                        if col_bal:
-                            bal = df_mg[col_bal[0]].astype(float)
-                            margin_chg = (bal.iloc[-1]-bal.iloc[min(-5,len(bal)-1)])/bal.iloc[min(-5,len(bal)-1)]*100 if bal.iloc[min(-5,len(bal)-1)]!=0 else 0
-                            big_holder = margin_chg < 0
-                            chip_real  = True
+                        total_oi=abs(df_inst["buy"].sum()+df_inst["sell"].sum())
+                        net_5d=df_inst.groupby("date")["net"].sum().iloc[-5:].sum()
+                        inst_buy=float(net_5d/total_oi*100) if total_oi>0 else 0
+                        chip_real=True
                     except: pass
-
-                # 若 sname 等於 sid（代表名稱未取得），嘗試從 FinMind 清單補齊
-                display_name = sname
-                if display_name == sid or not display_name or display_name.strip() == "":
-                    # 從已載入的 FinMind 股票清單找名稱
+                df_mg,ok_m=load_margin(sid)
+                if ok_m and not df_mg.empty:
+                    try:
+                        bc=[c for c in df_mg.columns if "TodayBalance" in c or "today_balance" in c]
+                        if bc:
+                            bal=pd.to_numeric(df_mg[bc[0]],errors="coerce").dropna()
+                            if len(bal)>=2:
+                                margin_chg=float((bal.iloc[-1]-bal.iloc[max(-5,-len(bal))])/max(abs(float(bal.iloc[max(-5,-len(bal))])),1)*100)
+                                big_holder=margin_chg<0; chip_real=True
+                    except: pass
+                display_name=sname
+                if display_name==sid or not display_name:
                     if st.session_state.get("fm_list_ok") and st.session_state.get("fm_stock_list") is not None:
-                        match = st.session_state["fm_stock_list"][
-                            st.session_state["fm_stock_list"]["stock_id"] == sid]
-                        if not match.empty:
-                            display_name = str(match["stock_name"].iloc[0])
-                    # 再嘗試從 yfinance 取得公司名稱
-                    if display_name == sid:
+                        match=st.session_state["fm_stock_list"][st.session_state["fm_stock_list"]["stock_id"]==sid]
+                        if not match.empty: display_name=str(match["stock_name"].iloc[0])
+                    if display_name==sid:
                         try:
-                            info = yf.Ticker(ytk).info or {}
-                            yf_name = info.get("longName","") or info.get("shortName","")
-                            if yf_name: display_name = yf_name
+                            info=yf.Ticker(ytk).info or {}
+                            yn=info.get("longName","") or info.get("shortName","")
+                            if yn: display_name=yn
                         except: pass
-
                 rows.append({
                     "代號":sid,"名稱":display_name,"市場":mkt,"yf_ticker":ytk,
                     "收盤價":round(last_c,1),"MA20乖離%":round(ma20_b,2),
-                    "量比(5MA)":round(vol_r,2),"底部墊高":hl,
-                    "K值":round(kv,1),"D值":round(dv,1),
+                    "量比(5MA)":round(vol_r,2),"底部墊高":hl,"K值":round(kv,1),"D值":round(dv,1),
                     "PE":round(float(pe_v),1) if pe_v and not np.isnan(float(pe_v)) else np.nan,
                     "EPS_TTM":round(float(eps_v),2) if eps_v and not np.isnan(float(eps_v)) else np.nan,
                     "毛利率%":round(float(gm_v),1) if gm_v and not np.isnan(float(gm_v)) else np.nan,
                     "融資5日變動%":round(float(margin_chg),1),
                     "法人買超%":round(float(inst_buy),1),
-                    "大戶持股增":bool(big_holder),
-                    "籌碼真實":chip_real,
+                    "大戶持股增":bool(big_holder),"籌碼真實":chip_real,
                 })
             except: errors.append(sid)
             time.sleep(0.05)
 
         prog.empty(); stat.empty()
         if rows:
-            df_scan = pd.DataFrame(rows)
-            df_filt = apply_filters(df_scan, params)
-            st.session_state.scan_result   = df_filt
-            st.session_state.scanned       = True
-            st.session_state.scanned_group = selected_group
-            passed3 = df_filt[df_filt["pass3"]==True]
-            st.session_state.selected_pool = [(r.yf_ticker,f"{r.代號} {r.名稱}") for _,r in passed3.iterrows()]
+            df_scan=pd.DataFrame(rows)
+            df_filt=apply_filters(df_scan, params)
+            st.session_state.scan_result  =df_filt
+            st.session_state.scanned      =True
+            st.session_state.scanned_group=selected_group
+            passed3=df_filt[df_filt["pass3"]==True]
+            st.session_state.selected_pool=[(r.yf_ticker,f"{r.代號} {r.名稱}") for _,r in passed3.iterrows()]
             if errors: st.warning(f"⚠️ {len(errors)} 檔無資料")
             st.success(f"✅ 完成！精選 {len(passed3)} 檔")
         else: st.error("掃描失敗，請確認網路連線")
 
+    # ── 掃描結果摘要
     if st.session_state.scanned and st.session_state.scan_result is not None:
         df_r=st.session_state.scan_result
         n1=int(df_r["pass1"].sum()); n2=int(df_r["pass2"].sum()); n3=int(df_r["pass3"].sum())
-        chip_real_n = int(df_r.get("籌碼真實",pd.Series([False]*len(df_r))).sum())
+        real_n=int(df_r.get("籌碼真實",pd.Series([False]*len(df_r))).sum())
         st.markdown(
-            f"<div class='infobox'><span style='color:#7fb3d3;font-size:0.7rem;'>上次：{st.session_state.scanned_group}</span><br>"
-            f"掃描 <b style='color:#e8f4fd;'>{len(df_r)}</b> → 一道 <b style='color:#00d4ff;'>{n1}</b> → "
-            f"二道 <b style='color:#e040fb;'>{n2}</b> → <b style='color:#00e676;'>精選 {n3} ✅</b><br>"
-            f"<span style='color:#00e676;font-size:0.68rem;'>真實籌碼：{chip_real_n} 檔</span> "
-            f"<span style='color:#ffab40;font-size:0.68rem;'>模擬籌碼：{len(df_r)-chip_real_n} 檔</span></div>",
+            f"<div class='infobox'>"
+            f"<span style='color:#7fb3d3;font-size:0.7rem;'>{st.session_state.scanned_group}</span><br>"
+            f"掃描 <b>{len(df_r)}</b> → <span style='color:#00d4ff;'>{n1}</span>"
+            f" → <span style='color:#e040fb;'>{n2}</span>"
+            f" → <b style='color:#00e676;'>精選 {n3}</b><br>"
+            f"<span class='data-badge-real'>真實籌碼 {real_n} 檔</span> "
+            f"<span class='data-badge-sim'>模擬 {len(df_r)-real_n} 檔</span>"
+            f"</div>",
             unsafe_allow_html=True
         )
-        if st.button("🔄 重新套用條件（不重新下載）", use_container_width=True):
-            df_re = apply_filters(df_r.drop(columns=["pass1","pass2","pass3"],errors="ignore"), params)
+
+    # ══════════════════════════════════════════════
+    # STEP 4（選填）：市場模式快速切換
+    # 掃描完成後才顯示，一鍵調整三道條件
+    # ══════════════════════════════════════════════
+    if st.session_state.scanned and st.session_state.scan_result is not None:
+        st.markdown("---")
+        st.markdown("<div style='color:#00d4ff;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 4（選填）｜ 市場模式快速切換</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='infobox'>"
+            "一鍵切換三道條件的預設值，點「重新套用」即時看結果<br>"
+            "<span style='color:#7fb3d3;font-size:0.72rem;'>不需重新下載，幾秒完成</span>"
+            "</div>",
+            unsafe_allow_html=True
+        )
+
+        # 大盤自動偵測
+        auto_mk, auto_ml, auto_md, auto_ac = detect_market_mode()
+        st.markdown(
+            f"<div style='background:#0a1628;border:1px solid #1e3a5f;border-radius:6px;"
+            f"padding:6px 10px;margin-bottom:6px;'>"
+            f"📡 大盤偵測：<b style='color:{auto_ac};'>{auto_ml}</b>"
+            f"<span style='color:#546e7a;font-size:0.7rem;'> ｜ {auto_md}</span></div>",
+            unsafe_allow_html=True
+        )
+
+        mode_opt4 = {"🚀 多頭追蹤":"bull","📊 盤整低接":"range","🛡️ 弱市防守":"bear"}
+        auto_idx4 = {"bull":0,"range":1,"bear":2}.get(auto_mk, 1)
+        sel_mode4 = st.radio(
+            "市場模式", list(mode_opt4.keys()),
+            index=auto_idx4, horizontal=True,
+            label_visibility="collapsed", key="step4_mode"
+        )
+        mk4 = mode_opt4[sel_mode4]
+        mp4 = MARKET_MODE_PARAMS[mk4]
+        mc4 = {"bull":"#00e676","range":"#ffab40","bear":"#ff5252"}[mk4]
+        st.markdown(
+            f"<div style='border-left:3px solid {mc4};padding:4px 8px;margin:4px 0;'>"
+            f"<span style='color:{mc4};font-size:0.76rem;'>{mp4['label']}</span>"
+            f"<span style='color:#7fb3d3;font-size:0.72rem;'> ｜ {mp4['desc']}</span></div>",
+            unsafe_allow_html=True
+        )
+
+        if st.button("🔄 套用此模式條件", use_container_width=True, key="apply_mode4"):
+            new_params = dict(
+                eps_min=mp4["eps_min"], pe_max=mp4["pe_max"], gm_min=mp4["gm_min"],
+                margin_max=mp4["margin_max"], inst_min=mp4["inst_min"],
+                bias_max=mp4["bias_max"], vol_max=mp4["vol_max"],
+                req_big_holder=mp4.get("req_big_holder", False),
+                market_mode=mk4
+            )
+            df_re = apply_filters(
+                st.session_state.scan_result.drop(
+                    columns=["pass1","pass2","pass3"], errors="ignore"),
+                new_params
+            )
             st.session_state.scan_result = df_re
             passed3 = df_re[df_re["pass3"]==True]
-            st.session_state.selected_pool = [(r.yf_ticker,f"{r.代號} {r.名稱}") for _,r in passed3.iterrows()]
+            st.session_state.selected_pool = [
+                (r.yf_ticker, f"{r.代號} {r.名稱}") for _,r in passed3.iterrows()]
+            n3new = len(passed3)
+            st.success(f"✅ 已套用【{sel_mode4}】條件，精選 {n3new} 檔")
             st.rerun()
 
     st.markdown("---")
