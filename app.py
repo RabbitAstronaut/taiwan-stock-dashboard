@@ -792,7 +792,8 @@ with st.sidebar:
                 if ok_mg and not df_mg.empty:
                     try:
                         col_bal = [c for c in df_mg.columns if "MarginPurchaseTodayBalance" in c or "margin_purchase_today_balance" in c]
-                        if col_bal:                            bal = df_mg[col_bal[0]].astype(float)
+                        if col_bal:
+                            bal = df_mg[col_bal[0]].astype(float)
                             margin_chg = (bal.iloc[-1]-bal.iloc[min(-5,len(bal)-1)])/bal.iloc[min(-5,len(bal)-1)]*100 if bal.iloc[min(-5,len(bal)-1)]!=0 else 0
                             big_holder = margin_chg < 0
                             chip_real  = True
