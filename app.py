@@ -47,6 +47,77 @@ html,body,[class*="css"]{font-family:"Noto Sans TC",sans-serif;}
 .stTabs [aria-selected="true"]{color:#00d4ff!important;background:linear-gradient(135deg,#0f2027,#162535)!important;border-bottom:2px solid #00d4ff!important;}
 div[data-testid="stExpander"]{background:#0f2027;border:1px solid #1e3a5f;border-radius:8px;}
 
+/* ── Sidebar 深色背景修正 ── */
+[data-testid="stSidebar"]{background:#080e1a!important;}
+[data-testid="stSidebar"] > div{background:#080e1a!important;}
+[data-testid="stSidebarContent"]{background:#080e1a!important;}
+section[data-testid="stSidebar"]{background:#080e1a!important;}
+
+/* ── 整體背景確保深色 ── */
+.stApp, .main, .block-container{background:transparent!important;}
+
+/* ── Selectbox/Radio/Slider 深色背景 ── */
+[data-baseweb="select"] div,
+[data-baseweb="popover"] div,
+[data-baseweb="menu"] div {
+    background:#0f1e30!important;
+    color:#e8f4fd!important;
+}
+[data-baseweb="select"] svg { fill:#7fb3d3!important; }
+
+/* ── Radio 按鈕 ── */
+[data-testid="stRadio"] > div {
+    background:transparent!important;
+}
+[data-testid="stRadio"] label {
+    color:#c8dff0!important;
+    padding:6px 10px!important;
+    border-radius:6px!important;
+}
+[data-testid="stRadio"] label:hover {
+    background:rgba(0,212,255,0.08)!important;
+}
+
+/* ── Expander 內部 ── */
+[data-testid="stExpander"] > div > div {
+    background:#0a1420!important;
+}
+
+/* ── 數字輸入框 ── */
+[data-testid="stNumberInput"] input {
+    background:#0f1e30!important;
+    color:#e8f4fd!important;
+    border-color:#1e3a5f!important;
+}
+
+/* ── 文字輸入框 ── */
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea {
+    background:#0f1e30!important;
+    color:#e8f4fd!important;
+    border-color:#1e3a5f!important;
+}
+
+/* ── Password input ── */
+[data-testid="stTextInput"][type="password"] input {
+    background:#0f1e30!important;
+    color:#e8f4fd!important;
+}
+
+/* ── Slider ── */
+[data-testid="stSlider"] > div > div {
+    background:transparent!important;
+}
+
+/* ── 分隔線 ── */
+hr { border-color:#1e3a5f!important; }
+
+/* ── Dataframe 深色 ── */
+[data-testid="stDataFrame"] {
+    background:#0a1420!important;
+}
+.dvn-scroller { background:#0a1420!important; }
+
 /* ── 按鈕文字顏色修正（解決 Windows 看不到字的問題）── */
 .stButton > button {
     color: #ffffff !important;
@@ -489,23 +560,26 @@ def detect_market_mode():
 # 三種模式的篩選條件預設值
 MARKET_MODE_PARAMS = {
     "bull": dict(
-        eps_min=5.0,  pe_max=50, gm_min=20,
-        margin_max=3.0,  inst_min=3.0,
-        bias_max=10.0, vol_max=1.2,
+        eps_min=3.0,  pe_max=60, gm_min=15,   # 多頭：基本面條件寬鬆
+        margin_max=5.0,  inst_min=1.0,          # 多頭：融資增加也沒關係，法人只要有買
+        bias_max=15.0, vol_max=1.5,             # 多頭：乖離和量比都放寬
+        req_big_holder=False,                   # 多頭：不強制大戶增持
         label="🚀 多頭追蹤",
-        desc="法人持續買、均線多頭、量能溫和放大",
+        desc="法人有買、均線多頭、量能放大都可以",
     ),
     "range": dict(
         eps_min=3.0,  pe_max=45, gm_min=15,
-        margin_max=-1.5, inst_min=5.0,
-        bias_max=6.0,  vol_max=0.7,
+        margin_max=0.0,  inst_min=3.0,          # 盤整：融資不能增加，法人要有買
+        bias_max=8.0,  vol_max=0.8,
+        req_big_holder=False,
         label="📊 盤整低接",
-        desc="融資減少、量縮回測、貼近均線",
+        desc="融資未增加、法人有買、貼近均線",
     ),
     "bear": dict(
-        eps_min=8.0,  pe_max=35, gm_min=30,
-        margin_max=-5.0, inst_min=10.0,
-        bias_max=3.0,  vol_max=0.6,
+        eps_min=5.0,  pe_max=40, gm_min=25,
+        margin_max=-3.0, inst_min=8.0,
+        bias_max=4.0,  vol_max=0.65,
+        req_big_holder=True,                    # 弱市：才要求大戶增持
         label="🛡️ 弱市防守",
         desc="籌碼極乾淨、強勢抗跌、外資持續買",
     ),
@@ -624,13 +698,29 @@ with st.sidebar:
 
     # 最終掃描清單
     def build_scan_list():
+        """建立掃描清單，嚴格去重（以代號為唯一鍵）"""
         seen = {}
+        # 主群組
         for sid, sname, mkt, ytk in stocks_in_group:
-            if sid not in seen: seen[sid] = (sid,sname,mkt,ytk)
+            sid = str(sid).strip()
+            if sid and sid not in seen:
+                seen[sid] = (sid, sname, mkt, ytk)
+        # 額外合併群組
         for g in extra_groups:
-            for sid in SECTOR_MAP[g]["ids"]:
-                if sid not in seen:
-                    seen[sid] = (sid, sid, "上市", f"{sid}.TW")
+            fm_ok = st.session_state.get("fm_list_ok") and st.session_state.get("fm_stock_list") is not None
+            for gid in SECTOR_MAP[g]["ids"]:
+                gid = str(gid).strip()
+                if gid in seen: continue
+                # 從 FinMind 清單取得真實名稱
+                gname = gid; gmkt = "上市"; gytk = f"{gid}.TW"
+                if fm_ok:
+                    match = st.session_state["fm_stock_list"][
+                        st.session_state["fm_stock_list"]["stock_id"] == gid]
+                    if not match.empty:
+                        gname = str(match["stock_name"].iloc[0])
+                        gmkt  = str(match["market"].iloc[0]) if "market" in match.columns else "上市"
+                        gytk  = str(match["yf_ticker"].iloc[0]) if "yf_ticker" in match.columns else f"{gid}.TW"
+                seen[gid] = (gid, gname, gmkt, gytk)
         return list(seen.values())
 
     scan_list   = build_scan_list()
@@ -713,11 +803,31 @@ with st.sidebar:
 
     def apply_filters(df, p):
         r = df.copy()
-        r["pass1"] = ((r["EPS_TTM"]>p["eps_min"]).fillna(False) &
-                      (r["PE"]<p["pe_max"]).fillna(True) &
-                      (r["毛利率%"]>p["gm_min"]).fillna(False))
-        r["pass2"] = r["pass1"] & (r["融資5日變動%"]<p["margin_max"]) &                      (r["法人買超%"]>p["inst_min"]) & (r["大戶持股增"]==True)
-        r["pass3"] = r["pass2"] & (r["MA20乖離%"]>0) & (r["MA20乖離%"]<p["bias_max"]) &                      (r["量比(5MA)"]<p["vol_max"]) & (r["底部墊高"]==True)
+        # 第一道：基本面（EPS 或 毛利率 有缺失時給寬鬆處理）
+        c1_eps = (r["EPS_TTM"] > p["eps_min"]).fillna(False)
+        c1_pe  = (r["PE"] < p["pe_max"]).fillna(True)   # PE 缺失視為通過
+        c1_gm  = (r["毛利率%"] > p["gm_min"]).fillna(False)
+        r["pass1"] = c1_eps & c1_pe & c1_gm
+
+        # 第二道：籌碼（大戶持股增 依模式決定是否必要）
+        c2_mg   = r["融資5日變動%"] < p["margin_max"]
+        c2_inst = r["法人買超%"]    > p["inst_min"]
+        req_big = p.get("req_big_holder", False)
+        if req_big:
+            c2_big = r["大戶持股增"] == True
+        else:
+            c2_big = pd.Series([True] * len(r), index=r.index)  # 不要求大戶
+        r["pass2"] = r["pass1"] & c2_mg & c2_inst & c2_big
+
+        # 第三道：技術（底部墊高 在多頭模式下不強制要求）
+        c3_bias = (r["MA20乖離%"] > 0) & (r["MA20乖離%"] < p["bias_max"])
+        c3_vol  = r["量比(5MA)"] < p["vol_max"]
+        # 多頭模式（bias_max >= 12）不要求底部墊高
+        if p.get("bias_max", 6) >= 12:
+            c3_hl = pd.Series([True] * len(r), index=r.index)
+        else:
+            c3_hl = r["底部墊高"] == True
+        r["pass3"] = r["pass2"] & c3_bias & c3_vol & c3_hl
         return r
 
     run_btn = st.button("🚀 開始掃描此群組", type="primary",
@@ -746,8 +856,7 @@ with st.sidebar:
                 except: pass
             return pd.DataFrame()
 
-        for i,(sid,sname,mkt,ytk) in enumerate(scan_list):
-            prog.progress((i+1)/len(scan_list))
+        for i,(sid,sname,mkt,ytk) in enumerate(scan_list):            prog.progress((i+1)/len(scan_list))
             stat.markdown(f"<div style='color:#7fb3d3;font-size:0.74rem;'>[{i+1}/{len(scan_list)}] {sid} {sname}</div>", unsafe_allow_html=True)
             try:
                 df_tmp = _dl(ytk)
@@ -799,8 +908,25 @@ with st.sidebar:
                             chip_real  = True
                     except: pass
 
+                # 若 sname 等於 sid（代表名稱未取得），嘗試從 FinMind 清單補齊
+                display_name = sname
+                if display_name == sid or not display_name or display_name.strip() == "":
+                    # 從已載入的 FinMind 股票清單找名稱
+                    if st.session_state.get("fm_list_ok") and st.session_state.get("fm_stock_list") is not None:
+                        match = st.session_state["fm_stock_list"][
+                            st.session_state["fm_stock_list"]["stock_id"] == sid]
+                        if not match.empty:
+                            display_name = str(match["stock_name"].iloc[0])
+                    # 再嘗試從 yfinance 取得公司名稱
+                    if display_name == sid:
+                        try:
+                            info = yf.Ticker(ytk).info or {}
+                            yf_name = info.get("longName","") or info.get("shortName","")
+                            if yf_name: display_name = yf_name
+                        except: pass
+
                 rows.append({
-                    "代號":sid,"名稱":sname,"市場":mkt,"yf_ticker":ytk,
+                    "代號":sid,"名稱":display_name,"市場":mkt,"yf_ticker":ytk,
                     "收盤價":round(last_c,1),"MA20乖離%":round(ma20_b,2),
                     "量比(5MA)":round(vol_r,2),"底部墊高":hl,
                     "K值":round(kv,1),"D值":round(dv,1),
