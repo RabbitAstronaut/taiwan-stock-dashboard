@@ -461,7 +461,7 @@ def parse_futures_chips(token=""):
 # ══════════════════════════════════════════════
 # yfinance 股價資料（三層備援）
 # ══════════════════════════════════════════════
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=180, show_spinner=False)
 def get_chart_data(tk, pd_):
     import requests as req_mod
     def _clean(df):
@@ -498,10 +498,29 @@ def get_chart_data(tk, pd_):
             mo = today.month - m_offset; yr = today.year
             while mo <= 0: mo += 12; yr -= 1
             yyyymm = f"{yr}{mo:02d}01"
+            # 先試上市（TWSE），失敗再試上櫃（TPEx）
             url = f"https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date={yyyymm}&stockNo={code}"
             r = req_mod.get(url, headers=headers, timeout=10)
-            if r.status_code != 200: continue
-            jd = r.json()
+            jd = r.json() if r.status_code == 200 else {}
+            if jd.get("stat") != "OK":
+                # 試上櫃
+                url2 = f"https://www.tpex.org.tw/web/stock/aftertrading/daily_trading_info/st43_result.php?l=zh-tw&d={yr_ad-1911}/{mo:02d}&stkno={code}&s=0,asc"
+                try:
+                    r2 = req_mod.get(url2, headers=headers, timeout=10)
+                    jd2 = r2.json() if r2.status_code == 200 else {}
+                    if jd2.get("iTotalRecords", 0) > 0:
+                        for row2 in jd2.get("aaData", []):
+                            try:
+                                d_parts = row2[0].split("/"); yr_tw = int(d_parts[0])+1911
+                                rows_all.append({"Date": pd.Timestamp(f"{yr_tw}-{d_parts[1]}-{d_parts[2]}"),
+                                    "Open":  float(str(row2[3]).replace(",","")),
+                                    "High":  float(str(row2[4]).replace(",","")),
+                                    "Low":   float(str(row2[5]).replace(",","")),
+                                    "Close": float(str(row2[6]).replace(",","")),
+                                    "Volume":float(str(row2[1]).replace(",",""))*1000})
+                            except: continue
+                except: pass
+                continue
             if jd.get("stat") != "OK": continue
             for row in jd.get("data",[]):
                 try:
