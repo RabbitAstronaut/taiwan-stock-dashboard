@@ -886,7 +886,85 @@ with st.sidebar:
     est_str     = f"{int(est_sec//60)}分{int(est_sec%60)}秒" if est_sec>=60 else f"{int(est_sec)}秒"
 
     st.markdown("---")
-    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 2 ｜ 執行掃描</div>", unsafe_allow_html=True)
+    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 2 ｜ 篩選條件設定</div>", unsafe_allow_html=True)
+
+    # ── 大盤自動偵測
+    auto_mode_key, auto_mode_label, auto_mode_desc, auto_color = detect_market_mode()
+
+    st.markdown(
+        f"<div class='infobox'>📡 大盤自動偵測：<b style='color:{auto_color};'>{auto_mode_label}</b><br>"
+        f"<span style='font-size:0.74rem;'>{auto_mode_desc}</span></div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 手動切換市場模式
+    mode_options = {
+        "🚀 多頭追蹤｜法人持續買、量能放大": "bull",
+        "📊 盤整低接｜量縮回測、融資減少":   "range",
+        "🛡️ 弱市防守｜籌碼極乾淨、強勢抗跌": "bear",
+    }
+    mode_labels  = list(mode_options.keys())
+    # 預設選自動偵測的模式
+    auto_idx = {"bull":0,"range":1,"bear":2}.get(auto_mode_key, 1)
+    selected_mode_label = st.radio(
+        "市場模式（可手動覆蓋）",
+        mode_labels,
+        index=auto_idx,
+        horizontal=False,
+        label_visibility="collapsed",
+    )
+    mode_key    = mode_options[selected_mode_label]
+    mode_params = MARKET_MODE_PARAMS[mode_key]
+
+    # ── 顯示模式說明
+    mode_colors = {"bull":"#00e676","range":"#ffab40","bear":"#ff5252"}
+    mc = mode_colors[mode_key]
+    _rgb  = "0,230,118" if mode_key=="bull" else "255,171,64" if mode_key=="range" else "255,82,82"
+    _lbl  = mode_params["label"]
+    _desc = mode_params["desc"]
+    st.markdown(
+        f"<div style='background:rgba({_rgb},0.08);"
+        f"border:1px solid {mc};border-radius:8px;padding:8px 12px;margin:4px 0;'>"
+        f"<span style='color:{mc};font-weight:600;font-size:0.8rem;'>{_lbl}</span>"
+        f"<span style='color:#7fb3d3;font-size:0.74rem;'> ｜ {_desc}</span></div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 篩選條件滑桿（預設值自動帶入選擇的模式）
+    with st.expander("第一道：基本面護城河", expanded=False):
+        eps_min = st.slider("EPS(TTM) 最低", 0.0, 20.0,
+                            float(mode_params["eps_min"]), 0.5)
+        pe_max  = st.slider("P/E 最高",       0,   80,
+                            int(mode_params["pe_max"]),  1)
+        gm_min  = st.slider("毛利率% 最低",   0,   60,
+                            int(mode_params["gm_min"]),  1)
+    with st.expander("第二道：籌碼黃金交叉", expanded=False):
+        margin_max = st.slider("融資5日變動% 上限", -10.0, 5.0,
+                               float(mode_params["margin_max"]), 0.5)
+        inst_min   = st.slider("法人買超% 下限",     0.0,  30.0,
+                               float(mode_params["inst_min"]),   0.5)
+        st.caption("⚠️ 多頭模式下融資上限放寬至正值，允許適度追多")
+    with st.expander("第三道：右側均線防守", expanded=False):
+        bias_max  = st.slider("MA20乖離% 上限", 1.0, 15.0,
+                              float(mode_params["bias_max"]), 0.5)
+        vol_max   = st.slider("量比(5MA) 上限", 0.3,  1.5,
+                              float(mode_params["vol_max"]),  0.05)
+        st.caption("多頭模式允許量比放大到1.2，盤整模式要求量縮0.7以下")
+
+    params = dict(eps_min=eps_min, pe_max=pe_max, gm_min=gm_min,
+                  margin_max=margin_max, inst_min=inst_min,
+                  bias_max=bias_max, vol_max=vol_max,
+                  market_mode=mode_key)
+
+    st.markdown("---")
+    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 3 ｜ 執行掃描</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='background:rgba(0,212,255,0.06);border:1px solid #1e3a5f;"
+        "border-radius:6px;padding:8px 12px;margin-bottom:8px;'>"
+        "<span style='color:#00d4ff;font-size:0.76rem;'>"
+        "💡 掃描完成後可在 STEP 2 調整條件，點「🔄 重新套用」即時篩選，無需重新下載</span></div>",
+        unsafe_allow_html=True
+    )
     if total_count > 0:
         st.markdown(f"<div class='infobox'>掃描 <b style='color:#00d4ff;'>{total_count}</b> 檔 ｜ 預估 <b style='color:#ffab40;'>{est_str}</b></div>", unsafe_allow_html=True)
 
@@ -911,8 +989,7 @@ with st.sidebar:
         # 第三道：技術（底部墊高 在多頭模式下不強制要求）
         c3_bias = (r["MA20乖離%"] > 0) & (r["MA20乖離%"] < p["bias_max"])
         c3_vol  = r["量比(5MA)"] < p["vol_max"]
-        # 多頭模式（bias_max >= 12）不要求底部墊高
-        if p.get("bias_max", 6) >= 12:
+        # 多頭模式（bias_max >= 12）不要求底部墊高        if p.get("bias_max", 6) >= 12:
             c3_hl = pd.Series([True] * len(r), index=r.index)
         else:
             c3_hl = r["底部墊高"] == True
@@ -1062,83 +1139,6 @@ with st.sidebar:
             passed3 = df_re[df_re["pass3"]==True]
             st.session_state.selected_pool = [(r.yf_ticker,f"{r.代號} {r.名稱}") for _,r in passed3.iterrows()]
             st.rerun()
-
-    st.markdown("---")
-    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 3 ｜ 篩選條件（即時調整，不重新下載）</div>", unsafe_allow_html=True)
-
-    # ── 說明
-    st.markdown(
-        "<div style='background:rgba(0,212,255,0.06);border:1px solid #1e3a5f;"
-        "border-radius:6px;padding:8px 12px;margin-bottom:8px;'>"
-        "<span style='color:#00d4ff;font-size:0.76rem;'>"
-        "💡 調整條件後點「🔄 重新套用條件」即可，無需重新掃描</span></div>",
-        unsafe_allow_html=True
-    )
-
-    # ── 大盤自動偵測
-    auto_mode_key, auto_mode_label, auto_mode_desc, auto_color = detect_market_mode()
-
-    st.markdown(
-        f"<div class='infobox'>📡 大盤自動偵測：<b style='color:{auto_color};'>{auto_mode_label}</b><br>"
-        f"<span style='font-size:0.74rem;'>{auto_mode_desc}</span></div>",
-        unsafe_allow_html=True
-    )
-
-    # ── 手動切換市場模式
-    mode_options = {
-        "🚀 多頭追蹤｜法人持續買、量能放大": "bull",
-        "📊 盤整低接｜量縮回測、融資減少":   "range",
-        "🛡️ 弱市防守｜籌碼極乾淨、強勢抗跌": "bear",
-    }
-    mode_labels  = list(mode_options.keys())
-    # 預設選自動偵測的模式
-    auto_idx = {"bull":0,"range":1,"bear":2}.get(auto_mode_key, 1)
-    selected_mode_label = st.radio(
-        "市場模式（可手動覆蓋）",
-        mode_labels,
-        index=auto_idx,
-        horizontal=False,
-        label_visibility="collapsed",
-    )
-    mode_key    = mode_options[selected_mode_label]
-    mode_params = MARKET_MODE_PARAMS[mode_key]
-
-    # ── 顯示模式說明
-    mode_colors = {"bull":"#00e676","range":"#ffab40","bear":"#ff5252"}
-    mc = mode_colors[mode_key]
-    st.markdown(
-        f"<div style='background:rgba({"0,230,118" if mode_key=="bull" else "255,171,64" if mode_key=="range" else "255,82,82"},0.08);"
-        f"border:1px solid {mc};border-radius:8px;padding:8px 12px;margin:4px 0;'>"
-        f"<span style='color:{mc};font-weight:600;font-size:0.8rem;'>{mode_params["label"]}</span>"
-        f"<span style='color:#7fb3d3;font-size:0.74rem;'> ｜ {mode_params["desc"]}</span></div>",
-        unsafe_allow_html=True
-    )
-
-    # ── 篩選條件滑桿（預設值自動帶入選擇的模式）
-    with st.expander("第一道：基本面護城河", expanded=False):
-        eps_min = st.slider("EPS(TTM) 最低", 0.0, 20.0,
-                            float(mode_params["eps_min"]), 0.5)
-        pe_max  = st.slider("P/E 最高",       0,   80,
-                            int(mode_params["pe_max"]),  1)
-        gm_min  = st.slider("毛利率% 最低",   0,   60,
-                            int(mode_params["gm_min"]),  1)
-    with st.expander("第二道：籌碼黃金交叉", expanded=False):
-        margin_max = st.slider("融資5日變動% 上限", -10.0, 5.0,
-                               float(mode_params["margin_max"]), 0.5)
-        inst_min   = st.slider("法人買超% 下限",     0.0,  30.0,
-                               float(mode_params["inst_min"]),   0.5)
-        st.caption("⚠️ 多頭模式下融資上限放寬至正值，允許適度追多")
-    with st.expander("第三道：右側均線防守", expanded=False):
-        bias_max  = st.slider("MA20乖離% 上限", 1.0, 15.0,
-                              float(mode_params["bias_max"]), 0.5)
-        vol_max   = st.slider("量比(5MA) 上限", 0.3,  1.5,
-                              float(mode_params["vol_max"]),  0.05)
-        st.caption("多頭模式允許量比放大到1.2，盤整模式要求量縮0.7以下")
-
-    params = dict(eps_min=eps_min, pe_max=pe_max, gm_min=gm_min,
-                  margin_max=margin_max, inst_min=inst_min,
-                  bias_max=bias_max, vol_max=vol_max,
-                  market_mode=mode_key)
 
     st.markdown("---")
     st.markdown("<div style='color:#7fb3d3;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>🎯 監控標的</div>", unsafe_allow_html=True)
