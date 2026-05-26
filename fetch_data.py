@@ -40,26 +40,56 @@ except ImportError:
 # 設定區（請修改這裡）
 # ══════════════════════════════════════════════
 CONFIG = {
-    # FinMind Token（免費版留空，有帳號請填入）
-    # 申請：https://finmindtrade.com/analysis/#/Sponsor/signin
+    # ──────────────────────────────────────────
+    # FinMind Token
+    # 免費帳號申請：https://finmindtrade.com
+    # ──────────────────────────────────────────
     "fm_token": "",
 
-    # GitHub 設定（用於自動 push）
-    # 若不想自動 push，執行時加 --no-push 參數
-    "github_repo_path": ".",          # GitHub repo 本地路徑（預設當前目錄）
+    # GitHub repo 本地路徑（預設當前目錄）
+    "github_repo_path": ".",
     "github_commit_msg": "Auto update: {date} 台股資料更新",
 
     # 資料存放目錄
     "data_dir": "data",
 
-    # 抓取天數設定
-    "days_institutional": 60,    # 三大法人近幾天
-    "days_margin":        60,    # 融資餘額近幾天
-    "days_financials":   730,    # 財報近幾天（建議2年）
-    "days_futures":       30,    # 期貨近幾天
+    # ──────────────────────────────────────────
+    # 抓取天數（系統自動判斷，通常不需要手動修改）
+    #
+    # 第一次執行（data 資料夾是空的）→ 自動用長天數抓歷史
+    # 之後每天執行（已有資料）      → 自動用短天數只抓最新
+    # 財報永遠用 730 天確保年報/半年報/季報都抓得到
+    # ──────────────────────────────────────────
 
-    # API 請求間隔（秒），避免超過頻率限制
-    "request_delay": 0.5,
+    # 第一次執行的天數（歷史資料）
+    "days_institutional_first": 60,   # 三大法人：60天
+    "days_margin_first":        60,   # 融資融券：60天
+    "days_futures_first":       30,   # 期貨：30天
+
+    # 每日更新的天數（只抓最新）
+    "days_institutional_daily": 3,    # 三大法人：3天（含假日緩衝）
+    "days_margin_daily":        3,    # 融資融券：3天
+    "days_futures_daily":       3,    # 期貨：3天
+
+    # 財報固定用 730 天（確保年報/半年報都在）
+    "days_financials":         730,
+
+    # ──────────────────────────────────────────
+    # API 效能設定
+    # ──────────────────────────────────────────
+
+    # 請求間隔（秒）
+    # 有 Token 免費版：0.8　付費版：0.3
+    "request_delay": 0.8,
+
+    # 每批股票數
+    # 第一次執行：150（避免超出配額）
+    # 每日更新：999（不分批，因為請求少）
+    "batch_size_first": 150,
+    "batch_size_daily": 999,
+
+    # 批次間暫停秒數（第一次執行才需要）
+    "batch_pause": 70,
 }
 
 # ══════════════════════════════════════════════
@@ -162,6 +192,48 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ══════════════════════════════════════════════
+# 智慧判斷：第一次執行 or 每日更新
+# ══════════════════════════════════════════════
+def is_first_run(data_dir):
+    """
+    判斷是否為第一次執行
+    條件：data 資料夾不存在，或 institutional.csv 不存在或是空的
+    """
+    import os
+    csv_path = os.path.join(data_dir, "institutional.csv")
+    if not os.path.exists(csv_path):
+        return True
+    try:
+        df = pd.read_csv(csv_path)
+        return len(df) < 100  # 少於100筆視為第一次
+    except:
+        return True
+
+def get_days(key, data_dir):
+    """
+    依據是否第一次執行，自動選擇天數
+    財報固定回傳 730 天
+    """
+    if key == "financials":
+        return CONFIG["days_financials"]
+
+    first = is_first_run(data_dir)
+    if first:
+        log.info(f"  📌 首次執行模式：使用長天數抓取歷史資料")
+        return CONFIG.get(f"days_{key}_first", 60)
+    else:
+        log.info(f"  📌 每日更新模式：只抓最新資料")
+        return CONFIG.get(f"days_{key}_daily", 3)
+
+def get_batch_size(data_dir):
+    """
+    依據是否第一次執行，自動選擇批次大小
+    """
+    if is_first_run(data_dir):
+        return CONFIG.get("batch_size_first", 150)
+    return CONFIG.get("batch_size_daily", 999)
+
+# ══════════════════════════════════════════════
 # FinMind API 核心
 # ══════════════════════════════════════════════
 FM_BASE = "https://api.finmindtrade.com/api/v4/data"
@@ -175,127 +247,376 @@ def fm_get(dataset, data_id=None, start_date=None, end_date=None, token=None):
     tok = token or CONFIG["fm_token"]
     if tok:        params["token"]      = tok
 
-    for attempt in range(3):
+    for attempt in range(5):
         try:
             r = requests.get(FM_BASE, params=params, timeout=20)
             j = r.json()
+
             if j.get("status") == 200 and isinstance(j.get("data"), list):
-                df = pd.DataFrame(j["data"])
-                return df, True
-            else:
-                log.warning(f"  API 回傳異常：{j.get('msg','unknown')} | dataset={dataset} id={data_id}")
-                return pd.DataFrame(), False
+                return pd.DataFrame(j["data"]), True
+
+            msg = j.get("msg", "unknown")
+
+            # ── 觸發頻率上限：自動等待後重試
+            if "upper limit" in msg.lower() or "reach" in msg.lower():
+                wait = 65 if attempt == 0 else 120  # 第一次等65秒，之後等2分鐘
+                log.warning(
+                    f"  ⏳ API 頻率上限（第{attempt+1}次），等待 {wait} 秒後重試... "
+                    f"| id={data_id}"
+                )
+                # 顯示倒數
+                for remaining in range(wait, 0, -5):
+                    print(f"\r  ⏳ 等待中... {remaining} 秒", end="", flush=True)
+                    time.sleep(5)
+                print()  # 換行
+                continue  # 重試
+
+            # 其他錯誤直接回傳失敗
+            log.warning(f"  API 回傳異常：{msg} | dataset={dataset} id={data_id}")
+            return pd.DataFrame(), False
+
         except Exception as e:
-            log.warning(f"  第{attempt+1}次失敗：{e}")
+            log.warning(f"  第{attempt+1}次連線失敗：{e}")
             time.sleep(2 ** attempt)
+
+    log.error(f"  ❌ 達到最大重試次數，放棄 | dataset={dataset} id={data_id}")
     return pd.DataFrame(), False
 
 # ══════════════════════════════════════════════
 # 資料抓取函式
 # ══════════════════════════════════════════════
 
+# ──────────────────────────────────────────────
+# 靜態股票名稱對照表（避免消耗 API 配額）
+# 來源：TWSE/TPEx，涵蓋所有掃描群組股票
+# ──────────────────────────────────────────────
+STOCK_NAME_MAP = {
+    "1101":"台泥","1102":"亞泥","1210":"大成長城","1213":"大飲","1215":"卜蜂",
+    "1216":"統一","1217":"愛之味","1218":"泰山","1219":"福壽","1225":"福懋油",
+    "1227":"佳格","1229":"聯華","1230":"聯華食","1232":"大統益","1233":"天仁",
+    "1234":"黑松","1236":"宏亞","1256":"鮮活果汁-KY","1301":"台塑","1303":"南亞",
+    "1304":"台聚","1305":"華夏","1307":"三芳化","1308":"亞聚","1309":"台達化",
+    "1310":"台苯","1312":"國喬","1313":"聯成","1314":"中石化","1317":"太洋",
+    "1319":"東陽","1321":"大洋","1326":"台化","1402":"遠東新","1466":"聚隆",
+    "1477":"中華化","1504":"東元","1513":"中興電","1514":"亞力","1515":"力山",
+    "1516":"川飛","1519":"華城","1520":"力肯","1521":"大億","1522":"堤維西",
+    "1524":"耿鼎","1525":"江申","1526":"日馳","1527":"鑽全","1528":"恩德",
+    "1530":"亞崴","1531":"高林股","1532":"勤美","1533":"車王電","1535":"中宇",
+    "1536":"和大","1537":"廣隆","1538":"正峰新","1541":"錩泰","1542":"興勤",
+    "1543":"強盛","1545":"力泰","1560":"中砂","1580":"新麥","1582":"信錦",
+    "1583":"程泰","1584":"精剛","1585":"亞福","1586":"和勤","1589":"美亞",
+    "1590":"亞德客-KY","1591":"精成科","1603":"華電","1605":"華新","1608":"華榮",
+    "1609":"大亞","1612":"宏泰","1701":"中化","1703":"南亞塑膠","1710":"東聯",
+    "1711":"永光","1712":"興農","1713":"國化","1717":"長興","1718":"中纖",
+    "1722":"台肥","1723":"中碳","1725":"元禎","1726":"永記","1730":"花仙子",
+    "1733":"五鼎","1760":"寶齡富錦","1762":"中化生","1777":"生達","1784":"訓達",
+    "1786":"科妍","1788":"創源","1789":"神隆","1790":"晶碩","2002":"中鋼",
+    "2006":"東和鋼鐵","2007":"燁興","2008":"高興昌","2009":"第一銅","2010":"春源鋼鐵",
+    "2012":"春雨","2013":"中鋼構","2014":"中鴻","2015":"豐興","2049":"上銀",
+    "2059":"川湖","2061":"風神","2062":"橋椿","2063":"世鎧","2064":"晉勝",
+    "2065":"世德","2103":"台橡","2201":"裕隆","2204":"中華","2207":"和泰車",
+    "2208":"台船","2301":"光寶科","2303":"聯電","2308":"台達電","2317":"鴻海",
+    "2324":"仁寶","2325":"矽品","2327":"國巨","2329":"華泰","2330":"台積電",
+    "2332":"友訊","2337":"旺宏","2340":"光磊","2344":"華邦電","2345":"智邦",
+    "2348":"海韻電","2351":"順德","2353":"宏碁","2354":"鴻準","2356":"英業達",
+    "2357":"華碩","2363":"矽統","2364":"倫飛","2365":"昆盈","2368":"金像電",
+    "2379":"瑞昱","2382":"廣達","2383":"台光電","2384":"勝華","2388":"威盛",
+    "2393":"億光","2397":"友通","2399":"映泰","2406":"國碩","2408":"南亞科",
+    "2409":"友達","2412":"中華電","2421":"建準","2429":"銘異",
+    "2436":"偉詮電","2439":"美律","2441":"超豐","2449":"京元電子","2454":"聯發科",
+    "2455":"全訊","2460":"建通","2461":"光聖","2462":"探針","2471":"資通",
+    "2474":"可成","2475":"華映","2476":"鉅祥","2492":"華新科","2498":"宏達電",
+    "2501":"國建","2502":"宏國","2504":"國產","2505":"國揚","2506":"太設",
+    "2509":"全坤建","2511":"太子","2514":"龍邦","2515":"中工","2516":"新建",
+    "2520":"冠德","2524":"京城","2525":"寶徠","2526":"山林水","2528":"皇翔",
+    "2534":"宏盛","2535":"達欣工","2536":"宏普","2537":"聯上發","2538":"基泰",
+    "2540":"愛山林","2542":"興富發","2543":"皇昌","2545":"皇龍","2546":"根基",
+    "2547":"日勝生","2548":"華固","2597":"潤弘","2712":"長榮航","2717":"中華航",
+    "2718":"晶華","2719":"燦星旅","2720":"鳳凰旅遊","2723":"美食-KY","2726":"雅茗-KY",
+    "2801":"彰銀","2809":"京城銀","2812":"台中商銀","2816":"旺旺保","2820":"華票",
+    "2823":"中壽","2824":"台壽保","2826":"南山人壽","2834":"臺企銀","2838":"聯邦銀",
+    "2849":"安泰銀","2850":"新產","2851":"中再保","2852":"第一保","2855":"統一證",
+    "2856":"元富證","2860":"新產","2867":"三商壽","2880":"華南金","2881":"富邦金",
+    "2882":"國泰金","2883":"開發金","2884":"玉山金","2885":"元大金","2886":"兆豐金",
+    "2887":"台新金","2888":"新光金","2889":"國票金","2890":"永豐金","2891":"中信金",
+    "2892":"第一金","2903":"遠百","2905":"三商行","2908":"欣泰","2910":"統領",
+    "2911":"麗嬰房","2912":"統一超","2914":"統一企業","2915":"潤泰全","2923":"鼎固-KY",
+    "3003":"健和興","3008":"大立光","3013":"映興","3014":"聯陽","3016":"嘉晶",
+    "3017":"奇鋐","3023":"信邦","3028":"增你強","3030":"晶碩","3031":"佰鴻",
+    "3032":"偉訓","3033":"威健","3034":"聯詠","3035":"智原",
+    "3036":"文曄","3037":"欣興","3038":"全台晶像","3040":"遠見","3041":"揚智",
+    "3042":"晶技","3043":"科風","3044":"健鼎","3045":"台灣大","3046":"建碁",
+    "3047":"訊舟","3048":"益登","3049":"和鑫","3050":"鈦鼎","3051":"力特",
+    "3052":"夆典","3057":"喬鼎","3059":"華晶科","3062":"建漢","3085":"碩天",
+    "3105":"穩懋","3141":"晶宏","3143":"資板","3176":"基亞生技","3189":"景碩",
+    "3209":"全科","3211":"順達科","3228":"金麗科","3230":"昱泓","3231":"緯創",
+    "3260":"威剛","3376":"新日興","3406":"玉晶光","3437":"榮創","3443":"創意",
+    "3481":"群創","3491":"昱捷","3494":"誠研","3515":"華擎","3518":"柏騰",
+    "3529":"力旺","3530":"晶相光","3532":"台勝科","3533":"嘉澤","3536":"也思科",
+    "3548":"嘉利","3550":"映泰","3576":"新日光","3583":"辛耘","3593":"力致",
+    "3596":"智易","3597":"通昱","3607":"谷崧","3617":"碩天","3653":"健策",
+    "3661":"世芯-KY","3686":"達能","3691":"碩禾","3706":"神達","3707":"漢磊",
+    "3711":"日月光投控","4106":"雃博","4108":"懷特","4116":"明基醫","4117":"葡萄王",
+    "4118":"進階","4119":"旭富","4121":"優盛","4123":"晟德","4126":"太醫",
+    "4128":"中天","4130":"健亞","4133":"亞諾法","4141":"龍燈-KY","4142":"國光生",
+    "4144":"宜特","4147":"中裕","4148":"全福生技","4152":"台微體","4160":"基亞",
+    "4162":"智擎","4163":"鐿鈦","4168":"醣聯","4171":"瑞基","4174":"浩鼎",
+    "4175":"杏昕","4205":"中華食","4209":"鐿鈦","4743":"合一","4904":"遠傳",
+    "4906":"正文","4919":"新唐","4938":"和碩","4958":"臻鼎-KY","4960":"誠美材",
+    "4961":"天鈺","4966":"譜瑞-KY","4968":"立積","5009":"榮剛","5274":"信驊",
+    "5347":"世界先進","5354":"豐藝","5371":"中光電","5375":"智伸科","5483":"中美晶",
+    "5512":"力麒","5515":"建國工程","5519":"隆大","5521":"工信","5522":"遠雄",
+    "5523":"廣宇","5525":"順天","5531":"鉅陞","5533":"三發地產","5534":"長虹",
+    "5536":"聖暉","5538":"日新","5546":"永信建","5876":"上海商銀","5878":"台中銀",
+    "5880":"合庫金","5903":"全家","5904":"寶雅","6005":"群益金鼎證","6120":"輔信",
+    "6146":"耕興","6147":"頎邦","6194":"成大生技","6214":"精誠","6227":"原相",
+    "6230":"超眾","6239":"力成","6244":"茂迪","6245":"立康","6257":"矽格",
+    "6263":"普萊德","6269":"台郡","6271":"同欣電","6274":"台燿","6277":"宏正",
+    "6278":"台表科","6285":"啟碁","6409":"旭隼","6414":"樺漢","6415":"矽力-KY",
+    "6442":"光聖","6446":"藥華藥","6456":"GIS-KY","6461":"益登","6488":"環球晶",
+    "6505":"台塑化","6510":"精測","6523":"達發科技","6533":"晶心科","6547":"泰福-KY",
+    "6643":"M31","6669":"緯穎","6770":"力積電","6789":"采鈺",
+    "6803":"崇越電","8044":"網家","8081":"致新","8210":"勝一",
+}
+
 def fetch_stock_list():
-    """抓取全市場股票清單"""
-    log.info("📋 抓取全市場股票清單...")
-    df, ok = fm_get("TaiwanStockInfo")
-    if ok and not df.empty:
-        # 過濾上市上櫃，排除ETF/權證
-        df = df[df["type"].isin(["twse", "tpex"])].copy()
-        df = df[df["stock_id"].str.match(r"^\d{4}$")]
-        df = df[~df["stock_id"].str.startswith("00")]
-        exclude_kw = ["ETF","ETN","指數","權證","特別","存託","基金","REITs"]
-        mask = ~df["stock_name"].str.contains("|".join(exclude_kw), na=False)
-        df = df[mask].reset_index(drop=True)
-        log.info(f"  ✅ 取得 {len(df)} 檔股票")
-        return df, True
-    log.error("  ❌ 股票清單抓取失敗")
+    """
+    建立股票清單 CSV
+    優先從 FinMind 抓取（有 Token 且非付費版才消耗大量配額）
+    免費版改用靜態對照表，避免消耗 API 配額
+    """
+    log.info("📋 建立股票清單...")
+    token = CONFIG.get("fm_token", "")
+
+    # 有付費 Token 才呼叫 API（付費版無請求數限制）
+    if token:
+        log.info("  使用 FinMind API 抓取完整清單（付費Token）")
+        df, ok = fm_get("TaiwanStockInfo")
+        if ok and not df.empty:
+            df = df[df["type"].isin(["twse", "tpex"])].copy()
+            df = df[df["stock_id"].str.match(r'^[0-9]{4}$')]
+            df = df[~df["stock_id"].str.startswith("00")]
+            exclude_kw = ["ETF","ETN","指數","權證","特別","存託","基金","REITs"]
+            mask = ~df["stock_name"].str.contains("|".join(exclude_kw), na=False)
+            df = df[mask].reset_index(drop=True)
+            log.info(f"  ✅ FinMind 取得 {len(df)} 檔股票")
+            return df, True
+
+    # 免費版：先嘗試從 TWSE/TPEx 官方網頁抓完整清單（台灣IP可用，不消耗FinMind配額）
+    log.info("  嘗試從 TWSE/TPEx 官方網頁取得完整股票清單...")
+    twse_df = fetch_stock_list_from_twse()
+    if not twse_df.empty:
+        log.info(f"  ✅ TWSE/TPEx 取得 {len(twse_df)} 檔股票（完整清單）")
+        return twse_df, True
+
+    # 最後備援：用靜態對照表（407 檔）
+    log.info("  使用靜態對照表備援（407 檔）")
+    all_ids = sorted(set(s for stocks in SECTOR_STOCKS.values() for s in stocks))
+    rows = []
+    for sid in all_ids:
+        name = STOCK_NAME_MAP.get(sid, sid)
+        rows.append({
+            "stock_id":   sid,
+            "stock_name": name,
+            "type":       "twse",
+            "industry_category": "",
+        })
+    df = pd.DataFrame(rows)
+    log.info(f"  ✅ 靜態清單建立完成：{len(df)} 檔")
+    return df, True
+
+
+def fetch_stock_list_from_twse():
+    """
+    從 TWSE（上市）和 TPEx（上櫃）官方 ISIN 頁面抓取完整股票清單
+    完全免費、不消耗 FinMind 配額，但需要台灣 IP
+    """
+    import re
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept-Language": "zh-TW,zh;q=0.9",
+    }
+    rows = []
+    exclude_kw = ["ETF","ETN","指數","期信","權","特別","存託","基金","REITs","DR"]
+
+    # ── 上市（TWSE）
+    try:
+        url = "https://isin.twse.com.tw/isin/C_public.jsp?strMode=2"
+        r = requests.get(url, headers=headers, timeout=15)
+        r.encoding = "big5"
+        # 解析 HTML 表格
+        from html.parser import HTMLParser
+
+        class TableParser(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.in_td = False; self.cells = []; self.row = []; self.rows = []
+            def handle_starttag(self, tag, attrs):
+                if tag == "td": self.in_td = True
+                elif tag == "tr": self.row = []
+            def handle_endtag(self, tag):
+                if tag == "td": self.in_td = False
+                elif tag == "tr":
+                    if self.row: self.rows.append(self.row)
+                    self.row = []
+            def handle_data(self, data):
+                if self.in_td: self.row.append(data.strip())
+
+        parser = TableParser()
+        parser.feed(r.text)
+
+        for row in parser.rows:
+            if len(row) < 2: continue
+            first = row[0]
+            if "　" in first:  # 全形空格分隔代號和名稱
+                parts = first.split("　")
+                if len(parts) >= 2:
+                    sid  = parts[0].strip()
+                    name = parts[1].strip()
+                    if re.match(r'^[0-9]{4}$', sid):
+                        if not any(k in name for k in exclude_kw):
+                            rows.append({
+                                "stock_id": sid, "stock_name": name,
+                                "type": "twse", "industry_category": row[3] if len(row)>3 else ""
+                            })
+        log.info(f"    TWSE 上市：{sum(1 for r in rows if r['type']=='twse')} 檔")
+    except Exception as e:
+        log.warning(f"    TWSE 抓取失敗：{e}")
+
+    # ── 上櫃（TPEx）
+    try:
+        url2 = "https://isin.twse.com.tw/isin/C_public.jsp?strMode=4"
+        r2 = requests.get(url2, headers=headers, timeout=15)
+        r2.encoding = "big5"
+        parser2 = TableParser()
+        parser2.feed(r2.text)
+        tpex_count = 0
+        for row in parser2.rows:
+            if len(row) < 2: continue
+            first = row[0]
+            if "　" in first:
+                parts = first.split("　")
+                if len(parts) >= 2:
+                    sid  = parts[0].strip()
+                    name = parts[1].strip()
+                    if re.match(r'^[0-9]{4}$', sid):
+                        if not any(k in name for k in exclude_kw):
+                            # 避免重複
+                            if not any(r["stock_id"]==sid for r in rows):
+                                rows.append({
+                                    "stock_id": sid, "stock_name": name,
+                                    "type": "tpex", "industry_category": row[3] if len(row)>3 else ""
+                                })
+                                tpex_count += 1
+        log.info(f"    TPEx 上櫃：{tpex_count} 檔")
+    except Exception as e:
+        log.warning(f"    TPEx 抓取失敗：{e}")
+
+    if rows:
+        df = pd.DataFrame(rows).drop_duplicates(subset="stock_id").reset_index(drop=True)
+        return df
+    return pd.DataFrame()
+
+
+def fetch_batch(dataset, stock_ids, start_date, label,
+               extra_process=None, data_dir=None, batch_size=None):
+    """
+    通用批次抓取函式
+    - 自動分批（batch_size）
+    - 每批完成後立即存檔（中途中斷不會全部重來）
+    - 碰到頻率上限自動等待（fm_get 已處理）
+    - batch_size=None 時自動判斷首次/每日模式
+    """
+    if batch_size is None:
+        batch_size = get_batch_size(data_dir) if data_dir else CONFIG.get("batch_size_first", 150)
+    batch_pause = CONFIG.get("batch_pause", 70)
+    all_rows    = []
+    total       = len(stock_ids)
+    batches     = [stock_ids[i:i+batch_size] for i in range(0, total, batch_size)]
+
+    log.info(f"  共 {total} 檔，分 {len(batches)} 批（每批 {batch_size} 檔）")
+
+    for b_idx, batch in enumerate(batches):
+        log.info(f"  ── 第 {b_idx+1}/{len(batches)} 批（{batch[0]}～{batch[-1]}）")
+        batch_rows = []
+        it = tqdm(batch, desc=f"{label} 第{b_idx+1}批") if HAS_TQDM else batch
+
+        for sid in it:
+            df, ok = fm_get(dataset, data_id=sid, start_date=start_date)
+            if ok and not df.empty:
+                df["stock_id"] = sid
+                if extra_process:
+                    df = extra_process(df)
+                batch_rows.append(df)
+            time.sleep(CONFIG["request_delay"])
+
+        # 每批完成後立即存檔（合併已有資料）
+        if batch_rows and data_dir:
+            batch_df = pd.concat(batch_rows, ignore_index=True)
+            all_rows.append(batch_df)
+            fname = f"{label.replace(' ','_')}.csv"
+            save_data(batch_df, fname, data_dir)
+            log.info(f"  ✅ 第{b_idx+1}批完成，存入 {fname}")
+
+        # 批次間暫停（最後一批不需要）
+        if b_idx < len(batches) - 1:
+            log.info(f"  ⏸  批次間暫停 {batch_pause} 秒...")
+            for remaining in range(batch_pause, 0, -10):
+                print(f"\r  ⏸  下一批開始倒數：{remaining} 秒", end="", flush=True)
+                time.sleep(10)
+            print()
+
+    if all_rows:
+        result = pd.concat(all_rows, ignore_index=True)
+        log.info(f"  ✅ 全部完成，共 {len(result)} 筆 {label} 資料")
+        return result, True
+    log.warning(f"  ⚠️ 無法取得 {label} 資料")
     return pd.DataFrame(), False
 
 
-def fetch_institutional_all(stock_ids, start_date):
-    """批次抓取三大法人買賣超"""
+def fetch_institutional_all(stock_ids, start_date, data_dir=None):
+    """批次抓取三大法人買賣超（自動分批＋斷點儲存）"""
     log.info(f"📊 抓取三大法人買賣超（{len(stock_ids)} 檔）...")
-    all_rows = []
-    it = tqdm(stock_ids, desc="三大法人") if HAS_TQDM else stock_ids
 
-    for sid in it:
-        df, ok = fm_get(
-            "TaiwanStockInstitutionalInvestorsBuySell",
-            data_id=sid, start_date=start_date
-        )
-        if ok and not df.empty:
-            # 欄位：date, stock_id, name, buy, sell
-            df["stock_id"] = sid
-            df["net"] = df["buy"].astype(float) - df["sell"].astype(float)
-            all_rows.append(df)
-        time.sleep(CONFIG["request_delay"])
+    def process(df):
+        df["net"] = df["buy"].astype(float) - df["sell"].astype(float)
+        return df
 
-    if all_rows:
-        result = pd.concat(all_rows, ignore_index=True)
-        log.info(f"  ✅ 共 {len(result)} 筆法人資料")
-        return result, True
-    log.warning("  ⚠️ 無法取得法人資料")
-    return pd.DataFrame(), False
+    bs = get_batch_size(data_dir) if data_dir else None
+    return fetch_batch(
+        "TaiwanStockInstitutionalInvestorsBuySell",
+        stock_ids, start_date, "institutional", process, data_dir, batch_size=bs
+    )
 
 
-def fetch_margin_all(stock_ids, start_date):
-    """批次抓取融資融券"""
+def fetch_margin_all(stock_ids, start_date, data_dir=None):
+    """批次抓取融資融券（自動分批＋斷點儲存）"""
     log.info(f"💰 抓取融資融券（{len(stock_ids)} 檔）...")
-    all_rows = []
-    it = tqdm(stock_ids, desc="融資融券") if HAS_TQDM else stock_ids
-
-    for sid in it:
-        df, ok = fm_get(
-            "TaiwanStockMarginPurchaseShortSale",
-            data_id=sid, start_date=start_date
-        )
-        if ok and not df.empty:
-            # 欄位：date, stock_id, MarginPurchaseBuy, MarginPurchaseSell,
-            #        MarginPurchaseCashRepayment, MarginPurchaseYesterdayBalance,
-            #        MarginPurchaseTodayBalance, MarginPurchaseLimit,
-            #        ShortSaleBuy, ShortSaleSell, ...
-            df["stock_id"] = sid
-            all_rows.append(df)
-        time.sleep(CONFIG["request_delay"])
-
-    if all_rows:
-        result = pd.concat(all_rows, ignore_index=True)
-        log.info(f"  ✅ 共 {len(result)} 筆融資資料")
-        return result, True
-    log.warning("  ⚠️ 無法取得融資資料")
-    return pd.DataFrame(), False
+    bs = get_batch_size(data_dir) if data_dir else None
+    return fetch_batch(
+        "TaiwanStockMarginPurchaseShortSale",
+        stock_ids, start_date, "margin", None, data_dir, batch_size=bs
+    )
 
 
-def fetch_financials_all(stock_ids, start_date):
-    """批次抓取財務報表"""
+
+
+def fetch_financials_all(stock_ids, start_date, data_dir=None):
+    """批次抓取財務報表（自動分批＋斷點儲存）"""
     log.info(f"📈 抓取財務報表（{len(stock_ids)} 檔）...")
-    all_rows = []
-    it = tqdm(stock_ids, desc="財務報表") if HAS_TQDM else stock_ids
+    target = ["毛利率","營業利益率","每股盈餘","營業收入","GrossMargin","OperatingMargin","BasicEPS"]
 
-    for sid in it:
-        df, ok = fm_get(
-            "TaiwanStockFinancialStatements",
-            data_id=sid, start_date=start_date
-        )
-        if ok and not df.empty:
-            # 欄位：date, stock_id, type, value, origin_name
-            df["stock_id"] = sid
-            # 只保留需要的項目
-            target = ["毛利率", "營業利益率", "每股盈餘", "營業收入",
-                      "GrossMargin", "OperatingMargin", "BasicEPS"]
-            mask = df["origin_name"].str.contains(
-                "|".join(target), case=False, na=False)
+    def process(df):
+        if "origin_name" in df.columns:
+            mask = df["origin_name"].str.contains("|".join(target), case=False, na=False)
             df = df[mask]
-            if not df.empty:
-                all_rows.append(df)
-        time.sleep(CONFIG["request_delay"])
+        return df
 
-    if all_rows:
-        result = pd.concat(all_rows, ignore_index=True)
-        log.info(f"  ✅ 共 {len(result)} 筆財報資料")
-        return result, True
-    log.warning("  ⚠️ 無法取得財報資料")
-    return pd.DataFrame(), False
+    bs = get_batch_size(data_dir) if data_dir else None
+    return fetch_batch(
+        "TaiwanStockFinancialStatements",
+        stock_ids, start_date, "financials", process, data_dir, batch_size=bs
+    )
 
 
 def fetch_futures_chips(start_date):
@@ -477,11 +798,23 @@ def main():
         stock_ids = ALL_STOCKS
         log.info(f"全量模式：共 {len(stock_ids)} 檔股票")
 
-    # 計算起始日期
-    start_inst = (today - timedelta(days=CONFIG["days_institutional"])).strftime("%Y-%m-%d")
-    start_mg   = (today - timedelta(days=CONFIG["days_margin"])).strftime("%Y-%m-%d")
-    start_fin  = (today - timedelta(days=CONFIG["days_financials"])).strftime("%Y-%m-%d")
-    start_fut  = (today - timedelta(days=CONFIG["days_futures"])).strftime("%Y-%m-%d")
+    # ── 智慧判斷：第一次執行 or 每日更新
+    first_run  = is_first_run(data_dir)
+    batch_size = get_batch_size(data_dir)
+    run_mode   = "首次執行（歷史資料）" if first_run else "每日更新（最新資料）"
+    log.info(f"執行模式：{run_mode}")
+    log.info(f"批次大小：{batch_size} 檔/批")
+
+    # ── 自動計算起始日期
+    start_inst = (today - timedelta(days=get_days("institutional", data_dir))).strftime("%Y-%m-%d")
+    start_mg   = (today - timedelta(days=get_days("margin",        data_dir))).strftime("%Y-%m-%d")
+    start_fin  = (today - timedelta(days=get_days("financials",    data_dir))).strftime("%Y-%m-%d")
+    start_fut  = (today - timedelta(days=get_days("futures",       data_dir))).strftime("%Y-%m-%d")
+
+    log.info(f"三大法人起始：{start_inst}")
+    log.info(f"融資融券起始：{start_mg}")
+    log.info(f"財報起始    ：{start_fin}")
+    log.info(f"期貨起始    ：{start_fut}")
 
     success_count = 0
 
@@ -492,19 +825,19 @@ def main():
         success_count += 1
 
     # ── 2. 三大法人
-    df_inst, ok = fetch_institutional_all(stock_ids, start_inst)
+    df_inst, ok = fetch_institutional_all(stock_ids, start_inst, data_dir)
     if ok:
         save_data(df_inst, "institutional.csv", data_dir)
         success_count += 1
 
     # ── 3. 融資融券
-    df_mg, ok = fetch_margin_all(stock_ids, start_mg)
+    df_mg, ok = fetch_margin_all(stock_ids, start_mg, data_dir)
     if ok:
         save_data(df_mg, "margin.csv", data_dir)
         success_count += 1
 
     # ── 4. 財務報表
-    df_fin, ok = fetch_financials_all(stock_ids, start_fin)
+    df_fin, ok = fetch_financials_all(stock_ids, start_fin, data_dir)
     if ok:
         save_data(df_fin, "financials.csv", data_dir)
         success_count += 1

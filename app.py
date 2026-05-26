@@ -46,6 +46,87 @@ html,body,[class*="css"]{font-family:"Noto Sans TC",sans-serif;}
 .stTabs [data-baseweb="tab"]{color:#7fb3d3;background:transparent;border-radius:8px;font-size:0.84rem;padding:7px 15px;}
 .stTabs [aria-selected="true"]{color:#00d4ff!important;background:linear-gradient(135deg,#0f2027,#162535)!important;border-bottom:2px solid #00d4ff!important;}
 div[data-testid="stExpander"]{background:#0f2027;border:1px solid #1e3a5f;border-radius:8px;}
+
+/* ── 按鈕文字顏色修正（解決 Windows 看不到字的問題）── */
+.stButton > button {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 0.88rem !important;
+}
+/* 主要按鈕（藍色）*/
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #0066cc, #0044aa) !important;
+    border: 1px solid #00d4ff !important;
+    color: #ffffff !important;
+}
+.stButton > button[kind="primary"]:hover {
+    background: linear-gradient(135deg, #0077dd, #0055bb) !important;
+    color: #ffffff !important;
+}
+/* 一般按鈕（深色）*/
+.stButton > button[kind="secondary"],
+.stButton > button:not([kind]) {
+    background: linear-gradient(135deg, #162535, #1e3a5f) !important;
+    border: 1px solid #2a5080 !important;
+    color: #e8f4fd !important;
+}
+.stButton > button:hover {
+    border-color: #00d4ff !important;
+    color: #ffffff !important;
+}
+/* 下拉選單文字 */
+.stSelectbox label, .stMultiSelect label,
+.stSlider label, .stRadio label,
+.stTextInput label, .stTextArea label,
+.stNumberInput label {
+    color: #b0cce0 !important;
+    font-size: 0.82rem !important;
+}
+/* 下拉選單選項文字 */
+.stSelectbox div[data-baseweb="select"] span,
+.stSelectbox div[data-baseweb="select"] div {
+    color: #e8f4fd !important;
+}
+/* Toggle 文字 */
+.stCheckbox label, .stToggle label {
+    color: #c8dff0 !important;
+}
+/* Expander 標題文字 */
+div[data-testid="stExpander"] summary {
+    color: #b0cce0 !important;
+    font-weight: 500 !important;
+}
+/* Radio 選項文字 */
+.stRadio div[role="radiogroup"] label {
+    color: #c8dff0 !important;
+}
+/* 數字輸入框文字 */
+.stNumberInput input {
+    color: #e8f4fd !important;
+    background: #0f1e30 !important;
+}
+/* 文字輸入框 */
+.stTextInput input, .stTextArea textarea {
+    color: #e8f4fd !important;
+    background: #0f1e30 !important;
+}
+/* Slider 數值文字 */
+.stSlider div[data-testid="stTickBarMin"],
+.stSlider div[data-testid="stTickBarMax"] {
+    color: #7fb3d3 !important;
+}
+/* 一般文字 */
+.stMarkdown p, .stMarkdown li {
+    color: #c8dff0 !important;
+}
+/* Caption 文字 */
+.stCaption {
+    color: #7fb3d3 !important;
+}
+/* Progress bar */
+.stProgress > div > div {
+    background: linear-gradient(90deg, #00d4ff, #00e676) !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -374,6 +455,63 @@ SECTOR_MAP = {
 }
 
 # ══════════════════════════════════════════════
+# 大盤環境自動偵測
+# ══════════════════════════════════════════════
+@st.cache_data(ttl=1800, show_spinner=False)
+def detect_market_mode():
+    """
+    自動偵測大盤環境
+    用加權指數 ^TWII 判斷多頭/盤整/弱市
+    回傳：(mode_key, mode_label, description, color)
+    """
+    try:
+        df = yf.download("^TWII", period="3mo", auto_adjust=True, progress=False)
+        if df.empty: raise Exception("無資料")
+        df.columns = [c[0] if isinstance(c,tuple) else c for c in df.columns]
+        close  = df["Close"].values.flatten().astype(float)
+        ma20   = float(pd.Series(close).rolling(20).mean().iloc[-1])
+        ma60   = float(pd.Series(close).rolling(60).mean().iloc[-1])
+        last   = float(close[-1])
+        prev5  = float(pd.Series(close).rolling(5).mean().iloc[-6]) if len(close)>=6 else ma20
+        ma20_trend = ma20 - prev5  # MA20 方向
+
+        bias = (last - ma20) / ma20 * 100
+
+        if last > ma20 and ma20_trend > 0 and bias > 2:
+            return ("bull",  "🚀 多頭追蹤", f"加權指數強勢，位於MA20上方 {bias:.1f}%", "#00e676")
+        elif abs(bias) <= 3:
+            return ("range", "📊 盤整低接", f"加權指數貼近MA20，乖離 {bias:+.1f}%", "#ffab40")
+        else:
+            return ("bear",  "🛡️ 弱市防守", f"加權指數位於MA20下方 {bias:.1f}%", "#ff5252")
+    except:
+        return ("range", "📊 盤整低接（預設）", "無法取得大盤資料，使用預設模式", "#ffab40")
+
+# 三種模式的篩選條件預設值
+MARKET_MODE_PARAMS = {
+    "bull": dict(
+        eps_min=5.0,  pe_max=50, gm_min=20,
+        margin_max=3.0,  inst_min=3.0,
+        bias_max=10.0, vol_max=1.2,
+        label="🚀 多頭追蹤",
+        desc="法人持續買、均線多頭、量能溫和放大",
+    ),
+    "range": dict(
+        eps_min=3.0,  pe_max=45, gm_min=15,
+        margin_max=-1.5, inst_min=5.0,
+        bias_max=6.0,  vol_max=0.7,
+        label="📊 盤整低接",
+        desc="融資減少、量縮回測、貼近均線",
+    ),
+    "bear": dict(
+        eps_min=8.0,  pe_max=35, gm_min=30,
+        margin_max=-5.0, inst_min=10.0,
+        bias_max=3.0,  vol_max=0.6,
+        label="🛡️ 弱市防守",
+        desc="籌碼極乾淨、強勢抗跌、外資持續買",
+    ),
+}
+
+# ══════════════════════════════════════════════
 # Session State 初始化
 # ══════════════════════════════════════════════
 for k,v in {
@@ -501,19 +639,72 @@ with st.sidebar:
     est_str     = f"{int(est_sec//60)}分{int(est_sec%60)}秒" if est_sec>=60 else f"{int(est_sec)}秒"
 
     st.markdown("---")
-    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 2 ｜ 篩選條件</div>", unsafe_allow_html=True)
-    with st.expander("第一道：基本面", expanded=False):
-        eps_min = st.slider("EPS(TTM) 最低", 0.0, 20.0, 3.0, 0.5)
-        pe_max  = st.slider("P/E 最高",       0,   80,   45,  1)
-        gm_min  = st.slider("毛利率% 最低",   0,   60,   15,  1)
-    with st.expander("第二道：籌碼", expanded=False):
-        margin_max = st.slider("融資5日變動% 上限", -10.0, 2.0, -1.5, 0.5)
-        inst_min   = st.slider("法人買超% 下限",     0.0,  30.0,  5.0, 0.5)
-    with st.expander("第三道：技術", expanded=False):
-        bias_max  = st.slider("MA20乖離% 上限", 1.0, 15.0, 6.0, 0.5)
-        vol_max   = st.slider("量比(5MA) 上限", 0.3,  1.5, 0.7, 0.05)
-    params = dict(eps_min=eps_min,pe_max=pe_max,gm_min=gm_min,
-                  margin_max=margin_max,inst_min=inst_min,bias_max=bias_max,vol_max=vol_max)
+    st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 2 ｜ 市場環境 ＋ 篩選條件</div>", unsafe_allow_html=True)
+
+    # ── 大盤自動偵測
+    auto_mode_key, auto_mode_label, auto_mode_desc, auto_color = detect_market_mode()
+
+    st.markdown(
+        f"<div class='infobox'>📡 大盤自動偵測：<b style='color:{auto_color};'>{auto_mode_label}</b><br>"
+        f"<span style='font-size:0.74rem;'>{auto_mode_desc}</span></div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 手動切換市場模式
+    mode_options = {
+        "🚀 多頭追蹤｜法人持續買、量能放大": "bull",
+        "📊 盤整低接｜量縮回測、融資減少":   "range",
+        "🛡️ 弱市防守｜籌碼極乾淨、強勢抗跌": "bear",
+    }
+    mode_labels  = list(mode_options.keys())
+    # 預設選自動偵測的模式
+    auto_idx = {"bull":0,"range":1,"bear":2}.get(auto_mode_key, 1)
+    selected_mode_label = st.radio(
+        "市場模式（可手動覆蓋）",
+        mode_labels,
+        index=auto_idx,
+        horizontal=False,
+        label_visibility="collapsed",
+    )
+    mode_key    = mode_options[selected_mode_label]
+    mode_params = MARKET_MODE_PARAMS[mode_key]
+
+    # ── 顯示模式說明
+    mode_colors = {"bull":"#00e676","range":"#ffab40","bear":"#ff5252"}
+    mc = mode_colors[mode_key]
+    st.markdown(
+        f"<div style='background:rgba({"0,230,118" if mode_key=="bull" else "255,171,64" if mode_key=="range" else "255,82,82"},0.08);"
+        f"border:1px solid {mc};border-radius:8px;padding:8px 12px;margin:4px 0;'>"
+        f"<span style='color:{mc};font-weight:600;font-size:0.8rem;'>{mode_params["label"]}</span>"
+        f"<span style='color:#7fb3d3;font-size:0.74rem;'> ｜ {mode_params["desc"]}</span></div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 篩選條件滑桿（預設值自動帶入選擇的模式）
+    with st.expander("第一道：基本面護城河", expanded=False):
+        eps_min = st.slider("EPS(TTM) 最低", 0.0, 20.0,
+                            float(mode_params["eps_min"]), 0.5)
+        pe_max  = st.slider("P/E 最高",       0,   80,
+                            int(mode_params["pe_max"]),  1)
+        gm_min  = st.slider("毛利率% 最低",   0,   60,
+                            int(mode_params["gm_min"]),  1)
+    with st.expander("第二道：籌碼黃金交叉", expanded=False):
+        margin_max = st.slider("融資5日變動% 上限", -10.0, 5.0,
+                               float(mode_params["margin_max"]), 0.5)
+        inst_min   = st.slider("法人買超% 下限",     0.0,  30.0,
+                               float(mode_params["inst_min"]),   0.5)
+        st.caption("⚠️ 多頭模式下融資上限放寬至正值，允許適度追多")
+    with st.expander("第三道：右側均線防守", expanded=False):
+        bias_max  = st.slider("MA20乖離% 上限", 1.0, 15.0,
+                              float(mode_params["bias_max"]), 0.5)
+        vol_max   = st.slider("量比(5MA) 上限", 0.3,  1.5,
+                              float(mode_params["vol_max"]),  0.05)
+        st.caption("多頭模式允許量比放大到1.2，盤整模式要求量縮0.7以下")
+
+    params = dict(eps_min=eps_min, pe_max=pe_max, gm_min=gm_min,
+                  margin_max=margin_max, inst_min=inst_min,
+                  bias_max=bias_max, vol_max=vol_max,
+                  market_mode=mode_key)
 
     st.markdown("---")
     st.markdown("<div style='color:#ffab40;font-size:0.74rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;'>STEP 3 ｜ 執行掃描</div>", unsafe_allow_html=True)
@@ -601,8 +792,7 @@ with st.sidebar:
                 if ok_mg and not df_mg.empty:
                     try:
                         col_bal = [c for c in df_mg.columns if "MarginPurchaseTodayBalance" in c or "margin_purchase_today_balance" in c]
-                        if col_bal:
-                            bal = df_mg[col_bal[0]].astype(float)
+                        if col_bal:                            bal = df_mg[col_bal[0]].astype(float)
                             margin_chg = (bal.iloc[-1]-bal.iloc[min(-5,len(bal)-1)])/bal.iloc[min(-5,len(bal)-1)]*100 if bal.iloc[min(-5,len(bal)-1)]!=0 else 0
                             big_holder = margin_chg < 0
                             chip_real  = True
@@ -781,6 +971,193 @@ with tab1:
         fmt_v={k:v for k,v in fmt.items() if k in dd.columns}
         st.dataframe(dd.style.apply(row_hl,axis=1).format(fmt_v,na_rep="—"),use_container_width=True,height=340)
         st.caption(f"共 {len(dd)} 檔 ｜ 綠色=真實籌碼(FinMind) 黃色=模擬籌碼")
+        # ════════════════════════════════════════
+        # 第四層：低風險伏擊點分析
+        # ════════════════════════════════════════
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>🎯 低風險伏擊點分析 · 第四層精選</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='infobox'>從篩選通過的標的中，綜合『法人買超程度』、"
+            "『量縮回測均線狀態』、『散戶去槓桿程度』，自動找出最佳進場時機的前3檔，"
+            "並標示建議伏擊區間與停損線。</div>",
+            unsafe_allow_html=True
+        )
+
+        if st.button("🎯 分析低風險伏擊點（從第一道以上標的分析）", use_container_width=True):
+            analyze_pool = df_r[df_r["pass1"]==True].copy()
+            if analyze_pool.empty:
+                st.warning("請先執行掃描，且至少要有通過第一道的標的")
+            else:
+                with st.spinner(f"分析 {len(analyze_pool)} 檔標的中..."):
+                    ambush_rows = []
+                    for _, row in analyze_pool.iterrows():
+                        try:
+                            tk = row["yf_ticker"]
+                            df_p = yf.download(tk, period="3mo", auto_adjust=True, progress=False)
+                            if df_p.empty or len(df_p) < 20: continue
+                            df_p.columns = [c[0] if isinstance(c,tuple) else c for c in df_p.columns]
+                            close = df_p["Close"].values.flatten().astype(float)
+                            vol   = df_p["Volume"].values.flatten().astype(float)
+                            high  = df_p["High"].values.flatten().astype(float)
+                            low_  = df_p["Low"].values.flatten().astype(float)
+                            last_c = float(close[-1])
+                            ma5    = float(pd.Series(close).rolling(5).mean().iloc[-1])
+                            ma20   = float(pd.Series(close).rolling(20).mean().iloc[-1])
+                            ma60   = float(pd.Series(close).rolling(min(60,len(close))).mean().iloc[-1])
+                            vma5   = float(pd.Series(vol).rolling(5).mean().iloc[-1])
+                            vol_ratio = float(vol[-1]) / vma5 if vma5 > 0 else 99
+                            recent_low  = min(low_[-20:])
+                            recent_high = max(high[-20:])
+                            score = 0; reasons = []
+                            ma5_bias  = (last_c - ma5)  / ma5  * 100
+                            ma20_bias = (last_c - ma20) / ma20 * 100
+                            near_ma5  = abs(ma5_bias)  < 2.0
+                            near_ma20 = abs(ma20_bias) < 3.0
+                            vol_shrink = vol_ratio < 0.7
+
+                            if near_ma5 and vol_shrink:
+                                score += 40; reasons.append(f"量縮貼近MA5（{ma5_bias:+.1f}%）")
+                            elif near_ma20 and vol_shrink:
+                                score += 30; reasons.append(f"量縮回測MA20（{ma20_bias:+.1f}%）")
+                            elif near_ma20:
+                                score += 15; reasons.append(f"接近MA20（{ma20_bias:+.1f}%）")
+
+                            inst_buy = float(row.get("法人買超%", 0) or 0)
+                            if inst_buy > 15:   score += 30; reasons.append(f"法人大量買超{inst_buy:.1f}%")
+                            elif inst_buy > 8:  score += 20; reasons.append(f"法人持續買超{inst_buy:.1f}%")
+                            elif inst_buy > 3:  score += 10; reasons.append(f"法人小幅買超{inst_buy:.1f}%")
+
+                            mg_chg = float(row.get("融資5日變動%", 0) or 0)
+                            if mg_chg < -5:   score += 20; reasons.append(f"融資大減{mg_chg:.1f}%（籌碼極乾淨）")
+                            elif mg_chg < -2: score += 12; reasons.append(f"融資減少{mg_chg:.1f}%")
+                            elif mg_chg < 0:  score += 5;  reasons.append(f"融資微減{mg_chg:.1f}%")
+
+                            if last_c > ma5 > ma20 > ma60:
+                                score += 10; reasons.append("均線多頭排列")
+                            elif last_c > ma5 > ma20:
+                                score += 5; reasons.append("短中期多頭")
+
+                            if score < 25: continue
+
+                            if near_ma5:
+                                entry_low  = round(ma5 * 0.990, 1)
+                                entry_high = round(ma5 * 1.010, 1)
+                                ref_line = "MA5"; ref_price = ma5
+                            else:
+                                entry_low  = round(ma20 * 0.990, 1)
+                                entry_high = round(ma20 * 1.015, 1)
+                                ref_line = "MA20"; ref_price = ma20
+
+                            stop_loss = max(round(ref_price * 0.970, 1), round(recent_low * 0.990, 1))
+                            target    = round(min(recent_high * 1.02, last_c * 1.08), 1)
+                            risk      = last_c - stop_loss
+                            reward    = target - last_c
+                            rr        = round(reward / risk, 1) if risk > 0 else 0
+
+                            ambush_rows.append({
+                                "代號": row["代號"], "名稱": row["名稱"],
+                                "現價": last_c, "參考均線": ref_line,
+                                "伏擊下限": entry_low, "伏擊上限": entry_high,
+                                "停損線": stop_loss, "目標價": target,
+                                "風險報酬比": rr,
+                                "法人買超%": round(inst_buy, 1),
+                                "融資變動%": round(mg_chg, 1),
+                                "量比": round(vol_ratio, 2),
+                                "綜合評分": score,
+                                "進場理由": "｜".join(reasons),
+                                "pass2": bool(row.get("pass2", False)),
+                                "pass3": bool(row.get("pass3", False)),
+                            })
+                        except: continue
+                        time.sleep(0.05)
+
+                if not ambush_rows:
+                    st.warning("目前無符合伏擊條件的標的，市場可能強勢追高或弱勢無量")
+                else:
+                    df_amb = pd.DataFrame(ambush_rows).sort_values("綜合評分", ascending=False)
+                    top3   = df_amb.head(3).reset_index(drop=True)
+                    st.markdown(f"<div style='color:#00e676;font-weight:700;font-size:0.9rem;margin:10px 0 6px;'>🏆 最佳伏擊標的（前{len(top3)}檔）</div>", unsafe_allow_html=True)
+
+                    tier_colors = ["#ffd700","#c0c0c0","#cd7f32"]
+                    for rank in range(len(top3)):
+                        r = top3.iloc[rank]
+                        tc = tier_colors[rank]
+                        if r.get("pass3"):   pbadge = "<span style='background:rgba(0,230,118,0.15);border:1px solid #00e676;color:#00e676;border-radius:4px;padding:1px 6px;font-size:0.68rem;'>三道精選</span>"
+                        elif r.get("pass2"): pbadge = "<span style='background:rgba(0,212,255,0.1);border:1px solid #00d4ff;color:#00d4ff;border-radius:4px;padding:1px 6px;font-size:0.68rem;'>二道通過</span>"
+                        else:                pbadge = "<span style='background:rgba(255,171,64,0.1);border:1px solid #ffab40;color:#ffab40;border-radius:4px;padding:1px 6px;font-size:0.68rem;'>一道通過</span>"
+                        mg_c = "#00e676" if r["融資變動%"]<0 else "#ff5252"
+
+                        st.markdown(f"""
+                        <div style='background:linear-gradient(135deg,#0f2027,#162535);
+                            border:1px solid #1e3a5f;border-left:4px solid {tc};
+                            border-radius:10px;padding:16px 18px;margin:8px 0;'>
+                            <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;'>
+                                <div>
+                                    <span style='color:{tc};font-size:1.1rem;font-weight:700;'>#{rank+1}</span>
+                                    <span style='color:#e8f4fd;font-size:1rem;font-weight:700;margin-left:8px;'>{r["代號"]} {r["名稱"]}</span>
+                                    <span style='margin-left:8px;'>{pbadge}</span>
+                                </div>
+                                <div style='background:rgba(0,230,118,0.1);border:1px solid #00e676;border-radius:20px;padding:3px 12px;'>
+                                    <span style='color:#00e676;font-weight:700;'>評分 {r["綜合評分"]}</span>
+                                </div>
+                            </div>
+                            <div style='display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;'>
+                                <div style='background:#0a1628;border-radius:6px;padding:8px;text-align:center;'>
+                                    <div style='color:#7fb3d3;font-size:0.68rem;'>現價</div>
+                                    <div style='color:#e8f4fd;font-size:1rem;font-weight:700;font-family:monospace;'>{r["現價"]:.1f}</div>
+                                </div>
+                                <div style='background:rgba(0,230,118,0.05);border:1px solid rgba(0,230,118,0.3);border-radius:6px;padding:8px;text-align:center;'>
+                                    <div style='color:#7fb3d3;font-size:0.68rem;'>🎯 伏擊區間</div>
+                                    <div style='color:#00e676;font-size:0.88rem;font-weight:700;font-family:monospace;'>{r["伏擊下限"]} ~ {r["伏擊上限"]}</div>
+                                </div>
+                                <div style='background:rgba(255,82,82,0.05);border:1px solid rgba(255,82,82,0.3);border-radius:6px;padding:8px;text-align:center;'>
+                                    <div style='color:#7fb3d3;font-size:0.68rem;'>🛑 停損線</div>
+                                    <div style='color:#ff5252;font-size:0.88rem;font-weight:700;font-family:monospace;'>{r["停損線"]}</div>
+                                </div>
+                                <div style='background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.3);border-radius:6px;padding:8px;text-align:center;'>
+                                    <div style='color:#7fb3d3;font-size:0.68rem;'>🎪 目標價</div>
+                                    <div style='color:#00d4ff;font-size:0.88rem;font-weight:700;font-family:monospace;'>{r["目標價"]}</div>
+                                </div>
+                            </div>
+                            <div style='display:flex;gap:16px;margin-bottom:8px;flex-wrap:wrap;'>
+                                <span style='color:#7fb3d3;font-size:0.76rem;'>法人買超：<b style='color:#00d4ff;'>{r["法人買超%"]:+.1f}%</b></span>
+                                <span style='color:#7fb3d3;font-size:0.76rem;'>融資變動：<b style='color:{mg_c};'>{r["融資變動%"]:+.1f}%</b></span>
+                                <span style='color:#7fb3d3;font-size:0.76rem;'>量比：<b style='color:#ffab40;'>{r["量比"]:.2f}</b></span>
+                                <span style='color:#7fb3d3;font-size:0.76rem;'>風險報酬：<b style='color:#e8f4fd;'>1:{r["風險報酬比"]}</b></span>
+                                <span style='color:#7fb3d3;font-size:0.76rem;'>參考：<b style='color:#ffab40;'>{r["參考均線"]}</b></span>
+                            </div>
+                            <div style='background:#0a1628;border-radius:6px;padding:8px 10px;'>
+                                <span style='color:#7fb3d3;font-size:0.72rem;'>📋 進場理由：</span>
+                                <span style='color:#c8dff0;font-size:0.74rem;'>{r["進場理由"]}</span>
+                            </div>
+                        </div>""", unsafe_allow_html=True)
+
+                    # 視覺化
+                    fig_amb = go.Figure()
+                    for i in range(len(top3)):
+                        r    = top3.iloc[i]
+                        name = f"{r['代號']} {r['名稱']}"
+                        fig_amb.add_trace(go.Bar(x=[name], y=[r["伏擊上限"]-r["伏擊下限"]], base=[r["伏擊下限"]],
+                            marker_color="rgba(0,230,118,0.25)", marker_line_color="#00e676", marker_line_width=1.5,
+                            name="伏擊區間", showlegend=(i==0)))
+                        fig_amb.add_trace(go.Scatter(x=[name], y=[r["現價"]], mode="markers",
+                            marker=dict(color="#e8f4fd",size=14,symbol="diamond"), name="現價", showlegend=(i==0)))
+                        fig_amb.add_trace(go.Scatter(x=[name], y=[r["停損線"]], mode="markers",
+                            marker=dict(color="#ff5252",size=10,symbol="triangle-down"), name="停損線", showlegend=(i==0)))
+                        fig_amb.add_trace(go.Scatter(x=[name], y=[r["目標價"]], mode="markers",
+                            marker=dict(color="#00d4ff",size=10,symbol="triangle-up"), name="目標價", showlegend=(i==0)))
+                    fig_amb.update_layout(**base_layout("低風險伏擊點 · 價格區間圖", 360),
+                                         barmode="overlay", yaxis_title="股價（元）")
+                    st.plotly_chart(fig_amb, use_container_width=True)
+
+                    with st.expander(f"📋 全部伏擊候選（{len(df_amb)}檔）"):
+                        sc = ["代號","名稱","現價","伏擊下限","伏擊上限","停損線","目標價","風險報酬比","法人買超%","融資變動%","量比","綜合評分"]
+                        st.dataframe(df_amb[sc].style.format({
+                            "現價":"{:.1f}","伏擊下限":"{:.1f}","伏擊上限":"{:.1f}","停損線":"{:.1f}",
+                            "目標價":"{:.1f}","風險報酬比":"1:{:.1f}","法人買超%":"{:+.1f}%","融資變動%":"{:+.1f}%","量比":"{:.2f}",
+                        }).background_gradient(cmap="Greens",subset=["綜合評分"]),
+                        use_container_width=True, height=280)
+                    st.caption("⚠️ 以上分析僅供參考，不構成投資建議。請結合基本面與市場環境自行判斷。")
 
 # ──────────────────────────────────────────────
 # TAB 2：防守監控
