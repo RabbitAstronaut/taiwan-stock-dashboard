@@ -477,7 +477,9 @@ def get_chart_data(tk, pd_):
             df = yf.download(tk, period=pd_, auto_adjust=True, progress=False, timeout=15)
             df = _clean(df)
             if not df.empty: return df
-        except: pass
+        except Exception as _yfe:
+            if attempt == 2:
+                pass  # Give up on yfinance, move to fallbacks
 
     alt_tk = tk.replace(".TW",".TWO") if tk.endswith(".TW") else tk.replace(".TWO",".TW")
     for attempt in range(2):
@@ -504,7 +506,7 @@ def get_chart_data(tk, pd_):
             jd = r.json() if r.status_code == 200 else {}
             if jd.get("stat") != "OK":
                 # 試上櫃
-                url2 = f"https://www.tpex.org.tw/web/stock/aftertrading/daily_trading_info/st43_result.php?l=zh-tw&d={yr_ad-1911}/{mo:02d}&stkno={code}&s=0,asc"
+                url2 = f"https://www.tpex.org.tw/web/stock/aftertrading/daily_trading_info/st43_result.php?l=zh-tw&d={yr-1911}/{mo:02d}&stkno={code}&s=0,asc"
                 try:
                     r2 = req_mod.get(url2, headers=headers, timeout=10)
                     jd2 = r2.json() if r2.status_code == 200 else {}
@@ -1548,11 +1550,17 @@ with tab1:
             st.markdown(tags2 or "<span style='color:#546e7a;'>無</span>",unsafe_allow_html=True)
         st.markdown("<br>",unsafe_allow_html=True)
         tc1,tc2,tc3=st.columns(3)
-        with tc1: show_pass=st.selectbox("顯示範圍",["三道全通過","二道以上","一道以上","全部掃描"])
+        with tc1: show_pass=st.selectbox("顯示範圍",["一道以上","二道以上","三道全通過","全部掃描"])
         with tc2: sort_col=st.selectbox("排序",["毛利率%","EPS_TTM","PE","MA20乖離%","量比(5MA)","法人買超%"])
         with tc3: sort_asc=(st.radio("方向",["↓高到低","↑低到高"],horizontal=True)=="↑低到高")
         pm={"三道全通過":df_r[df_r["pass3"]==True],"二道以上":df_r[df_r["pass2"]==True],"一道以上":df_r[df_r["pass1"]==True],"全部掃描":df_r}
         dv=pm[show_pass].copy()
+        if dv.empty:
+            st.markdown(
+                f"<div class='warning-banner'>⚠️ 【{show_pass}】無符合標的 "
+                f"｜ 試試切換顯示範圍，或用 STEP 4 市場模式放寬條件</div>",
+                unsafe_allow_html=True
+            )
         if sort_col in dv.columns: dv=dv.sort_values(sort_col,ascending=sort_asc,na_position="last")
         sc=[c for c in ["代號","名稱","市場","收盤價","EPS_TTM","毛利率%","PE","MA20乖離%","量比(5MA)","融資5日變動%","法人買超%","籌碼真實","pass1","pass2","pass3"] if c in dv.columns]
         dd=dv[sc].copy()
