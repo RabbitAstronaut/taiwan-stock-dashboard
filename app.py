@@ -1036,7 +1036,8 @@ with st.sidebar:
                 headers={"User-Agent":"Mozilla/5.0"}
                 rows=[]
                 from datetime import date
-                today=date.today()                for m in range(6):
+                today=date.today()
+                for m in range(6):
                     mo=today.month-m; yr=today.year
                     while mo<=0: mo+=12; yr-=1
                     url=f"https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date={yr}{mo:02d}01&stockNo={code}"
