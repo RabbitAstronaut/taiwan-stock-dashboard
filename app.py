@@ -595,9 +595,10 @@ with tab1:
                         pe_val = last_close / eps_ttm * 4  # 年化近似
 
                 # 第一道判斷
-                p1_eps = (not np.isnan(eps_ttm)) and eps_ttm > eps_min
-                p1_pe  = np.isnan(pe_val) or pe_val < pe_max   # PE 缺失視為通過
-                p1_gm  = (not np.isnan(gm_latest)) and gm_latest > gm_min
+                # NaN = 資料缺失，視為「不知道」→ 通過（不要因缺資料就漏掉好股）
+                p1_eps = np.isnan(eps_ttm) or eps_ttm > eps_min
+                p1_pe  = np.isnan(pe_val)  or pe_val  < pe_max
+                p1_gm  = np.isnan(gm_latest) or gm_latest > gm_min
                 pass1  = p1_eps and p1_pe and p1_gm
                 if not pass1:
                     continue
@@ -744,23 +745,130 @@ with tab1:
         results = st.session_state["scan_results"]
         df_res  = pd.DataFrame(results)
 
-        # ── 篩選排序
-        rc1, rc2, rc3 = st.columns(3)
-        min_chip  = rc1.slider("籌碼得分 ≥", 0, 6, 3, key="r_chip")
-        min_fin   = rc2.slider("財報得分 ≥", 0, 3, 1, key="r_fin")
-        sort_by   = rc3.selectbox("排序依據",
-            ["總得分","EPS_TTM","毛利率%","籌碼得分","財報得分"], key="r_sort")
+        st.success(f"✅ 基本面母體：{len(df_res)} 檔（通過 EPS / P/E / 毛利率 篩選）")
 
-        df_show = df_res[
-            (df_res["籌碼得分"] >= min_chip) &
-            (df_res["財報得分"] >= min_fin)
-        ].sort_values(sort_by, ascending=False)
+        if df_res.empty:
+            st.warning("無基本面通過標的，請調整篩選條件")
+        else:
+            # ══════════════════════════════
+            # 表格一：籌碼與均線（6項各自獨立）
+            # ══════════════════════════════
+            st.markdown("<div class='sec-title'>📊 籌碼與均線評分（每項獨立）</div>",
+                        unsafe_allow_html=True)
+            st.markdown(
+                "<div class='infobox'>以下為符合基本條件的所有標的。"
+                "a~f 六項條件各自獨立，✅=符合 ❌=不符合，"
+                "可依「籌碼得分」排序找出籌碼最健康的標的。</div>",
+                unsafe_allow_html=True
+            )
+            cc1, cc2 = st.columns([2,1])
+            min_chip = cc1.slider("顯示籌碼得分 ≥", 0, 6, 0, key="r_chip2")
+            sort_chip = cc2.selectbox("排序", ["籌碼得分","EPS_TTM","毛利率%","代號"], key="r_csort")
 
+            chip_cols = ["代號","名稱","EPS_TTM","P/E","毛利率%"]
+            label_map = {
+                "籌碼_融資5日變動": "a.融資減少>3%",
+                "籌碼_法人買超":    "b.法人買超>10%",
+                "籌碼_大戶持股上升":"c.大戶持股↑",
+                "籌碼_MA20乖離<5%": "d.站上MA20乖離<5%",
+                "籌碼_窒息量":      "e.窒息量<60%",
+                "籌碼_低點墊高":    "f.低點不破低",
+                "籌碼得分":         "籌碼得分/6",
+            }
+            df_chip = df_res.copy()
+            for old_col, new_label in label_map.items():
+                if old_col in df_chip.columns:
+                    df_chip[new_label] = df_chip[old_col].map(
+                        lambda x: "✅" if x else "❌"
+                    )
+            df_chip["籌碼得分/6"] = df_chip["籌碼得分"].astype(str) + "/6"
+            show_chip_cols = chip_cols + [v for v in label_map.values() if v in df_chip.columns]
+            df_chip_show = df_chip[df_chip["籌碼得分"] >= min_chip].sort_values(
+                sort_chip, ascending=False if sort_chip=="籌碼得分" else True, na_position="last"
+            )
+            st.dataframe(
+                df_chip_show[[c for c in show_chip_cols if c in df_chip_show.columns]],
+                width="stretch", height=380
+            )
+
+            # 加入監控按鈕（籌碼表格旁）
+            if not df_chip_show.empty:
+                add_from_chip = st.multiselect(
+                    "從籌碼結果加入監控",
+                    [f"{r['代號']} {r['名稱']}" for _,r in df_chip_show.iterrows()],
+                    label_visibility="collapsed",
+                    placeholder="選擇標的加入監控清單...",
+                    key="chip_add_sel"
+                )
+                if st.button("⭐ 加入監控", key="chip_add_btn"):
+                    for item in add_from_chip:
+                        code = item.split()[0]
+                        name = " ".join(item.split()[1:])
+                        if not any(w["id"]==code for w in st.session_state.watchlist):
+                            st.session_state.watchlist.append({"id":code,"name":name})
+                    if add_from_chip:
+                        st.toast(f"✅ 已加入 {len(add_from_chip)} 檔到監控清單")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ══════════════════════════════
+            # 表格二：財報分析（3項各自獨立）
+            # ══════════════════════════════
+            st.markdown("<div class='sec-title'>📋 財報分析評分（每項獨立）</div>",
+                        unsafe_allow_html=True)
+            st.markdown(
+                "<div class='infobox'>同樣母體，三項財報條件各自獨立，"
+                "✅=符合 ❌=不符合，可依「財報得分」排序。</div>",
+                unsafe_allow_html=True
+            )
+            fc1, fc2 = st.columns([2,1])
+            min_fin = fc1.slider("顯示財報得分 ≥", 0, 3, 0, key="r_fin2")
+            sort_fin = fc2.selectbox("排序", ["財報得分","EPS_TTM","毛利率%","代號"], key="r_fsort")
+
+            fin_label_map = {
+                "財報_月營收YoY": "①月營收YoY>10%",
+                "財報_毛利率QoQ+":"②毛利率QoQ+",
+                "財報_EPS YoY+":  "③EPS YoY>20%",
+                "財報得分":        "財報得分/3",
+            }
+            df_fin2 = df_res.copy()
+            for old_col, new_label in fin_label_map.items():
+                if old_col in df_fin2.columns:
+                    df_fin2[new_label] = df_fin2[old_col].map(
+                        lambda x: "✅" if x else "❌"
+                    )
+            df_fin2["財報得分/3"] = df_fin2["財報得分"].astype(str) + "/3"
+            show_fin_cols = chip_cols + [v for v in fin_label_map.values() if v in df_fin2.columns]
+            df_fin_show = df_fin2[df_fin2["財報得分"] >= min_fin].sort_values(
+                sort_fin, ascending=False if sort_fin=="財報得分" else True, na_position="last"
+            )
+            st.dataframe(
+                df_fin_show[[c for c in show_fin_cols if c in df_fin_show.columns]],
+                width="stretch", height=380
+            )
+
+            # 加入監控按鈕（財報表格旁）
+            if not df_fin_show.empty:
+                add_from_fin = st.multiselect(
+                    "從財報結果加入監控",
+                    [f"{r['代號']} {r['名稱']}" for _,r in df_fin_show.iterrows()],
+                    label_visibility="collapsed",
+                    placeholder="選擇標的加入監控清單...",
+                    key="fin_add_sel"
+                )
+                if st.button("⭐ 加入監控", key="fin_add_btn"):
+                    for item in add_from_fin:
+                        code = item.split()[0]
+                        name = " ".join(item.split()[1:])
+                        if not any(w["id"]==code for w in st.session_state.watchlist):
+                            st.session_state.watchlist.append({"id":code,"name":name})
+                    if add_from_fin:
+                        st.toast(f"✅ 已加入 {len(add_from_fin)} 檔到監控清單")
+
+        # placeholder to keep old variable name for funnel chart below
+        df_show = df_res  # keep for backward compat
         st.markdown(f"""
-        <div class='infobox'>
-            基本面母體：<b style='color:#e8f4fd;'>{len(df_res)}</b> 檔 ｜
-            篩選後：<b style='color:#00e676;'>{len(df_show)}</b> 檔 ｜
-            點擊「加入監控」追蹤個股
+        <div class='infobox' style='display:none;'>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1140,8 +1248,8 @@ with tab3:
             sc = next((c for c in mtx_df.columns if "short_open_interest_balance" in c), None)
             if lc and sc:
                 for kw, key in [("自營","mtx_dealer"),("投信","mtx_trust"),("外資","mtx_foreign")]:
-                    r = mtx_df[(mtx_df["date"] == ld) &
-                               (mtx_df.get("name","").astype(str).str.contains(kw, na=False))]
+                    name_filter = mtx_df["name"].astype(str).str.contains(kw, na=False) if "name" in mtx_df.columns else pd.Series([False]*len(mtx_df), index=mtx_df.index)
+                    r = mtx_df[(mtx_df["date"] == ld) & name_filter]
                     if not r.empty:
                         try:
                             result[key] = int(float(r[lc].values[0])) - \
