@@ -121,6 +121,33 @@ p, span, label, div, h1, h2, h3, li {
 .infobox{background:#0f2027;border:1px solid #1e3a5f;border-radius:8px;padding:10px 14px;margin:6px 0;font-size:.78rem;color:#7fb3d3;line-height:1.6;}
 
 @keyframes pulse{0%{box-shadow:0 0 8px rgba(255,82,82,.2);}50%{box-shadow:0 0 18px rgba(255,82,82,.5);}100%{box-shadow:0 0 8px rgba(255,82,82,.2);}}
+
+/* ══ Selectbox / Dropdown ══ */
+[data-baseweb="select"]>div{background:#0f1e30!important;color:#e8f4fd!important;border-color:#1e3a5f!important;}
+[data-baseweb="select"] span{color:#e8f4fd!important;}
+[data-baseweb="select"] input{color:#e8f4fd!important;background:transparent!important;}
+[data-baseweb="popover"]{background:#0f1e30!important;}
+[data-baseweb="popover"] li{background:#0f1e30!important;color:#e8f4fd!important;}
+[data-baseweb="popover"] li:hover{background:#1e3a5f!important;}
+[data-baseweb="menu"]{background:#0f1e30!important;color:#e8f4fd!important;}
+[data-baseweb="tag"]{background:#1e3a5f!important;}
+[data-baseweb="tag"] span{color:#e8f4fd!important;}
+/* ══ Radio ══ */
+[data-testid="stRadio"] label p{color:#e8f4fd!important;}
+[data-testid="stRadio"] label{color:#e8f4fd!important;}
+/* ══ Number / Text input ══ */
+input[type="number"],input[type="text"],textarea{
+    color:#e8f4fd!important;background:#0f1e30!important;border-color:#1e3a5f!important;}
+/* ══ Slider ══ */
+[data-testid="stSlider"] p{color:#c8dff0!important;}
+/* ══ DataTable text ══ */
+[data-testid="stDataFrame"] td,[data-testid="stDataFrame"] th{color:#e8f4fd!important;}
+/* ══ Multiselect ══ */
+[data-testid="stMultiSelect"] span{color:#e8f4fd!important;}
+[data-testid="stMultiSelect"] input{color:#e8f4fd!important;}
+/* ══ All labels ══ */
+label{color:#c8dff0!important;}
+label p{color:#c8dff0!important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -933,14 +960,8 @@ with tab1:
                             "法人買超%","融資5日變動%","籌碼得分","財報得分","總得分"]
             df_table = df_show[[c for c in display_cols if c in df_show.columns]].copy()
             st.dataframe(
-                df_table.style
-                .background_gradient(subset=["總得分"], cmap="YlGn")
-                .format({
-                    "EPS_TTM":"{:.2f}", "P/E":"{:.1f}",
-                    "毛利率%":"{:.1f}", "法人買超%":"{:.1f}",
-                    "融資5日變動%":"{:.1f}",
-                }, na_rep="—"),
-                width='stretch', height=360,
+                df_table,
+                use_container_width=True, height=360
             )
 
         # ── 個股評分卡 + 加入監控
