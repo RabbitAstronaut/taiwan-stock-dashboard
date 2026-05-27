@@ -1,0 +1,607 @@
+08:48:46 [INFO] ═══════════════════════════════════════════════════════
+08:48:46 [INFO] 台股量化系統 V4 資料爬蟲  2026-05-27
+08:48:46 [INFO] Token  : 未設定（免費版）
+08:48:46 [INFO] 模式   : 首次執行（歷史資料）
+08:48:46 [INFO] 批次   : 150 檔/批
+08:48:46 [INFO] ═══════════════════════════════════════════════════════
+08:48:46 [INFO] 股票池 : 295 檔
+08:48:46 [INFO] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+08:48:46 [INFO] 📋 模組 1/6：股票清單
+08:48:46 [INFO] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+08:48:46 [INFO]   💾 stock_info.csv（295 筆，新建）
+08:48:46 [INFO] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+08:48:46 [INFO] 📊 模組 2/6：三大法人（295 檔）
+08:48:46 [INFO] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+08:48:46 [INFO]   起始日期：2026-03-28
+08:48:46 [INFO]   295 檔 / 分 2 批（150 檔/批）
+08:48:46 [INFO]   ── 批次 1/2（1101～2891）
+08:51:24 [INFO]   💾 chips_data.csv（27420 筆，新建）
+08:51:24 [INFO]   ⏸  暫停 70s...
+08:52:34 [INFO]   ── 批次 2/2（2892～8210）
+08:55:15 [INFO]   💾 chips_data.csv（54475 筆）
+08:55:15 [INFO]   ✅ 三大法人 完成，54475 筆
+08:55:15 [INFO] 💰 抓取融資券（295 檔）
+08:55:15 [INFO]   295 檔 / 分 1 批（999 檔/批）
+08:55:15 [INFO]   ── 批次 1/1（1101～8210）
+08:55:23 [WARNING]   ⏳ API 頻率上限（第1次），等待 65s | id=1218
+08:56:28 [WARNING]   ⏳ API 頻率上限（第2次），等待 120s | id=1218
+08:58:29 [WARNING]   ⏳ API 頻率上限（第3次），等待 120s | id=1218
+09:00:29 [WARNING]   ⏳ API 頻率上限（第4次），等待 120s | id=1218
+09:02:29 [WARNING]   ⏳ API 頻率上限（第5次），等待 120s | id=1218
+09:04:29 [ERROR]   ❌ 放棄 | TaiwanStockMarginPurchaseShortSale id=1218
+09:04:30 [WARNING]   ⏳ API 頻率上限（第1次），等待 65s | id=1301
+09:05:36 [WARNING]   ⏳ API 頻率上限（第2次），等待 120s | id=1301
+09:09:37 [INFO] ═══════════════════════════════════════════════════════
+09:09:37 [INFO] 台股量化系統 V4 資料爬蟲  2026-05-27
+09:09:37 [INFO] Token  : 未設定（免費版）
+09:09:37 [INFO] 模式   : 每日更新（增量）
+09:09:37 [INFO] 批次   : 999 檔/批
+09:09:37 [INFO] ═══════════════════════════════════════════════════════
+09:09:37 [INFO] 股票池 : 295 檔
+09:09:37 [INFO] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+09:09:37 [INFO] 🔮 模組 4/6：期貨籌碼（TX＋MTX）
+09:09:37 [INFO] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+09:09:37 [WARNING]   ⏳ API 頻率上限（第1次），等待 65s | id=TX
+09:10:42 [WARNING]   ⏳ API 頻率上限（第2次），等待 120s | id=TX
+09:12:42 [ERROR]   ❌ 放棄 | TaiwanFuturesInstitutionalInvestors id=TX
+09:12:43 [WARNING]   ⏳ API 頻率上限（第1次），等待 65s | id=MTX
+09:13:48 [WARNING]   ⏳ API 頻率上限（第2次），等待 120s | id=MTX
+09:15:48 [ERROR]   ❌ 放棄 | TaiwanFuturesInstitutionalInvestors id=MTX
+09:15:49 [WARNING]   ⏳ API 頻率上限（第1次），等待 65s | id=MTX
+09:16:55 [WARNING]   ⏳ API 頻率上限（第2次），等待 120s | id=MTX
+09:18:55 [ERROR]   ❌ 放棄 | TaiwanFuturesDaily id=MTX
+09:18:55 [INFO] ═══════════════════════════════════════════════════════
+09:18:55 [INFO] ✅ 全部完成
+09:18:55 [INFO] ═══════════════════════════════════════════════════════
+09:18:56 [INFO] ═══════════════════════════════════════════════════════
+09:18:56 [INFO] 台股量化系統 V4 資料爬蟲  2026-05-27
+09:18:56 [INFO] Token  : 未設定（免費版）
+09:18:56 [INFO] 模式   : 每日更新（增量）
+09:18:56 [INFO] 批次   : 999 檔/批
+09:18:56 [INFO] ═══════════════════════════════════════════════════════
+09:18:56 [INFO] 股票池 : 295 檔
+09:18:56 [INFO] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+09:18:56 [INFO] 🏦 模組 5/6：大戶持股結構（295 檔）
+09:18:56 [INFO] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+09:18:56 [INFO]   295 檔 / 分 1 批（999 檔/批）
+09:18:56 [INFO]   ── 批次 1/1（1101～8210）
+09:18:56 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1101
+09:18:57 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1102
+09:18:58 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1210
+09:18:59 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1215
+09:19:00 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1216
+09:19:01 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1217
+09:19:02 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1218
+09:19:03 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1301
+09:19:04 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1303
+09:19:05 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1304
+09:19:06 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1305
+09:19:07 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1307
+09:19:08 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1326
+09:19:09 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1402
+09:19:10 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1466
+09:19:11 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1504
+09:19:12 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1514
+09:19:13 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1537
+09:19:14 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1560
+09:19:14 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1580
+09:19:15 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1582
+09:19:16 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1583
+09:19:17 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1584
+09:19:18 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1585
+09:19:19 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1586
+09:19:20 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1589
+09:19:21 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1590
+09:19:22 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1603
+09:19:23 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1605
+09:19:24 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1608
+09:19:25 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1609
+09:19:26 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1612
+09:19:27 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1710
+09:19:28 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1711
+09:19:29 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1760
+09:19:30 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=1789
+09:19:31 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2002
+09:19:32 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2006
+09:19:33 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2007
+09:19:34 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2008
+09:19:34 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2009
+09:19:35 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2010
+09:19:36 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2012
+09:19:37 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2013
+09:19:38 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2014
+09:19:39 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2015
+09:19:40 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2049
+09:19:41 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2059
+09:19:42 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2061
+09:19:43 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2062
+09:19:44 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2063
+09:19:45 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2064
+09:19:46 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2065
+09:19:47 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2201
+09:19:48 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2204
+09:19:49 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2207
+09:19:50 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2208
+09:19:51 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2301
+09:19:52 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2303
+09:19:53 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2308
+09:19:54 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2317
+09:19:54 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2324
+09:19:55 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2325
+09:19:56 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2327
+09:19:57 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2329
+09:19:58 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2330
+09:19:59 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2332
+09:20:00 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2337
+09:20:01 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2340
+09:20:02 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2344
+09:20:03 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2345
+09:20:04 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2348
+09:20:05 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2351
+09:20:06 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2353
+09:20:07 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2354
+09:20:08 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2356
+09:20:09 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2357
+09:20:10 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2363
+09:20:11 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2364
+09:20:12 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2365
+09:20:13 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2368
+09:20:14 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2379
+09:20:14 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2382
+09:20:15 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2383
+09:20:16 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2388
+09:20:17 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2393
+09:20:18 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2397
+09:20:19 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2399
+09:20:20 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2406
+09:20:21 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2408
+09:20:22 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2409
+09:20:23 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2412
+09:20:24 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2421
+09:20:25 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2429
+09:20:26 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2436
+09:20:27 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2439
+09:20:28 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2441
+09:20:29 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2449
+09:20:30 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2454
+09:20:31 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2455
+09:20:32 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2460
+09:20:32 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2462
+09:20:33 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2471
+09:20:34 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2474
+09:20:35 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2475
+09:20:36 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2498
+09:20:37 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2511
+09:20:38 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2515
+09:20:39 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2528
+09:20:40 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2534
+09:20:41 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2535
+09:20:42 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2536
+09:20:43 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2537
+09:20:44 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2538
+09:20:45 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2540
+09:20:46 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2542
+09:20:47 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2543
+09:20:48 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2545
+09:20:49 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2546
+09:20:50 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2547
+09:20:51 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2548
+09:20:52 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2597
+09:20:52 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2718
+09:20:53 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2719
+09:20:54 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2720
+09:20:55 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2801
+09:20:56 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2820
+09:20:57 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2823
+09:20:58 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2824
+09:20:59 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2834
+09:21:00 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2838
+09:21:01 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2849
+09:21:02 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2850
+09:21:03 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2851
+09:21:04 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2852
+09:21:05 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2855
+09:21:06 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2856
+09:21:07 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2867
+09:21:08 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2880
+09:21:09 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2881
+09:21:10 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2882
+09:21:11 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2883
+09:21:11 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2884
+09:21:12 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2885
+09:21:13 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2886
+09:21:14 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2887
+09:21:15 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2888
+09:21:16 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2889
+09:21:17 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2890
+09:21:18 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2891
+09:21:19 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2892
+09:21:20 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2903
+09:21:21 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2905
+09:21:22 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2908
+09:21:23 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2910
+09:21:24 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2911
+09:21:25 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2912
+09:21:26 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2914
+09:21:27 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2915
+09:21:28 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=2923
+09:21:29 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3008
+09:21:30 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3014
+09:21:31 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3016
+09:21:31 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3017
+09:21:32 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3023
+09:21:33 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3028
+09:21:34 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3030
+09:21:35 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3031
+09:21:36 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3033
+09:21:37 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3034
+09:21:38 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3035
+09:21:39 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3036
+09:21:40 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3037
+09:21:41 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3038
+09:21:42 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3040
+09:21:43 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3041
+09:21:44 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3042
+09:21:45 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3044
+09:21:46 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3045
+09:21:47 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3046
+09:21:48 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3047
+09:21:49 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3048
+09:21:50 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3049
+09:21:51 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3057
+09:21:51 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3059
+09:21:52 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3062
+09:21:53 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3085
+09:21:54 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3105
+09:21:55 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3141
+09:21:56 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3189
+09:21:57 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3209
+09:21:58 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3211
+09:21:59 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3228
+09:22:00 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3231
+09:22:01 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3260
+09:22:02 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3376
+09:22:03 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3406
+09:22:04 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3443
+09:22:05 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3481
+09:22:06 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3494
+09:22:07 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3515
+09:22:08 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3518
+09:22:08 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3530
+09:22:09 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3532
+09:22:10 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3533
+09:22:11 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3548
+09:22:12 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3576
+09:22:13 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3583
+09:22:14 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3593
+09:22:15 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3596
+09:22:16 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3597
+09:22:17 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3653
+09:22:18 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3661
+09:22:19 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3691
+09:22:20 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3706
+09:22:21 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3707
+09:22:22 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=3711
+09:22:23 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4106
+09:22:24 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4108
+09:22:25 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4119
+09:22:25 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4121
+09:22:26 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4123
+09:22:27 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4126
+09:22:28 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4128
+09:22:29 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4130
+09:22:30 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4133
+09:22:31 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4141
+09:22:32 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4142
+09:22:33 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4144
+09:22:34 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4147
+09:22:35 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4148
+09:22:36 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4162
+09:22:37 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4174
+09:22:38 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4743
+09:22:39 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4904
+09:22:40 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4906
+09:22:41 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4919
+09:22:42 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4938
+09:22:42 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4958
+09:22:43 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4960
+09:22:44 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4961
+09:22:45 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4966
+09:22:46 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=4968
+09:22:47 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5009
+09:22:48 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5269
+09:22:49 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5274
+09:22:50 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5347
+09:22:51 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5354
+09:22:52 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5371
+09:22:53 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5483
+09:22:54 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5522
+09:22:55 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5533
+09:22:56 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5536
+09:22:57 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5546
+09:22:58 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5876
+09:22:59 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5878
+09:23:00 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5880
+09:23:00 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5903
+09:23:01 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=5904
+09:23:02 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6005
+09:23:03 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6120
+09:23:04 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6146
+09:23:05 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6147
+09:23:06 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6214
+09:23:07 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6227
+09:23:08 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6230
+09:23:09 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6239
+09:23:10 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6244
+09:23:11 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6257
+09:23:12 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6269
+09:23:13 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6271
+09:23:14 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6274
+09:23:15 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6277
+09:23:16 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6278
+09:23:17 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6285
+09:23:18 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6409
+09:23:18 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6415
+09:23:19 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6442
+09:23:20 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6446
+09:23:21 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6456
+09:23:22 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6461
+09:23:23 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6488
+09:23:24 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6505
+09:23:25 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6510
+09:23:26 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6523
+09:23:27 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6533
+09:23:28 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6547
+09:23:29 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6643
+09:23:30 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6669
+09:23:31 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6770
+09:23:32 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6789
+09:23:33 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=6803
+09:23:34 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=8044
+09:23:35 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=8081
+09:23:35 [WARNING]   ⚠️  Your level is free. Please update your user level. Detail information:https://finmindtrade.com/analysis/#/Sponsor/sponsor | TaiwanStockHoldingSharesPer id=8210
+09:23:36 [WARNING]   ⚠️  大戶持股 無資料
+09:23:36 [INFO] ═══════════════════════════════════════════════════════
+09:23:36 [INFO] ✅ 全部完成
+09:23:36 [INFO] ═══════════════════════════════════════════════════════
+09:23:37 [INFO] ═══════════════════════════════════════════════════════
+09:23:37 [INFO] 台股量化系統 V4 資料爬蟲  2026-05-27
+09:23:37 [INFO] Token  : 未設定（免費版）
+09:23:37 [INFO] 模式   : 每日更新（增量）
+09:23:37 [INFO] 批次   : 999 檔/批
+09:23:37 [INFO] ═══════════════════════════════════════════════════════
+09:23:37 [INFO] 股票池 : 295 檔
+09:23:37 [INFO] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+09:23:37 [INFO] 📉 模組 6/6：個股 K 線（295 檔）
+09:23:37 [INFO] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+09:23:49 [ERROR] HTTP Error 404: 
+09:23:50 [ERROR] 
+1 Failed download:
+09:23:50 [ERROR] ['1580.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:23:52 [ERROR] HTTP Error 404: 
+09:23:52 [ERROR] 
+1 Failed download:
+09:23:52 [ERROR] ['1584.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:23:53 [ERROR] 
+1 Failed download:
+09:23:53 [ERROR] ['1585.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:23:54 [ERROR] 
+1 Failed download:
+09:23:54 [ERROR] ['1585.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:23:55 [ERROR] 
+1 Failed download:
+09:23:55 [ERROR] ['1586.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:08 [ERROR] 
+1 Failed download:
+09:24:08 [ERROR] ['2061.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:09 [ERROR] 
+1 Failed download:
+09:24:09 [ERROR] ['2063.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:11 [ERROR] 
+1 Failed download:
+09:24:11 [ERROR] ['2064.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:12 [ERROR] 
+1 Failed download:
+09:24:12 [ERROR] ['2065.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:17 [ERROR] 
+1 Failed download:
+09:24:17 [ERROR] ['2325.TW']: YFPricesMissingError('possibly delisted; no price data found  (1d 2026-05-22 -> 2026-05-26)')
+09:24:17 [ERROR] 
+1 Failed download:
+09:24:17 [ERROR] ['2325.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:39 [ERROR] 
+1 Failed download:
+09:24:39 [ERROR] ['2475.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:39 [ERROR] 
+1 Failed download:
+09:24:39 [ERROR] ['2475.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:49 [ERROR] 
+1 Failed download:
+09:24:49 [ERROR] ['2718.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:50 [ERROR] 
+1 Failed download:
+09:24:50 [ERROR] ['2719.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:51 [ERROR] 
+1 Failed download:
+09:24:51 [ERROR] ['2720.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:51 [ERROR] 
+1 Failed download:
+09:24:51 [ERROR] ['2720.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:53 [ERROR] 
+1 Failed download:
+09:24:53 [ERROR] ['2823.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:54 [ERROR] 
+1 Failed download:
+09:24:54 [ERROR] ['2823.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:55 [ERROR] 
+1 Failed download:
+09:24:55 [ERROR] ['2824.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:55 [ERROR] 
+1 Failed download:
+09:24:55 [ERROR] ['2824.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:24:59 [ERROR] 
+1 Failed download:
+09:24:59 [ERROR] ['2856.TW']: YFPricesMissingError('possibly delisted; no price data found  (1d 2026-05-22 -> 2026-05-26)')
+09:25:00 [ERROR] 
+1 Failed download:
+09:25:00 [ERROR] ['2856.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:06 [ERROR] 
+1 Failed download:
+09:25:06 [ERROR] ['2888.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:06 [ERROR] 
+1 Failed download:
+09:25:06 [ERROR] ['2888.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:12 [ERROR] 
+1 Failed download:
+09:25:12 [ERROR] ['2914.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:13 [ERROR] 
+1 Failed download:
+09:25:13 [ERROR] ['2914.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:27 [ERROR] 
+1 Failed download:
+09:25:27 [ERROR] ['3085.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:28 [ERROR] 
+1 Failed download:
+09:25:28 [ERROR] ['3105.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:30 [ERROR] 
+1 Failed download:
+09:25:30 [ERROR] ['3141.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:32 [ERROR] 
+1 Failed download:
+09:25:32 [ERROR] ['3211.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:33 [ERROR] 
+1 Failed download:
+09:25:33 [ERROR] ['3228.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:34 [ERROR] 
+1 Failed download:
+09:25:34 [ERROR] ['3260.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:41 [ERROR] 
+1 Failed download:
+09:25:41 [ERROR] ['3548.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:43 [ERROR] 
+1 Failed download:
+09:25:43 [ERROR] ['3597.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:45 [ERROR] 
+1 Failed download:
+09:25:45 [ERROR] ['3691.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:47 [ERROR] 
+1 Failed download:
+09:25:47 [ERROR] ['3707.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:50 [ERROR] 
+1 Failed download:
+09:25:50 [ERROR] ['4121.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:51 [ERROR] 
+1 Failed download:
+09:25:51 [ERROR] ['4123.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:53 [ERROR] 
+1 Failed download:
+09:25:53 [ERROR] ['4126.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:54 [ERROR] 
+1 Failed download:
+09:25:54 [ERROR] ['4128.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:55 [ERROR] 
+1 Failed download:
+09:25:55 [ERROR] ['4130.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:56 [ERROR] 
+1 Failed download:
+09:25:56 [ERROR] ['4141.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:57 [ERROR] 
+1 Failed download:
+09:25:57 [ERROR] ['4141.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:58 [ERROR] 
+1 Failed download:
+09:25:58 [ERROR] ['4144.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:59 [ERROR] 
+1 Failed download:
+09:25:59 [ERROR] ['4144.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:25:59 [ERROR] 
+1 Failed download:
+09:25:59 [ERROR] ['4147.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:01 [ERROR] 
+1 Failed download:
+09:26:01 [ERROR] ['4162.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:02 [ERROR] 
+1 Failed download:
+09:26:02 [ERROR] ['4174.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:03 [ERROR] 
+1 Failed download:
+09:26:03 [ERROR] ['4743.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:08 [ERROR] 
+1 Failed download:
+09:26:08 [ERROR] ['4966.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:09 [ERROR] 
+1 Failed download:
+09:26:09 [ERROR] ['5009.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:11 [ERROR] 
+1 Failed download:
+09:26:11 [ERROR] ['5274.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:12 [ERROR] 
+1 Failed download:
+09:26:12 [ERROR] ['5347.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:13 [ERROR] 
+1 Failed download:
+09:26:13 [ERROR] ['5354.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:14 [ERROR] 
+1 Failed download:
+09:26:14 [ERROR] ['5354.TWO']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:15 [ERROR] 
+1 Failed download:
+09:26:15 [ERROR] ['5371.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:16 [ERROR] 
+1 Failed download:
+09:26:16 [ERROR] ['5483.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:18 [ERROR] 
+1 Failed download:
+09:26:18 [ERROR] ['5536.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:20 [ERROR] 
+1 Failed download:
+09:26:20 [ERROR] ['5878.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:22 [ERROR] 
+1 Failed download:
+09:26:22 [ERROR] ['5903.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:24 [ERROR] 
+1 Failed download:
+09:26:24 [ERROR] ['5904.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:25 [ERROR] 
+1 Failed download:
+09:26:25 [ERROR] ['6146.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:26 [ERROR] 
+1 Failed download:
+09:26:26 [ERROR] ['6147.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:28 [ERROR] 
+1 Failed download:
+09:26:28 [ERROR] ['6227.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:30 [ERROR] 
+1 Failed download:
+09:26:30 [ERROR] ['6244.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:33 [ERROR] 
+1 Failed download:
+09:26:33 [ERROR] ['6274.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:38 [ERROR] 
+1 Failed download:
+09:26:38 [ERROR] ['6461.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:39 [ERROR] 
+1 Failed download:
+09:26:39 [ERROR] ['6488.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:40 [ERROR] 
+1 Failed download:
+09:26:40 [ERROR] ['6510.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:41 [ERROR] 
+1 Failed download:
+09:26:41 [ERROR] ['6523.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:43 [ERROR] 
+1 Failed download:
+09:26:43 [ERROR] ['6547.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:44 [ERROR] 
+1 Failed download:
+09:26:44 [ERROR] ['6643.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:46 [ERROR] 
+1 Failed download:
+09:26:46 [ERROR] ['6803.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:47 [ERROR] 
+1 Failed download:
+09:26:47 [ERROR] ['8044.TW']: YFTzMissingError('possibly delisted; no timezone found')
+09:26:49 [INFO]   ✅ K線：成功 283 / 跳過 0 / 失敗 12 檔
+09:26:49 [INFO] ═══════════════════════════════════════════════════════
+09:26:49 [INFO] ✅ 全部完成
+09:26:49 [INFO] ═══════════════════════════════════════════════════════
