@@ -598,19 +598,10 @@ with tab1:
             prog = st.progress(0)
             results = []
 
-            # 偵測財報名稱欄位（FinMind 可能是 origin_name 或其他名稱）
-            name_col = None
-            for candidate in ["origin_name", "name", "item", "type"]:
-                if candidate in df_fin.columns:
-                    # 確認該欄位包含財報項目名稱
-                    sample = df_fin[candidate].dropna().astype(str)
-                    if sample.str.contains("毛利率|EPS|每股|營業", na=False).any():
-                        name_col = candidate
-                        break
-            if name_col is None:
-                # 用第三欄（通常是項目名稱欄）
-                name_col = df_fin.columns[2] if len(df_fin.columns) > 2 else df_fin.columns[-1]
-            st.info(f"財報名稱欄位：{name_col}，欄位清單：{list(df_fin.columns[:6])}")
+            # 欄位：date, stock_id, type, value, origin_name
+            # origin_name = 中文名稱（基本每股盈餘、營業收入...）
+            # type = 英文代碼（EPS, Revenue, GrossMargin...）
+            name_col = "origin_name" if "origin_name" in df_fin.columns else                        "type"         if "type"         in df_fin.columns else                        df_fin.columns[2]
 
             # ── 依掃描範圍決定股票池
             all_fin_ids = df_fin["stock_id"].dropna().unique().tolist()
@@ -643,14 +634,28 @@ with tab1:
                     continue
 
                 # EPS
-                eps_rows = df_f[df_f[name_col].str.contains("每股盈餘|BasicEPS|EPS", case=False, na=False)]
+                # EPS：origin_name 包含「每股盈餘」，type 為 EPS
+                eps_rows = df_f[
+                    df_f[name_col].str.contains("每股盈餘|BasicEPS|EPS", case=False, na=False) |
+                    (df_f.get("type", pd.Series(dtype=str)).str.contains("EPS", case=False, na=False)
+                     if "type" in df_f.columns else False)
+                ]
                 eps_vals = pd.to_numeric(eps_rows["value"], errors="coerce").dropna()
+                # EPS 單位：元（FinMind 已是元，不需乘100）
                 eps_ttm  = eps_vals.tail(4).sum() if len(eps_vals) >= 4 else np.nan
 
                 # 毛利率
-                gm_rows  = df_f[df_f[name_col].str.contains("毛利率|GrossMargin", case=False, na=False)]
-                gm_vals  = pd.to_numeric(gm_rows["value"], errors="coerce").dropna()
-                gm_latest= float(gm_vals.iloc[-1]) if not gm_vals.empty else np.nan
+                # 毛利率：origin_name 包含「毛利率」，FinMind 值為小數（0.45=45%）
+                gm_rows = df_f[
+                    df_f[name_col].str.contains("毛利率|GrossMargin", case=False, na=False) |
+                    (df_f.get("type", pd.Series(dtype=str)).str.contains("GrossMargin", case=False, na=False)
+                     if "type" in df_f.columns else False)
+                ]
+                gm_vals   = pd.to_numeric(gm_rows["value"], errors="coerce").dropna()
+                # 若值小於 2，代表是小數格式（0.45），轉成百分比
+                if not gm_vals.empty and float(gm_vals.iloc[-1]) < 2:
+                    gm_vals = gm_vals * 100
+                gm_latest = float(gm_vals.iloc[-1]) if not gm_vals.empty else np.nan
 
                 # P/E（從 K 線近期算，或用預設值 nan）
                 pe_val = np.nan
@@ -750,7 +755,11 @@ with tab1:
                 s3 = {}
 
                 # 近3個月月營收 YoY > rev_yoy_min
-                rev_rows = df_f[df_f[name_col].str.contains("營業收入|Revenue", case=False, na=False)]
+                rev_rows = df_f[
+                    df_f[name_col].str.contains("營業收入|Revenue", case=False, na=False) |
+                    (df_f.get("type", pd.Series(dtype=str)).str.contains("Revenue", case=False, na=False)
+                     if "type" in df_f.columns else False)
+                ]
                 rev_ok = False
                 if not rev_rows.empty and "value" in rev_rows.columns:
                     rev_vals = pd.to_numeric(rev_rows["value"], errors="coerce").dropna()
