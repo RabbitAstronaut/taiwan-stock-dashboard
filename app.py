@@ -515,19 +515,19 @@ with tab1:
         fc1, fc2, fc3 = st.columns(3)
         with fc1:
             st.markdown("**第一道：基本面**")
-            eps_min = st.number_input("近四季 EPS 合計 >", value=10.0, step=0.5, key="t1_eps")
-            pe_max  = st.number_input("P/E <",            value=40.0, step=1.0, key="t1_pe")
-            gm_min  = st.number_input("最新季毛利率% >",  value=30.0, step=1.0, key="t1_gm")
+            eps_min = st.number_input("近四季 EPS 合計 >", value=3.0,  step=0.5, key="t1_eps")
+            pe_max  = st.number_input("P/E <",            value=60.0, step=1.0, key="t1_pe")
+            gm_min  = st.number_input("最新季毛利率% >",  value=15.0, step=1.0, key="t1_gm")
         with fc2:
             st.markdown("**第二道：籌碼技術**")
-            mg_max       = st.number_input("融資5日變動% <", value=-3.0, step=0.5, key="t1_mg")
-            inst_min_pct = st.number_input("法人買超比例% >", value=10.0, step=1.0, key="t1_inst")
-            bias_max     = st.number_input("MA20乖離% <",    value=5.0,  step=0.5, key="t1_bias")
-            vol_max_r    = st.number_input("量比(5MA) <",    value=0.6,  step=0.05,key="t1_vol")
+            mg_max       = st.number_input("融資5日變動% <", value=5.0,  step=0.5, key="t1_mg")
+            inst_min_pct = st.number_input("法人買超比例% >", value=1.0,  step=1.0, key="t1_inst")
+            bias_max     = st.number_input("MA20乖離% <",    value=15.0, step=0.5, key="t1_bias")
+            vol_max_r    = st.number_input("量比(5MA) <",    value=1.5,  step=0.05,key="t1_vol")
         with fc3:
             st.markdown("**第三道：財報趨勢**")
-            rev_yoy_min  = st.number_input("月營收 YoY% >",  value=10.0, step=1.0, key="t1_rev")
-            eps_yoy_min  = st.number_input("EPS YoY% >",     value=20.0, step=1.0, key="t1_epsy")
+            rev_yoy_min  = st.number_input("月營收 YoY% >",  value=0.0,  step=1.0, key="t1_rev")
+            eps_yoy_min  = st.number_input("EPS YoY% >",     value=0.0,  step=1.0, key="t1_epsy")
 
     if st.button("🚀 開始掃描", type="primary", use_container_width=True, key="t1_scan"):
         # ── 載入所有資料
@@ -983,7 +983,7 @@ with tab2:
                 if inst_w.empty and "net" in df_c_w.columns:
                     inst_w = df_c_w
 
-                margin_w = df_c_w[df_c_w.get("source", pd.Series(dtype=str)) == "margin"] \
+                margin_w = df_c_w[df_c_w["source"] == "margin"] \
                            if "source" in df_c_w.columns else pd.DataFrame()
 
                 # 警告偵測
@@ -1110,16 +1110,16 @@ with tab3:
             return result
 
         # 大台外資未平倉
-        inst_df = df_fut[df_fut.get("source","") == "institutional"] \
+        inst_df = df_fut[df_fut["source"] == "institutional"] \
                   if "source" in df_fut.columns else df_fut
 
-        tx_df = inst_df[inst_df.get("contract","") == "TX"] \
+        tx_df = inst_df[inst_df["contract"] == "TX"] \
                 if "contract" in inst_df.columns else pd.DataFrame()
         if not tx_df.empty:
             ld = tx_df["date"].max()
             result["data_date"] = str(ld)[:10]
             row = tx_df[(tx_df["date"] == ld) &
-                        (tx_df.get("name","").astype(str).str.contains("外資", na=False))]
+                        (tx_df["name"].astype(str).str.contains("外資", na=False))] if "name" in tx_df.columns else tx_df[tx_df.index < 0]
             if not row.empty:
                 lc = next((c for c in row.columns if "long_open_interest_balance" in c), None)
                 sc = next((c for c in row.columns if "short_open_interest_balance" in c), None)
@@ -1132,7 +1132,7 @@ with tab3:
                         pass
 
         # 小台三大法人
-        mtx_df = inst_df[inst_df.get("contract","") == "MTX"] \
+        mtx_df = inst_df[inst_df["contract"] == "MTX"] \
                  if "contract" in inst_df.columns else pd.DataFrame()
         if not mtx_df.empty:
             ld = mtx_df["date"].max()
@@ -1151,7 +1151,7 @@ with tab3:
                             pass
 
         # 小台全市場未平倉
-        daily_df = df_fut[df_fut.get("source","") == "daily"] \
+        daily_df = df_fut[df_fut["source"] == "daily"] \
                    if "source" in df_fut.columns else pd.DataFrame()
         if not daily_df.empty:
             ld2  = daily_df["date"].max()
