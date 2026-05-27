@@ -82,8 +82,35 @@ html,body,[class*="css"]{font-family:"Noto Sans TC",sans-serif;}
 div[data-testid="stExpander"]{background:#0d1826;border:1px solid rgba(255,255,255,.07);border-radius:8px;}
 
 /* ── 按鈕 */
-.stButton>button{color:#fff!important;font-weight:600!important;}
-.stButton>button[kind="primary"]{background:linear-gradient(135deg,#0066cc,#0044aa)!important;border:1px solid #00d4ff!important;}
+.stButton>button{
+    color:#ffffff!important;
+    font-weight:600!important;
+    font-size:0.88rem!important;
+    background:linear-gradient(135deg,#162535,#1e3a5f)!important;
+    border:1px solid #2a5080!important;
+}
+.stButton>button[kind="primary"]{
+    background:linear-gradient(135deg,#0066cc,#0044aa)!important;
+    border:1px solid #00d4ff!important;
+    color:#ffffff!important;
+}
+.stButton>button:hover{
+    border-color:#00d4ff!important;
+    color:#ffffff!important;
+}
+/* 所有文字強制可見 */
+p, span, label, div, h1, h2, h3, li {
+    color:#ddeeff;
+}
+.stSelectbox label, .stMultiSelect label,
+.stSlider label, .stRadio label,
+.stNumberInput label, .stTextInput label {
+    color:#b0cce0!important;
+}
+[data-testid="stDataFrame"] td,
+[data-testid="stDataFrame"] th {
+    color:#e8f4fd!important;
+}
 
 /* ── 評分徽章 */
 .badge-green{display:inline-block;background:rgba(0,230,118,.12);border:1px solid #00e676;color:#00e676;border-radius:14px;padding:2px 10px;font-size:.74rem;margin:2px;}
@@ -544,7 +571,19 @@ with tab1:
             prog = st.progress(0)
             results = []
 
-            name_col = "origin_name" if "origin_name" in df_fin.columns else df_fin.columns[2] if len(df_fin.columns) > 2 else "name"
+            # 偵測財報名稱欄位（FinMind 可能是 origin_name 或其他名稱）
+            name_col = None
+            for candidate in ["origin_name", "name", "item", "type"]:
+                if candidate in df_fin.columns:
+                    # 確認該欄位包含財報項目名稱
+                    sample = df_fin[candidate].dropna().astype(str)
+                    if sample.str.contains("毛利率|EPS|每股|營業", na=False).any():
+                        name_col = candidate
+                        break
+            if name_col is None:
+                # 用第三欄（通常是項目名稱欄）
+                name_col = df_fin.columns[2] if len(df_fin.columns) > 2 else df_fin.columns[-1]
+            st.info(f"財報名稱欄位：{name_col}，欄位清單：{list(df_fin.columns[:6])}")
 
             # ── 依掃描範圍決定股票池
             all_fin_ids = df_fin["stock_id"].dropna().unique().tolist()
@@ -788,7 +827,7 @@ with tab1:
             )
             st.dataframe(
                 df_chip_show[[c for c in show_chip_cols if c in df_chip_show.columns]],
-                width="stretch", height=380
+                use_container_width=True, height=380
             )
 
             # 加入監控按鈕（籌碼表格旁）
@@ -844,7 +883,7 @@ with tab1:
             )
             st.dataframe(
                 df_fin_show[[c for c in show_fin_cols if c in df_fin_show.columns]],
-                width="stretch", height=380
+                use_container_width=True, height=380
             )
 
             # 加入監控按鈕（財報表格旁）
