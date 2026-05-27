@@ -536,8 +536,10 @@ with tab1:
             df_fin, ok_fin = get_financials()
             df_chips, ok_chips = get_chips()
 
-        if not (ok_fin and ok_chips):
-            st.error("❌ CSV 資料不足，請先執行 update_data.py 並推送 GitHub")
+        if not ok_fin:
+            st.error("❌ 財報 CSV 不足，請先執行 update_data.py --only financials 並推送 GitHub")
+        elif df_fin.empty:
+            st.error("❌ financial_data.csv 是空的，請重新執行 update_data.py --only financials --force")
         else:
             prog = st.progress(0)
             results = []
