@@ -49,7 +49,7 @@ CONFIG = {
     # FinMind API Token
     # 免費版留空；付費版填入可大幅提升請求限制
     # 申請：https://finmindtrade.com/analysis/#/Sponsor/signin
-    "fm_token": os.environ.get("FINMIND_TOKEN", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiUmV4NjQuTGVlIiwiZW1haWwiOiJyZXg2NC5sZWVAZ21haWwuY29tIiwidG9rZW5fdmVyc2lvbiI6MH0.HQ3m97xGJZD33zgNHBBVuVOoYbvjh8sRtaTus_JBOXw"),
+    "fm_token": os.environ.get("FINMIND_TOKEN", ""),
 
     # GitHub repo 本地路徑（用於 git push）
     "github_repo_path": ".",
@@ -500,12 +500,16 @@ def run_financials(stock_ids: list[str], data_dir: str):
     log.info("━" * 55)
 
     start  = (datetime.today() - timedelta(days=get_days("financials"))).strftime("%Y-%m-%d")
-    target = ["毛利率","營業利益率","每股盈餘","營業收入",
-              "GrossMargin","OperatingMargin","BasicEPS"]
+
+    # origin_name（中文）和 type（英文）的關鍵字
+    target_origin = ["毛利率","營業利益率","每股盈餘","營業收入","基本每股","稀釋每股"]
+    target_type   = ["GrossMargin","OperatingMargin","BasicEPS","DilutedEPS","Revenue",
+                     "EPS","Gross","Operating","NetIncome"]
 
     def process_fin(df: pd.DataFrame) -> pd.DataFrame:
-        col = "origin_name" if "origin_name" in df.columns else df.columns[2]
-        return df[df[col].str.contains("|".join(target), case=False, na=False)]
+        # 不篩選，保留所有財報項目（讓 app.py 自行解析）
+        # 這樣毛利率、營益率、EPS 都能抓到
+        return df
 
     fetch_batch(
         dataset       = "TaiwanStockFinancialStatements",
@@ -650,6 +654,63 @@ def run_prices(stock_ids: list[str], prices_dir: str):
     )
 
 # ══════════════════════════════════════════════════════════════
+# ▌ 模組七：yfinance 基本財務（price_basic.csv）
+# ══════════════════════════════════════════════════════════════
+def run_price_basic(stock_ids: list[str], data_dir: str):
+    """
+    用 yfinance 抓取：P/E、毛利率、市值
+    本機台灣IP可正常使用，Streamlit Cloud 讀 CSV 不直接呼叫
+    """
+    if not HAS_YF:
+        log.warning("  yfinance 未安裝，跳過基本財務下載")
+        return
+
+    log.info("━" * 55)
+    log.info(f"💹 模組 7：yfinance 基本財務（{len(stock_ids)} 檔）")
+    log.info("━" * 55)
+
+    rows = []
+    it   = tqdm(stock_ids, desc="基本財務") if HAS_TQDM else stock_ids
+    ok_cnt = fail_cnt = 0
+
+    for sid in it:
+        for suffix in [".TW", ".TWO"]:
+            try:
+                info = yf.Ticker(f"{sid}{suffix}").info or {}
+                price = info.get("regularMarketPrice") or info.get("currentPrice")
+                if not price:
+                    continue
+                gm = info.get("grossMargins")
+                if gm and abs(gm) < 1:
+                    gm = round(gm * 100, 2)
+                rows.append({
+                    "stock_id":     sid,
+                    "price":        round(float(price), 2),
+                    "pe":           info.get("trailingPE"),
+                    "eps_ttm":      info.get("trailingEps"),
+                    "gross_margin": gm,
+                    "revenue_ttm":  info.get("totalRevenue"),
+                    "market_cap":   info.get("marketCap"),
+                    "updated":      datetime.today().strftime("%Y-%m-%d"),
+                })
+                ok_cnt += 1
+                break
+            except:
+                pass
+            time.sleep(0.1)
+        else:
+            fail_cnt += 1
+
+    if rows:
+        df = pd.DataFrame(rows)
+        # 去重保留最新
+        save_csv(df, "price_basic.csv", data_dir, dedup_cols=["stock_id"])
+        log.info(f"  ✅ 基本財務：成功 {ok_cnt} / 失敗 {fail_cnt} 檔")
+    else:
+        log.warning("  ⚠️ 無基本財務資料")
+
+
+# ══════════════════════════════════════════════════════════════
 # ▌ Git 推送
 # ══════════════════════════════════════════════════════════════
 def git_push(repo_path: str, commit_msg: str):
@@ -777,6 +838,11 @@ def main():
     if not args.no_price and _should("prices"):
         run_prices(stock_ids, prices_dir)
         mark_done("prices")
+
+    # ── 7. yfinance 基本財務（PE/毛利率）
+    if _should("basic"):
+        run_price_basic(stock_ids, data_dir)
+        mark_done("basic")
 
     # ── 更新時間戳記
     meta = {
