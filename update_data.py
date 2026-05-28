@@ -49,16 +49,20 @@ CONFIG = {
     # FinMind API Token
     # 免費版留空；付費版填入可大幅提升請求限制
     # 申請：https://finmindtrade.com/analysis/#/Sponsor/signin
-    "fm_token": os.environ.get("FINMIND_TOKEN", ""),
+    "fm_token": os.environ.get("FINMIND_TOKEN", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiUmV4NjQuTGVlIiwiZW1haWwiOiJyZXg2NC5sZWVAZ21haWwuY29tIiwidG9rZW5fdmVyc2lvbiI6MH0.HQ3m97xGJZD33zgNHBBVuVOoYbvjh8sRtaTus_JBOXw"),
 
     # GitHub repo 本地路徑（用於 git push）
-    # 預設 "." 代表當前目錄
     "github_repo_path": ".",
     "github_commit_msg": "chore: auto update {date}",
 
     # 資料目錄
     "data_dir":   "data",
     "prices_dir": "data/prices",
+
+    # ── 是否使用全台股模式（付費版用）
+    # True = 從 FinMind stock_info.csv 取得所有上市櫃股票（約1700檔）
+    # False = 只跑 SECTOR_STOCKS 定義的 295 檔
+    "use_full_market": False,
 
     # ── 歷史資料天數（第一次執行）
     "days_chips_first":       60,
@@ -71,14 +75,20 @@ CONFIG = {
     "days_chips_daily":        3,
     "days_financials_daily":  90,
     "days_futures_daily":      3,
-    "days_shareholder_daily": 30,   # 大戶每週公布，保留30天緩衝
+    "days_shareholder_daily": 30,
     "days_prices_daily":       5,
 
-    # ── API 效能
+    # ── API 效能（免費版）
     "request_delay":    0.8,   # 每次請求間隔（秒）
     "batch_size_first": 150,   # 第一次批次大小
     "batch_size_daily": 999,   # 每日更新不分批
-    "batch_pause":       70,   # 批次間暫停（秒），讓計數器重置
+    "batch_pause":       70,   # 批次間暫停（秒）
+
+    # ── API 效能（付費版，use_paid=True 時生效）
+    "use_paid": False,
+    "request_delay_paid":  0.2,   # 付費版請求間隔（秒）
+    "batch_size_paid":     999,   # 付費版不分批
+    "batch_pause_paid":      5,   # 付費版批次間隔（秒）
 }
 
 # ══════════════════════════════════════════════════════════════
@@ -241,7 +251,7 @@ def fm_get(
     if CONFIG["fm_token"]:
         params["token"] = CONFIG["fm_token"]
 
-    for attempt in range(2):
+    for attempt in range(5):
         try:
             r = requests.get(FM_BASE, params=params, timeout=20)
             j = r.json()
@@ -665,17 +675,29 @@ def git_push(repo_path: str, commit_msg: str):
 # ══════════════════════════════════════════════════════════════
 def main():
     parser = argparse.ArgumentParser(description="台股量化系統 V4 資料爬蟲")
-    parser.add_argument("--stock",    type=str,  help="只更新單一股票代號")
-    parser.add_argument("--only",     type=str,  default="",
+    parser.add_argument("--stock",       type=str,  help="只更新單一股票代號")
+    parser.add_argument("--only",        type=str,  default="",
         help="只執行指定模組：info/chips/financials/futures/shareholder/prices")
-    parser.add_argument("--no-push",  action="store_true",  help="不推送 GitHub")
-    parser.add_argument("--no-price", action="store_true",  help="跳過 K 線下載")
-    parser.add_argument("--force",    action="store_true",  help="忽略今日已下載判斷")
-    parser.add_argument("--token",    type=str,  help="覆蓋 FinMind Token")
+    parser.add_argument("--no-push",     action="store_true", help="不推送 GitHub")
+    parser.add_argument("--no-price",    action="store_true", help="跳過 K 線下載")
+    parser.add_argument("--force",       action="store_true", help="忽略今日已下載判斷")
+    parser.add_argument("--token",       type=str,  help="覆蓋 FinMind Token")
+    parser.add_argument("--full-market", action="store_true",
+        help="全台股模式（付費版）：從 stock_info.csv 取得所有上市櫃股票")
+    parser.add_argument("--paid",        action="store_true",
+        help="付費版模式：加快請求速度，縮短批次間隔")
     args = parser.parse_args()
 
     if args.token:
         CONFIG["fm_token"] = args.token
+
+    # 付費版加速設定
+    if args.paid or CONFIG.get("use_paid"):
+        CONFIG["request_delay"] = CONFIG["request_delay_paid"]
+        CONFIG["batch_size_first"] = CONFIG["batch_size_paid"]
+        CONFIG["batch_size_daily"] = CONFIG["batch_size_paid"]
+        CONFIG["batch_pause"]     = CONFIG["batch_pause_paid"]
+        log.info("⚡ 付費版加速模式啟動")
 
     today_str  = datetime.today().strftime("%Y-%m-%d")
     data_dir   = CONFIG["data_dir"]
@@ -695,7 +717,32 @@ def main():
     log.info(f"批次   : {get_batch_size()} 檔/批")
     log.info("═" * 55)
 
-    stock_ids = [args.stock.strip()] if args.stock else ALL_STOCKS
+    # ── 決定股票池
+    if args.stock:
+        # 指定單一股票
+        stock_ids = [args.stock.strip()]
+    elif args.full_market or CONFIG.get("use_full_market"):
+        # 全台股模式：從 stock_info.csv 讀取（需先執行 --only info）
+        info_path = Path(data_dir) / "stock_info.csv"
+        if info_path.exists():
+            try:
+                df_info   = pd.read_csv(info_path, dtype=str)
+                stock_ids = df_info["stock_id"].dropna().unique().tolist()
+                # 過濾：4位數字代號，排除 ETF（00開頭）
+                stock_ids = [s for s in stock_ids
+                             if s.isdigit() and len(s)==4 and not s.startswith("00")]
+                log.info(f"🌏 全台股模式：從 stock_info.csv 讀取 {len(stock_ids)} 檔")
+            except Exception as e:
+                log.warning(f"stock_info.csv 讀取失敗（{e}），改用預設清單")
+                stock_ids = ALL_STOCKS
+        else:
+            log.warning("stock_info.csv 不存在，先執行 --only info 建立股票清單")
+            log.warning("改用預設清單（295 檔）")
+            stock_ids = ALL_STOCKS
+    else:
+        # 預設：使用 SECTOR_STOCKS 定義的清單（295 檔）
+        stock_ids = ALL_STOCKS
+
     log.info(f"股票池 : {len(stock_ids)} 檔")
 
     def _should(module):
