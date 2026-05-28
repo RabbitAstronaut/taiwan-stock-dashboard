@@ -224,24 +224,39 @@ def load_json_meta() -> dict:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_price_csv(stock_id: str) -> tuple[pd.DataFrame, bool]:
-    """讀取個股 K 線 CSV"""
+    """讀取個股 K 線 CSV：優先本地，備援 GitHub raw"""
     import os
+
+    def _parse(df):
+        if "date" in df.columns:
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df = df.dropna(subset=["date"]).set_index("date").sort_index()
+        for c in ["Open","High","Low","Close","Volume"]:
+            matches = [x for x in df.columns if x.lower() == c.lower()]
+            if matches:
+                df[c] = pd.to_numeric(df[matches[0]], errors="coerce")
+        df = df.dropna(subset=["Close"])
+        return df
+
+    # 優先：本地 CSV（本機開發用）
     local = os.path.join("data", "prices", f"{stock_id}.csv")
     if os.path.exists(local):
         try:
-            df = pd.read_csv(local)
-            if "date" in df.columns:
-                df["date"] = pd.to_datetime(df["date"], errors="coerce")
-                df = df.dropna(subset=["date"]).set_index("date").sort_index()
-            for c in ["Open","High","Low","Close","Volume"]:
-                # 嘗試大小寫
-                matches = [x for x in df.columns if x.lower() == c.lower()]
-                if matches:
-                    df[c] = pd.to_numeric(df[matches[0]], errors="coerce")
-            df = df.dropna(subset=["Close"])
-            return (df, True) if len(df) >= 10 else (pd.DataFrame(), False)
+            df = _parse(pd.read_csv(local))
+            if len(df) >= 10:
+                return df, True
         except:
             pass
+
+    # 備援：GitHub raw URL（Streamlit Cloud 用）
+    url = f"{GITHUB_RAW}/prices/{stock_id}.csv"
+    try:
+        df = _parse(pd.read_csv(url))
+        if len(df) >= 10:
+            return df, True
+    except:
+        pass
+
     return pd.DataFrame(), False
 
 # ── 衍生載入函式
