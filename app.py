@@ -688,74 +688,100 @@ with tab1:
                 score2 = 0
                 s2 = {}
 
-                # 融資5日變動
-                margin_rows = df_c[df_c.get("source", pd.Series()) == "margin"] if "source" in df_c.columns else df_c
+                # ── a. 融資5日變動 < mg_max%
                 mg_chg = np.nan
-                mg_col = next((c for c in margin_rows.columns if "TodayBalance" in c), None)
-                if mg_col and not margin_rows.empty:
-                    bal = pd.to_numeric(margin_rows[mg_col], errors="coerce").dropna()
-                    if len(bal) >= 5:
-                        mg_chg = float((bal.iloc[-1] - bal.iloc[-5]) / max(abs(float(bal.iloc[-5])), 1) * 100)
+                if "source" in df_c.columns:
+                    mg_rows = df_c[df_c["source"] == "margin"].copy()
+                else:
+                    mg_rows = pd.DataFrame()
+                if not mg_rows.empty:
+                    mg_col = next(
+                        (c for c in mg_rows.columns
+                         if "MarginPurchaseTodayBalance" in c), None
+                    )
+                    if mg_col:
+                        bal = pd.to_numeric(mg_rows[mg_col], errors="coerce").dropna()
+                        if len(bal) >= 2:
+                            n = min(5, len(bal))
+                            mg_chg = float(
+                                (bal.iloc[-1] - bal.iloc[-n]) /
+                                max(abs(float(bal.iloc[-n])), 1) * 100
+                            )
                 s2["融資5日變動"] = (not np.isnan(mg_chg)) and mg_chg < mg_max
                 if s2["融資5日變動"]: score2 += 1
 
-                # 法人買超比例
-                inst_rows = df_c[df_c.get("source", pd.Series()) == "institutional"] if "source" in df_c.columns else pd.DataFrame()
-                if inst_rows.empty and "net" in df_c.columns:
-                    inst_rows = df_c
+                # ── b. 法人5日淨買超 > inst_min_pct%（佔總成交量）
                 inst_buy_pct = np.nan
+                if "source" in df_c.columns:
+                    inst_rows = df_c[df_c["source"] == "institutional"].copy()
+                else:
+                    inst_rows = df_c.copy()
                 if not inst_rows.empty and "net" in inst_rows.columns:
-                    net_5 = pd.to_numeric(inst_rows.groupby("date")["net"].sum().iloc[-5:].sum() if "date" in inst_rows.columns else pd.Series([0]), errors="coerce")
-                    total_v = abs(pd.to_numeric(inst_rows.get("buy", 0), errors="coerce").sum() + pd.to_numeric(inst_rows.get("sell", 0), errors="coerce").sum())
-                    inst_buy_pct = float(net_5.sum() / max(total_v, 1) * 100) if total_v > 0 else 0
+                    inst_rows["date"] = pd.to_datetime(inst_rows["date"], errors="coerce")
+                    inst_rows["net"]  = pd.to_numeric(inst_rows["net"], errors="coerce")
+                    inst_rows["buy"]  = pd.to_numeric(inst_rows["buy"], errors="coerce").fillna(0)
+                    inst_rows["sell"] = pd.to_numeric(inst_rows["sell"], errors="coerce").fillna(0)
+                    # 近5個交易日的淨買超
+                    daily = inst_rows.groupby("date").agg(
+                        net=("net","sum"), buy=("buy","sum"), sell=("sell","sum")
+                    ).sort_index()
+                    net_5d  = float(daily["net"].iloc[-5:].sum())
+                    total_v = float((daily["buy"].abs() + daily["sell"].abs()).sum())
+                    inst_buy_pct = net_5d / max(total_v, 1) * 100 if total_v > 0 else 0
                 s2["法人買超"] = (not np.isnan(inst_buy_pct)) and inst_buy_pct > inst_min_pct
                 if s2["法人買超"]: score2 += 1
 
-                # 大戶持股（shareholder CSV）
+                # ── c. 大戶持股（500張以上）單週上升
                 df_sh, ok_sh = get_shareholder(sid)
                 big_rising = False
                 if ok_sh and not df_sh.empty:
-                    lv_col  = next((c for c in df_sh.columns if "level" in c.lower() or "Level" in c), None)
-                    pct_col = next((c for c in df_sh.columns if "percent" in c.lower()), None)
+                    lv_col  = next((c for c in df_sh.columns
+                                    if "level" in c.lower() or "Level" in c), None)
+                    pct_col = next((c for c in df_sh.columns
+                                    if "percent" in c.lower()), None)
                     if lv_col and pct_col:
-                        big_kw = ["50000","100000","200000","400000","over"]
-                        is_big = df_sh[lv_col].astype(str).str.contains("|".join(big_kw), na=False)
-                        big_series = df_sh[is_big].groupby("date")[pct_col].sum()
-                        big_series = pd.to_numeric(big_series, errors="coerce").dropna()
-                        if len(big_series) >= 2:
-                            big_rising = float(big_series.iloc[-1]) > float(big_series.iloc[-2])
+                        df_sh[pct_col] = pd.to_numeric(df_sh[pct_col], errors="coerce")
+                        big_kw    = ["50000","100000","200000","400000","over"]
+                        is_big    = df_sh[lv_col].astype(str).str.contains(
+                                        "|".join(big_kw), na=False)
+                        big_grp   = df_sh[is_big].groupby("date")[pct_col].sum()
+                        big_grp   = big_grp.sort_index().dropna()
+                        if len(big_grp) >= 2:
+                            big_rising = float(big_grp.iloc[-1]) > float(big_grp.iloc[-2])
                 s2["大戶持股上升"] = big_rising
                 if big_rising: score2 += 1
 
-                # MA20 乖離
+                # ── d. 收盤 >= MA20 且乖離 < bias_max%
                 ma20_ok = False
-                if ok_prc and not df_prc.empty:
-                    prc_c = df_prc["Close"].astype(float)
+                if ok_prc and not df_prc.empty and "Close" in df_prc.columns:
+                    prc_c = df_prc["Close"].astype(float).dropna()
                     if len(prc_c) >= 20:
-                        ma20    = float(prc_c.rolling(20).mean().iloc[-1])
-                        last_p  = float(prc_c.iloc[-1])
-                        bias    = (last_p - ma20) / ma20 * 100
-                        ma20_ok = (last_p >= ma20) and (abs(bias) < bias_max)
+                        ma20   = float(prc_c.rolling(20).mean().iloc[-1])
+                        last_p = float(prc_c.iloc[-1])
+                        bias   = (last_p - ma20) / ma20 * 100
+                        ma20_ok = (last_p >= ma20) and (0 <= bias < bias_max)
                 s2["MA20乖離<5%"] = ma20_ok
                 if ma20_ok: score2 += 1
 
-                # 窒息量（量比 < vol_max_r）
+                # ── e. 窒息量：成交量 < 5日均量 × vol_max_r
                 vol_ok = False
                 if ok_prc and not df_prc.empty and "Volume" in df_prc.columns:
-                    vol = df_prc["Volume"].astype(float)
-                    if len(vol) >= 5:
-                        vma5  = float(vol.rolling(5).mean().iloc[-1])
+                    vol    = df_prc["Volume"].astype(float).dropna()
+                    if len(vol) >= 6:
+                        vma5   = float(vol.iloc[-6:-1].mean())   # 前5日均量（不含今日）
                         last_v = float(vol.iloc[-1])
                         vol_ok = (vma5 > 0) and (last_v / vma5 < vol_max_r)
                 s2["窒息量"] = vol_ok
                 if vol_ok: score2 += 1
 
-                # 近3日低點≥前10日低點
+                # ── f. 近3日低點 >= 前10日低點（底部墊高不破低）
                 hl_ok = False
                 if ok_prc and not df_prc.empty and "Low" in df_prc.columns:
-                    lo = df_prc["Low"].astype(float)
+                    lo = df_prc["Low"].astype(float).dropna()
                     if len(lo) >= 13:
-                        hl_ok = float(lo.iloc[-3:].min()) >= float(lo.iloc[-13:-3].min())
+                        recent_low = float(lo.iloc[-3:].min())
+                        prev_low   = float(lo.iloc[-13:-3].min())
+                        hl_ok      = recent_low >= prev_low
                 s2["低點墊高"] = hl_ok
                 if hl_ok: score2 += 1
 
@@ -1174,7 +1200,7 @@ with tab2:
 
                 # 警告偵測
                 if not inst_w.empty and "net" in inst_w.columns and not margin_w.empty:
-                    mg_col_w = next((c for c in margin_w.columns if "TodayBalance" in c), None)
+                    mg_col_w = next((c for c in margin_w.columns if "MarginPurchaseTodayBalance" in c or ("TodayBalance" in c and "Short" not in c)), None)
                     if mg_col_w:
                         net_sum = pd.to_numeric(inst_w.groupby("date")["net"].sum().iloc[-5:].sum() if "date" in inst_w.columns else pd.Series([0]), errors="coerce")
                         bal_w   = pd.to_numeric(margin_w[mg_col_w], errors="coerce").dropna()
@@ -1201,7 +1227,7 @@ with tab2:
                             opacity=.75,
                         ), secondary_y=False)
                 if not margin_w.empty:
-                    mg_col_w = next((c for c in margin_w.columns if "TodayBalance" in c), None)
+                    mg_col_w = next((c for c in margin_w.columns if "MarginPurchaseTodayBalance" in c or ("TodayBalance" in c and "Short" not in c)), None)
                     if mg_col_w and "date" in margin_w.columns:
                         mw2 = margin_w.set_index("date")
                         fig2.add_trace(go.Scatter(
