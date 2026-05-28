@@ -607,6 +607,16 @@ with tab1:
             # type = 英文代碼（EPS, Revenue, GrossMargin...）
             name_col = "origin_name" if "origin_name" in df_fin.columns else                        "type"         if "type"         in df_fin.columns else                        df_fin.columns[2]
 
+            # ── 除錯資訊（確認資料格式）
+            st.info(
+                f"財報資料：{len(df_fin)} 筆 ｜ "
+                f"股票數：{df_fin['stock_id'].nunique()} ｜ "
+                f"stock_id 類型：{df_fin['stock_id'].dtype} ｜ "
+                f"名稱欄：{name_col} ｜ "
+                f"2454筆數：{len(df_fin[df_fin['stock_id'].astype(str)=='2454'])} ｜ "
+                f"前5個stock_id：{df_fin['stock_id'].unique()[:5].tolist()}"
+            )
+
             # ── 依掃描範圍決定股票池
             all_fin_ids = df_fin["stock_id"].dropna().unique().tolist()
 
