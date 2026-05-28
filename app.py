@@ -255,8 +255,9 @@ def get_chips(stock_id=None):
     df, ok = load_csv("chips_data.csv")
     if not ok or df.empty:
         return pd.DataFrame(), False
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
     if stock_id:
-        df = df[df["stock_id"] == stock_id]
+        df = df[df["stock_id"] == str(stock_id).strip()]
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
     for c in ["buy","sell","net","MarginPurchaseTodayBalance"]:
@@ -268,8 +269,10 @@ def get_financials(stock_id=None):
     df, ok = load_csv("financial_data.csv")
     if not ok or df.empty:
         return pd.DataFrame(), False
+    # ★ stock_id 強制轉字串（CSV 讀進來可能是 int64）
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
     if stock_id:
-        df = df[df["stock_id"] == stock_id]
+        df = df[df["stock_id"] == str(stock_id).strip()]
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
     if "value" in df.columns:
@@ -290,8 +293,9 @@ def get_shareholder(stock_id=None):
     df, ok = load_csv("shareholder_data.csv")
     if not ok or df.empty:
         return pd.DataFrame(), False
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
     if stock_id:
-        df = df[df["stock_id"] == stock_id]
+        df = df[df["stock_id"] == str(stock_id).strip()]
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
     return df.sort_values("date") if "date" in df.columns else df, True
@@ -629,7 +633,7 @@ with tab1:
                 prog.progress((idx + 1) / total)
 
                 # ─── 第一道：基本面
-                df_f = df_fin[df_fin["stock_id"] == sid].copy()
+                df_f = df_fin[df_fin["stock_id"].astype(str) == str(sid)].copy()
                 if df_f.empty:
                     continue
 
@@ -675,7 +679,7 @@ with tab1:
                     continue
 
                 # ─── 第二道：籌碼＋技術（6 項評分）
-                df_c  = df_chips[df_chips["stock_id"] == sid]
+                df_c  = df_chips[df_chips["stock_id"].astype(str) == str(sid)]
                 score2 = 0
                 s2 = {}
 
