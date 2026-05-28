@@ -222,7 +222,7 @@ def load_json_meta() -> dict:
     except:
         return {}
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def load_price_csv(stock_id: str) -> tuple[pd.DataFrame, bool]:
     """讀取個股 K 線 CSV：優先本地，備援 GitHub raw"""
     import os
@@ -645,6 +645,17 @@ with tab1:
                 f"<div class='infobox'>掃描 <b style='color:#00d4ff;'>{total}</b> 檔</div>",
                 unsafe_allow_html=True
             )
+            # 除錯：測試第一檔K線讀取
+            if stock_ids:
+                _test_sid = str(stock_ids[0])
+                _test_df, _test_ok = load_price_csv(_test_sid)
+                _test_url = f"{GITHUB_RAW}/prices/{_test_sid}.csv"
+                st.info(
+                    f"K線測試 {_test_sid}：ok={_test_ok} "
+                    f"rows={len(_test_df) if _test_ok else 0} "
+                    f"cols={list(_test_df.columns[:5]) if _test_ok and not _test_df.empty else '無'} "
+                    f"URL={_test_url}"
+                )
 
             for idx, sid in enumerate(stock_ids):
                 prog.progress((idx + 1) / total)
