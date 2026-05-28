@@ -683,7 +683,7 @@ with tab1:
 
                 # P/E（從 K 線近期算，或用預設值 nan）
                 pe_val = np.nan
-                df_prc, ok_prc = load_price_csv(sid)
+                df_prc, ok_prc = load_price_csv(str(sid))
                 if ok_prc and not df_prc.empty and not np.isnan(eps_ttm) and eps_ttm > 0:
                     last_close = float(df_prc["Close"].iloc[-1]) if "Close" in df_prc.columns else np.nan
                     if not np.isnan(last_close):
@@ -853,9 +853,16 @@ with tab1:
                     "毛利率%": round(gm_latest, 1) if not np.isnan(gm_latest) else None,
                     "法人買超%":    round(inst_buy_pct, 1) if not np.isnan(inst_buy_pct) else None,
                     "融資5日變動%": round(mg_chg, 1) if not np.isnan(mg_chg) else None,
-                    "K值": round(float(kv), 1) if ok_prc else None,
-                    "MA20乖離%": round(float((float(df_prc["Close"].iloc[-1]) - float(df_prc["Close"].rolling(20).mean().iloc[-1])) / float(df_prc["Close"].rolling(20).mean().iloc[-1]) * 100), 2) if ok_prc and len(df_prc) >= 20 else None,
-                    "量比": round(float(df_prc["Volume"].iloc[-1]) / max(float(df_prc["Volume"].iloc[-6:-1].mean()), 1), 2) if ok_prc and "Volume" in df_prc.columns and len(df_prc) >= 6 else None,
+                    "K值": None,  # KD 計算移至技術評分內
+                    "MA20乖離%": round(
+                        (float(df_prc["Close"].iloc[-1]) -
+                         float(df_prc["Close"].rolling(20).mean().iloc[-1])) /
+                        max(float(df_prc["Close"].rolling(20).mean().iloc[-1]), 1) * 100, 2
+                    ) if ok_prc and not df_prc.empty and len(df_prc) >= 20 and "Close" in df_prc.columns else None,
+                    "量比": round(
+                        float(df_prc["Volume"].iloc[-1]) /
+                        max(float(df_prc["Volume"].iloc[-6:-1].mean()), 1), 2
+                    ) if ok_prc and not df_prc.empty and "Volume" in df_prc.columns and len(df_prc) >= 6 else None,
                     "籌碼得分": score2,
                     "財報得分": score3,
                     "總得分":   score2 + score3,
