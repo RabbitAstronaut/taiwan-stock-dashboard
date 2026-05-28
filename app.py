@@ -602,6 +602,20 @@ with tab1:
             rev_yoy_min  = st.number_input("月營收 YoY% >",  value=0.0,  step=1.0, key="t1_rev")
             eps_yoy_min  = st.number_input("EPS YoY% >",     value=0.0,  step=1.0, key="t1_epsy")
 
+    # ── K線讀取測試按鈕
+    if st.button("🔬 測試K線讀取（2454）", key="test_price"):
+        import requests as _req
+        url = f"{GITHUB_RAW}/prices/2454.csv"
+        try:
+            r = _req.get(url, timeout=10)
+            st.success(f"✅ HTTP {r.status_code}，長度 {len(r.text)} bytes")
+            st.code(r.text[:200])
+        except Exception as e:
+            st.error(f"❌ 失敗：{e}")
+
+        df_t, ok_t = load_price_csv("2454")
+        st.info(f"load_price_csv('2454')：ok={ok_t}, rows={len(df_t) if ok_t else 0}")
+
     if st.button("🚀 開始掃描", type="primary", use_container_width=True, key="t1_scan"):
         # ── 載入所有資料
         with st.spinner("載入資料中..."):
