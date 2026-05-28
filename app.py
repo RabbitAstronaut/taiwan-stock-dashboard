@@ -607,15 +607,7 @@ with tab1:
             # type = 英文代碼（EPS, Revenue, GrossMargin...）
             name_col = "origin_name" if "origin_name" in df_fin.columns else                        "type"         if "type"         in df_fin.columns else                        df_fin.columns[2]
 
-            # ── 除錯資訊（確認資料格式）
-            st.info(
-                f"財報資料：{len(df_fin)} 筆 ｜ "
-                f"股票數：{df_fin['stock_id'].nunique()} ｜ "
-                f"stock_id 類型：{df_fin['stock_id'].dtype} ｜ "
-                f"名稱欄：{name_col} ｜ "
-                f"2454筆數：{len(df_fin[df_fin['stock_id'].astype(str)=='2454'])} ｜ "
-                f"前5個stock_id：{df_fin['stock_id'].unique()[:5].tolist()}"
-            )
+
 
             # ── 依掃描範圍決定股票池
             all_fin_ids = df_fin["stock_id"].dropna().unique().tolist()
@@ -655,8 +647,11 @@ with tab1:
                      if "type" in df_f.columns else False)
                 ]
                 eps_vals = pd.to_numeric(eps_rows["value"], errors="coerce").dropna()
-                # EPS 單位：元（FinMind 已是元，不需乘100）
-                eps_ttm  = eps_vals.tail(4).sum() if len(eps_vals) >= 4 else np.nan
+                # EPS：有幾筆加幾筆（最多4季），至少1筆就顯示
+                if len(eps_vals) >= 1:
+                    eps_ttm = eps_vals.tail(4).sum()
+                else:
+                    eps_ttm = np.nan
 
                 # 毛利率
                 # 毛利率：origin_name 包含「毛利率」，FinMind 值為小數（0.45=45%）
