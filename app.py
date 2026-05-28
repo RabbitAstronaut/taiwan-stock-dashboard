@@ -836,8 +836,11 @@ with tab1:
                     "EPS_TTM": round(eps_ttm,  2) if not np.isnan(eps_ttm)  else None,
                     "P/E":     round(pe_val,   1) if not np.isnan(pe_val)   else None,
                     "毛利率%": round(gm_latest, 1) if not np.isnan(gm_latest) else None,
-                    "法人買超%": round(inst_buy_pct,1) if not np.isnan(inst_buy_pct) else None,
-                    "融資5日變動%": round(mg_chg,1) if not np.isnan(mg_chg) else None,
+                    "法人買超%":    round(inst_buy_pct, 1) if not np.isnan(inst_buy_pct) else None,
+                    "融資5日變動%": round(mg_chg, 1) if not np.isnan(mg_chg) else None,
+                    "K值": round(float(kv), 1) if ok_prc else None,
+                    "MA20乖離%": round(float((float(df_prc["Close"].iloc[-1]) - float(df_prc["Close"].rolling(20).mean().iloc[-1])) / float(df_prc["Close"].rolling(20).mean().iloc[-1]) * 100), 2) if ok_prc and len(df_prc) >= 20 else None,
+                    "量比": round(float(df_prc["Volume"].iloc[-1]) / max(float(df_prc["Volume"].iloc[-6:-1].mean()), 1), 2) if ok_prc and "Volume" in df_prc.columns and len(df_prc) >= 6 else None,
                     "籌碼得分": score2,
                     "財報得分": score3,
                     "總得分":   score2 + score3,
@@ -875,7 +878,7 @@ with tab1:
             min_chip = cc1.slider("顯示籌碼得分 ≥", 0, 6, 0, key="r_chip2")
             sort_chip = cc2.selectbox("排序", ["籌碼得分","EPS_TTM","毛利率%","代號"], key="r_csort")
 
-            chip_cols = ["代號","名稱","EPS_TTM","P/E","毛利率%"]
+            chip_cols = ["代號","名稱","EPS_TTM","P/E","毛利率%","融資5日變動%","法人買超%","MA20乖離%","量比"]
             label_map = {
                 "籌碼_融資5日變動": "a.融資減少>3%",
                 "籌碼_法人買超":    "b.法人買超>10%",
