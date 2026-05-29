@@ -135,12 +135,25 @@ p, span, label, div, h1, h2, h3, li {
 /* ══ Radio ══ */
 [data-testid="stRadio"] label p{color:#e8f4fd!important;}
 [data-testid="stRadio"] label{color:#e8f4fd!important;}
-[data-testid="stRadio"] label:has(input:checked){
-    background:#1e3a5f!important;
-    border-radius:6px!important;
+/* 強制覆蓋 Streamlit radio 選中狀態的反白背景 */
+[data-testid="stRadio"] div[data-baseweb="radio"] > label{
+    background:transparent!important;
+    color:#e8f4fd!important;
 }
-[data-testid="stRadio"] label:has(input:checked) p{color:#00d4ff!important;}
-[data-testid="stRadio"] label:has(input:checked) span{color:#00d4ff!important;}
+[data-testid="stRadio"] [aria-checked="true"] ~ div,
+[data-testid="stRadio"] [aria-checked="true"] + div{
+    color:#00d4ff!important;
+}
+div[role="radiogroup"] label > div:first-child > div{
+    border-color:#00d4ff!important;
+}
+/* 去掉藍底反白 */
+[data-testid="stRadio"] label > div[data-testid]{
+    background:transparent!important;
+}
+[data-testid="stRadio"] [data-baseweb="radio"]{
+    background:transparent!important;
+}
 /* ══ Number / Text input ══ */
 input[type="number"],input[type="text"],textarea{
     color:#e8f4fd!important;background:#0f1e30!important;border-color:#1e3a5f!important;}
@@ -591,6 +604,12 @@ with tab1:
 
     # ── 篩選條件設定
     with st.expander("⚙️ 調整篩選條件", expanded=False):
+        if st.button("↺ 恢復預設值", key="t1_reset"):
+            for k,v in [("t1_eps",3.0),("t1_pe",60.0),("t1_gm",15.0),
+                        ("t1_mg",5.0),("t1_inst",1.0),("t1_bias",15.0),("t1_vol",1.5),
+                        ("t1_rev",0.0),("t1_epsy",0.0)]:
+                st.session_state[k] = v
+            st.rerun()
         fc1, fc2, fc3 = st.columns(3)
         with fc1:
             st.markdown("**第一道：基本面**")
