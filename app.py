@@ -507,11 +507,20 @@ def calc_indicators(df: pd.DataFrame, ma_s=5, ma_m=20, ma_l=60) -> pd.DataFrame:
     lo9 = df["Low"].astype(float).rolling(9).min()
     hi9 = df["High"].astype(float).rolling(9).max()
     rsv = (c - lo9) / (hi9 - lo9 + 1e-9) * 100
-    K, D = [50.0], [50.0]
-    for r in rsv.iloc[1:]:
-        K.append(K[-1]*2/3 + r*1/3)
-        D.append(D[-1]*2/3 + K[-1]*1/3)
-    df["K"], df["D"] = K, D
+    rsv = rsv.fillna(50.0)  # NaN 補 50
+    K_list, D_list = [], []
+    k, d = 50.0, 50.0
+    for r in rsv:
+        if np.isnan(r):
+            K_list.append(np.nan)
+            D_list.append(np.nan)
+        else:
+            k = k * 2/3 + r * 1/3
+            d = d * 2/3 + k * 1/3
+            K_list.append(round(k, 2))
+            D_list.append(round(d, 2))
+    df["K"] = K_list
+    df["D"] = D_list
 
     # VWAP (當日近似)
     tp  = (df["High"].astype(float) + df["Low"].astype(float) + c) / 3
