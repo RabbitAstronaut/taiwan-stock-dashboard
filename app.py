@@ -711,7 +711,10 @@ with tab1:
                 if ok_prc and not df_prc.empty and not np.isnan(eps_ttm) and eps_ttm > 0:
                     last_close = float(df_prc["Close"].iloc[-1]) if "Close" in df_prc.columns else np.nan
                     if not np.isnan(last_close):
-                        pe_val = last_close / eps_ttm * 4  # 年化近似
+                        # 用年化EPS算P/E，避免只有1季時P/E虛高
+                        n_eps_pe = min(len(eps_vals), 4)
+                        eps_ann_pe = eps_ttm / n_eps_pe * 4
+                        pe_val = last_close / eps_ann_pe if eps_ann_pe > 0 else np.nan
 
                 # 第一道判斷
                 # NaN = 資料缺失，視為「不知道」→ 通過（不要因缺資料就漏掉好股）
