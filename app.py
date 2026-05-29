@@ -145,11 +145,27 @@ p, span, label, div, h1, h2, h3, li {
     color:#ffffff!important;
     outline:1px solid #00d4ff!important;
 }
-/* 已選中項目：藍框 */
-[data-baseweb="popover"] [aria-selected="true"]{
+/* 已選中項目：藍框，強制覆蓋所有反白 */
+[data-baseweb="popover"] [aria-selected="true"],
+[data-baseweb="popover"] [aria-selected="true"]:hover,
+[data-baseweb="menu"] [aria-selected="true"],
+[data-baseweb="option"][aria-selected="true"],
+[role="option"][aria-selected="true"],
+li[aria-selected="true"]{
     background:#0f2a45!important;
     color:#00d4ff!important;
     border-left:3px solid #00d4ff!important;
+}
+/* 強制去掉瀏覽器預設反白（藍底） */
+[data-baseweb="popover"] *::selection{background:transparent!important;}
+[data-baseweb="popover"] li *{-webkit-user-select:none;user-select:none;}
+/* 所有 option 預設黑底 */
+[data-baseweb="option"],
+[role="option"],
+[data-baseweb="menu"] li,
+[data-baseweb="menu"] ul li{
+    background:#0a0f1a!important;
+    color:#ffffff!important;
 }
 [data-baseweb="menu"]{background:#0a0f1a!important;color:#ffffff!important;}
 [data-baseweb="tag"]{background:#1e3a5f!important;border:1px solid #00d4ff!important;}
@@ -177,6 +193,27 @@ input[type="number"],input[type="text"],textarea{
 label{color:#c8dff0!important;}
 label p{color:#c8dff0!important;}
 </style>
+""", unsafe_allow_html=True)
+
+# ── 強制覆蓋下拉選單反白（JS + MutationObserver，處理動態渲染）
+st.markdown("""
+<script>
+function fixDropdowns() {
+    // 選單選中項目（li[aria-selected=true]）去掉系統反白
+    document.querySelectorAll('[data-baseweb="menu"] li').forEach(li => {
+        li.style.setProperty('background', li.getAttribute('aria-selected') === 'true' ? '#0f2a45' : '#0a0f1a', 'important');
+        li.style.setProperty('color', '#ffffff', 'important');
+    });
+    document.querySelectorAll('[data-baseweb="option"]').forEach(opt => {
+        opt.style.setProperty('background', '#0a0f1a', 'important');
+        opt.style.setProperty('color', '#ffffff', 'important');
+    });
+}
+// 監聽 DOM 變化（popover 是動態插入的）
+const observer = new MutationObserver(fixDropdowns);
+observer.observe(document.body, { childList: true, subtree: true });
+fixDropdowns();
+</script>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
