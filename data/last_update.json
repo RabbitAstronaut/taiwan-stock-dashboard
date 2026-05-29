@@ -1,6 +1,8 @@
 {
-  "updated_at": "2026-05-28",
+  "updated_at": "2026-05-29",
   "stock_count": 2140,
   "mode": "每日更新（增量）",
-  "modules": []
+  "modules": [
+    "prices"
+  ]
 }
