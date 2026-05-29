@@ -534,8 +534,9 @@ def add_indicators(df, ws=5, wm=20, wl=60):
 # ▌ Session State 初始化
 # ══════════════════════════════════════════════════════════════
 if "watchlist" not in st.session_state:
-    st.session_state.watchlist: list[dict] = []
-    # 範例：[{"id":"2454","name":"聯發科"}]
+    st.session_state.watchlist: list[dict] = []      # 手動加入
+if "watchlist_scan" not in st.session_state:
+    st.session_state.watchlist_scan: list[dict] = [] # 掃描結果加入
 
 # ══════════════════════════════════════════════════════════════
 # ▌ SIDEBAR
@@ -587,23 +588,33 @@ with st.sidebar:
             else:
                 st.warning("請輸入 4 位數字代號")
 
-        # 清單與刪除
+        # 手動清單
         if st.session_state.watchlist:
+            st.caption("📌 手動加入")
             rm_idx = None
             for i, w in enumerate(st.session_state.watchlist):
                 c1, c2 = st.columns([5, 1])
-                c1.markdown(
-                    f"<span style='color:#e8f4fd;font-size:.78rem;'>"
-                    f"{w['id']} {w['name']}</span>",
-                    unsafe_allow_html=True,
-                )
+                c1.markdown(f"<span style='color:#e8f4fd;font-size:.78rem;'>{w['id']} {w['name']}</span>", unsafe_allow_html=True)
                 if c2.button("✕", key=f"rm_{i}", width='stretch'):
                     rm_idx = i
             if rm_idx is not None:
                 st.session_state.watchlist.pop(rm_idx)
                 st.rerun()
         else:
-            st.caption("清單為空，請輸入代號加入")
+            st.caption("📌 手動清單為空")
+
+        # 掃描清單
+        if st.session_state.watchlist_scan:
+            st.caption("🔍 掃描加入")
+            rm_idx2 = None
+            for i, w in enumerate(st.session_state.watchlist_scan):
+                c1, c2 = st.columns([5, 1])
+                c1.markdown(f"<span style='color:#e8f4fd;font-size:.78rem;'>{w['id']} {w['name']}</span>", unsafe_allow_html=True)
+                if c2.button("✕", key=f"rms_{i}", width='stretch'):
+                    rm_idx2 = i
+            if rm_idx2 is not None:
+                st.session_state.watchlist_scan.pop(rm_idx2)
+                st.rerun()
 
     st.markdown("---")
 
@@ -1172,8 +1183,8 @@ with tab1:
                     for item in add_from_chip:
                         code = item.split()[0]
                         name = " ".join(item.split()[1:])
-                        if not any(w["id"]==code for w in st.session_state.watchlist):
-                            st.session_state.watchlist.append({"id":code,"name":name})
+                        if not any(w["id"]==code for w in st.session_state.watchlist_scan):
+                            st.session_state.watchlist_scan.append({"id":code,"name":name})
                     if add_from_chip:
                         st.toast(f"✅ 已加入 {len(add_from_chip)} 檔到監控清單")
 
@@ -1231,8 +1242,8 @@ with tab1:
                     for item in add_from_fin:
                         code = item.split()[0]
                         name = " ".join(item.split()[1:])
-                        if not any(w["id"]==code for w in st.session_state.watchlist):
-                            st.session_state.watchlist.append({"id":code,"name":name})
+                        if not any(w["id"]==code for w in st.session_state.watchlist_scan):
+                            st.session_state.watchlist_scan.append({"id":code,"name":name})
                     if add_from_fin:
                         st.toast(f"✅ 已加入 {len(add_from_fin)} 檔到監控清單")
 
@@ -1341,11 +1352,33 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
     else:
-        # 選擇監控標的
-        wl_options = [f"{w['id']} {w['name']}" for w in wl]
-        selected   = st.selectbox("選擇監控標的", wl_options, key="t2_sel")
-        sid_watch  = selected.split()[0]
-        name_watch = " ".join(selected.split()[1:])
+        # 選擇監控標的 - 分手動/掃描兩組
+        wl_manual = st.session_state.watchlist
+        wl_scan   = st.session_state.watchlist_scan
+
+        src_options = []
+        if wl_manual:
+            src_options += [f"📌 {w['id']} {w['name']}" for w in wl_manual]
+        if wl_scan:
+            src_options += [f"🔍 {w['id']} {w['name']}" for w in wl_scan]
+
+        # 搜尋框過濾
+        search_kw = st.text_input("🔎 搜尋標的", placeholder="輸入代號或名稱...",
+                                   key="t2_search", label_visibility="collapsed")
+        if search_kw.strip():
+            filtered = [o for o in src_options if search_kw.strip() in o]
+        else:
+            filtered = src_options
+
+        if not filtered:
+            st.warning("找不到符合的標的")
+            st.stop()
+
+        selected   = st.selectbox("選擇監控標的", filtered, key="t2_sel")
+        # 去掉前綴 📌 或 🔍
+        selected_clean = selected.lstrip("📌🔍 ").strip()
+        sid_watch  = selected_clean.split()[0]
+        name_watch = " ".join(selected_clean.split()[1:])
 
         # 載入 K 線
         df_prc, ok_prc = load_price_csv(sid_watch)
@@ -1507,7 +1540,7 @@ with tab2:
                             line=dict(color="#ff9800", width=2),
                         ), secondary_y=True)
                 fig2.update_layout(**base_layout("三大法人買賣超（萬股）＋融資餘額", 380),
-                                   bargap=0.1, bargroupgap=0.05)
+                                   bargap=0.02, bargroupgap=0.01)
                 fig2.update_yaxes(gridcolor=GRID_COL, secondary_y=False)
                 fig2.update_yaxes(showgrid=False, secondary_y=True)
                 st.plotly_chart(fig2, width='stretch')
