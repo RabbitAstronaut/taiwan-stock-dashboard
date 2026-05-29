@@ -818,21 +818,23 @@ with tab1:
                 s2["法人買超"] = (not np.isnan(inst_buy_pct)) and inst_buy_pct > inst_min_pct
                 if s2["法人買超"]: score2 += 1
 
-                # ── c. 大戶持股（500張以上）單週上升
+                # ── c. 大戶持股（400張以上）單週上升
+                # 欄位：HoldingSharesLevel, percent, date
+                # 大戶定義：400,001張以上 + more than 1,000,001
                 df_sh, ok_sh = get_shareholder(sid)
                 big_rising = False
                 if ok_sh and not df_sh.empty:
-                    lv_col  = next((c for c in df_sh.columns
-                                    if "level" in c.lower() or "Level" in c), None)
-                    pct_col = next((c for c in df_sh.columns
-                                    if "percent" in c.lower()), None)
+                    lv_col  = "HoldingSharesLevel" if "HoldingSharesLevel" in df_sh.columns else                               next((c for c in df_sh.columns if "level" in c.lower()), None)
+                    pct_col = "percent" if "percent" in df_sh.columns else                               next((c for c in df_sh.columns if "percent" in c.lower()), None)
                     if lv_col and pct_col:
+                        df_sh = df_sh[~df_sh[lv_col].astype(str).str.contains("total|差異|調整", na=False)].copy()
                         df_sh[pct_col] = pd.to_numeric(df_sh[pct_col], errors="coerce")
-                        big_kw    = ["50000","100000","200000","400000","over"]
-                        is_big    = df_sh[lv_col].astype(str).str.contains(
-                                        "|".join(big_kw), na=False)
-                        big_grp   = df_sh[is_big].groupby("date")[pct_col].sum()
-                        big_grp   = big_grp.sort_index().dropna()
+                        # 大戶：400,001以上 或 more than
+                        big_kw = ["400,001","600,001","800,001","1,000,001","more than"]
+                        is_big = df_sh[lv_col].astype(str).str.contains(
+                                     "|".join(big_kw), case=False, na=False)
+                        big_grp = df_sh[is_big].groupby("date")[pct_col].sum()
+                        big_grp = big_grp.sort_index().dropna()
                         if len(big_grp) >= 2:
                             big_rising = float(big_grp.iloc[-1]) > float(big_grp.iloc[-2])
                 s2["大戶持股上升"] = big_rising
