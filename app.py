@@ -80,6 +80,13 @@ html,body,[class*="css"]{font-family:"Noto Sans TC",sans-serif;}
 
 /* ── Expander */
 div[data-testid="stExpander"]{background:#0d1826;border:1px solid rgba(255,255,255,.07);border-radius:8px;}
+/* Expander header hover 去掉反白 */
+div[data-testid="stExpander"] summary{background:transparent!important;background-color:transparent!important;}
+div[data-testid="stExpander"] summary:hover{background:transparent!important;background-color:transparent!important;}
+div[data-testid="stExpander"] summary:focus{background:transparent!important;outline:none!important;}
+div[data-testid="stExpander"] details summary{background:transparent!important;}
+div[data-testid="stExpander"] details summary:hover{background:transparent!important;}
+[data-testid="stExpanderToggleIcon"]{color:#7fb3d3!important;}
 
 /* ── 按鈕 */
 .stButton>button{
@@ -173,11 +180,32 @@ li[aria-selected="true"]{
 /* Radio ══ 也順便讓選單容器背景透明 */
 /* ══ Radio ══ */
 [data-testid="stRadio"] label p{color:#e8f4fd!important;}
-[data-testid="stRadio"] label{color:#e8f4fd!important;background:transparent!important;}
-[data-testid="stRadio"] label > div{background:transparent!important;}
-[data-testid="stRadio"] label > div > div{background:transparent!important;}
-/* 選中：藍字 */
-[data-testid="stRadio"] label:has(input[type=radio]:checked) p{color:#00d4ff!important;font-weight:600!important;}
+[data-testid="stRadio"] label,
+[data-testid="stRadio"] label:hover,
+[data-testid="stRadio"] label:focus,
+[data-testid="stRadio"] label:active,
+[data-testid="stRadio"] label:focus-within{
+    background:transparent!important;
+    background-color:transparent!important;
+}
+[data-testid="stRadio"] label > div,
+[data-testid="stRadio"] label > div:hover,
+[data-testid="stRadio"] label > div:focus{
+    background:transparent!important;
+    background-color:transparent!important;
+}
+[data-testid="stRadio"] label > div > div,
+[data-testid="stRadio"] label > div > div:hover{
+    background:transparent!important;
+    background-color:transparent!important;
+}
+/* 選中：底線+藍字，不用背景色 */
+[data-testid="stRadio"] label:has(input[type=radio]:checked) p{
+    color:#00d4ff!important;
+    font-weight:600!important;
+    text-decoration:underline;
+    text-underline-offset:3px;
+}
 [data-testid="stRadio"] label:has(input[type=radio]:checked) span{color:#00d4ff!important;}
 /* ══ Number / Text input ══ */
 input[type="number"],input[type="text"],textarea{
@@ -195,24 +223,23 @@ label p{color:#c8dff0!important;}
 </style>
 """, unsafe_allow_html=True)
 
-# ── 強制覆蓋下拉選單反白（JS + MutationObserver，處理動態渲染）
+# ── JS 強制移除 Radio 反白背景
 st.markdown("""
 <script>
-function fixDropdowns() {
-    // 選單選中項目（li[aria-selected=true]）去掉系統反白
-    document.querySelectorAll('[data-baseweb="menu"] li').forEach(li => {
-        li.style.setProperty('background', li.getAttribute('aria-selected') === 'true' ? '#0f2a45' : '#0a0f1a', 'important');
-        li.style.setProperty('color', '#ffffff', 'important');
-    });
-    document.querySelectorAll('[data-baseweb="option"]').forEach(opt => {
-        opt.style.setProperty('background', '#0a0f1a', 'important');
-        opt.style.setProperty('color', '#ffffff', 'important');
+function fixRadio() {
+    document.querySelectorAll('[data-testid="stRadio"] label').forEach(label => {
+        label.style.setProperty('background', 'transparent', 'important');
+        label.style.setProperty('background-color', 'transparent', 'important');
+        label.querySelectorAll('div').forEach(d => {
+            d.style.setProperty('background', 'transparent', 'important');
+            d.style.setProperty('background-color', 'transparent', 'important');
+        });
     });
 }
-// 監聽 DOM 變化（popover 是動態插入的）
-const observer = new MutationObserver(fixDropdowns);
+const observer = new MutationObserver(fixRadio);
 observer.observe(document.body, { childList: true, subtree: true });
-fixDropdowns();
+fixRadio();
+setInterval(fixRadio, 500);
 </script>
 """, unsafe_allow_html=True)
 
