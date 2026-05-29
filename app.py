@@ -608,20 +608,6 @@ with tab1:
             rev_yoy_min  = st.number_input("月營收 YoY% >",  value=0.0,  step=1.0, key="t1_rev")
             eps_yoy_min  = st.number_input("EPS YoY% >",     value=0.0,  step=1.0, key="t1_epsy")
 
-    # ── K線讀取測試按鈕
-    if st.button("🔬 測試K線讀取（2454）", key="test_price"):
-        import requests as _req
-        url = f"{GITHUB_RAW}/prices/2454.csv"
-        try:
-            r = _req.get(url, timeout=10)
-            st.success(f"✅ HTTP {r.status_code}，長度 {len(r.text)} bytes")
-            st.code(r.text[:200])
-        except Exception as e:
-            st.error(f"❌ 失敗：{e}")
-
-        df_t, ok_t = load_price_csv("2454")
-        st.info(f"load_price_csv('2454')：ok={ok_t}, rows={len(df_t) if ok_t else 0}")
-
     if st.button("🚀 開始掃描", type="primary", use_container_width=True, key="t1_scan"):
         # ── 載入所有資料
         with st.spinner("載入資料中..."):
@@ -665,18 +651,6 @@ with tab1:
                 f"<div class='infobox'>掃描 <b style='color:#00d4ff;'>{total}</b> 檔</div>",
                 unsafe_allow_html=True
             )
-            # 除錯：測試第一檔K線讀取
-            if stock_ids:
-                _test_sid = str(stock_ids[0])
-                _test_df, _test_ok = load_price_csv(_test_sid)
-                _test_url = f"{GITHUB_RAW}/prices/{_test_sid}.csv"
-                st.info(
-                    f"K線測試 {_test_sid}：ok={_test_ok} "
-                    f"rows={len(_test_df) if _test_ok else 0} "
-                    f"cols={list(_test_df.columns[:5]) if _test_ok and not _test_df.empty else '無'} "
-                    f"URL={_test_url}"
-                )
-
             for idx, sid in enumerate(stock_ids):
                 prog.progress((idx + 1) / total)
 
@@ -722,7 +696,13 @@ with tab1:
 
                 # 第一道判斷
                 # NaN = 資料缺失，視為「不知道」→ 通過（不要因缺資料就漏掉好股）
-                p1_eps = np.isnan(eps_ttm) or eps_ttm > eps_min
+                # EPS：資料不足4季時年化後比較
+                if not np.isnan(eps_ttm):
+                    n_eps = min(len(eps_vals), 4)
+                    eps_annualized = eps_ttm / n_eps * 4
+                    p1_eps = eps_annualized > eps_min
+                else:
+                    p1_eps = True
                 p1_pe  = np.isnan(pe_val)  or pe_val  < pe_max
                 p1_gm  = np.isnan(gm_latest) or gm_latest > gm_min
                 pass1  = p1_eps and p1_pe and p1_gm
