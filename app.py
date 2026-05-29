@@ -541,29 +541,32 @@ def calc_indicators(df: pd.DataFrame, ma_s=5, ma_m=20, ma_l=60) -> pd.DataFrame:
     c  = df["Close"].astype(float)
     v  = df["Volume"].astype(float) if "Volume" in df.columns else pd.Series(np.zeros(len(df)), index=df.index)
 
+    # 保留原有 MA 供其他地方使用
     df[f"MA{ma_s}"]  = c.rolling(ma_s).mean()
     df[f"MA{ma_m}"]  = c.rolling(ma_m).mean()
     df[f"MA{ma_l}"]  = c.rolling(ma_l).mean()
     df[f"VMA{ma_s}"] = v.rolling(ma_s).mean()
 
-    # KD
-    lo9 = df["Low"].astype(float).rolling(9).min()
-    hi9 = df["High"].astype(float).rolling(9).max()
-    rsv = (c - lo9) / (hi9 - lo9 + 1e-9) * 100
-    rsv = rsv.fillna(50.0)  # NaN 補 50
-    K_list, D_list = [], []
-    k, d = 50.0, 50.0
-    for r in rsv:
-        if np.isnan(r):
-            K_list.append(np.nan)
-            D_list.append(np.nan)
-        else:
-            k = k * 2/3 + r * 1/3
-            d = d * 2/3 + k * 1/3
-            K_list.append(round(k, 2))
-            D_list.append(round(d, 2))
-    df["K"] = K_list
-    df["D"] = D_list
+    # EMA5、SMA60
+    df["EMA5"]  = c.ewm(span=5, adjust=False).mean()
+    df["SMA60"] = c.rolling(60).mean()
+
+    # 布林通道（20MA 中軌，2σ 和 4σ）
+    bb_mid   = c.rolling(20).mean()
+    bb_std   = c.rolling(20).std()
+    df["BB_MID"] = bb_mid
+    df["UB2"]    = bb_mid + 2 * bb_std
+    df["LB2"]    = bb_mid - 2 * bb_std
+    df["UB4"]    = bb_mid + 4 * bb_std
+    df["LB4"]    = bb_mid - 4 * bb_std
+
+    # RSI(5) 和 RSI(20)
+    for period, col in [(5, "RSI5"), (20, "RSI20")]:
+        delta = c.diff()
+        gain  = delta.clip(lower=0).ewm(com=period-1, adjust=False).mean()
+        loss  = (-delta.clip(upper=0)).ewm(com=period-1, adjust=False).mean()
+        rs    = gain / loss.replace(0, np.nan)
+        df[col] = (100 - 100 / (1 + rs)).round(2)
 
     # VWAP (當日近似)
     tp  = (df["High"].astype(float) + df["Low"].astype(float) + c) / 3
@@ -1477,13 +1480,12 @@ with tab2:
                         unsafe_allow_html=True)
 
             alerts = []
-            if lt["Close"] < lt[f"MA{MA_S}"]:
-                alerts.append(f"股價跌破 MA{MA_S}（{lt[f'MA{MA_S}']:.1f}）")
-            if lt["Close"] < lt.get("VWAP", float("inf")):
-                alerts.append(f"跌破日內 VWAP（{lt.get('VWAP',0):.1f}）")
-            kd_dead = (lt["K"] < lt["D"]) and (lt["K"] > 70) and (pv["K"] >= pv["D"])
-            if kd_dead:
-                alerts.append(f"KD 高檔死叉（K={lt['K']:.1f}）")
+            if lt["Close"] < lt.get("EMA5", float("inf")):
+                alerts.append(f"股價跌破 EMA5（{lt.get('EMA5',0):.1f}）")
+            rsi5_now  = lt.get("RSI5",  50)
+            rsi20_now = lt.get("RSI20", 50)
+            if rsi5_now > 80 and rsi5_now < rsi20_now:
+                alerts.append(f"RSI(5)={rsi5_now:.1f} 高檔回落且低於 RSI(20)")
 
             dc1, dc2 = st.columns([1, 3])
             with dc1:
@@ -1506,11 +1508,12 @@ with tab2:
                 if not alerts:
                     st.success("✅ 所有指標正常")
 
-            # K線主圖
+            # K線主圖 + RSI 副圖
             mc1, mc2 = st.columns([3, 1])
             with mc1:
                 fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
                                     row_heights=[.7, .3], vertical_spacing=.04)
+                # K線
                 fig.add_trace(go.Candlestick(
                     x=df_ind.index,
                     open=df_ind["Open"], high=df_ind["High"],
@@ -1519,12 +1522,41 @@ with tab2:
                     decreasing_line_color="#ff5252",
                     name="K線", showlegend=False,
                 ), row=1, col=1)
-                for mw, mc in [(MA_S,"#ff9800"),(MA_M,"#00d4ff"),(MA_L,"#e040fb")]:
-                    fig.add_trace(go.Scatter(
-                        x=df_ind.index, y=df_ind[f"MA{mw}"],
-                        mode="lines", name=f"MA{mw}",
-                        line=dict(color=mc, width=1.5),
-                    ), row=1, col=1)
+                # EMA5（黃）、SMA60（紫紅）
+                fig.add_trace(go.Scatter(
+                    x=df_ind.index, y=df_ind["EMA5"],
+                    mode="lines", name="EMA5",
+                    line=dict(color="#ffeb3b", width=1.5),
+                ), row=1, col=1)
+                fig.add_trace(go.Scatter(
+                    x=df_ind.index, y=df_ind["SMA60"],
+                    mode="lines", name="SMA60",
+                    line=dict(color="#e91e8c", width=1.5),
+                ), row=1, col=1)
+                # 布林通道 UB2/LB2（深藍）
+                fig.add_trace(go.Scatter(
+                    x=df_ind.index, y=df_ind["UB2"],
+                    mode="lines", name="UB2",
+                    line=dict(color="#1565c0", width=1, dash="dot"),
+                ), row=1, col=1)
+                fig.add_trace(go.Scatter(
+                    x=df_ind.index, y=df_ind["LB2"],
+                    mode="lines", name="LB2",
+                    line=dict(color="#1565c0", width=1, dash="dot"),
+                    fill="tonexty", fillcolor="rgba(21,101,192,0.05)",
+                ), row=1, col=1)
+                # 布林通道 UB4/LB4（綠）
+                fig.add_trace(go.Scatter(
+                    x=df_ind.index, y=df_ind["UB4"],
+                    mode="lines", name="UB4",
+                    line=dict(color="#00c853", width=1, dash="dash"),
+                ), row=1, col=1)
+                fig.add_trace(go.Scatter(
+                    x=df_ind.index, y=df_ind["LB4"],
+                    mode="lines", name="LB4",
+                    line=dict(color="#00c853", width=1, dash="dash"),
+                ), row=1, col=1)
+                # 成交量
                 fig.add_trace(go.Bar(
                     x=df_ind.index, y=df_ind["Volume"],
                     marker_color=["#00e676" if c >= o else "#ff5252"
@@ -1535,19 +1567,20 @@ with tab2:
                                   xaxis_rangeslider_visible=False)
                 st.plotly_chart(fig, width='stretch')
             with mc2:
-                # KD 圖
-                kdt = df_ind.tail(60)
-                fkd = go.Figure()
-                fkd.add_trace(go.Scatter(x=kdt.index, y=kdt["K"],
-                    mode="lines", name="K", line=dict(color="#ff9800",width=1.5)))
-                fkd.add_trace(go.Scatter(x=kdt.index, y=kdt["D"],
-                    mode="lines", name="D", line=dict(color="#00d4ff",width=1.5)))
-                fkd.add_hrect(y0=80, y1=100, fillcolor="rgba(255,82,82,.08)",  line_width=0)
-                fkd.add_hrect(y0=0,  y1=20,  fillcolor="rgba(0,230,118,.08)", line_width=0)
-                fkd.add_hline(y=80, line_dash="dot", line_color="#ff5252", line_width=1)
-                fkd.add_hline(y=20, line_dash="dot", line_color="#00e676", line_width=1)
-                fkd.update_layout(**base_layout("KD（近60日）", 230))
-                st.plotly_chart(fkd, width='stretch')
+                # RSI 雙線圖
+                rst = df_ind.tail(60)
+                frsi = go.Figure()
+                frsi.add_trace(go.Scatter(x=rst.index, y=rst["RSI5"],
+                    mode="lines", name="RSI5", line=dict(color="#ffeb3b", width=1.5)))
+                frsi.add_trace(go.Scatter(x=rst.index, y=rst["RSI20"],
+                    mode="lines", name="RSI20", line=dict(color="#00d4ff", width=1.5)))
+                frsi.add_hrect(y0=80, y1=100, fillcolor="rgba(255,82,82,.10)", line_width=0)
+                frsi.add_hrect(y0=0,  y1=20,  fillcolor="rgba(0,230,118,.10)", line_width=0)
+                frsi.add_hline(y=80, line_dash="dot", line_color="#ff5252", line_width=1)
+                frsi.add_hline(y=20, line_dash="dot", line_color="#00e676", line_width=1)
+                frsi.update_layout(**base_layout("RSI（近60日）", 460),
+                                   yaxis=dict(range=[0,100]))
+                st.plotly_chart(frsi, width='stretch')
 
             # ══════════════════════════════════════════════
             # 子模組 2：籌碼純度
