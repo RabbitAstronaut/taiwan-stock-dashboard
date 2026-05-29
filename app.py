@@ -249,6 +249,12 @@ input[type="number"],input[type="text"],textarea{
 /* ══ All labels ══ */
 label{color:#c8dff0!important;}
 label p{color:#c8dff0!important;}
+/* ══ 隱藏 Streamlit 頂部白色 header/toolbar ══ */
+[data-testid="stHeader"]{background:transparent!important;height:0!important;}
+[data-testid="stToolbar"]{display:none!important;}
+[data-testid="stDecoration"]{display:none!important;}
+[data-testid="stStatusWidget"]{display:none!important;}
+header[data-testid="stHeader"]{visibility:hidden!important;}
 /* ══ Download button ══ */
 [data-testid="stDownloadButton"] button{
     background:#0d1826!important;
