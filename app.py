@@ -1048,6 +1048,44 @@ with tab1:
             st.session_state["scan_done"]    = True
             st.success(f"✅ 掃描完成！基本面通過 {len(results)} 檔")
 
+
+def df_to_html(df, height=380):
+    """把 DataFrame 渲染成黑底白字的 HTML 表格"""
+    rows_html = ""
+    for _, row in df.iterrows():
+        cells = ""
+        for col in df.columns:
+            val = row[col]
+            if val == "✅":
+                cell = "<td style='text-align:center;font-size:1.1rem;'>✅</td>"
+            elif val == "❌":
+                cell = "<td style='text-align:center;font-size:1.1rem;color:#ff5252;'>❌</td>"
+            elif val is None or (isinstance(val, float) and pd.isna(val)):
+                cell = "<td style='color:#546e7a;text-align:center;'>—</td>"
+            else:
+                cell = f"<td>{val}</td>"
+            cells += cell
+        rows_html += f"<tr>{cells}</tr>"
+    
+    headers = "".join(f"<th>{c}</th>" for c in df.columns)
+    
+    return f"""
+<div style='overflow-x:auto;overflow-y:auto;max-height:{height}px;border:1px solid #1e3a5f;border-radius:8px;'>
+<table style='width:100%;border-collapse:collapse;background:#060b14;color:#e8f4fd;font-size:.82rem;'>
+<thead><tr style='position:sticky;top:0;background:#0d1826;color:#00d4ff;border-bottom:2px solid #1e3a5f;'>
+{headers}
+</tr></thead>
+<tbody>
+{rows_html}
+</tbody>
+</table>
+</div>
+<style>
+table tr:hover td{{background:#1e3a5f!important;}}
+table td,table th{{padding:6px 10px;border-bottom:1px solid #0d1826;white-space:nowrap;}}
+</style>
+"""
+
     # ── 顯示結果
     if st.session_state.get("scan_done") and st.session_state.get("scan_results"):
         results = st.session_state["scan_results"]
@@ -1094,9 +1132,9 @@ with tab1:
             df_chip_show = df_chip[df_chip["籌碼得分"] >= min_chip].sort_values(
                 sort_chip, ascending=False if sort_chip=="籌碼得分" else True, na_position="last"
             )
-            st.dataframe(
-                df_chip_show[[c for c in show_chip_cols if c in df_chip_show.columns]],
-                use_container_width=True, height=380
+            st.markdown(
+                df_to_html(df_chip_show[[c for c in show_chip_cols if c in df_chip_show.columns]], height=380),
+                unsafe_allow_html=True
             )
 
             # 加入監控按鈕（籌碼表格旁）
@@ -1150,9 +1188,9 @@ with tab1:
             df_fin_show = df_fin2[df_fin2["財報得分"] >= min_fin].sort_values(
                 sort_fin, ascending=False if sort_fin=="財報得分" else True, na_position="last"
             )
-            st.dataframe(
-                df_fin_show[[c for c in show_fin_cols if c in df_fin_show.columns]],
-                use_container_width=True, height=380
+            st.markdown(
+                df_to_html(df_fin_show[[c for c in show_fin_cols if c in df_fin_show.columns]], height=380),
+                unsafe_allow_html=True
             )
 
             # 加入監控按鈕（財報表格旁）
