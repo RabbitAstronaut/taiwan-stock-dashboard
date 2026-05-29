@@ -572,7 +572,7 @@ def add_indicators(df, ws=5, wm=20, wl=60):
 # ══════════════════════════════════════════════════════════════
 # ▌ Session State 初始化
 # ══════════════════════════════════════════════════════════════
-if "watchlist" not in st.session_state or "wl_loaded" not in st.session_state:
+if "wl_loaded" not in st.session_state:
     manual, scan = load_watchlist_from_github()
     st.session_state.watchlist      = manual  # 手動加入
     st.session_state.watchlist_scan = scan    # 掃描結果加入
