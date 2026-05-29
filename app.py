@@ -249,6 +249,17 @@ input[type="number"],input[type="text"],textarea{
 /* ══ All labels ══ */
 label{color:#c8dff0!important;}
 label p{color:#c8dff0!important;}
+/* ══ Download button ══ */
+[data-testid="stDownloadButton"] button{
+    background:#0d1826!important;
+    color:#e8f4fd!important;
+    border:1px solid #1e3a5f!important;
+}
+[data-testid="stDownloadButton"] button:hover{
+    background:#1e3a5f!important;
+    color:#00d4ff!important;
+    border-color:#00d4ff!important;
+}
 </style>
 """, unsafe_allow_html=True)
 
