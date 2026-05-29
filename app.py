@@ -1356,26 +1356,40 @@ with tab2:
         wl_manual = st.session_state.watchlist
         wl_scan   = st.session_state.watchlist_scan
 
-        src_options = []
-        if wl_manual:
-            src_options += [f"📌 {w['id']} {w['name']}" for w in wl_manual]
-        if wl_scan:
-            src_options += [f"🔍 {w['id']} {w['name']}" for w in wl_scan]
-
         # 搜尋框過濾
         search_kw = st.text_input("🔎 搜尋標的", placeholder="輸入代號或名稱...",
                                    key="t2_search", label_visibility="collapsed")
-        if search_kw.strip():
-            filtered = [o for o in src_options if search_kw.strip() in o]
-        else:
-            filtered = src_options
 
-        if not filtered:
+        # 建立分組選項（用 ── 標題行區隔）
+        src_options = []
+        manual_items = [f"📌 {w['id']} {w['name']}" for w in wl_manual]
+        scan_items   = [f"🔍 {w['id']} {w['name']}" for w in wl_scan]
+
+        if search_kw.strip():
+            kw = search_kw.strip()
+            manual_items = [o for o in manual_items if kw in o]
+            scan_items   = [o for o in scan_items   if kw in o]
+
+        if manual_items:
+            src_options += ["── 手動加入 ──"] + manual_items
+        if scan_items:
+            src_options += ["── 掃描結果 ──"] + scan_items
+
+        if not src_options:
             st.warning("找不到符合的標的")
             st.stop()
 
-        selected   = st.selectbox("選擇監控標的", filtered, key="t2_sel")
-        # 去掉前綴 📌 或 🔍
+        selected = st.selectbox("選擇監控標的", src_options, key="t2_sel",
+                                 format_func=lambda x: x)
+
+        # 如果選到標題行，自動跳到下一個有效選項
+        if selected.startswith("──"):
+            idx = src_options.index(selected)
+            for nxt in src_options[idx+1:]:
+                if not nxt.startswith("──"):
+                    selected = nxt
+                    break
+
         selected_clean = selected.lstrip("📌🔍 ").strip()
         sid_watch  = selected_clean.split()[0]
         name_watch = " ".join(selected_clean.split()[1:])
