@@ -33,7 +33,46 @@ st.set_page_config(
 )
 
 # ── GitHub raw URL 前綴（★ 請修改為你的帳號/repo）
-GITHUB_RAW = "https://raw.githubusercontent.com/RabbitAstronaut/taiwan-stock-dashboard/main/data"
+GITHUB_RAW   = "https://raw.githubusercontent.com/RabbitAstronaut/taiwan-stock-dashboard/main/data"
+GITHUB_REPO  = "RabbitAstronaut/taiwan-stock-dashboard"
+GITHUB_TOKEN = os.environ.get("GH_TOKEN", "")
+
+def load_watchlist_from_github():
+    """從 GitHub 讀取監控清單"""
+    try:
+        url = f"{GITHUB_RAW}/watchlist.json"
+        r = requests.get(url, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            return data.get("manual", []), data.get("scan", [])
+    except Exception:
+        pass
+    return [], []
+
+def save_watchlist_to_github(manual_list, scan_list):
+    """用 GitHub API 把監控清單存到 data/watchlist.json"""
+    if not GITHUB_TOKEN:
+        return False
+    import base64, json as _json
+    payload = _json.dumps({"manual": manual_list, "scan": scan_list}, ensure_ascii=False, indent=2)
+    api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/data/watchlist.json"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+    # 先取得現有 sha（更新需要）
+    sha = None
+    try:
+        r = requests.get(api_url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            sha = r.json().get("sha")
+    except Exception:
+        pass
+    body = {"message": "update watchlist", "content": base64.b64encode(payload.encode()).decode()}
+    if sha:
+        body["sha"] = sha
+    try:
+        r = requests.put(api_url, headers=headers, json=body, timeout=15)
+        return r.status_code in (200, 201)
+    except Exception:
+        return False
 
 # ══════════════════════════════════════════════════════════════
 # ▌ CSS 主題
@@ -533,10 +572,11 @@ def add_indicators(df, ws=5, wm=20, wl=60):
 # ══════════════════════════════════════════════════════════════
 # ▌ Session State 初始化
 # ══════════════════════════════════════════════════════════════
-if "watchlist" not in st.session_state:
-    st.session_state.watchlist: list[dict] = []      # 手動加入
-if "watchlist_scan" not in st.session_state:
-    st.session_state.watchlist_scan: list[dict] = [] # 掃描結果加入
+if "watchlist" not in st.session_state or "wl_loaded" not in st.session_state:
+    manual, scan = load_watchlist_from_github()
+    st.session_state.watchlist      = manual  # 手動加入
+    st.session_state.watchlist_scan = scan    # 掃描結果加入
+    st.session_state.wl_loaded      = True
 
 # ══════════════════════════════════════════════════════════════
 # ▌ SIDEBAR
@@ -582,6 +622,7 @@ with st.sidebar:
                 entry = {"id": code, "name": name}
                 if not any(w["id"] == code for w in st.session_state.watchlist):
                     st.session_state.watchlist.append(entry)
+                    save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
                     st.success(f"已加入：{name}")
                 else:
                     st.info("已在清單中")
@@ -599,6 +640,7 @@ with st.sidebar:
                     rm_idx = i
             if rm_idx is not None:
                 st.session_state.watchlist.pop(rm_idx)
+                save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
                 st.rerun()
         else:
             st.caption("📌 手動清單為空")
@@ -614,6 +656,7 @@ with st.sidebar:
                     rm_idx2 = i
             if rm_idx2 is not None:
                 st.session_state.watchlist_scan.pop(rm_idx2)
+                save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
                 st.rerun()
 
     st.markdown("---")
@@ -1185,6 +1228,7 @@ with tab1:
                         name = " ".join(item.split()[1:])
                         if not any(w["id"]==code for w in st.session_state.watchlist_scan):
                             st.session_state.watchlist_scan.append({"id":code,"name":name})
+                            save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
                     if add_from_chip:
                         st.toast(f"✅ 已加入 {len(add_from_chip)} 檔到監控清單")
 
@@ -1244,6 +1288,7 @@ with tab1:
                         name = " ".join(item.split()[1:])
                         if not any(w["id"]==code for w in st.session_state.watchlist_scan):
                             st.session_state.watchlist_scan.append({"id":code,"name":name})
+                            save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
                     if add_from_fin:
                         st.toast(f"✅ 已加入 {len(add_from_fin)} 檔到監控清單")
 
