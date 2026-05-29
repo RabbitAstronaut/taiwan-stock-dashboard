@@ -979,7 +979,7 @@ with tab1:
                 # 取得名稱
                 sid_name = sid
                 if ok_si:
-                    m = df_si[df_si["stock_id"] == sid]
+                    m = df_si[df_si["stock_id"].astype(str).str.strip() == str(sid).strip()]
                     if not m.empty:
                         sid_name = str(m["stock_name"].iloc[0])
 
