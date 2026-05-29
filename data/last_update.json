@@ -3,6 +3,6 @@
   "stock_count": 2140,
   "mode": "每日更新（增量）",
   "modules": [
-    "prices"
+    "financials"
   ]
 }
