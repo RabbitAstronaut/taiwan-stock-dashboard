@@ -1051,40 +1051,34 @@ with tab1:
 
 def df_to_html(df, height=380):
     """把 DataFrame 渲染成黑底白字的 HTML 表格"""
+    TD  = "padding:6px 10px;border-bottom:1px solid #1a2a3a;white-space:nowrap;background:#060b14;color:#e8f4fd;font-size:.82rem;"
+    TH  = "padding:6px 10px;background:#0d1826;color:#00d4ff;font-size:.82rem;white-space:nowrap;border-bottom:2px solid #1e3a5f;position:sticky;top:0;"
     rows_html = ""
-    for _, row in df.iterrows():
+    for i, (_, row) in enumerate(df.iterrows()):
+        bg = "#060b14" if i % 2 == 0 else "#080e18"
         cells = ""
         for col in df.columns:
             val = row[col]
+            s = TD + f"background:{bg};"
             if val == "✅":
-                cell = "<td style='text-align:center;font-size:1.1rem;'>✅</td>"
+                cells += f"<td style='{s}text-align:center;font-size:1.1rem;'>✅</td>"
             elif val == "❌":
-                cell = "<td style='text-align:center;font-size:1.1rem;color:#ff5252;'>❌</td>"
+                cells += f"<td style='{s}text-align:center;font-size:1.1rem;color:#ff5252;'>❌</td>"
             elif val is None or (isinstance(val, float) and pd.isna(val)):
-                cell = "<td style='color:#546e7a;text-align:center;'>—</td>"
+                cells += f"<td style='{s}color:#546e7a;text-align:center;'>—</td>"
             else:
-                cell = f"<td>{val}</td>"
-            cells += cell
+                cells += f"<td style='{s}'>{val}</td>"
         rows_html += f"<tr>{cells}</tr>"
-    
-    headers = "".join(f"<th>{c}</th>" for c in df.columns)
-    
-    return f"""
-<div style='overflow-x:auto;overflow-y:auto;max-height:{height}px;border:1px solid #1e3a5f;border-radius:8px;'>
-<table style='width:100%;border-collapse:collapse;background:#060b14;color:#e8f4fd;font-size:.82rem;'>
-<thead><tr style='position:sticky;top:0;background:#0d1826;color:#00d4ff;border-bottom:2px solid #1e3a5f;'>
-{headers}
-</tr></thead>
-<tbody>
-{rows_html}
-</tbody>
-</table>
-</div>
-<style>
-table tr:hover td{{background:#1e3a5f!important;}}
-table td,table th{{padding:6px 10px;border-bottom:1px solid #0d1826;white-space:nowrap;}}
-</style>
-"""
+
+    headers = "".join(f"<th style='{TH}'>{c}</th>" for c in df.columns)
+    return (
+        f"<div style='overflow-x:auto;overflow-y:auto;max-height:{height}px;"
+        f"border:1px solid #1e3a5f;border-radius:8px;'>"
+        f"<table style='width:100%;border-collapse:collapse;'>"
+        f"<thead><tr>{headers}</tr></thead>"
+        f"<tbody>{rows_html}</tbody>"
+        f"</table></div>"
+    )
 
     if st.session_state.get("scan_done") and st.session_state.get("scan_results"):
         results = st.session_state["scan_results"]
