@@ -1506,7 +1506,8 @@ with tab2:
                             mode="lines", name="融資餘額(億)",
                             line=dict(color="#ff9800", width=2),
                         ), secondary_y=True)
-                fig2.update_layout(**base_layout("三大法人買賣超（萬股）＋融資餘額", 380))
+                fig2.update_layout(**base_layout("三大法人買賣超（萬股）＋融資餘額", 380),
+                                   bargap=0.1, bargroupgap=0.05)
                 fig2.update_yaxes(gridcolor=GRID_COL, secondary_y=False)
                 fig2.update_yaxes(showgrid=False, secondary_y=True)
                 st.plotly_chart(fig2, width='stretch')
