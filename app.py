@@ -2167,7 +2167,7 @@ with tab4:
             df_c, ok_c = get_chips(sid)
             trust_consec = 0
             if ok_c and not df_c.empty and "name" in df_c.columns and "net" in df_c.columns:
-                trust = df_c[df_c["name"].astype(str).str.contains("投信", na=False)]
+                trust = df_c[df_c["name"].astype(str).str.contains("Investment_Trust|投信", na=False)]
                 if "date" in trust.columns:
                     trust = trust.sort_values("date")
                     trust_vals = trust.groupby("date")["net"].sum().tail(5)
