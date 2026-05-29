@@ -512,7 +512,7 @@ with st.sidebar:
     with st.expander("➕ 加入監控清單", expanded=False):
         add_id = st.text_input("股票代號", placeholder="例：2454",
                                label_visibility="collapsed", key="sb_add")
-        if st.button("加入", use_container_width=True, key="sb_add_btn"):
+        if st.button("加入", width='stretch', key="sb_add_btn"):
             code = add_id.strip()
             if code.isdigit() and len(code) == 4:
                 name = code
@@ -540,7 +540,7 @@ with st.sidebar:
                     f"{w['id']} {w['name']}</span>",
                     unsafe_allow_html=True,
                 )
-                if c2.button("✕", key=f"rm_{i}", use_container_width=True):
+                if c2.button("✕", key=f"rm_{i}", width='stretch'):
                     rm_idx = i
             if rm_idx is not None:
                 st.session_state.watchlist.pop(rm_idx)
@@ -562,7 +562,7 @@ with st.sidebar:
     PERIOD  = st.select_slider("K 線週期", ["3mo","6mo","1y","2y"], value="1y")
 
     st.markdown("---")
-    if st.button("🔄 清除快取（強制重整）", use_container_width=True):
+    if st.button("🔄 清除快取（強制重整）", width='stretch'):
         st.cache_data.clear()
         st.rerun()
 
@@ -727,12 +727,12 @@ with tab1:
         # ── 第一排：恢復預設 + 載入自訂1~3
         row1 = st.columns(4)
         with row1[0]:
-            if st.button("↺ 恢復預設值", key="t1_reset", use_container_width=True):
+            if st.button("↺ 恢復預設值", key="t1_reset", width='stretch'):
                 apply_preset(FILTER_DEFAULTS)
                 st.rerun()
         for slot in [1, 2, 3]:
             with row1[slot]:
-                if st.button(f"📥 載入自訂{slot}", key=f"load_c{slot}", use_container_width=True):
+                if st.button(f"📥 載入自訂{slot}", key=f"load_c{slot}", width='stretch'):
                     saved = st.session_state.get(f"t1_custom{slot}")
                     if saved:
                         apply_preset(saved)
@@ -743,7 +743,7 @@ with tab1:
         row2 = st.columns(4)
         for slot in [1, 2, 3]:
             with row2[slot]:
-                if st.button(f"💾 儲存自訂{slot}", key=f"save_c{slot}", use_container_width=True):
+                if st.button(f"💾 儲存自訂{slot}", key=f"save_c{slot}", width='stretch'):
                     st.session_state[f"t1_custom{slot}"] = {k: st.session_state.get(k, FILTER_DEFAULTS[k]) for k in FILTER_KEYS}
                     st.toast(f"✅ 已儲存自訂{slot}", icon="✅")
 
@@ -765,7 +765,7 @@ with tab1:
             rev_yoy_min  = st.number_input("月營收 YoY% >",  value=float(st.session_state.get("t1_rev",  FILTER_DEFAULTS["t1_rev"])),  step=1.0, key="t1_rev")
             eps_yoy_min  = st.number_input("EPS YoY% >",     value=float(st.session_state.get("t1_epsy", FILTER_DEFAULTS["t1_epsy"])), step=1.0, key="t1_epsy")
 
-    if st.button("🚀 開始掃描", type="primary", use_container_width=True, key="t1_scan"):
+    if st.button("🚀 開始掃描", type="primary", width='stretch', key="t1_scan"):
         # ── 載入所有資料
         with st.spinner("載入資料中..."):
             df_si, ok_si = get_stock_info()
@@ -1128,7 +1128,7 @@ def df_to_html(df, height=380):
             )
             st.dataframe(
                 df_chip_show[[c for c in show_chip_cols if c in df_chip_show.columns]],
-                use_container_width=True, height=380, hide_index=True
+                width='stretch', height=380, hide_index=True
             )
 
             # 加入監控按鈕（籌碼表格旁）
@@ -1184,7 +1184,7 @@ def df_to_html(df, height=380):
             )
             st.dataframe(
                 df_fin_show[[c for c in show_fin_cols if c in df_fin_show.columns]],
-                use_container_width=True, height=380, hide_index=True
+                width='stretch', height=380, hide_index=True
             )
 
             # 加入監控按鈕（財報表格旁）
@@ -1235,7 +1235,7 @@ def df_to_html(df, height=380):
             df_table = df_show[[c for c in display_cols if c in df_show.columns]].copy()
             st.dataframe(
                 df_table,
-                use_container_width=True, height=360
+                width='stretch', height=360
             )
 
         # ── 個股評分卡 + 加入監控
@@ -1268,7 +1268,7 @@ def df_to_html(df, height=380):
                         if st.button(
                             f"⭐ 加入監控",
                             key=f"add_{row['代號']}",
-                            use_container_width=True,
+                            width='stretch',
                         ):
                             entry = {"id": row["代號"], "name": row["名稱"]}
                             if not any(
