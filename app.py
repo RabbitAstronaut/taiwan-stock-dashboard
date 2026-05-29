@@ -123,25 +123,45 @@ p, span, label, div, h1, h2, h3, li {
 @keyframes pulse{0%{box-shadow:0 0 8px rgba(255,82,82,.2);}50%{box-shadow:0 0 18px rgba(255,82,82,.5);}100%{box-shadow:0 0 8px rgba(255,82,82,.2);}}
 
 /* ══ Selectbox / Dropdown ══ */
-[data-baseweb="select"]>div{background:#0f1e30!important;color:#e8f4fd!important;border-color:#1e3a5f!important;}
-[data-baseweb="select"] span{color:#e8f4fd!important;}
-[data-baseweb="select"] input{color:#e8f4fd!important;background:transparent!important;}
-[data-baseweb="popover"]{background:#0f1e30!important;}
-[data-baseweb="popover"] li{background:#0f1e30!important;color:#e8f4fd!important;}
-[data-baseweb="popover"] li:hover{background:#1e3a5f!important;}
-[data-baseweb="menu"]{background:#0f1e30!important;color:#e8f4fd!important;}
-[data-baseweb="tag"]{background:#1e3a5f!important;}
-[data-baseweb="tag"] span{color:#e8f4fd!important;}
+/* 選單本體：黑底白字，白框 */
+[data-baseweb="select"]>div{
+    background:#0a0f1a!important;
+    color:#ffffff!important;
+    border:1px solid #ffffff!important;
+    border-radius:6px!important;
+}
+[data-baseweb="select"] span{color:#ffffff!important;}
+[data-baseweb="select"] input{color:#ffffff!important;background:transparent!important;}
+[data-baseweb="select"] svg{color:#ffffff!important;fill:#ffffff!important;}
+/* 下拉清單：黑底白字 */
+[data-baseweb="popover"]{background:#0a0f1a!important;border:1px solid #3a5a80!important;}
+[data-baseweb="popover"] li{
+    background:#0a0f1a!important;
+    color:#ffffff!important;
+}
+/* hover：藍框高亮 */
+[data-baseweb="popover"] li:hover{
+    background:#1e3a5f!important;
+    color:#ffffff!important;
+    outline:1px solid #00d4ff!important;
+}
+/* 已選中項目：藍框 */
+[data-baseweb="popover"] [aria-selected="true"]{
+    background:#0f2a45!important;
+    color:#00d4ff!important;
+    border-left:3px solid #00d4ff!important;
+}
+[data-baseweb="menu"]{background:#0a0f1a!important;color:#ffffff!important;}
+[data-baseweb="tag"]{background:#1e3a5f!important;border:1px solid #00d4ff!important;}
+[data-baseweb="tag"] span{color:#ffffff!important;}
+/* Radio ══ 也順便讓選單容器背景透明 */
 /* ══ Radio ══ */
 [data-testid="stRadio"] label p{color:#e8f4fd!important;}
-[data-testid="stRadio"] label{color:#e8f4fd!important;}
-/* 強制移除所有 radio 反白背景 */
-[data-testid="stRadio"] label *{background:transparent!important;}
-[data-testid="stRadio"] label{background:transparent!important;}
-[data-testid="stRadio"] div{background:transparent!important;}
-[data-testid="stRadio"] span{background:transparent!important;}
-/* 選中的文字變藍色 */
-[data-testid="stRadio"] label:has(input[type=radio]:checked) p{color:#00d4ff!important;}
+[data-testid="stRadio"] label{color:#e8f4fd!important;background:transparent!important;}
+[data-testid="stRadio"] label > div{background:transparent!important;}
+[data-testid="stRadio"] label > div > div{background:transparent!important;}
+/* 選中：藍字 */
+[data-testid="stRadio"] label:has(input[type=radio]:checked) p{color:#00d4ff!important;font-weight:600!important;}
 [data-testid="stRadio"] label:has(input[type=radio]:checked) span{color:#00d4ff!important;}
 /* ══ Number / Text input ══ */
 input[type="number"],input[type="text"],textarea{
