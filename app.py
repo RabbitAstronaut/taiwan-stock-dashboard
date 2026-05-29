@@ -35,7 +35,11 @@ st.set_page_config(
 # ── GitHub raw URL 前綴（★ 請修改為你的帳號/repo）
 GITHUB_RAW   = "https://raw.githubusercontent.com/RabbitAstronaut/taiwan-stock-dashboard/main/data"
 GITHUB_REPO  = "RabbitAstronaut/taiwan-stock-dashboard"
-GITHUB_TOKEN = os.environ.get("GH_TOKEN", "")
+# Streamlit Cloud 用 st.secrets，本機用 os.environ
+try:
+    GITHUB_TOKEN = st.secrets["GH_TOKEN"]
+except Exception:
+    GITHUB_TOKEN = os.environ.get("GH_TOKEN", "")
 
 def load_watchlist_from_github():
     """從 GitHub 讀取監控清單"""
@@ -577,6 +581,7 @@ if "wl_loaded" not in st.session_state:
     st.session_state.watchlist      = manual  # 手動加入
     st.session_state.watchlist_scan = scan    # 掃描結果加入
     st.session_state.wl_loaded      = True
+    st.session_state.wl_debug = ("token=有" if GITHUB_TOKEN else "token=無") + f" manual={len(manual)} scan={len(scan)}"
 
 # ══════════════════════════════════════════════════════════════
 # ▌ SIDEBAR
@@ -644,6 +649,7 @@ with st.sidebar:
                 st.rerun()
         else:
             st.caption("📌 手動清單為空")
+        st.caption(f"🔧 {st.session_state.get("wl_debug", "載入中...")}")
 
         # 掃描清單
         if st.session_state.watchlist_scan:
