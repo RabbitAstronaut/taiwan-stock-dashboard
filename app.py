@@ -717,10 +717,11 @@ st.markdown(f"""
 # ══════════════════════════════════════════════════════════════
 # ▌ 三大分頁
 # ══════════════════════════════════════════════════════════════
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "🔍 選股掃描儀",
     "🚨 持股監控",
     "📡 大盤預警",
+    "📝 每日作戰總部",
 ])
 
 # ──────────────────────────────────────────────────────────────
@@ -2111,3 +2112,188 @@ with tab3:
         "</div>",
         unsafe_allow_html=True,
     )
+
+# ──────────────────────────────────────────────────────────────
+# ▌ TAB 4：每日作戰總部（MTFA 專屬報告）
+# ──────────────────────────────────────────────────────────────
+with tab4:
+    st.markdown("<div class='sec-title'>📝 每日作戰總部 · MTFA 狙擊報告</div>",
+                unsafe_allow_html=True)
+
+    # 合併手動+掃描清單
+    all_wl = st.session_state.get("watchlist", []) + st.session_state.get("watchlist_scan", [])
+    # 去重
+    seen = set()
+    all_wl_dedup = []
+    for w in all_wl:
+        if w["id"] not in seen:
+            seen.add(w["id"])
+            all_wl_dedup.append(w)
+
+    if not all_wl_dedup:
+        st.markdown("""
+        <div style='background:#0f2027;border:2px dashed #1e3a5f;border-radius:12px;
+             padding:50px;text-align:center;'>
+            <div style='font-size:2rem;margin-bottom:10px;'>📋</div>
+            <div style='color:#e8f4fd;font-size:.92rem;font-weight:600;'>監控清單為空</div>
+            <div style='color:#7fb3d3;font-size:.8rem;margin-top:8px;'>
+                請先在 Tab1 或 Sidebar 加入監控標的
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(
+            f"<div class='infobox'>共 <b style='color:#00d4ff;'>{len(all_wl_dedup)}</b> 檔標的，"
+            f"每張卡片同時顯示 🔴 警示 與 🟢 買進信號，供多空判斷。</div>",
+            unsafe_allow_html=True
+        )
+
+        for w in all_wl_dedup:
+            sid  = w["id"]
+            name = w.get("name", sid)
+
+            # 載入 K 線 + 計算指標
+            df_w, ok_w = load_price_csv(sid)
+            if not ok_w or df_w.empty or len(df_w) < 20:
+                with st.expander(f"⚠️ {sid} {name}｜資料不足", expanded=False):
+                    st.caption("K 線資料不足 20 筆，無法產生報告。")
+                continue
+
+            df_w = add_indicators(df_w)
+            lt   = df_w.iloc[-1]   # 最新一筆
+            pv   = df_w.iloc[-2]   # 前一筆
+
+            # ── 籌碼資料（投信連續買超）
+            df_c, ok_c = get_chips(sid)
+            trust_consec = 0
+            if ok_c and not df_c.empty and "name" in df_c.columns and "net" in df_c.columns:
+                trust = df_c[df_c["name"].astype(str).str.contains("投信", na=False)]
+                if "date" in trust.columns:
+                    trust = trust.sort_values("date")
+                    trust_vals = trust.groupby("date")["net"].sum().tail(5)
+                    # 從最新往前數連續買超天數
+                    for v in reversed(trust_vals.values):
+                        if v > 0:
+                            trust_consec += 1
+                        else:
+                            break
+
+            # ── 信號判斷
+            alerts  = []  # 紅色警示
+            signals = []  # 綠色買進
+
+            close_now  = float(lt["Close"])
+            close_prev = float(pv["Close"])
+            ema5  = float(lt.get("EMA5",  float("nan")))
+            rsi5  = float(lt.get("RSI5",  float("nan")))
+            rsi20 = float(lt.get("RSI20", float("nan")))
+            bb_mid = float(lt.get("BB_MID", float("nan")))
+            lb2    = float(lt.get("LB2",    float("nan")))
+            bb_mid_prev = float(pv.get("BB_MID", float("nan")))
+
+            # 紅色警示
+            if not np.isnan(ema5) and close_now < ema5:
+                alerts.append(f"🔴 股價跌破 EMA5（{ema5:.1f}），短線趨勢轉弱")
+            if not np.isnan(rsi5) and not np.isnan(rsi20):
+                if rsi5 > 80 and rsi5 < rsi20:
+                    alerts.append(f"🔴 RSI(5)={rsi5:.1f} 高檔回落且低於 RSI(20)，注意獲利了結")
+
+            # 🟢 買進信號 1：籌碼點火（投信連續買超 >= 2天）
+            if trust_consec >= 2:
+                signals.append(
+                    f"🟢 【籌碼點火】投信連續買超 {trust_consec} 天，"
+                    f"正規軍建倉中，具備波段發動潛力。"
+                )
+
+            # 🟢 買進信號 2：動能轉強（RSI 黃金交叉）
+            if not np.isnan(rsi5) and not np.isnan(rsi20):
+                if rsi5 > rsi20 and 40 <= rsi5 <= 60:
+                    signals.append(
+                        f"🟢 【動能轉強】RSI(5)={rsi5:.1f} > RSI(20)={rsi20:.1f} "
+                        f"且處於法人安全吃貨區 (40~60)，短線多方奪回優勢。"
+                    )
+
+            # 🟢 買進信號 3a：向上突破布林中軌
+            if not np.isnan(bb_mid) and not np.isnan(bb_mid_prev):
+                if close_now > bb_mid and close_prev < bb_mid_prev:
+                    signals.append(
+                        f"🟢 【均線突破】收盤價（{close_now:.1f}）站上布林通道中軌（{bb_mid:.1f}），"
+                        f"趨勢轉多。"
+                    )
+                # 🟢 買進信號 3b：下軌支撐
+                elif not np.isnan(lb2) and close_now >= lb2 and close_now <= lb2 * 1.015:
+                    signals.append(
+                        f"🟢 【下軌支撐】股價（{close_now:.1f}）回測布林下軌 LB2（{lb2:.1f}）"
+                        f"具備支撐，可留意右側反轉買點。"
+                    )
+
+            # ── 卡片顏色判斷
+            if alerts and not signals:
+                card_border = "#ff5252"
+                card_bg     = "rgba(255,82,82,0.06)"
+                status_icon = "🔴"
+                status_text = "需要防守"
+            elif signals and not alerts:
+                card_border = "#00e676"
+                card_bg     = "rgba(0,230,118,0.06)"
+                status_icon = "🟢"
+                status_text = "適合買進"
+            elif signals and alerts:
+                card_border = "#ff9800"
+                card_bg     = "rgba(255,152,0,0.06)"
+                status_icon = "🟡"
+                status_text = "多空交雜"
+            else:
+                card_border = "#1e3a5f"
+                card_bg     = "rgba(30,58,95,0.3)"
+                status_icon = "⚪"
+                status_text = "觀望"
+
+            # ── 渲染卡片
+            with st.expander(
+                f"{status_icon} {sid} {name}｜{status_text}"
+                f"  ┊  收盤 {close_now:.1f}"
+                f"  ┊  RSI5 {rsi5:.0f}"
+                f"  ┊  EMA5 {ema5:.1f}" if not np.isnan(ema5) else
+                f"{status_icon} {sid} {name}｜{status_text}",
+                expanded=True
+            ):
+                # 警示區
+                if alerts:
+                    st.markdown("<div style='margin-bottom:6px;'>", unsafe_allow_html=True)
+                    for a in alerts:
+                        st.markdown(
+                            f"<div style='background:rgba(255,82,82,0.12);border-left:3px solid #ff5252;"
+                            f"border-radius:6px;padding:8px 12px;margin:4px 0;"
+                            f"color:#ff8a80;font-size:.83rem;'>{a}</div>",
+                            unsafe_allow_html=True
+                        )
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                # 買進信號區
+                if signals:
+                    st.markdown("<div style='margin-bottom:6px;'>", unsafe_allow_html=True)
+                    for s in signals:
+                        st.markdown(
+                            f"<div style='background:rgba(0,230,118,0.10);border-left:3px solid #00e676;"
+                            f"border-radius:6px;padding:8px 12px;margin:4px 0;"
+                            f"color:#69f0ae;font-size:.83rem;'>{s}</div>",
+                            unsafe_allow_html=True
+                        )
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                # 無信號
+                if not alerts and not signals:
+                    st.markdown(
+                        "<div style='color:#546e7a;font-size:.83rem;padding:8px 0;'>"
+                        "⚪ 目前無明顯信號，持續觀察中。</div>",
+                        unsafe_allow_html=True
+                    )
+
+                # 指標數值小結
+                cols = st.columns(4)
+                def _fmt(v): return f"{v:.1f}" if not np.isnan(v) else "—"
+                cols[0].metric("EMA5",   _fmt(ema5))
+                cols[1].metric("RSI5",   _fmt(rsi5))
+                cols[2].metric("RSI20",  _fmt(rsi20))
+                cols[3].metric("BB中軌", _fmt(bb_mid))
