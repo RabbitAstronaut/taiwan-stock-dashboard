@@ -1126,9 +1126,9 @@ def df_to_html(df, height=380):
             df_chip_show = df_chip[df_chip["籌碼得分"] >= min_chip].sort_values(
                 sort_chip, ascending=False if sort_chip=="籌碼得分" else True, na_position="last"
             )
-            st.markdown(
-                df_to_html(df_chip_show[[c for c in show_chip_cols if c in df_chip_show.columns]], height=380),
-                unsafe_allow_html=True
+            st.dataframe(
+                df_chip_show[[c for c in show_chip_cols if c in df_chip_show.columns]],
+                use_container_width=True, height=380, hide_index=True
             )
 
             # 加入監控按鈕（籌碼表格旁）
@@ -1182,9 +1182,9 @@ def df_to_html(df, height=380):
             df_fin_show = df_fin2[df_fin2["財報得分"] >= min_fin].sort_values(
                 sort_fin, ascending=False if sort_fin=="財報得分" else True, na_position="last"
             )
-            st.markdown(
-                df_to_html(df_fin_show[[c for c in show_fin_cols if c in df_fin_show.columns]], height=380),
-                unsafe_allow_html=True
+            st.dataframe(
+                df_fin_show[[c for c in show_fin_cols if c in df_fin_show.columns]],
+                use_container_width=True, height=380, hide_index=True
             )
 
             # 加入監控按鈕（財報表格旁）
