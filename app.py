@@ -1086,7 +1086,6 @@ table td,table th{{padding:6px 10px;border-bottom:1px solid #0d1826;white-space:
 </style>
 """
 
-    # ── 顯示結果
     if st.session_state.get("scan_done") and st.session_state.get("scan_results"):
         results = st.session_state["scan_results"]
         df_res  = pd.DataFrame(results)
