@@ -114,8 +114,38 @@ p, span, label, div, h1, h2, h3, li {
 .stNumberInput label, .stTextInput label {
     color:#b0cce0!important;
 }
+/* ══ DataFrame 黑底白字 ══ */
 [data-testid="stDataFrame"] td,
 [data-testid="stDataFrame"] th {
+    color:#ffffff!important;
+    background-color:#0a0f1a!important;
+}
+[data-testid="stDataFrame"] tr:hover td{
+    background-color:#1e3a5f!important;
+}
+/* header */
+[data-testid="stDataFrame"] th{
+    background-color:#0d1826!important;
+    color:#00d4ff!important;
+    border-bottom:1px solid #1e3a5f!important;
+}
+/* Show/hide columns 浮動視窗 */
+[data-testid="stDataFrameResizable"] [data-testid="stElementToolbar"]{
+    background:#0d1826!important;
+    border:1px solid #1e3a5f!important;
+}
+[data-testid="stElementToolbar"] button{
+    color:#e8f4fd!important;
+    background:#0d1826!important;
+}
+[data-testid="stElementToolbar"] button:hover{
+    background:#1e3a5f!important;
+    color:#00d4ff!important;
+}
+/* 欄位選擇浮動視窗 */
+[data-testid="stDataFrameColumnConfigContainer"]{
+    background:#0d1826!important;
+    border:1px solid #1e3a5f!important;
     color:#e8f4fd!important;
 }
 
@@ -213,7 +243,6 @@ input[type="number"],input[type="text"],textarea{
 /* ══ Slider ══ */
 [data-testid="stSlider"] p{color:#c8dff0!important;}
 /* ══ DataTable text ══ */
-[data-testid="stDataFrame"] td,[data-testid="stDataFrame"] th{color:#e8f4fd!important;}
 /* ══ Multiselect ══ */
 [data-testid="stMultiSelect"] span{color:#e8f4fd!important;}
 [data-testid="stMultiSelect"] input{color:#e8f4fd!important;}
