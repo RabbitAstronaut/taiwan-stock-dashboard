@@ -1233,14 +1233,16 @@ with tab1:
                     key="chip_add_sel"
                 )
                 if st.button("⭐ 加入監控", key="chip_add_btn"):
+                    added = 0
                     for item in add_from_chip:
                         code = item.split()[0]
                         name = " ".join(item.split()[1:])
                         if not any(w["id"]==code for w in st.session_state.watchlist_scan):
                             st.session_state.watchlist_scan.append({"id":code,"name":name})
-                            save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
-                    if add_from_chip:
-                        st.toast(f"✅ 已加入 {len(add_from_chip)} 檔到監控清單")
+                            added += 1
+                    if added > 0:
+                        save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
+                        st.toast(f"✅ 已加入 {added} 檔到監控清單")
 
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1293,14 +1295,16 @@ with tab1:
                     key="fin_add_sel"
                 )
                 if st.button("⭐ 加入監控", key="fin_add_btn"):
+                    added = 0
                     for item in add_from_fin:
                         code = item.split()[0]
                         name = " ".join(item.split()[1:])
                         if not any(w["id"]==code for w in st.session_state.watchlist_scan):
                             st.session_state.watchlist_scan.append({"id":code,"name":name})
-                            save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
-                    if add_from_fin:
-                        st.toast(f"✅ 已加入 {len(add_from_fin)} 檔到監控清單")
+                            added += 1
+                    if added > 0:
+                        save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
+                        st.toast(f"✅ 已加入 {added} 檔到監控清單")
 
         # placeholder to keep old variable name for funnel chart below
         df_show = df_res  # keep for backward compat
