@@ -605,26 +605,27 @@ with tab1:
             st.session_state[k] = v
 
     with st.expander("⚙️ 調整篩選條件", expanded=False):
-        # ── 預設值 & 自訂設定槽
-        btn_row = st.columns([2,2,2,2,2,2])
-        with btn_row[0]:
+        # ── 第一排：恢復預設 + 載入自訂1~3
+        row1 = st.columns(4)
+        with row1[0]:
             if st.button("↺ 恢復預設值", key="t1_reset", use_container_width=True):
                 apply_preset(FILTER_DEFAULTS)
                 st.rerun()
-        # 自訂1~3 儲存/載入
         for slot in [1, 2, 3]:
-            slot_key = f"t1_custom{slot}"
-            with btn_row[slot]:
+            with row1[slot]:
                 if st.button(f"📥 載入自訂{slot}", key=f"load_c{slot}", use_container_width=True):
-                    saved = st.session_state.get(slot_key)
+                    saved = st.session_state.get(f"t1_custom{slot}")
                     if saved:
                         apply_preset(saved)
                         st.rerun()
                     else:
                         st.toast(f"自訂{slot} 尚未儲存", icon="⚠️")
-            with btn_row[slot+3]:
+        # ── 第二排：儲存自訂1~3
+        row2 = st.columns(4)
+        for slot in [1, 2, 3]:
+            with row2[slot]:
                 if st.button(f"💾 儲存自訂{slot}", key=f"save_c{slot}", use_container_width=True):
-                    st.session_state[slot_key] = {k: st.session_state.get(k, FILTER_DEFAULTS[k]) for k in FILTER_KEYS}
+                    st.session_state[f"t1_custom{slot}"] = {k: st.session_state.get(k, FILTER_DEFAULTS[k]) for k in FILTER_KEYS}
                     st.toast(f"✅ 已儲存自訂{slot}", icon="✅")
 
         st.divider()
