@@ -1129,6 +1129,9 @@ with tab1:
                 df_to_html(df_chip_show[[c for c in show_chip_cols if c in df_chip_show.columns]], height=380),
                 unsafe_allow_html=True
             )
+            st.download_button("⬇️ 下載籌碼表 CSV",
+                df_chip_show[[c for c in show_chip_cols if c in df_chip_show.columns]].to_csv(index=False, encoding='utf-8-sig'),
+                file_name="chip_result.csv", mime="text/csv", key="dl_chip")
 
             # 加入監控按鈕（籌碼表格旁）
             if not df_chip_show.empty:
@@ -1185,6 +1188,9 @@ with tab1:
                 df_to_html(df_fin_show[[c for c in show_fin_cols if c in df_fin_show.columns]], height=380),
                 unsafe_allow_html=True
             )
+            st.download_button("⬇️ 下載財報表 CSV",
+                df_fin_show[[c for c in show_fin_cols if c in df_fin_show.columns]].to_csv(index=False, encoding='utf-8-sig'),
+                file_name="fin_result.csv", mime="text/csv", key="dl_fin")
 
             # 加入監控按鈕（財報表格旁）
             if not df_fin_show.empty:
@@ -1232,9 +1238,18 @@ with tab1:
             display_cols = ["代號","名稱","EPS_TTM","P/E","毛利率%",
                             "法人買超%","融資5日變動%","籌碼得分","財報得分","總得分"]
             df_table = df_show[[c for c in display_cols if c in df_show.columns]].copy()
-            st.dataframe(
-                df_table,
-                width='stretch', height=360
+            st.markdown(
+                df_to_html(df_table, height=360),
+                unsafe_allow_html=True
+            )
+            # CSV 下載
+            csv_data = df_table.to_csv(index=False, encoding='utf-8-sig')
+            st.download_button(
+                label="⬇️ 下載 CSV",
+                data=csv_data,
+                file_name="scan_result.csv",
+                mime="text/csv",
+                key="dl_csv"
             )
 
         # ── 個股評分卡 + 加入監控
