@@ -1578,8 +1578,8 @@ with tab2:
                 frsi.add_hrect(y0=0,  y1=20,  fillcolor="rgba(0,230,118,.10)", line_width=0)
                 frsi.add_hline(y=80, line_dash="dot", line_color="#ff5252", line_width=1)
                 frsi.add_hline(y=20, line_dash="dot", line_color="#00e676", line_width=1)
-                frsi.update_layout(**base_layout("RSI（近60日）", 460),
-                                   yaxis=dict(range=[0,100]))
+                frsi.update_layout(**base_layout("RSI（近60日）", 460))
+                frsi.update_yaxes(range=[0, 100])
                 st.plotly_chart(frsi, width='stretch')
 
             # ══════════════════════════════════════════════
