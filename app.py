@@ -135,25 +135,14 @@ p, span, label, div, h1, h2, h3, li {
 /* ══ Radio ══ */
 [data-testid="stRadio"] label p{color:#e8f4fd!important;}
 [data-testid="stRadio"] label{color:#e8f4fd!important;}
-/* 強制覆蓋 Streamlit radio 選中狀態的反白背景 */
-[data-testid="stRadio"] div[data-baseweb="radio"] > label{
-    background:transparent!important;
-    color:#e8f4fd!important;
-}
-[data-testid="stRadio"] [aria-checked="true"] ~ div,
-[data-testid="stRadio"] [aria-checked="true"] + div{
-    color:#00d4ff!important;
-}
-div[role="radiogroup"] label > div:first-child > div{
-    border-color:#00d4ff!important;
-}
-/* 去掉藍底反白 */
-[data-testid="stRadio"] label > div[data-testid]{
-    background:transparent!important;
-}
-[data-testid="stRadio"] [data-baseweb="radio"]{
-    background:transparent!important;
-}
+/* 強制移除所有 radio 反白背景 */
+[data-testid="stRadio"] label *{background:transparent!important;}
+[data-testid="stRadio"] label{background:transparent!important;}
+[data-testid="stRadio"] div{background:transparent!important;}
+[data-testid="stRadio"] span{background:transparent!important;}
+/* 選中的文字變藍色 */
+[data-testid="stRadio"] label:has(input[type=radio]:checked) p{color:#00d4ff!important;}
+[data-testid="stRadio"] label:has(input[type=radio]:checked) span{color:#00d4ff!important;}
 /* ══ Number / Text input ══ */
 input[type="number"],input[type="text"],textarea{
     color:#e8f4fd!important;background:#0f1e30!important;border-color:#1e3a5f!important;}
@@ -603,29 +592,58 @@ with tab1:
                 )
 
     # ── 篩選條件設定
+    # ── 篩選條件預設值（你的量化策略核心參數）
+    FILTER_DEFAULTS = {
+        "t1_eps": 10.0, "t1_pe": 40.0, "t1_gm": 30.0,
+        "t1_mg": -3.0,  "t1_inst": 10.0, "t1_bias": 5.0, "t1_vol": 0.60,
+        "t1_rev": 10.0, "t1_epsy": 20.0,
+    }
+    FILTER_KEYS = list(FILTER_DEFAULTS.keys())
+
+    def apply_preset(preset_dict):
+        for k, v in preset_dict.items():
+            st.session_state[k] = v
+
     with st.expander("⚙️ 調整篩選條件", expanded=False):
-        if st.button("↺ 恢復預設值", key="t1_reset"):
-            for k,v in [("t1_eps",3.0),("t1_pe",60.0),("t1_gm",15.0),
-                        ("t1_mg",5.0),("t1_inst",1.0),("t1_bias",15.0),("t1_vol",1.5),
-                        ("t1_rev",0.0),("t1_epsy",0.0)]:
-                st.session_state[k] = v
-            st.rerun()
+        # ── 預設值 & 自訂設定槽
+        btn_row = st.columns([2,2,2,2,2,2])
+        with btn_row[0]:
+            if st.button("↺ 恢復預設值", key="t1_reset", use_container_width=True):
+                apply_preset(FILTER_DEFAULTS)
+                st.rerun()
+        # 自訂1~3 儲存/載入
+        for slot in [1, 2, 3]:
+            slot_key = f"t1_custom{slot}"
+            with btn_row[slot]:
+                if st.button(f"📥 載入自訂{slot}", key=f"load_c{slot}", use_container_width=True):
+                    saved = st.session_state.get(slot_key)
+                    if saved:
+                        apply_preset(saved)
+                        st.rerun()
+                    else:
+                        st.toast(f"自訂{slot} 尚未儲存", icon="⚠️")
+            with btn_row[slot+3]:
+                if st.button(f"💾 儲存自訂{slot}", key=f"save_c{slot}", use_container_width=True):
+                    st.session_state[slot_key] = {k: st.session_state.get(k, FILTER_DEFAULTS[k]) for k in FILTER_KEYS}
+                    st.toast(f"✅ 已儲存自訂{slot}", icon="✅")
+
+        st.divider()
         fc1, fc2, fc3 = st.columns(3)
         with fc1:
             st.markdown("**第一道：基本面**")
-            eps_min = st.number_input("近四季 EPS 合計 >", value=3.0,  step=0.5, key="t1_eps")
-            pe_max  = st.number_input("P/E <",            value=60.0, step=1.0, key="t1_pe")
-            gm_min  = st.number_input("最新季毛利率% >",  value=15.0, step=1.0, key="t1_gm")
+            eps_min = st.number_input("近四季 EPS 合計 >", value=float(st.session_state.get("t1_eps", FILTER_DEFAULTS["t1_eps"])),  step=0.5, key="t1_eps")
+            pe_max  = st.number_input("P/E <",            value=float(st.session_state.get("t1_pe",  FILTER_DEFAULTS["t1_pe"])),   step=1.0, key="t1_pe")
+            gm_min  = st.number_input("最新季毛利率% >",  value=float(st.session_state.get("t1_gm",  FILTER_DEFAULTS["t1_gm"])),   step=1.0, key="t1_gm")
         with fc2:
             st.markdown("**第二道：籌碼技術**")
-            mg_max       = st.number_input("融資5日變動% <", value=5.0,  step=0.5, key="t1_mg")
-            inst_min_pct = st.number_input("法人買超比例% >", value=1.0,  step=1.0, key="t1_inst")
-            bias_max     = st.number_input("MA20乖離% <",    value=15.0, step=0.5, key="t1_bias")
-            vol_max_r    = st.number_input("量比(5MA) <",    value=1.5,  step=0.05,key="t1_vol")
+            mg_max       = st.number_input("融資5日變動% <",  value=float(st.session_state.get("t1_mg",   FILTER_DEFAULTS["t1_mg"])),   step=0.5,  key="t1_mg")
+            inst_min_pct = st.number_input("法人買超比例% >", value=float(st.session_state.get("t1_inst", FILTER_DEFAULTS["t1_inst"])), step=1.0,  key="t1_inst")
+            bias_max     = st.number_input("MA20乖離% <",     value=float(st.session_state.get("t1_bias", FILTER_DEFAULTS["t1_bias"])), step=0.5,  key="t1_bias")
+            vol_max_r    = st.number_input("量比(5MA) <",     value=float(st.session_state.get("t1_vol",  FILTER_DEFAULTS["t1_vol"])),  step=0.05, key="t1_vol")
         with fc3:
             st.markdown("**第三道：財報趨勢**")
-            rev_yoy_min  = st.number_input("月營收 YoY% >",  value=0.0,  step=1.0, key="t1_rev")
-            eps_yoy_min  = st.number_input("EPS YoY% >",     value=0.0,  step=1.0, key="t1_epsy")
+            rev_yoy_min  = st.number_input("月營收 YoY% >",  value=float(st.session_state.get("t1_rev",  FILTER_DEFAULTS["t1_rev"])),  step=1.0, key="t1_rev")
+            eps_yoy_min  = st.number_input("EPS YoY% >",     value=float(st.session_state.get("t1_epsy", FILTER_DEFAULTS["t1_epsy"])), step=1.0, key="t1_epsy")
 
     if st.button("🚀 開始掃描", type="primary", use_container_width=True, key="t1_scan"):
         # ── 載入所有資料
