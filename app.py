@@ -355,7 +355,13 @@ def load_price_csv(stock_id: str) -> tuple[pd.DataFrame, bool]:
 def get_stock_info():
     df, ok = load_csv("stock_info.csv")
     if ok and not df.empty:
-        return df[["stock_id","stock_name"]].drop_duplicates("stock_id"), True
+        df["stock_id"] = df["stock_id"].astype(str).str.strip()
+        df["stock_name"] = df["stock_name"].astype(str).str.strip()
+        # 優先取有中文名稱的（stock_name != stock_id），再取第一筆
+        has_name = df[df["stock_name"] != df["stock_id"]]
+        no_name  = df[df["stock_name"] == df["stock_id"]]
+        combined = pd.concat([has_name, no_name]).drop_duplicates("stock_id")
+        return combined[["stock_id","stock_name"]].reset_index(drop=True), True
     return pd.DataFrame(), False
 
 def get_chips(stock_id=None):
