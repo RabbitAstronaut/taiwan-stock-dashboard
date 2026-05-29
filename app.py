@@ -1467,10 +1467,10 @@ with tab2:
             kpi_cols = st.columns(6)
             mcard(kpi_cols[0], "收盤價",   f"{lt['Close']:.1f}",         chg_s)
             mcard(kpi_cols[1], "漲跌幅",   f"{'▲' if chg>=0 else '▼'}{abs(chg):.2f}%", chg_s)
-            mcard(kpi_cols[2], f"MA{MA_S}", f"{lt[f'MA{MA_S}']:.1f}",     "")
-            mcard(kpi_cols[3], f"MA{MA_M}", f"{lt[f'MA{MA_M}']:.1f}",     "")
-            mcard(kpi_cols[4], "K值",       f"{lt['K']:.1f}",             "")
-            mcard(kpi_cols[5], "D值",       f"{lt['D']:.1f}",             "")
+            mcard(kpi_cols[2], "EMA5",  f"{lt.get('EMA5',  float('nan')):.1f}", "")
+            mcard(kpi_cols[3], "SMA60", f"{lt.get('SMA60', float('nan')):.1f}", "")
+            mcard(kpi_cols[4], "RSI5",  f"{lt.get('RSI5',  float('nan')):.1f}", "")
+            mcard(kpi_cols[5], "RSI20", f"{lt.get('RSI20', float('nan')):.1f}", "")
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ══════════════════════════════════════════════
