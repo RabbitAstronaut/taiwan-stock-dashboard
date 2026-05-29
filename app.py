@@ -1080,6 +1080,7 @@ def df_to_html(df, height=380):
         f"</table></div>"
     )
 
+
     if st.session_state.get("scan_done") and st.session_state.get("scan_results"):
         results = st.session_state["scan_results"]
         df_res  = pd.DataFrame(results)
@@ -1278,9 +1279,9 @@ def df_to_html(df, height=380):
                             # ★ 使用 toast 提示，不跳轉頁面
                             st.toast(f"✅ 已加入監控：{row['名稱']}")
 
-# ──────────────────────────────────────────────────────────────
-# ▌ TAB 2：持股監控
-# ──────────────────────────────────────────────────────────────
+    # ──────────────────────────────────────────────────────────────
+    # ▌ TAB 2：持股監控
+    # ──────────────────────────────────────────────────────────────
 with tab2:
     st.markdown("<div class='sec-title'>🚨 持股監控 · 即時防守 ＋ 籌碼 ＋ 基本面</div>",
                 unsafe_allow_html=True)
