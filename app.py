@@ -2804,25 +2804,34 @@ with tab5:
 
     price_map = get_all_etf_prices(tuple(df_menu["代號"].tolist()))
 
-    h = st.columns([1, 1.1, 1.1, 1.1, 1, 1.5, 1.5])
-    for col, txt in zip(h, ["代號","現股價","最新配息/股","年化配息/股","頻率","配息月份","持有張數"]):
+    h = st.columns([1, 1, 1, 1, 1, 1, 1.5, 1.5])
+    for col, txt in zip(h, ["代號","現股價","最新配息/股","年化配息/股","年化殖利率","頻率","配息月份","持有張數"]):
         col.markdown(f"<b style='color:#00d4ff;font-size:.82rem;'>{txt}</b>", unsafe_allow_html=True)
     st.markdown("<div style='border-bottom:1px solid #1e3a5f;margin-bottom:4px;'></div>", unsafe_allow_html=True)
 
     for _, row in df_menu.iterrows():
         sid = str(row["代號"])
-        c1, c2, c3, c4, c5, c6, c7 = st.columns([1, 1.1, 1.1, 1.1, 1, 1.5, 1.5])
+        c1, c2, c3, c4, c5, c6, c7, c8 = st.columns([1, 1, 1, 1, 1, 1, 1.5, 1.5])
         c1.markdown(f"<span style='color:#e8f4fd;font-size:.82rem;font-weight:600;'>{sid}</span>", unsafe_allow_html=True)
         price = price_map.get(sid, 0.0)
         price_str = f"{price:.2f}" if price > 0 else "—"
         c2.markdown(f"<span style='color:#e8f4fd;font-size:.82rem;'>{price_str}</span>", unsafe_allow_html=True)
         c3.markdown(f"<span style='color:#ffeb3b;font-size:.82rem;'>{row['最新配息/股']:.4f}</span>", unsafe_allow_html=True)
         c4.markdown(f"<span style='color:#00e676;font-size:.82rem;'>{row['年化配息/股']:.4f}</span>", unsafe_allow_html=True)
+        # 年化殖利率
+        if price > 0:
+            yield_r = row['年化配息/股'] / price * 100
+            yield_color = "#ff5252" if yield_r >= 6 else ("#ffeb3b" if yield_r >= 4 else "#e8f4fd")
+            yield_str = f"{yield_r:.2f}%"
+        else:
+            yield_color = "#546e7a"
+            yield_str = "—"
+        c5.markdown(f"<span style='color:{yield_color};font-size:.82rem;font-weight:600;'>{yield_str}</span>", unsafe_allow_html=True)
         freq_color = "#00d4ff" if row["頻率"] == "月配" else ("#ff9800" if row["頻率"] == "季配" else "#e8f4fd")
-        c5.markdown(f"<span style='color:{freq_color};font-size:.82rem;'>{row['頻率']}</span>", unsafe_allow_html=True)
-        c6.markdown(f"<span style='color:#b0cce0;font-size:.82rem;'>{row['配息月份']}</span>", unsafe_allow_html=True)
+        c6.markdown(f"<span style='color:{freq_color};font-size:.82rem;'>{row['頻率']}</span>", unsafe_allow_html=True)
+        c7.markdown(f"<span style='color:#b0cce0;font-size:.82rem;'>{row['配息月份']}</span>", unsafe_allow_html=True)
         cur_sh = st.session_state.etf_shares.get(sid, 0)
-        new_sh = c7.number_input("張", value=cur_sh, min_value=0, step=1,
+        new_sh = c8.number_input("張", value=cur_sh, min_value=0, step=1,
                                   key=f"t5_sh_{sid}", label_visibility="collapsed")
         st.session_state.etf_shares[sid] = int(new_sh)
 
