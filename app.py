@@ -2790,8 +2790,9 @@ with tab5:
         st.warning("ETF 配息資料載入失敗，請確認 data/etf_dividend_data.csv 是否存在。")
         st.stop()
 
+    # etf_shares 已在啟動時從 GitHub 載入，不重設
     if "etf_shares" not in st.session_state:
-        st.session_state.etf_shares = {}
+        st.session_state.etf_shares = {}  # 備用（通常不會執行到）
 
     st.markdown(f"### 📋 ETF 清單　共 {len(df_menu)} 檔　輸入張數後自動試算")
     st.caption("最新配息/股=最近一次除息　年化配息/股=近1年合計　配息月份=歷史除息月份")
@@ -2908,3 +2909,131 @@ with tab5:
     etf_cols = [c for c in pivot.columns if c != "月份"]
     pivot["合計（元）"] = pivot[etf_cols].sum(axis=1)
     st.markdown(df_to_html(pivot, height=440), unsafe_allow_html=True)
+
+
+    # ══════════════════════════════════════════════
+    # 🔍 主力資金流向雷達（ETF 籌碼追蹤）
+    # ══════════════════════════════════════════════
+    st.markdown("---")
+    st.markdown("<div class='sec-title'>🔍 主力資金流向雷達 · ETF 籌碼追蹤</div>",
+                unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>選擇 ETF 查看近 20 日三大法人買賣超與融資餘額變化，"
+        "系統自動診斷主力資金動向。</div>",
+        unsafe_allow_html=True
+    )
+
+    # ETF 選單（來自總表）
+    etf_options = df_menu["代號"].tolist() if not df_menu.empty else []
+    if not etf_options:
+        st.info("請先載入 ETF 清單。")
+        st.stop()
+
+    radar_sid = st.selectbox("選擇 ETF", etf_options, key="radar_etf")
+
+    # 讀取籌碼資料
+    df_chips_etf, ok_chips_etf = get_chips(radar_sid)
+
+    if not ok_chips_etf or df_chips_etf.empty:
+        st.warning(f"{radar_sid} 在 chips_data.csv 中無籌碼資料。")
+        st.stop()
+
+    # 整理欄位
+    df_c = df_chips_etf.copy()
+    df_c["stock_id"] = df_c["stock_id"].astype(str).str.strip()
+    df_c = df_c[df_c["stock_id"] == str(radar_sid).strip()]
+
+    if "date" in df_c.columns:
+        df_c["date"] = pd.to_datetime(df_c["date"], errors="coerce")
+        df_c = df_c.sort_values("date")
+
+    # 找 net 欄（買賣超）
+    net_col  = "net"  if "net"  in df_c.columns else None
+    name_col = "name" if "name" in df_c.columns else None
+
+    if not net_col or not name_col:
+        st.warning(f"欄位不足：{df_c.columns.tolist()}")
+        st.stop()
+
+    df_c[net_col] = pd.to_numeric(df_c[net_col], errors="coerce").fillna(0)
+
+    # 外資、投信、融資
+    foreign = df_c[df_c[name_col].astype(str).str.contains("Foreign_Investor", na=False)]
+    trust   = df_c[df_c[name_col].astype(str).str.contains("Investment_Trust", na=False)]
+    margin_col = next((c for c in df_c.columns if "MarginPurchaseTodayBalance" in c), None)
+
+    # 彙總每日買賣超（近20日）
+    def daily_net(df_sub, col=net_col, n=20):
+        if df_sub.empty:
+            return pd.Series(dtype=float)
+        grp = df_sub.groupby("date")[col].sum().sort_index()
+        return grp.tail(n)
+
+    f_net = daily_net(foreign)
+    t_net = daily_net(trust)
+
+    if f_net.empty and t_net.empty:
+        st.warning(f"{radar_sid} 近期無外資或投信資料。")
+        st.stop()
+
+    all_dates = sorted(set(f_net.index.tolist() + t_net.index.tolist()))
+    f_vals = [float(f_net.get(d, 0)) for d in all_dates]
+    t_vals = [float(t_net.get(d, 0)) for d in all_dates]
+    date_strs = [d.strftime("%m/%d") if hasattr(d, 'strftime') else str(d) for d in all_dates]
+
+    # ── AI 短評（近5日）
+    recent_f = f_vals[-5:] if len(f_vals) >= 5 else f_vals
+    recent_t = t_vals[-5:] if len(t_vals) >= 5 else t_vals
+    combined = [f + t for f, t in zip(recent_f, recent_t)]
+    buy_days  = sum(1 for v in combined if v > 0)
+    total_net = sum(combined)
+
+    if buy_days >= 3 and total_net > 0:
+        st.success(
+            f"🔥 【大資金湧入】法人近5日買超 {buy_days} 天，累積買超 {total_net/10000:.1f} 萬股，"
+            f"暗示其背後之產業板塊具備波段動能，可作為選股方向！"
+        )
+    elif buy_days <= 2 and total_net < 0:
+        st.warning(
+            f"⚠️ 【主力提款】法人近5日賣超居多，累積賣超 {abs(total_net)/10000:.1f} 萬股，"
+            f"請留意該 ETF 關聯產業之修正風險。"
+        )
+    else:
+        st.info(f"📊 近5日法人買超 {buy_days} 天，多空訊號混沌，持續觀察中。")
+
+    # ── 雙軸圖表
+    fig_radar = make_subplots(specs=[[{"secondary_y": True}]])
+
+    # 外資柱狀
+    fig_radar.add_trace(go.Bar(
+        x=date_strs, y=f_vals, name="外資買賣超",
+        marker_color=["#ff5252" if v >= 0 else "#00e676" for v in f_vals],
+        opacity=0.85,
+    ), secondary_y=False)
+
+    # 投信柱狀
+    fig_radar.add_trace(go.Bar(
+        x=date_strs, y=t_vals, name="投信買賣超",
+        marker_color=["#ff9800" if v >= 0 else "#69f0ae" for v in t_vals],
+        opacity=0.85,
+    ), secondary_y=False)
+
+    # 融資餘額折線（副軸）
+    if margin_col:
+        margin_data = df_c[df_c[name_col].astype(str).str.contains("margin|融資", case=False, na=False)]
+        if not margin_data.empty:
+            margin_grp = margin_data.groupby("date")[margin_col].last().sort_index().tail(20)
+            m_dates = [d.strftime("%m/%d") if hasattr(d, 'strftime') else str(d) for d in margin_grp.index]
+            fig_radar.add_trace(go.Scatter(
+                x=m_dates, y=margin_grp.values,
+                name="融資餘額", mode="lines+markers",
+                line=dict(color="#e040fb", width=2),
+            ), secondary_y=True)
+
+    fig_radar.update_layout(
+        **base_layout(f"{radar_sid} 近20日籌碼雷達", 420),
+        barmode="relative",
+    )
+    fig_radar.update_yaxes(title_text="買賣超（股）", secondary_y=False, gridcolor="#1e3a5f")
+    fig_radar.update_yaxes(title_text="融資餘額", secondary_y=True, showgrid=False)
+    st.plotly_chart(fig_radar, width='stretch')
