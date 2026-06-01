@@ -43,23 +43,23 @@ except Exception:
     GITHUB_TOKEN = os.environ.get("GH_TOKEN", "")
 
 def load_watchlist_from_github():
-    """從 GitHub 讀取監控清單"""
+    """從 GitHub 讀取監控清單與 ETF 持倉"""
     try:
         url = f"{GITHUB_RAW}/watchlist.json"
         r = requests.get(url, timeout=10)
         if r.status_code == 200:
             data = r.json()
-            return data.get("manual", []), data.get("scan", [])
+            return data.get("manual", []), data.get("scan", []), data.get("etf_shares", {})
     except Exception:
         pass
-    return [], []
+    return [], [], {}
 
-def save_watchlist_to_github(manual_list, scan_list):
-    """用 GitHub API 把監控清單存到 data/watchlist.json"""
+def save_watchlist_to_github(manual_list, scan_list, etf_shares=None):
+    """用 GitHub API 把監控清單與 ETF 持倉存到 data/watchlist.json"""
     if not GITHUB_TOKEN:
         return False
     import base64, json as _json
-    payload = _json.dumps({"manual": manual_list, "scan": scan_list}, ensure_ascii=False, indent=2)
+    payload = _json.dumps({"manual": manual_list, "scan": scan_list, "etf_shares": etf_shares or {}}, ensure_ascii=False, indent=2)
     api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/data/watchlist.json"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
     # 先取得現有 sha（更新需要）
@@ -750,9 +750,10 @@ if "live_prices" not in st.session_state:
     st.session_state.live_prices = {}  # {sid: {close, high, low, volume, time}}
 
 if "wl_loaded" not in st.session_state:
-    manual, scan = load_watchlist_from_github()
+    manual, scan, etf_sh = load_watchlist_from_github()
     st.session_state.watchlist      = manual  # 手動加入
     st.session_state.watchlist_scan = scan    # 掃描結果加入
+    st.session_state.etf_shares     = etf_sh  # ETF 持倉
     st.session_state.wl_loaded      = True
     st.session_state.wl_debug = ("token=有" if GITHUB_TOKEN else "token=無") + f" manual={len(manual)} scan={len(scan)}"
 
@@ -2833,7 +2834,13 @@ with tab5:
         cur_sh = st.session_state.etf_shares.get(sid, 0)
         new_sh = c8.number_input("張", value=cur_sh, min_value=0, step=1,
                                   key=f"t5_sh_{sid}", label_visibility="collapsed")
-        st.session_state.etf_shares[sid] = int(new_sh)
+        if int(new_sh) != cur_sh:
+            st.session_state.etf_shares[sid] = int(new_sh)
+            save_watchlist_to_github(
+                st.session_state.watchlist,
+                st.session_state.watchlist_scan,
+                {k: v for k, v in st.session_state.etf_shares.items() if v > 0}
+            )
 
     portfolio = {sid: sh for sid, sh in st.session_state.etf_shares.items() if sh > 0}
     if not portfolio:
