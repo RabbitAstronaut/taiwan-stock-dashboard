@@ -1499,6 +1499,99 @@ with tab2:
         sid_watch  = selected_clean.split()[0]
         name_watch = " ".join(selected_clean.split()[1:])
 
+        # ── 投信期貨熔斷 + 個股防守點設定
+        fuse_c1, fuse_c2, fuse_c3 = st.columns([2, 2, 2])
+        with fuse_c1:
+            st.markdown("**🔴 投信期貨淨部位（口數）**")
+            trust_fut_net = st.number_input(
+                "投信大台期貨淨部位（正=多、負=空）",
+                value=st.session_state.get("trust_fut_net", 0),
+                step=100, key="trust_fut_net",
+                label_visibility="collapsed"
+            )
+            if trust_fut_net < 0:
+                st.error("🟥 觸發終極熔斷：投信轉空引發ETF贖回潮\n現股全撤清倉，ETF大舉減碼！")
+            elif trust_fut_net == 0:
+                st.caption("⚪ 尚未輸入或中性")
+            else:
+                st.success(f"🟢 投信淨多單 {trust_fut_net:+,} 口，籌碼偏多")
+
+        with fuse_c2:
+            st.markdown(f"**🎯 {name_watch} 個股防守點**")
+            defense_key = f"defense_{sid_watch}"
+            defense_pt = st.number_input(
+                f"{name_watch} 防守點（元）",
+                value=float(st.session_state.get(defense_key, 0.0)),
+                step=1.0, key=defense_key,
+                label_visibility="collapsed"
+            )
+            if defense_pt > 0:
+                st.caption(f"防守點：**{defense_pt:.1f} 元**，跌破即啟動防守")
+
+        with fuse_c3:
+            st.markdown("**📊 大盤防守點**")
+            mkt_mode = st.selectbox(
+                "大盤防守模式",
+                ["手動設定", "動態均線模式（布林中軌）", "動態ATR模式（高點-2ATR）"],
+                key="mkt_defense_mode", label_visibility="collapsed"
+            )
+
+            # 載入大盤 K 線（^TWII）
+            df_twii, ok_twii = load_price_csv("^TWII")
+            if not ok_twii or df_twii.empty:
+                df_twii, ok_twii = None, False
+
+            if mkt_mode == "手動設定":
+                mkt_defense = st.number_input(
+                    "大盤防守點（點）",
+                    value=float(st.session_state.get("mkt_defense_manual", 43815.0)),
+                    step=100.0, key="mkt_defense_manual",
+                    label_visibility="collapsed"
+                )
+            elif mkt_mode == "動態均線模式（布林中軌）":
+                if ok_twii:
+                    df_twii_ind = add_indicators(df_twii)
+                    mkt_defense = float(df_twii_ind["BB_MID"].iloc[-1])
+                    st.metric("布林中軌（自動）", f"{mkt_defense:,.0f}")
+                else:
+                    mkt_defense = 0.0
+                    st.caption("無大盤K線資料")
+            else:  # ATR模式
+                if ok_twii:
+                    c_twii = df_twii["Close"].astype(float)
+                    atr14  = (df_twii["High"].astype(float) - df_twii["Low"].astype(float)).rolling(14).mean()
+                    highest = c_twii.rolling(252).max().iloc[-1]
+                    mkt_defense = float(highest - 2 * atr14.iloc[-1])
+                    st.metric("最高點-2ATR（自動）", f"{mkt_defense:,.0f}")
+                else:
+                    mkt_defense = 0.0
+                    st.caption("無大盤K線資料")
+
+        # 熔斷總覽警示
+        if trust_fut_net < 0:
+            st.markdown(
+                "<div style='background:#3d0a0a;border:2px solid #ff5252;border-radius:8px;"
+                "padding:14px 20px;margin:8px 0;'>"
+                "<b style='color:#ff5252;font-size:1rem;'>🟥 終極熔斷觸發</b><br>"
+                "<span style='color:#ffcdd2;font-size:.88rem;'>"
+                "投信大台期貨淨部位轉負，ETF贖回潮啟動。"
+                "所有監控個股戰略紀律覆寫：<b>現股全撤清倉，ETF大舉減碼！</b>"
+                "</span></div>",
+                unsafe_allow_html=True
+            )
+        elif defense_pt > 0:
+            # 個股防守點警示
+            df_check, ok_check = load_price_csv(sid_watch)
+            if ok_check and not df_check.empty:
+                last_close = float(df_check["Close"].iloc[-1])
+                if last_close < defense_pt:
+                    st.warning(
+                        f"⚠️ **{name_watch} 已跌破防守點！**　"
+                        f"收盤 {last_close:.1f} < 防守點 {defense_pt:.1f}　啟動防守！"
+                    )
+
+        st.markdown("---")
+
         # 載入 K 線
         df_prc, ok_prc = load_price_csv(sid_watch)
 
@@ -1761,6 +1854,89 @@ with tab2:
 with tab3:
     st.markdown("<div class='sec-title'>📡 大盤預警 · 期貨引擎 ＋ 蒙格行為學 ＋ AI診斷</div>",
                 unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # ▌ 盤後三大健康指標手動診斷面板
+    # ══════════════════════════════════════════════════════════════
+    st.markdown("<div class='sec-title'>🩺 盤後三大健康指標診斷</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>手動輸入今日盤後觀察結果，系統自動研判大盤真實健康狀態。"
+        "即使技術警示分數達 8/8，此診斷可識別「假警報」與「真危機」。</div>",
+        unsafe_allow_html=True
+    )
+
+    diag_c1, diag_c2, diag_c3 = st.columns(3)
+
+    with diag_c1:
+        st.markdown("**① 騰落線（ADL）趨勢**")
+        adl = st.radio(
+            "騰落線狀態",
+            ["📈 持續走高或高檔橫盤（健康）", "📉 連續數日下滑（多空背離）"],
+            key="diag_adl", label_visibility="collapsed"
+        )
+        adl_healthy = adl.startswith("📈")
+
+    with diag_c2:
+        st.markdown("**② 外資期現貨共振狀態**")
+        foreign = st.radio(
+            "外資狀態",
+            ["🟢 現貨持續買超或僅微幅賣超（安全）", "🔴 現貨連續單日百億以上大賣超（砸盤）"],
+            key="diag_foreign", label_visibility="collapsed"
+        )
+        foreign_healthy = foreign.startswith("🟢")
+
+    with diag_c3:
+        st.markdown("**③ 台股多頭支柱技術型態**")
+        pillar = st.radio(
+            "權值股狀態",
+            ["🟢 台積電/聯發科至少一檔守住布林中軌（多頭健康）",
+             "🔴 台積電與聯發科雙雙跌破布林中軌（多頭崩解）"],
+            key="diag_pillar", label_visibility="collapsed"
+        )
+        pillar_healthy = pillar.startswith("🟢")
+
+    # ── 自動決策輸出
+    healthy_count = sum([adl_healthy, foreign_healthy, pillar_healthy])
+    danger_count  = 3 - healthy_count
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    if healthy_count >= 2:
+        st.success(
+            f"✅ **安全診斷：假警報！健康的板塊輪動**　"
+            f"（{healthy_count}/3 項健康指標通過）　"
+            f"現股部位維持綠燈續抱，無須恐慌。"
+        )
+    elif danger_count >= 2:
+        st.error(
+            f"❌ **危險診斷：真警報！多頭結構性崩解**　"
+            f"（{danger_count}/3 項出現危險訊號）　"
+            f"多頭已失守關鍵支撐，建議啟動防守機制。"
+        )
+    else:
+        st.warning(
+            "⚠️ **中性觀望：訊號混沌，暫不明確**　"
+            "多空各有 1~2 項訊號，建議縮小部位靜觀其變。"
+        )
+
+    # ── 診斷明細
+    with st.expander("📋 診斷明細", expanded=False):
+        items = [
+            ("騰落線（ADL）", adl_healthy, adl),
+            ("外資期現貨共振", foreign_healthy, foreign),
+            ("台股多頭支柱", pillar_healthy, pillar),
+        ]
+        for label, is_healthy, val in items:
+            color = "#00e676" if is_healthy else "#ff5252"
+            icon  = "✅" if is_healthy else "❌"
+            st.markdown(
+                f"<div style='padding:8px 12px;margin:4px 0;border-radius:6px;"
+                f"border-left:3px solid {color};background:rgba(0,0,0,0.2);'>"
+                f"<b style='color:{color};'>{icon} {label}</b>　"
+                f"<span style='color:#b0cce0;font-size:.85rem;'>{val}</span></div>",
+                unsafe_allow_html=True
+            )
+
+    st.markdown("---")
 
     df_fut, ok_fut = get_futures()
 
