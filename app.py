@@ -146,8 +146,9 @@ def check_fin_season():
 _fin_label, _fin_days = check_fin_season()
 if _fin_label:
     st.warning(
-        f"📅 **財報季提醒：{_fin_label}** 資料將陸續公布，建議手動更新財報資料（還有約 {_fin_days} 天）\n\n"
-        f"執行指令：\n```\npython reset_fin.py\npython update_data.py --full-market --only financials --paid\n```",
+        f"📅 **財報季提醒：{_fin_label}** 資料將陸續公布，建議手動更新財報與 ETF 配息資料（還有約 {_fin_days} 天）\n\n"
+        f"**① 更新財報：**\n```\npython reset_fin.py\npython update_data.py --full-market --only financials --paid\n```\n\n"
+        f"**② 更新 ETF 配息：**\n```\npython fetch_etf_dividends.py\ngit add data\\etf_dividend_data.csv\ngit commit -m \"ETF配息更新\"\ngit push origin main\n```",
         icon="⚠️"
     )
 
