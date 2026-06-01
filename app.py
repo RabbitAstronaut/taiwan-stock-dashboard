@@ -20,6 +20,7 @@ from plotly.subplots import make_subplots
 import requests
 from datetime import datetime, timedelta
 import time, warnings, json, os
+from zoneinfo import ZoneInfo
 warnings.filterwarnings("ignore")
 
 # ══════════════════════════════════════════════════════════════
@@ -482,6 +483,90 @@ def get_stock_info():
     return pd.DataFrame(), False
 
 
+def fetch_live_price(sid):
+    """用 yfinance 抓取個股即時（延遲15分鐘）資料"""
+    try:
+        import yfinance as yf
+        ticker = sid + ".TW"
+        df = yf.Ticker(ticker).history(period="1d", interval="1m")
+        if df.empty:
+            ticker = sid + ".TWO"  # 上櫃
+            df = yf.Ticker(ticker).history(period="1d", interval="1m")
+        if df.empty:
+            return None
+        latest = df.iloc[-1]
+        return {
+            "close":  round(float(latest["Close"]), 2),
+            "high":   round(float(latest["High"]),  2),
+            "low":    round(float(latest["Low"]),   2),
+            "volume": int(latest["Volume"]),
+            "time":   df.index[-1].strftime("%H:%M"),
+        }
+    except Exception:
+        return None
+
+def is_trading_time():
+    """判斷是否在台灣交易時段 09:00~13:30"""
+    try:
+        tz_tw = ZoneInfo("Asia/Taipei")
+        now_tw = datetime.now(tz_tw)
+        t = now_tw.time()
+        from datetime import time as dtime
+        return dtime(9, 0) <= t <= dtime(13, 30) and now_tw.weekday() < 5
+    except Exception:
+        return False
+
+def should_auto_refresh():
+    """判斷是否需要自動刷新（固定時間點模式）
+    時間表：9:18、9:20、每整10分鐘（9:30/9:40...13:20）
+    """
+    if not is_trading_time():
+        return False
+    try:
+        tz_tw = ZoneInfo("Asia/Taipei")
+        now_tw = datetime.now(tz_tw)
+        t = now_tw.time()
+        from datetime import time as dtime
+        h, m = t.hour, t.minute
+
+        # 固定更新時間點
+        update_times = {(9,18), (9,20)}
+        for hh in range(9, 14):
+            for mm in [0, 10, 20, 30, 40, 50]:
+                if (hh, mm) >= (9, 30) and (hh, mm) <= (13, 20):
+                    update_times.add((hh, mm))
+
+        # 判斷目前分鐘是否為更新時間點（在該分鐘的前30秒內觸發）
+        if (h, m) not in update_times:
+            return False
+        if t.second > 30:
+            return False
+
+        # 避免同一分鐘重複觸發
+        last = st.session_state.get("last_auto_refresh")
+        if last:
+            tz_tw2 = ZoneInfo("Asia/Taipei")
+            last_tw = last.astimezone(tz_tw2) if hasattr(last, 'astimezone') else last
+            if last_tw.hour == h and last_tw.minute == m:
+                return False
+        return True
+    except Exception:
+        return False
+
+def refresh_all_live_prices():
+    """抓取所有監控標的即時報價"""
+    all_wl = st.session_state.get("watchlist", []) + st.session_state.get("watchlist_scan", [])
+    seen = set()
+    for w in all_wl:
+        sid = w["id"]
+        if sid in seen:
+            continue
+        seen.add(sid)
+        data = fetch_live_price(sid)
+        if data:
+            st.session_state.live_prices[sid] = data
+    st.session_state.last_auto_refresh = datetime.now(ZoneInfo("Asia/Taipei"))
+
 def df_to_html(df, height=380):
     """把 DataFrame 渲染成黑底白字的 HTML 表格"""
     TD = "padding:6px 10px;border-bottom:1px solid #1a2a3a;white-space:nowrap;color:#e8f4fd;font-size:.82rem;"
@@ -617,6 +702,12 @@ def add_indicators(df, ws=5, wm=20, wl=60):
 # ══════════════════════════════════════════════════════════════
 # ▌ Session State 初始化
 # ══════════════════════════════════════════════════════════════
+# ── 自動更新狀態初始化
+if "last_auto_refresh" not in st.session_state:
+    st.session_state.last_auto_refresh = None
+if "live_prices" not in st.session_state:
+    st.session_state.live_prices = {}  # {sid: {close, high, low, volume, time}}
+
 if "wl_loaded" not in st.session_state:
     manual, scan = load_watchlist_from_github()
     st.session_state.watchlist      = manual  # 手動加入
@@ -1442,6 +1533,63 @@ with tab2:
     st.markdown("<div class='sec-title'>🚨 持股監控 · 即時防守 ＋ 籌碼 ＋ 基本面</div>",
                 unsafe_allow_html=True)
 
+    # ── 即時更新控制列
+    live_c1, live_c2, live_c3, live_c4 = st.columns([2, 2, 2, 2])
+    with live_c1:
+        trading = is_trading_time()
+        if trading:
+            st.markdown(
+                "<span style='color:#00e676;font-weight:600;font-size:.85rem;'>"
+                "🟢 交易時段（09:00~13:30）· 自動更新中</span>",
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                "<span style='color:#546e7a;font-size:.85rem;'>"
+                "⚫ 非交易時段，自動更新暫停</span>",
+                unsafe_allow_html=True
+            )
+    with live_c2:
+        last_t = st.session_state.get("last_auto_refresh")
+        if last_t:
+            st.caption(f"最後更新：{last_t.strftime('%H:%M:%S')}")
+        else:
+            st.caption("尚未更新")
+    with live_c3:
+        if trading:
+            try:
+                tz_tw = ZoneInfo("Asia/Taipei")
+                now_tw = datetime.now(tz_tw)
+                h, m = now_tw.hour, now_tw.minute
+                update_times_sorted = sorted(
+                    {(9,18),(9,20)} |
+                    {(hh,mm) for hh in range(9,14) for mm in [0,10,20,30,40,50]
+                     if (hh,mm) >= (9,30) and (hh,mm) <= (13,20)}
+                )
+                next_t = next(
+                    ((hh,mm) for hh,mm in update_times_sorted if (hh,mm) > (h,m)),
+                    None
+                )
+                if next_t:
+                    st.caption(f"下次更新：{next_t[0]:02d}:{next_t[1]:02d}")
+                else:
+                    st.caption("今日更新已完成")
+            except Exception:
+                pass
+    with live_c4:
+        if st.button("🔄 立即更新", key="manual_refresh"):
+            with st.spinner("更新中..."):
+                refresh_all_live_prices()
+            st.toast("✅ 即時資料已更新", icon="✅")
+            st.rerun()
+
+    # ── 自動更新觸發（交易時段內每20分鐘）
+    if should_auto_refresh():
+        refresh_all_live_prices()
+        st.rerun()
+
+    st.markdown("---")
+
     wl = st.session_state.watchlist
 
     if not wl:
@@ -1605,12 +1753,27 @@ with tab2:
             lt     = df_ind.iloc[-1]
             pv     = df_ind.iloc[-2]
             chg    = (lt["Close"] - pv["Close"]) / pv["Close"] * 100
-            chg_s  = "up" if chg >= 0 else "down"
+            # 若有即時資料，用即時資料覆蓋收盤價
+            live = st.session_state.live_prices.get(sid_watch)
+            if live:
+                live_close = live["close"]
+                live_chg   = (live_close - float(df_ind.iloc[-2]["Close"])) / float(df_ind.iloc[-2]["Close"]) * 100
+                display_close = live_close
+                display_chg   = live_chg
+                live_tag = f" <span style='color:#ffeb3b;font-size:.7rem;'>⚡ {live['time']}</span>"
+            else:
+                display_close = lt["Close"]
+                display_chg   = chg
+                live_tag = ""
+
+            chg_s  = "up" if display_chg >= 0 else "down"
 
             # ── KPI 列
             kpi_cols = st.columns(6)
-            mcard(kpi_cols[0], "收盤價",   f"{lt['Close']:.1f}",         chg_s)
-            mcard(kpi_cols[1], "漲跌幅",   f"{'▲' if chg>=0 else '▼'}{abs(chg):.2f}%", chg_s)
+            mcard(kpi_cols[0], "收盤價" + live_tag,
+                  f"{display_close:.1f}", chg_s)
+            mcard(kpi_cols[1], "漲跌幅",
+                  f"{'▲' if display_chg>=0 else '▼'}{abs(display_chg):.2f}%", chg_s)
             mcard(kpi_cols[2], "EMA5",  f"{lt.get('EMA5',  float('nan')):.1f}", "")
             mcard(kpi_cols[3], "SMA60", f"{lt.get('SMA60', float('nan')):.1f}", "")
             mcard(kpi_cols[4], "RSI5",  f"{lt.get('RSI5',  float('nan')):.1f}", "")
@@ -2408,7 +2571,9 @@ with tab4:
             alerts  = []  # 紅色警示
             signals = []  # 綠色買進
 
-            close_now  = float(lt["Close"])
+            # 即時資料優先
+            live_t4 = st.session_state.live_prices.get(sid)
+            close_now  = float(live_t4["close"]) if live_t4 else float(lt["Close"])
             close_prev = float(pv["Close"])
             ema5  = float(lt.get("EMA5",  float("nan")))
             rsi5  = float(lt.get("RSI5",  float("nan")))
