@@ -82,6 +82,47 @@ def save_watchlist_to_github(manual_list, scan_list):
 # ══════════════════════════════════════════════════════════════
 # ▌ CSS 主題
 # ══════════════════════════════════════════════════════════════
+# ── 登入驗證
+def check_login():
+    """簡單登入驗證，不分大小寫"""
+    if st.session_state.get("authenticated"):
+        return True
+    try:
+        auth = st.secrets["auth"]
+        valid_user = auth["username"].lower()
+        valid_pass = auth["password"].lower()
+    except Exception:
+        return True  # 沒設定 secrets 就不擋
+
+    st.markdown("""
+    <div style='max-width:400px;margin:120px auto;padding:40px;
+    background:#0d1826;border:1px solid #1e3a5f;border-radius:16px;text-align:center;'>
+    <div style='font-size:2rem;margin-bottom:8px;'>📊</div>
+    <div style='color:#00d4ff;font-size:1.3rem;font-weight:700;margin-bottom:4px;'>
+    台股全週期量化系統 V4</div>
+    <div style='color:#7fb3d3;font-size:.82rem;margin-bottom:24px;'>請登入以繼續</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.form("login_form"):
+        col1, col2, col3 = st.columns([1,2,1])
+        with col2:
+            st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+            username = st.text_input("帳號", placeholder="Username")
+            password = st.text_input("密碼", type="password", placeholder="Password")
+            submitted = st.form_submit_button("🔐 登入", use_container_width=True)
+
+            if submitted:
+                if username.lower() == valid_user and password.lower() == valid_pass:
+                    st.session_state.authenticated = True
+                    st.rerun()
+                else:
+                    st.error("帳號或密碼錯誤")
+    return False
+
+if not check_login():
+    st.stop()
+
 # ── 財報季提醒
 def check_fin_season():
     from datetime import date
