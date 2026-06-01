@@ -2733,183 +2733,139 @@ with tab4:
 
 
 
+
 # ──────────────────────────────────────────────────────────────
 # ▌ TAB 5：ETF 存股現金流管家
 # ──────────────────────────────────────────────────────────────
 with tab5:
-    st.markdown("<div class='sec-title'>💰 ETF 存股現金流管家</div>",
-                unsafe_allow_html=True)
-    st.markdown(
-        "<div class='infobox'>在 ETF 清單輸入持有張數，系統即時試算投入本金、"
-        "預估年化殖利率與未來 12 個月現金流。</div>",
-        unsafe_allow_html=True
-    )
+    st.markdown("<div class='sec-title'>💰 ETF 存股現金流管家</div>", unsafe_allow_html=True)
+    st.markdown("<div class='infobox'>在下方輸入持有張數，系統即時試算投入本金、預估年化殖利率與未來 12 個月現金流。</div>", unsafe_allow_html=True)
 
-    # ── Session State
-    if "etf_portfolio" not in st.session_state:
-        st.session_state.etf_portfolio = {"0056": 10, "00878": 10, "00919": 10}
-
-    # ── 股價抓取
     @st.cache_data(ttl=1800)
     def fetch_etf_price(stock_id: str) -> float:
         try:
             import yfinance as yf
             for suffix in [".TW", ".TWO"]:
-                hist = yf.Ticker(stock_id + suffix).history(period="2d")
+                tk = yf.Ticker(stock_id + suffix)
+                hist = tk.history(period="2d")
                 if not hist.empty:
                     return round(float(hist["Close"].iloc[-1]), 2)
         except Exception:
             pass
         return 0.0
 
-    # ── 建立 ETF 總表（只從 CSV）
     @st.cache_data(ttl=3600, show_spinner="載入 ETF 配息資料...")
     def build_etf_menu() -> pd.DataFrame:
         df_csv, ok = load_csv("etf_dividend_data.csv")
         if not ok or df_csv.empty:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
         amt_col  = next((c for c in ["CashDividend","cash_dividend","dividend"] if c in df_csv.columns), None)
-        date_col = next((c for c in ["ex_dividend_date","ExDividendDate","date"]  if c in df_csv.columns), None)
+        date_col = next((c for c in ["ex_dividend_date","ExDividendDate","date"] if c in df_csv.columns), None)
         if not amt_col or not date_col:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
         df_csv["stock_id"] = df_csv["stock_id"].astype(str).str.strip()
         df_csv[date_col]   = pd.to_datetime(df_csv[date_col], errors="coerce")
-        df_csv[amt_col]    = pd.to_numeric(df_csv[amt_col],  errors="coerce").fillna(0)
+        df_csv[amt_col]    = pd.to_numeric(df_csv[amt_col], errors="coerce").fillna(0)
         df_csv = df_csv.dropna(subset=[date_col])
         rows = []
         for sid, grp in df_csv.groupby("stock_id"):
             grp = grp.sort_values(date_col)
-            one_year = grp[grp[date_col] >= pd.Timestamp(datetime.now() - timedelta(days=365))]
-            recent   = one_year if not one_year.empty else grp.tail(4)
-            freq     = max(len(recent), 1)
-            freq_label = "月配" if freq >= 10 else ("季配" if freq >= 3 else ("半年配" if freq >= 2 else "年配"))
-            # 配息月份（從過去12個月除息日推算）
-            div_months = sorted(recent[date_col].dt.month.unique().tolist())
-            months_str = "/".join(f"{m}月" for m in div_months) if div_months else "—"
             latest_div = round(float(grp[amt_col].iloc[-1]), 4)
-            annual_div = round(float(recent[amt_col].sum()), 4)
-            rows.append({
-                "代號":        sid,
-                "配息月份":    months_str,
-                "頻率":        freq_label,
-                "最新配息/股": latest_div,
-                "年化配息/股": annual_div,
-            })
-        return pd.DataFrame(rows).sort_values("代號").reset_index(drop=True)
+            one_year = grp[grp[date_col] >= pd.Timestamp(datetime.now() - timedelta(days=365))]
+            freq = len(one_year) if not one_year.empty else len(grp.tail(4))
+            freq_label = "月配" if freq >= 10 else ("季配" if freq >= 3 else ("半年配" if freq >= 2 else "年配"))
+            annual_div = round(float(grp[amt_col].tail(max(freq,1)).sum()), 4)
+            div_months = sorted(one_year[date_col].dt.month.unique().tolist()) if not one_year.empty \
+                         else sorted(grp.tail(max(freq,1))[date_col].dt.month.unique().tolist())
+            months_str = "/".join(str(m) for m in div_months) + "月"
+            rows.append({"代號": sid, "最新配息/股": latest_div, "年化配息/股": annual_div,
+                         "頻率": freq_label, "配息月份": months_str})
+        df_out = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
+        return df_out.sort_values("代號").reset_index(drop=True)
 
     df_menu = build_etf_menu()
-
     if df_menu.empty:
-        st.warning("ETF 資料載入失敗，請確認 data/etf_dividend_data.csv 是否存在。")
+        st.warning("ETF 配息資料載入失敗，請確認 data/etf_dividend_data.csv 是否存在。")
         st.stop()
 
-    # ══════════════════════════════════════════════
-    # ETF 清單（HTML黑底）+ 每行張數輸入
-    # ══════════════════════════════════════════════
-    st.markdown(f"### 📋 ETF 清單（{len(df_menu)} 檔）　輸入張數加入試算")
-    st.caption("張數欄輸入 > 0 即納入試算，輸入 0 移除")
+    if "etf_shares" not in st.session_state:
+        st.session_state.etf_shares = {}
 
-    # 表頭
-    th = "padding:8px 10px;background:#0d1826;color:#00d4ff;font-size:.82rem;white-space:nowrap;border-bottom:2px solid #1e3a5f;text-align:center;"
-    th_l = th.replace("text-align:center","text-align:left")
-    header_html = (
-        f"<div style='overflow-x:auto;border:1px solid #1e3a5f;border-radius:8px 8px 0 0;'>"
-        f"<table style='width:100%;border-collapse:collapse;background:#060b14;'>"
-        f"<thead><tr>"
-        f"<th style='{th_l}'>代號</th>"
-        f"<th style='{th}'>配息月份</th>"
-        f"<th style='{th}'>頻率</th>"
-        f"<th style='{th}'>最新配息/股</th>"
-        f"<th style='{th}'>年化配息/股</th>"
-        f"</tr></thead></table></div>"
-    )
-    st.markdown(header_html, unsafe_allow_html=True)
+    st.markdown(f"### 📋 ETF 清單　共 {len(df_menu)} 檔　輸入張數後自動試算")
+    st.caption("最新配息/股=最近一次除息　年化配息/股=近1年合計　配息月份=歷史除息月份")
 
-    # 每行：HTML資訊 + number_input
+    # 批次抓取所有 ETF 股價（快取1小時）
+    @st.cache_data(ttl=3600)
+    def get_all_etf_prices(sids: tuple) -> dict:
+        result = {}
+        for sid in sids:
+            result[sid] = fetch_etf_price(sid)
+        return result
+
+    price_map = get_all_etf_prices(tuple(df_menu["代號"].tolist()))
+
+    h = st.columns([1, 1.1, 1.1, 1.1, 1, 1.5, 1.5])
+    for col, txt in zip(h, ["代號","現股價","最新配息/股","年化配息/股","頻率","配息月份","持有張數"]):
+        col.markdown(f"<b style='color:#00d4ff;font-size:.82rem;'>{txt}</b>", unsafe_allow_html=True)
+    st.markdown("<div style='border-bottom:1px solid #1e3a5f;margin-bottom:4px;'></div>", unsafe_allow_html=True)
+
     for _, row in df_menu.iterrows():
-        sid   = str(row["代號"])
-        cur_shares = st.session_state.etf_portfolio.get(sid, 0)
-        td  = "padding:6px 10px;background:#060b14;color:#e8f4fd;font-size:.82rem;border-bottom:1px solid #0d1826;text-align:center;"
-        td_l = td.replace("text-align:center","text-align:left")
-        # 頻率顏色
-        freq_color = {"月配":"#00e676","季配":"#00d4ff","半年配":"#ffeb3b","年配":"#ff9800"}.get(row["頻率"],"#e8f4fd")
-        row_html = (
-            f"<div style='display:grid;grid-template-columns:2fr 2fr 1fr 1.5fr 1.5fr 1.5fr;'>"
-            f"<div style='{td_l}'><b style='color:#00d4ff;'>{sid}</b></div>"
-            f"<div style='{td}'>{row['配息月份']}</div>"
-            f"<div style='{td}'><span style='color:{freq_color};font-weight:600;'>{row['頻率']}</span></div>"
-            f"<div style='{td}'>{row['最新配息/股']}</div>"
-            f"<div style='{td}'>{row['年化配息/股']}</div>"
-            f"</div>"
-        )
-        col_info, col_input = st.columns([5, 1])
-        with col_info:
-            st.markdown(row_html, unsafe_allow_html=True)
-        with col_input:
-            new_sh = st.number_input(
-                "張", value=cur_shares, min_value=0, step=1,
-                key=f"etf5_{sid}", label_visibility="collapsed"
-            )
-            if new_sh != cur_shares:
-                if new_sh == 0:
-                    st.session_state.etf_portfolio.pop(sid, None)
-                else:
-                    st.session_state.etf_portfolio[sid] = int(new_sh)
+        sid = str(row["代號"])
+        c1, c2, c3, c4, c5, c6, c7 = st.columns([1, 1.1, 1.1, 1.1, 1, 1.5, 1.5])
+        c1.markdown(f"<span style='color:#e8f4fd;font-size:.82rem;font-weight:600;'>{sid}</span>", unsafe_allow_html=True)
+        price = price_map.get(sid, 0.0)
+        price_str = f"{price:.2f}" if price > 0 else "—"
+        c2.markdown(f"<span style='color:#e8f4fd;font-size:.82rem;'>{price_str}</span>", unsafe_allow_html=True)
+        c3.markdown(f"<span style='color:#ffeb3b;font-size:.82rem;'>{row['最新配息/股']:.4f}</span>", unsafe_allow_html=True)
+        c4.markdown(f"<span style='color:#00e676;font-size:.82rem;'>{row['年化配息/股']:.4f}</span>", unsafe_allow_html=True)
+        freq_color = "#00d4ff" if row["頻率"] == "月配" else ("#ff9800" if row["頻率"] == "季配" else "#e8f4fd")
+        c5.markdown(f"<span style='color:{freq_color};font-size:.82rem;'>{row['頻率']}</span>", unsafe_allow_html=True)
+        c6.markdown(f"<span style='color:#b0cce0;font-size:.82rem;'>{row['配息月份']}</span>", unsafe_allow_html=True)
+        cur_sh = st.session_state.etf_shares.get(sid, 0)
+        new_sh = c7.number_input("張", value=cur_sh, min_value=0, step=1,
+                                  key=f"t5_sh_{sid}", label_visibility="collapsed")
+        st.session_state.etf_shares[sid] = int(new_sh)
 
-    # ══════════════════════════════════════════════
-    # 試算區
-    # ══════════════════════════════════════════════
-    portfolio_df = df_menu[df_menu["代號"].isin(st.session_state.etf_portfolio.keys())].copy()
-    portfolio_df["張數"] = portfolio_df["代號"].map(st.session_state.etf_portfolio)
-    portfolio_df = portfolio_df[portfolio_df["張數"] > 0]
-
-    if portfolio_df.empty:
-        st.info("👆 在上方輸入張數，系統自動試算現金流。")
+    portfolio = {sid: sh for sid, sh in st.session_state.etf_shares.items() if sh > 0}
+    if not portfolio:
+        st.info("👆 請在上方清單的「持有張數」欄輸入張數，系統將即時試算現金流。")
         st.stop()
 
     st.markdown("---")
-    st.markdown(f"### 📊 試算組合：{len(portfolio_df)} 檔")
+    st.markdown(f"### 📊 試算組合：{len(portfolio)} 檔 ETF")
 
-    # 本金推算
-    total_cost, price_map = 0.0, {}
+    total_cost = 0.0
     with st.spinner("抓取最新股價..."):
-        for _, row in portfolio_df.iterrows():
-            sid   = str(row["代號"])
+        for sid in portfolio:
             price = fetch_etf_price(sid)
-            price_map[sid] = price
-            total_cost += price * int(row["張數"]) * 1000
+            total_cost += price * portfolio[sid] * 1000
 
-    # 現金流推算
-    forecast_rows = []
     today_dt = datetime.now()
     months   = pd.date_range(today_dt, periods=12, freq="MS")
+    forecast_rows = []
     total_annual_div = 0.0
 
-    for _, row in portfolio_df.iterrows():
-        sid    = str(row["代號"])
-        shares = int(row["張數"])
-        annual = float(row["年化配息/股"])
-        freq_l = row["頻率"]
+    for sid, shares in portfolio.items():
+        row_menu = df_menu[df_menu["代號"] == sid]
+        if row_menu.empty:
+            continue
+        annual = float(row_menu["年化配息/股"].iloc[0])
+        freq_l = row_menu["頻率"].iloc[0]
         freq   = 12 if freq_l == "月配" else (4 if freq_l == "季配" else (2 if freq_l == "半年配" else 1))
-        per_time = annual / freq
+        per_time = annual / max(freq, 1)
         interval = max(1, 12 // freq)
         total_annual_div += annual * shares * 1000
         for j, m in enumerate(months):
             if j % interval == 0:
-                forecast_rows.append({
-                    "月份": m.strftime("%Y-%m"),
-                    "ETF":  sid,
-                    "預估現金流": round(per_time * shares * 1000, 0),
-                })
+                forecast_rows.append({"月份": m.strftime("%Y-%m"), "ETF": sid,
+                                      "預估現金流": round(per_time * shares * 1000, 0)})
 
-    # 財務指標
     yield_rate = (total_annual_div / total_cost * 100) if total_cost > 0 else 0
     m1, m2, m3 = st.columns(3)
-    m1.metric("💰 總投入預估本金",    f"${total_cost:,.0f}")
-    m2.metric("📅 未來一年預估股息",  f"${total_annual_div:,.0f}")
-    m3.metric("📈 組合預估年化殖利率", f"{yield_rate:.2f}%",
-              delta="佳" if yield_rate >= 5 else ("普通" if yield_rate >= 3 else "偏低"))
-
+    m1.metric("💰 總投入預估本金",   f"${total_cost:,.0f}")
+    m2.metric("📅 未來一年預估股息", f"${total_annual_div:,.0f}")
+    m3.metric("📈 預估年化殖利率",   f"{yield_rate:.2f}%",
+              delta="高" if yield_rate >= 5 else ("中" if yield_rate >= 3 else "低"))
     st.markdown("---")
 
     if not forecast_rows:
@@ -2917,30 +2873,20 @@ with tab5:
         st.stop()
 
     df_forecast = pd.DataFrame(forecast_rows)
-
-    # 堆疊柱狀圖
     st.markdown("### 📅 未來 12 個月預估現金流")
-    colors_etf = ["#00d4ff","#ffeb3b","#00e676","#e91e8c","#ff9800",
-                  "#e040fb","#69f0ae","#ff6e40","#40c4ff","#b2ff59"]
+    colors_etf = ["#00d4ff","#ffeb3b","#00e676","#e91e8c","#ff9800","#e040fb","#69f0ae","#ff6e40","#40c4ff","#b2ff59"]
     fig_etf = go.Figure()
-    for idx, sid in enumerate(portfolio_df["代號"].tolist()):
+    for idx, sid in enumerate(portfolio.keys()):
         sub_f = df_forecast[df_forecast["ETF"] == sid]
         if sub_f.empty:
             continue
-        fig_etf.add_trace(go.Bar(
-            x=sub_f["月份"], y=sub_f["預估現金流"],
-            name=sid,
-            marker_color=colors_etf[idx % len(colors_etf)],
-        ))
+        fig_etf.add_trace(go.Bar(x=sub_f["月份"], y=sub_f["預估現金流"], name=sid,
+                                  marker_color=colors_etf[idx % len(colors_etf)]))
     fig_etf.update_layout(**base_layout("未來12個月預估現金流（元）", 400), barmode="stack")
     st.plotly_chart(fig_etf, width='stretch')
 
-    # 財務總表
     st.markdown("### 📋 財務總表")
-    pivot = df_forecast.pivot_table(
-        index="月份", columns="ETF",
-        values="預估現金流", aggfunc="sum", fill_value=0
-    ).reset_index()
+    pivot = df_forecast.pivot_table(index="月份", columns="ETF", values="預估現金流", aggfunc="sum", fill_value=0).reset_index()
     pivot.columns.name = None
     etf_cols = [c for c in pivot.columns if c != "月份"]
     pivot["合計（元）"] = pivot[etf_cols].sum(axis=1)
