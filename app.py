@@ -81,6 +81,34 @@ def save_watchlist_to_github(manual_list, scan_list):
 # ══════════════════════════════════════════════════════════════
 # ▌ CSS 主題
 # ══════════════════════════════════════════════════════════════
+# ── 財報季提醒
+def check_fin_season():
+    from datetime import date
+    today = date.today()
+    m = today.month
+    # 財報公布月份：3月(Q4)、5月(Q1)、8月(Q2)、11月(Q3)
+    fin_months = {3: "Q4 年報", 5: "Q1 季報", 8: "Q2 季報", 11: "Q3 季報"}
+    if m in fin_months:
+        days_left = (date(today.year, m+1 if m < 12 else 1, 1) - today).days
+        return fin_months[m], days_left
+    # 提前 2 週提醒
+    next_months = {2: (3,"Q4 年報"), 4: (5,"Q1 季報"), 7: (8,"Q2 季報"), 10: (11,"Q3 季報")}
+    if m in next_months:
+        nm, label = next_months[m]
+        next_date = date(today.year, nm, 1)
+        days_left = (next_date - today).days
+        if days_left <= 14:
+            return f"{label}（即將）", days_left
+    return None, 0
+
+_fin_label, _fin_days = check_fin_season()
+if _fin_label:
+    st.warning(
+        f"📅 **財報季提醒：{_fin_label}** 資料將陸續公布，建議手動更新財報資料（還有約 {_fin_days} 天）\n\n"
+        f"執行指令：\n```\npython reset_fin.py\npython update_data.py --full-market --only financials --paid\n```",
+        icon="⚠️"
+    )
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
@@ -106,7 +134,7 @@ html,body,[class*="css"]{font-family:"Noto Sans TC",sans-serif;}
 .metric-card:hover{transform:translateY(-2px);}
 .metric-label{color:#7fb3d3;font-size:.7rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;}
 .metric-value{color:#e8f4fd;font-size:1.15rem;font-weight:700;font-family:"JetBrains Mono",monospace;}
-.metric-value.up{color:#00e676;}.metric-value.down{color:#ff5252;}
+.metric-value.up{color:#ff5252;}.metric-value.down{color:#00e676;}
 
 /* ── 信號燈 */
 .sig-green{background:linear-gradient(135deg,#0a3d0a,#0f5c0f);border:1px solid #00e676;border-radius:8px;padding:12px;color:#00e676;font-weight:600;text-align:center;}
@@ -1541,8 +1569,8 @@ with tab2:
                     x=df_ind.index,
                     open=df_ind["Open"], high=df_ind["High"],
                     low=df_ind["Low"],   close=df_ind["Close"],
-                    increasing_line_color="#00e676",
-                    decreasing_line_color="#ff5252",
+                    increasing_line_color="#ff5252",
+                    decreasing_line_color="#00e676",
                     name="K線", showlegend=False,
                 ), row=1, col=1)
                 # EMA5（黃）、SMA60（紫紅）
@@ -1582,7 +1610,7 @@ with tab2:
                 # 成交量
                 fig.add_trace(go.Bar(
                     x=df_ind.index, y=df_ind["Volume"],
-                    marker_color=["#00e676" if c >= o else "#ff5252"
+                    marker_color=["#ff5252" if c >= o else "#00e676"
                                   for c, o in zip(df_ind["Close"], df_ind["Open"])],
                     opacity=.5, showlegend=False, name="量",
                 ), row=2, col=1)
@@ -1716,7 +1744,7 @@ with tab2:
                 if len(eps_s):
                     fg.add_trace(go.Bar(
                         x=eps_s.index, y=eps_s.values, name="EPS",
-                        marker_color=["#00e676" if v >= 0 else "#ff5252"
+                        marker_color=["#ff5252" if v >= 0 else "#00e676"
                                       for v in eps_s.values],
                         opacity=.7,
                     ), secondary_y=True)

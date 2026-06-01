@@ -22,7 +22,7 @@ name: 每日台股資料更新
 on:
   # ── 定時排程（UTC 13:00 = 台灣時間 21:00）
   schedule:
-    - cron: "0 13 * * 1-5"   # 週一到週五
+    - cron: "0 11 * * 1-5"   # 週一到週五（台灣時間 19:00）
 
   # ── 允許手動從 GitHub UI 觸發
   workflow_dispatch:
@@ -92,6 +92,10 @@ jobs:
           if [ -n "${{ github.event.inputs.module }}" ]; then
             ARGS="$ARGS --only ${{ github.event.inputs.module }}"
             echo "📌 只更新模組：${{ github.event.inputs.module }}"
+          else
+            # 自動排程：排除財報（財報每季手動更新，避免超時）
+            ARGS="$ARGS --skip financials"
+            echo "ℹ️  自動排程：跳過財報模組（請每季手動更新）"
           fi
 
           # 若強制重新下載

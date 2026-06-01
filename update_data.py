@@ -747,6 +747,8 @@ def main():
         help="全台股模式（付費版）：從 stock_info.csv 取得所有上市櫃股票")
     parser.add_argument("--paid",        action="store_true",
         help="付費版模式：加快請求速度，縮短批次間隔")
+    parser.add_argument("--skip",        type=str,  default="",
+        help="跳過指定模組（逗號分隔）：financials,chips,...")
     args = parser.parse_args()
 
     if args.token:
@@ -769,6 +771,7 @@ def main():
     first  = is_first_run()
     mode   = "首次執行（歷史資料）" if first else "每日更新（增量）"
     only   = args.only.lower()
+    skip   = [s.strip().lower() for s in args.skip.split(",") if s.strip()]
     force  = args.force
 
     log.info("═" * 55)
@@ -807,6 +810,7 @@ def main():
     log.info(f"股票池 : {len(stock_ids)} 檔")
 
     def _should(module):
+        if module in skip: return False   # --skip 優先排除
         return (not only or only == module) and (force or not already_today(module))
 
     # ── 1. 股票清單
