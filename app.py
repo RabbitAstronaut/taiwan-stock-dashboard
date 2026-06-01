@@ -512,6 +512,16 @@ def get_financials(stock_id=None):
         df["value"] = pd.to_numeric(df["value"], errors="coerce")
     return df.sort_values("date") if "date" in df.columns else df, True
 
+def get_price_basic(stock_id=None):
+    """讀取 price_basic.csv（yfinance，含毛利率/PE/EPS）"""
+    df, ok = load_csv("price_basic.csv")
+    if not ok or df.empty:
+        return pd.DataFrame(), False
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
+    if stock_id:
+        df = df[df["stock_id"] == str(stock_id).strip()]
+    return df, True
+
 def get_futures():
     df, ok = load_csv("futures_data.csv")
     if not ok or df.empty:
@@ -963,6 +973,14 @@ with tab1:
                 if not gm_vals.empty and float(gm_vals.iloc[-1]) < 2:
                     gm_vals = gm_vals * 100
                 gm_latest = float(gm_vals.iloc[-1]) if not gm_vals.empty else np.nan
+
+                # 若 financial_data 沒有毛利率，從 price_basic.csv 補
+                if np.isnan(gm_latest):
+                    df_pb, ok_pb = get_price_basic(sid)
+                    if ok_pb and not df_pb.empty and "gross_margin" in df_pb.columns:
+                        gm_val = pd.to_numeric(df_pb["gross_margin"].iloc[0], errors="coerce")
+                        if not pd.isna(gm_val):
+                            gm_latest = float(gm_val)
 
                 # P/E（從 K 線近期算，或用預設值 nan）
                 pe_val = np.nan
