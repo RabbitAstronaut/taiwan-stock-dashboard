@@ -883,6 +883,9 @@ st.markdown(f"""
         資料更新：{upd} ｜
         監控清單：{len(st.session_state.watchlist)} 檔
     </p>
+    <p style="color:#00d4ff;margin:6px 0 0;font-size:.82rem;letter-spacing:.25em;text-align:right;">
+        Rex × Gemini × Claude
+    </p>
 </div>
 """, unsafe_allow_html=True)
 
