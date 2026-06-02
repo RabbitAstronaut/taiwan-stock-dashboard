@@ -219,6 +219,16 @@ div[data-testid="stExpander"] details summary:hover{background:transparent!impor
     border-color:#00d4ff!important;
     color:#ffffff!important;
 }
+section[data-testid="stSidebar"] .stButton>button{
+    color:#ffffff!important;
+    background:linear-gradient(135deg,#162535,#1e3a5f)!important;
+    border:1px solid #2a5080!important;
+    font-weight:600!important;
+}
+section[data-testid="stSidebar"] .stButton>button:hover{
+    border-color:#00d4ff!important;
+    color:#ffffff!important;
+}
 /* 所有文字強制可見 */
 p, span, label, div, h1, h2, h3, li {
     color:#ddeeff;
