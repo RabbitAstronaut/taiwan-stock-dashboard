@@ -3485,3 +3485,135 @@ with tab6:
     fig_radar.update_yaxes(title_text="買賣超（股）", secondary_y=False, gridcolor="#1e3a5f")
     fig_radar.update_yaxes(title_text="融資餘額（股）", secondary_y=True, showgrid=False)
     st.plotly_chart(fig_radar, width='stretch')
+
+
+    # ══════════════════════════════════════════════
+    # 🌐 產業板塊資金熱力圖
+    # ══════════════════════════════════════════════
+    st.markdown("---")
+    st.markdown("<div class='sec-title'>🌐 產業板塊資金熱力圖 · Sector Fund Flow</div>",
+                unsafe_allow_html=True)
+
+    st.info(
+        "💡 **量化戰略提示**：結合 Tab1 的選股掃描儀，優先在「法人資金淨流入排行榜前三名」"
+        "的產業板塊中，尋找突破均線的強勢個股，勝率最高。"
+    )
+
+    @st.cache_data(ttl=3600, show_spinner="計算產業板塊資金流向...")
+    def build_sector_flow() -> pd.DataFrame:
+        # 讀取籌碼
+        df_c, ok_c = load_csv("chips_data.csv")
+        if not ok_c or df_c.empty:
+            return pd.DataFrame()
+
+        # 讀取股票資訊（含產業別）
+        df_si, ok_si = load_csv("stock_info.csv")
+        if not ok_si or df_si.empty:
+            return pd.DataFrame()
+
+        df_si["stock_id"] = df_si["stock_id"].astype(str).str.strip()
+        df_c["stock_id"]  = df_c["stock_id"].astype(str).str.strip()
+
+        # 取得產業別（只取有名稱的）
+        if "industry_category" not in df_si.columns:
+            return pd.DataFrame()
+
+        # 優先取有中文名稱的 stock_info
+        df_si_clean = df_si[df_si["stock_name"] != df_si["stock_id"]].copy()
+        df_si_clean = df_si_clean[["stock_id","industry_category"]].drop_duplicates("stock_id")
+        df_si_clean = df_si_clean[df_si_clean["industry_category"].notna()]
+
+        # 整理籌碼資料
+        if "date" not in df_c.columns or "name" not in df_c.columns or "net" not in df_c.columns:
+            return pd.DataFrame()
+
+        df_c["date"] = pd.to_datetime(df_c["date"], errors="coerce")
+        df_c["net"]  = pd.to_numeric(df_c["net"], errors="coerce").fillna(0)
+
+        latest = df_c["date"].max()
+        df_latest = df_c[df_c["date"] == latest].copy()
+
+        # 外資、投信
+        foreign = df_latest[df_latest["name"].astype(str).str.contains("Foreign_Investor", na=False)]
+        trust   = df_latest[df_latest["name"].astype(str).str.contains("Investment_Trust", na=False)]
+
+        f_net = foreign.groupby("stock_id")["net"].sum().reset_index().rename(columns={"net":"外資淨買（股）"})
+        t_net = trust.groupby("stock_id")["net"].sum().reset_index().rename(columns={"net":"投信淨買（股）"})
+
+        # Merge
+        df_merge = df_si_clean.merge(f_net, on="stock_id", how="left")
+        df_merge = df_merge.merge(t_net, on="stock_id", how="left")
+        df_merge["外資淨買（股）"] = df_merge["外資淨買（股）"].fillna(0)
+        df_merge["投信淨買（股）"] = df_merge["投信淨買（股）"].fillna(0)
+
+        # 換算億元（1股≈1000股/張，此為股數）
+        df_merge["外資淨買（億）"] = (df_merge["外資淨買（股）"] / 1e8).round(2)
+        df_merge["投信淨買（億）"] = (df_merge["投信淨買（股）"] / 1e8).round(2)
+
+        # Groupby 產業
+        sector = df_merge.groupby("industry_category").agg(
+            外資淨買=("外資淨買（億）", "sum"),
+            投信淨買=("投信淨買（億）", "sum"),
+            檔數=("stock_id", "count")
+        ).reset_index()
+        sector = sector.rename(columns={"industry_category": "產業別"})
+        sector["外資淨買"] = sector["外資淨買"].round(2)
+        sector["投信淨買"] = sector["投信淨買"].round(2)
+        return sector.sort_values("外資淨買", ascending=False).reset_index(drop=True)
+
+    df_sector = build_sector_flow()
+
+    if df_sector.empty:
+        st.warning("產業板塊資料載入失敗，請確認 chips_data.csv 與 stock_info.csv 是否存在。")
+    else:
+        # 選擇法人類型
+        flow_type = st.radio(
+            "選擇資金流向",
+            ["🏦 外資板塊資金流", "📊 投信板塊資金流"],
+            horizontal=True, key="sector_flow_type"
+        )
+        col_name = "外資淨買" if "外資" in flow_type else "投信淨買"
+        label    = "外資" if "外資" in flow_type else "投信"
+
+        # 排序
+        df_sorted = df_sector.sort_values(col_name, ascending=False).reset_index(drop=True)
+
+        # 取前15買超 + 前10賣超
+        top_buy  = df_sorted.head(15)
+        top_sell = df_sorted[df_sorted[col_name] < 0].tail(10)
+        df_plot  = pd.concat([top_buy, top_sell]).drop_duplicates("產業別")
+        df_plot  = df_plot.sort_values(col_name, ascending=True)  # 水平長條圖由小到大
+
+        colors = ["#ff5252" if v >= 0 else "#00e676" for v in df_plot[col_name]]
+
+        fig_sector = go.Figure(go.Bar(
+            x=df_plot[col_name],
+            y=df_plot["產業別"],
+            orientation="h",
+            marker_color=colors,
+            text=[f"{v:+.2f}億" for v in df_plot[col_name]],
+            textposition="outside",
+            hovertemplate="%{y}<br>" + label + "淨買：%{x:.2f}億<extra></extra>",
+        ))
+        fig_sector.update_layout(
+            **base_layout(f"{label}板塊資金流向（最新交易日，單位：億元）", 580),
+            xaxis_title=f"{label}淨買超（億元）",
+            yaxis_title="",
+            margin=dict(l=180, r=80, t=44, b=34),
+        )
+        fig_sector.update_xaxes(gridcolor="#1e3a5f")
+        st.plotly_chart(fig_sector, width='stretch')
+
+        # 前三名提示
+        top3 = df_sorted.head(3)["產業別"].tolist()
+        st.success(
+            f"🏆 **{label}資金淨流入前三大板塊：** "
+            + "　".join(f"**{i+1}. {s}**" for i, s in enumerate(top3))
+            + "　→ 建議優先在這些板塊中執行 Tab1 選股掃描！"
+        )
+
+        # 明細表
+        with st.expander("📋 完整產業板塊明細", expanded=False):
+            show_df = df_sector[["產業別", "外資淨買", "投信淨買", "檔數"]].copy()
+            show_df.columns = ["產業別", "外資淨買（億）", "投信淨買（億）", "涵蓋檔數"]
+            st.markdown(df_to_html(show_df, height=400), unsafe_allow_html=True)
