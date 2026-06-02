@@ -919,7 +919,8 @@ with tab1:
     with st.expander("🎯 掃描範圍設定", expanded=True):
         rng_type = st.radio(
             "掃描方式",
-            ["📂 產業分類", "🔢 股號開頭", "🌏 全市場", "✏️ 自訂代號"],
+            ["📂 產業分類", "🔢 股號開頭", "🌏 全市場", "✏️ 自訂代號",
+             "🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達"],
             horizontal=True, label_visibility="collapsed"
         )
 
@@ -987,6 +988,31 @@ with tab1:
                 unsafe_allow_html=True
             )
             scan_pool_ids = []  # 掃描時動態取全部
+
+        elif rng_type in ["🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達"]:
+            # 從 session_state 取雷達結果
+            radar_map = {
+                "🌊 土洋認養雷達":    ("radar_r1", "土洋認養"),
+                "⚡ 黃金窒息量雷達":  ("radar_r2", "黃金窒息量"),
+                "💎 大戶硬漢雷達":    ("radar_r3", "大戶硬漢"),
+            }
+            rkey, rname = radar_map[rng_type]
+            df_radar_src = st.session_state.get(rkey, pd.DataFrame())
+            if df_radar_src.empty:
+                st.warning(
+                    f"{rname}雷達尚未執行！請依序："
+                    f" 1) 前往 Tab5 大數據雷達"
+                    f" 2) 點擊啟動大數據雷達掃描"
+                    f" 3) 回到此頁選擇雷達清單"
+                )
+                scan_pool_ids = []
+            else:
+                scan_pool_ids = df_radar_src["代號"].astype(str).tolist()
+                st.markdown(
+                    f"<div class='infobox'>使用 <b style='color:#00d4ff;'>{rname}雷達</b> 結果"
+                    f" ｜ 共 <b style='color:#e8f4fd;'>{len(scan_pool_ids)}</b> 檔</div>",
+                    unsafe_allow_html=True
+                )
 
         else:  # 自訂代號
             custom_input = st.text_area(
@@ -3060,8 +3086,14 @@ with tab5:
     # 執行掃描
     if st.button("🔍 啟動大數據雷達掃描", type="primary", key="radar_scan"):
         st.cache_data.clear()
+        st.rerun()
 
     df_r1, df_r2, df_r3 = run_radar()
+
+    # 存入 session_state 供 Tab1 使用
+    st.session_state["radar_r1"] = df_r1
+    st.session_state["radar_r2"] = df_r2
+    st.session_state["radar_r3"] = df_r3
 
     # 頂部 metric
     m1, m2, m3 = st.columns(3)
