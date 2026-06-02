@@ -2535,65 +2535,57 @@ with tab4:
         if not ok_fut or df_fut.empty:
             return result
 
-        # 大台外資未平倉
-        inst_df = df_fut[df_fut["source"] == "institutional"] \
-                  if "source" in df_fut.columns else df_fut
+        df_fut = df_fut.copy()
+        df_fut["date"] = pd.to_datetime(df_fut["date"], errors="coerce")
 
-        tx_df = inst_df[inst_df["contract"] == "TX"] \
-                if "contract" in inst_df.columns else pd.DataFrame()
-        if not tx_df.empty:
+        # 欄位名稱映射（相容新舊格式）
+        name_col = next((c for c in ["name","institutional_investors"] if c in df_fut.columns), None)
+        lc = next((c for c in df_fut.columns if "long_open_interest_balance" in c and "amount" not in c), None)
+        sc = next((c for c in df_fut.columns if "short_open_interest_balance" in c and "amount" not in c), None)
+
+        # 大台外資未平倉
+        inst_df = df_fut[df_fut["source"] == "institutional"] if "source" in df_fut.columns else df_fut
+        tx_df   = inst_df[inst_df["contract"] == "TX"] if "contract" in inst_df.columns else pd.DataFrame()
+
+        if not tx_df.empty and lc and sc and name_col:
             ld = tx_df["date"].max()
             result["data_date"] = str(ld)[:10]
-            row = tx_df[(tx_df["date"] == ld) &
-                        (tx_df["name"].astype(str).str.contains("外資", na=False))] if "name" in tx_df.columns else tx_df[tx_df.index < 0]
+            row = tx_df[(tx_df["date"] == ld) & tx_df[name_col].astype(str).str.contains("外資", na=False)]
             if not row.empty:
-                lc = next((c for c in row.columns if "long_open_interest_balance" in c), None)
-                sc = next((c for c in row.columns if "short_open_interest_balance" in c), None)
-                if lc and sc:
+                try:
+                    result["tx_foreign"] = int(float(row[lc].values[0])) - int(float(row[sc].values[0]))
+                    result["is_real"] = True
+                except:
+                    pass
+
+        # 小台三大法人
+        mtx_df = inst_df[inst_df["contract"] == "MTX"] if "contract" in inst_df.columns else pd.DataFrame()
+        if not mtx_df.empty and lc and sc and name_col:
+            ld = mtx_df["date"].max()
+            if result["data_date"] == "未知":
+                result["data_date"] = str(ld)[:10]
+            for kw, key in [("自營","mtx_dealer"),("投信","mtx_trust"),("外資","mtx_foreign")]:
+                r = mtx_df[(mtx_df["date"] == ld) & mtx_df[name_col].astype(str).str.contains(kw, na=False)]
+                if not r.empty:
                     try:
-                        result["tx_foreign"] = int(float(row[lc].values[0])) - \
-                                               int(float(row[sc].values[0]))
+                        result[key] = int(float(r[lc].values[0])) - int(float(r[sc].values[0]))
                         result["is_real"] = True
                     except:
                         pass
 
-        # 小台三大法人
-        mtx_df = inst_df[inst_df["contract"] == "MTX"] \
-                 if "contract" in inst_df.columns else pd.DataFrame()
-        if not mtx_df.empty:
-            ld = mtx_df["date"].max()
-            lc = next((c for c in mtx_df.columns if "long_open_interest_balance" in c), None)
-            sc = next((c for c in mtx_df.columns if "short_open_interest_balance" in c), None)
-            if lc and sc:
-                for kw, key in [("自營","mtx_dealer"),("投信","mtx_trust"),("外資","mtx_foreign")]:
-                    name_filter = mtx_df["name"].astype(str).str.contains(kw, na=False) if "name" in mtx_df.columns else pd.Series([False]*len(mtx_df), index=mtx_df.index)
-                    r = mtx_df[(mtx_df["date"] == ld) & name_filter]
-                    if not r.empty:
-                        try:
-                            result[key] = int(float(r[lc].values[0])) - \
-                                          int(float(r[sc].values[0]))
-                            result["is_real"] = True
-                        except:
-                            pass
-
         # 小台全市場未平倉
-        daily_df = df_fut[df_fut["source"] == "daily"] \
-                   if "source" in df_fut.columns else pd.DataFrame()
+        daily_df = df_fut[df_fut["source"] == "daily"] if "source" in df_fut.columns else pd.DataFrame()
         if not daily_df.empty:
             ld2  = daily_df["date"].max()
-            oi_c = next((c for c in daily_df.columns if "open_interest" in c.lower()), None)
+            oi_c = next((c for c in daily_df.columns if c == "open_interest"), None)
             if oi_c:
                 try:
-                    result["mtx_oi"] = int(
-                        pd.to_numeric(
-                            daily_df[daily_df["date"] == ld2][oi_c], errors="coerce"
-                        ).sum()
-                    )
+                    result["mtx_oi"] = int(pd.to_numeric(
+                        daily_df[daily_df["date"] == ld2][oi_c], errors="coerce").sum())
                 except:
                     pass
 
         return result
-
     chips = parse_futures_chips(df_fut)
 
     # ── 顯示資料來源標籤
