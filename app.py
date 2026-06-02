@@ -3822,6 +3822,12 @@ with tab7:
                     df_bt["margin_chg"] = margin_series.values  if len(margin_series)==len(df_bt)  else 0
                     df_bt = df_bt.fillna({"foreign":0,"trust":0,"margin_chg":0})
 
+                    # ── Debug 資訊
+                    st.caption(f"籌碼資料：外資非零={int((df_bt['foreign']!=0).sum())}天 "
+                               f"投信非零={int((df_bt['trust']!=0).sum())}天 "
+                               f"融資變化非零={int((df_bt['margin_chg']!=0).sum())}天 "
+                               f"量>VMA5={(df_bt['Volume']>df_bt['VMA5'].fillna(0)).sum()}天")
+
                     # ── 訊號條件
                     above_ma20   = df_bt["Close"] > df_bt["MA20"]
                     below_ma20   = df_bt["Close"] < df_bt["MA20"]
