@@ -2793,6 +2793,11 @@ with tab5:
     # etf_shares 已在啟動時從 GitHub 載入，不重設
     if "etf_shares" not in st.session_state:
         st.session_state.etf_shares = {}  # 備用（通常不會執行到）
+    # 自動還原上次確認的試算組合
+    if "etf_confirmed_portfolio" not in st.session_state:
+        st.session_state.etf_confirmed_portfolio = {
+            sid: sh for sid, sh in st.session_state.etf_shares.items() if sh > 0
+        }
 
     st.markdown(f"### 📋 ETF 清單　共 {len(df_menu)} 檔　輸入張數後自動試算")
     st.caption("最新配息/股=最近一次除息　年化配息/股=近1年合計　配息月份=歷史除息月份")
