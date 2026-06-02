@@ -3734,12 +3734,8 @@ with tab6:
 # ▌ TAB 7：策略回測實驗室
 # ──────────────────────────────────────────────────────────────
 with tab7:
-    st.markdown("<div class='sec-title'>🧪 策略回測實驗室</div>", unsafe_allow_html=True)
-    st.markdown(
-        "<div class='infobox'>選擇股票與策略維度，驗證財報/技術/籌碼因子的有效性。"
-        "買進持有基準線 vs 策略資金曲線，一眼看出濾網效果。</div>",
-        unsafe_allow_html=True
-    )
+    st.header("🧪 策略回測實驗室")
+    st.info("選擇股票與策略維度，驗證財報/技術/籌碼因子的有效性。")
 
     bt_c1, bt_c2, bt_c3 = st.columns([2, 2, 3])
     with bt_c1:
