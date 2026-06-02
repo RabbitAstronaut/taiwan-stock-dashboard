@@ -3816,6 +3816,10 @@ with tab7:
                     df_bt["trust"]      = trust_series.values   if len(trust_series)==len(df_bt)   else 0
                     df_bt["margin_chg"] = margin_series.values  if len(margin_series)==len(df_bt)  else 0
                     df_bt = df_bt.fillna({"foreign":0,"trust":0,"margin_chg":0})
+                    # Reset index 確保 iloc 正確對應
+                    df_bt = df_bt.reset_index()
+                    if "date" not in df_bt.columns and "index" in df_bt.columns:
+                        df_bt = df_bt.rename(columns={"index": "date"})
 
                     # ── 訊號條件
                     above_ma20   = df_bt["Close"] > df_bt["MA20"]
@@ -3877,8 +3881,8 @@ with tab7:
                         pos   = df_bt["position"].iloc[i]
                         prev  = df_bt["position"].iloc[i-1] if i > 0 else 0
 
-                        if pos == 1 and prev == 0:  # 買進
-                            qty = int(cash / price / 1000) * 1000
+                        if pos == 1 and prev == 0:  # 買進（零股模式）
+                            qty = int(cash / price)  # 只要錢夠買1股就買
                             if qty > 0:
                                 shares = qty
                                 cash  -= shares * price
