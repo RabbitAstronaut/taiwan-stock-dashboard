@@ -3726,6 +3726,7 @@ with tab6:
 # ▌ TAB 7：策略回測實驗室
 # ──────────────────────────────────────────────────────────────
 with tab7:
+    st.write("TAB7 LOADED")  # debug
     st.markdown("<div class='sec-title'>🧪 策略回測實驗室</div>", unsafe_allow_html=True)
     st.markdown(
         "<div class='infobox'>選擇股票與策略維度，驗證財報/技術/籌碼因子的有效性。"
