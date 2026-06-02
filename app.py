@@ -3822,12 +3822,6 @@ with tab7:
                     df_bt["margin_chg"] = margin_series.values  if len(margin_series)==len(df_bt)  else 0
                     df_bt = df_bt.fillna({"foreign":0,"trust":0,"margin_chg":0})
 
-                    # ── Debug 資訊
-                    st.caption(f"籌碼資料：外資非零={int((df_bt['foreign']!=0).sum())}天 "
-                               f"投信非零={int((df_bt['trust']!=0).sum())}天 "
-                               f"融資變化非零={int((df_bt['margin_chg']!=0).sum())}天 "
-                               f"量>VMA5={(df_bt['Volume']>df_bt['VMA5'].fillna(0)).sum()}天")
-
                     # ── 訊號條件
                     above_ma20   = df_bt["Close"] > df_bt["MA20"]
                     below_ma20   = df_bt["Close"] < df_bt["MA20"]
@@ -3841,17 +3835,27 @@ with tab7:
                         (df_bt["Volume"]     > df_bt["VMA5"].fillna(0))
                     )
 
+                    # 有籌碼資料才用，否則退化為純技術
+                    has_chip = (df_bt["foreign"] != 0).any() or (df_bt["trust"] != 0).any()
+
                     if "1️⃣" in bt_strategy:
                         raw_buy  = eps_positive
                         raw_exit = ~eps_positive
                         strat_name = "純財報基本面"
                     elif "2️⃣" in bt_strategy:
-                        raw_buy  = above_ma20 & any_buy_chip
-                        raw_exit = below_ma20
+                        if has_chip:
+                            raw_buy = above_ma20 & any_buy_chip
+                        else:
+                            # 無籌碼資料：用技術面+量能
+                            raw_buy = above_ma20 & (df_bt["Volume"] > df_bt["VMA5"].fillna(0) * 0.8)
+                        raw_exit   = below_ma20
                         strat_name = "技術面＋籌碼面"
                     else:
-                        raw_buy  = eps_positive & above_ma20 & any_buy_chip
-                        raw_exit = below_ma20 | (~eps_positive)
+                        if has_chip:
+                            raw_buy = eps_positive & above_ma20 & any_buy_chip
+                        else:
+                            raw_buy = eps_positive & above_ma20
+                        raw_exit   = below_ma20 | (~eps_positive)
                         strat_name = "財報＋技術＋籌碼"
 
                     # ── 持倉狀態（正確：買進後抱住，直到出場訊號）
