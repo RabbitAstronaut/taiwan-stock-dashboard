@@ -72,8 +72,8 @@ CONFIG = {
     "days_prices_first":     365,
 
     # ── 每日更新天數
-    "days_chips_daily":        3,
-    "days_financials_daily":  90,
+    "days_chips_daily":       60,  # 雷達圖需要近20日，保留60天緩衝
+    "days_financials_daily":  730,  # 確保足夠歷史做YoY計算
     "days_futures_daily":      3,
     "days_shareholder_daily": 30,
     "days_prices_daily":       5,
