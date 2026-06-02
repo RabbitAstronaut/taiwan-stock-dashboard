@@ -3761,6 +3761,7 @@ with tab7:
         with st.spinner("載入資料中..."):
             # ── 載入 K 線
             df_k, ok_k = load_price_csv(sid_bt)
+            st.caption(f"🔧 K線：ok={ok_k}, rows={len(df_k) if ok_k else 0}, cols={df_k.columns.tolist() if ok_k and not df_k.empty else []}")
             if not ok_k or df_k.empty or len(df_k) < 30:
                 st.error(f"{sid_bt} 無足夠 K 線資料（需 30 日以上）")
                 st.stop()
