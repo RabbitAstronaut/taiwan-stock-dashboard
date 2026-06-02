@@ -848,17 +848,29 @@ with st.sidebar:
         st.caption(f"🔧 {st.session_state.get("wl_debug", "載入中...")}")
 
         st.markdown("---")
-        if st.button("🔄 恢復監控清單", key="restore_wl", use_container_width=True,
-                     help="從 GitHub 重新讀取監控清單，遺失時使用"):
-            manual, scan, etf_sh = load_watchlist_from_github()
-            st.session_state.watchlist      = manual
-            st.session_state.watchlist_scan = scan
-            st.session_state.etf_shares     = etf_sh
-            st.session_state.etf_confirmed_portfolio = {
-                k: v for k, v in etf_sh.items() if v > 0
-            }
-            st.toast(f"✅ 已恢復！手動 {len(manual)} 檔，掃描 {len(scan)} 檔", icon="✅")
-            st.rerun()
+        st.markdown(
+            "<style>"
+            "#restore_wl_btn button{"
+            "background:linear-gradient(135deg,#162535,#1e3a5f)!important;"
+            "color:#ffffff!important;border:1px solid #2a5080!important;"
+            "font-weight:600!important;}"
+            "#restore_wl_btn button p{color:#ffffff!important;}"
+            "#restore_wl_btn button:hover{border-color:#00d4ff!important;}"
+            "</style>",
+            unsafe_allow_html=True
+        )
+        with st.container(key="restore_wl_btn"):
+            if st.button("🔄 恢復監控清單", key="restore_wl", use_container_width=True,
+                         help="從 GitHub 重新讀取監控清單，遺失時使用"):
+                manual, scan, etf_sh = load_watchlist_from_github()
+                st.session_state.watchlist      = manual
+                st.session_state.watchlist_scan = scan
+                st.session_state.etf_shares     = etf_sh
+                st.session_state.etf_confirmed_portfolio = {
+                    k: v for k, v in etf_sh.items() if v > 0
+                }
+                st.toast(f"✅ 已恢復！手動 {len(manual)} 檔，掃描 {len(scan)} 檔", icon="✅")
+                st.rerun()
 
         # 掃描清單
         if st.session_state.watchlist_scan:
