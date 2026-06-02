@@ -905,8 +905,45 @@ with tab1:
     st.markdown("<div class='sec-title'>🔍 選股掃描儀 · 三道階層篩選</div>",
                 unsafe_allow_html=True)
 
+    # ── 空頭避險 Toggle
+    bear_mode = st.toggle("🐻 啟動空頭避險模式", key="bear_mode")
+
+    if bear_mode:
+        st.error(
+            "🐻 **空頭作戰模式啟動！**\n\n"
+            "**大盤處於高風險區，作戰守則：**\n"
+            "① 持股控制在 3 成以下，現金為王\n"
+            "② 停損紀律優先，跌破月線立刻執行\n"
+            "③ 避開高本益比、高融資、低毛利的地雷股\n"
+            "④ 空頭反彈不追，等量縮整理後再評估"
+        )
+        bear_tactic = st.radio(
+            "請選擇空頭戰術：",
+            ["🛡️ 尋找抗跌避風港（逆勢做多強勢股）",
+             "🎯 狙擊破線弱勢股（順勢做空爛公司）"],
+            horizontal=True, key="bear_tactic"
+        )
+        if bear_tactic.startswith("🛡️"):
+            st.info(
+                "💡 **說明**：空頭下的強勢股極為罕見，若能在此時符合條件，"
+                "往往是資金避風港或具備強大基本面護城河。"
+                "系統維持高標準濾網（EPS>10、毛利>30%、站上20MA）嚴格篩選。"
+            )
+            bear_short_mode = False  # 維持多頭篩選邏輯
+        else:
+            st.warning(
+                "🎯 **做空模式**：系統將反轉篩選條件，"
+                "尋找 EPS 衰退、法人賣超、跌破 20MA 的弱勢標的。"
+                "請注意：做空風險極高，務必設定嚴格停損。"
+            )
+            bear_short_mode = True   # 反轉篩選邏輯
+    else:
+        bear_tactic    = None
+        bear_short_mode = False
+
     # ── 說明
-    st.markdown("""
+    if not bear_mode:
+        st.markdown("""
     <div class='infobox'>
         <b style='color:#00d4ff;'>階層式篩選邏輯：</b><br>
         第一道：基本面護城河（EPS / P/E / 毛利率） → 建立核心母體<br>
@@ -1233,19 +1270,36 @@ with tab1:
                         pe_val = last_close / eps_ann_pe if eps_ann_pe > 0 else np.nan
 
                 # 第一道判斷
-                # NaN = 資料缺失，視為「不知道」→ 通過（不要因缺資料就漏掉好股）
-                # EPS：資料不足4季時年化後比較
-                if not np.isnan(eps_ttm):
-                    n_eps = min(len(eps_vals), 4)
-                    eps_annualized = eps_ttm / n_eps * 4
-                    p1_eps = eps_annualized > eps_min
+                if bear_short_mode:
+                    # 做空模式：反轉條件，找EPS衰退/高PE/低毛利
+                    if not np.isnan(eps_ttm):
+                        n_eps = min(len(eps_vals), 4)
+                        eps_annualized = eps_ttm / n_eps * 4
+                        p1_eps = eps_annualized < eps_min
+                    else:
+                        p1_eps = False
+                    p1_pe  = np.isnan(pe_val)    or pe_val    > pe_max
+                    p1_gm  = np.isnan(gm_latest) or gm_latest < gm_min
+                    pass1  = p1_eps or p1_pe or p1_gm
                 else:
-                    p1_eps = True
-                p1_pe  = np.isnan(pe_val)  or pe_val  < pe_max
-                p1_gm  = np.isnan(gm_latest) or gm_latest > gm_min
-                pass1  = p1_eps and p1_pe and p1_gm
+                    # 正常多頭模式
+                    if not np.isnan(eps_ttm):
+                        n_eps = min(len(eps_vals), 4)
+                        eps_annualized = eps_ttm / n_eps * 4
+                        p1_eps = eps_annualized > eps_min
+                    else:
+                        p1_eps = True
+                    p1_pe  = np.isnan(pe_val)  or pe_val  < pe_max
+                    p1_gm  = np.isnan(gm_latest) or gm_latest > gm_min
+                    pass1  = p1_eps and p1_pe and p1_gm
                 if not pass1:
                     continue
+
+                # 做空模式：跌破MA20 作為額外確認
+                if bear_short_mode:
+                    if not np.isnan(float(lt_price.get("MA20", float("nan")))):
+                        if float(lt_price["Close"]) >= float(lt_price["MA20"]):
+                            continue  # 守月線的不做空
 
                 # ─── 第二道：籌碼＋技術（6 項評分）
                 df_c  = df_chips[df_chips["stock_id"].astype(str) == str(sid)]
