@@ -919,7 +919,7 @@ with tab1:
     with st.expander("🎯 掃描範圍設定", expanded=True):
         rng_type = st.radio(
             "掃描方式",
-            ["📂 產業分類", "🔢 股號開頭", "🌏 全市場", "✏️ 自訂代號",
+            ["📂 產業分類", "📊 產業板塊（動態）", "🔢 股號開頭", "🌏 全市場", "✏️ 自訂代號",
              "🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達"],
             horizontal=True, label_visibility="collapsed"
         )
@@ -965,6 +965,53 @@ with tab1:
                 f" ｜ 約 <b style='color:#e8f4fd;'>{len(scan_pool_ids)}</b> 檔</div>",
                 unsafe_allow_html=True
             )
+
+        elif rng_type == "📊 產業板塊（動態）":
+            # 動態從 stock_info.csv 讀取產業別
+            @st.cache_data(ttl=3600)
+            def get_sector_options():
+                df_si, ok = load_csv("stock_info.csv")
+                if not ok or df_si.empty:
+                    return {}, {}
+                df_si["stock_id"] = df_si["stock_id"].astype(str).str.strip()
+                df_si["stock_name"] = df_si["stock_name"].astype(str).str.strip()
+                # 優先取有中文名稱的
+                has_name = df_si[df_si["stock_name"] != df_si["stock_id"]].copy()
+                no_name  = df_si[df_si["stock_name"] == df_si["stock_id"]].copy()
+                df_clean = pd.concat([has_name, no_name]).drop_duplicates("stock_id")
+                # 填補空白產業別
+                if "industry_category" in df_clean.columns:
+                    df_clean["industry_category"] = df_clean["industry_category"].fillna("其他/未分類")
+                else:
+                    df_clean["industry_category"] = "其他/未分類"
+                sector_map = df_clean.groupby("industry_category")["stock_id"].apply(list).to_dict()
+                return sector_map
+
+            sector_map_dyn = get_sector_options()
+            if not sector_map_dyn:
+                st.warning("無法讀取產業別資料，請確認 stock_info.csv")
+                scan_pool_ids = []
+            else:
+                sector_list = sorted(sector_map_dyn.keys())
+                selected_sectors = st.multiselect(
+                    "選擇產業板塊（可多選）",
+                    sector_list,
+                    placeholder="搜尋或選擇產業...",
+                    label_visibility="collapsed"
+                )
+                if selected_sectors:
+                    scan_pool_ids = []
+                    for s in selected_sectors:
+                        scan_pool_ids.extend(sector_map_dyn.get(s, []))
+                    scan_pool_ids = list(dict.fromkeys(scan_pool_ids))  # 去重
+                    st.markdown(
+                        f"<div class='infobox'>已選 <b style='color:#00d4ff;'>{len(selected_sectors)}</b> 個板塊"
+                        f" ｜ 共 <b style='color:#e8f4fd;'>{len(scan_pool_ids)}</b> 檔</div>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    scan_pool_ids = []
+                    st.info("請選擇至少一個產業板塊")
 
         elif rng_type == "🔢 股號開頭":
             selected_prefix = st.selectbox(
@@ -1112,6 +1159,8 @@ with tab1:
             all_fin_ids = df_fin["stock_id"].dropna().unique().tolist()
 
             if rng_type == "📂 產業分類":
+                stock_ids = [s for s in scan_pool_ids if s in all_fin_ids]
+            elif rng_type == "📊 產業板塊（動態）":
                 stock_ids = [s for s in scan_pool_ids if s in all_fin_ids]
             elif rng_type == "🔢 股號開頭":
                 stock_ids = [s for s in all_fin_ids if s.startswith(prefix_digit)]
