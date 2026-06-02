@@ -3805,7 +3805,7 @@ with tab7:
                         mg_col = next((c for c in df_c_bt.columns if "MarginPurchaseTodayBalance" in c), None)
                         if mg_col:
                             mg_df = df_c_bt.dropna(subset=["date"]).groupby("date")[mg_col].last().sort_index()
-                            mg_num = pd.to_numeric(mg_df, errors="coerce").fillna(method="ffill")
+                            mg_num = pd.to_numeric(mg_df, errors="coerce").ffill()
                             mg_chg = mg_num.diff().reindex(df_k.index).fillna(0)
                             margin_series = mg_chg
 
