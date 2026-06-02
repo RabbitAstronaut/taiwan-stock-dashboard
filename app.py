@@ -902,6 +902,13 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
 # ──────────────────────────────────────────────────────────────
 # ▌ TAB 1：選股掃描儀（階層式篩選＋評分）
 # ──────────────────────────────────────────────────────────────
+# ── 系統簽名
+st.markdown(
+    "<div style='text-align:right;color:#1e3a5f;font-size:.75rem;"
+    "letter-spacing:.15em;padding:2px 8px;'>Rex × Gemini × Claude</div>",
+    unsafe_allow_html=True
+)
+
 with tab1:
     st.markdown("<div class='sec-title'>🔍 選股掃描儀 · 三道階層篩選</div>",
                 unsafe_allow_html=True)
