@@ -1560,7 +1560,7 @@ with tab1:
         if not df_show.empty:
             st.markdown("<div class='sec-title'>📋 個股評分卡</div>",
                         unsafe_allow_html=True)
-            for _, row in df_show.head(10).iterrows():
+            for _, row in df_show[df_show["總得分"] > 0].sort_values("總得分", ascending=False).iterrows():
                 with st.expander(
                     f"{row['代號']} {row['名稱']}  "
                     f"｜ 籌碼 {row['籌碼得分']}/6  財報 {row['財報得分']}/3  "
