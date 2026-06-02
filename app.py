@@ -3767,8 +3767,9 @@ with tab7:
                     df_k.index = pd.to_datetime(df_k.index, errors="coerce")
                     df_k = df_k[~df_k.index.isna()].sort_index()
                     df_k["Close"]  = pd.to_numeric(df_k["Close"],  errors="coerce")
-                    df_k["Volume"] = pd.to_numeric(df_k.get("Volume", pd.Series(0, index=df_k.index)),
-                                                   errors="coerce").fillna(0)
+                    df_k["Volume"] = pd.to_numeric(
+                        df_k["Volume"] if "Volume" in df_k.columns else 0,
+                        errors="coerce").fillna(0)
                     df_k["MA20"]  = df_k["Close"].rolling(20).mean()
                     df_k["VMA5"]  = df_k["Volume"].rolling(5).mean()
                     df_k = df_k.dropna(subset=["Close", "MA20"])
@@ -3846,8 +3847,8 @@ with tab7:
                         if has_chip:
                             raw_buy = above_ma20 & any_buy_chip
                         else:
-                            # 無籌碼資料：用技術面+量能
-                            raw_buy = above_ma20 & (df_bt["Volume"] > df_bt["VMA5"].fillna(0) * 0.8)
+                            # 無籌碼資料：純技術（站上MA20即進場）
+                            raw_buy = above_ma20
                         raw_exit   = below_ma20
                         strat_name = "技術面＋籌碼面"
                     else:
