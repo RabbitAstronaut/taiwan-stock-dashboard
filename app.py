@@ -1838,6 +1838,40 @@ with tab2:
             if rsi5_now > 80 and rsi5_now < rsi20_now:
                 alerts.append(f"RSI(5)={rsi5_now:.1f} 高檔回落且低於 RSI(20)")
 
+            # ── 大戶持股多空背離校正
+            big_divergence_msg = None
+            df_sh2, ok_sh2 = get_shareholder(sid_watch)
+            if ok_sh2 and not df_sh2.empty:
+                lv_col2 = "HoldingSharesLevel" if "HoldingSharesLevel" in df_sh2.columns else None
+                pct_col2 = "percent" if "percent" in df_sh2.columns else None
+                if lv_col2 and pct_col2:
+                    df_sh2 = df_sh2[~df_sh2[lv_col2].astype(str).str.contains("total|差異|調整", na=False)].copy()
+                    df_sh2[pct_col2] = pd.to_numeric(df_sh2[pct_col2], errors="coerce")
+                    big_kw2 = ["400,001","600,001","800,001","1,000,001","more than"]
+                    is_big2 = df_sh2[lv_col2].astype(str).str.contains("|".join(big_kw2), case=False, na=False)
+                    big_grp2 = df_sh2[is_big2].groupby("date")[pct_col2].sum().sort_index().dropna()
+
+                    if len(big_grp2) >= 3:
+                        # 連續2週下滑：最後3筆都在下降
+                        last3 = big_grp2.tail(3).tolist()
+                        big_declining = (last3[-1] < last3[-2]) and (last3[-2] < last3[-3])
+
+                        if big_declining:
+                            close_now2 = float(lt["Close"])
+                            sma20 = float(lt.get("MA20", float("nan")))
+                            if not np.isnan(sma20):
+                                if close_now2 < sma20:
+                                    # 實質出貨
+                                    big_divergence_msg = ("danger",
+                                        f"🔴 【實質出貨】大戶持股連續下滑（{last3[-1]:.1f}%）且現價跌破月線（{sma20:.1f}），"
+                                        f"主力確認撤退，建議啟動防守。")
+                                    alerts.append(f"大戶持股連續下滑且跌破月線，判定實質出貨")
+                                else:
+                                    # 高檔換手/雜訊
+                                    big_divergence_msg = ("safe",
+                                        f"🟢 【高檔換手/數據雜訊】大戶持股雖連續下滑（{last3[-1]:.1f}%），"
+                                        f"但現價仍守月線（{sma20:.1f}）之上，判定為高檔換手，維持安全綠燈。")
+
             dc1, dc2 = st.columns([1, 3])
             with dc1:
                 if alerts:
@@ -1858,6 +1892,14 @@ with tab2:
                                 unsafe_allow_html=True)
                 if not alerts:
                     st.success("✅ 所有指標正常")
+
+            # 大戶持股多空背離校正結果
+            if big_divergence_msg:
+                kind, msg = big_divergence_msg
+                if kind == "danger":
+                    st.error(msg)
+                else:
+                    st.success(msg)
 
             # K線主圖 + RSI 副圖
             mc1, mc2 = st.columns([3, 1])
