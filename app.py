@@ -3270,468 +3270,460 @@ with tab2:
 # ▌ TAB 6：ETF 存股現金流管家
 # ──────────────────────────────────────────────────────────────
 with tab6:
-    try:
-        st.markdown("<div class='sec-title'>💰 ETF 存股現金流管家</div>", unsafe_allow_html=True)
-        st.markdown("<div class='infobox'>在下方輸入持有張數，系統即時試算投入本金、預估年化殖利率與未來 12 個月現金流。</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sec-title'>💰 ETF 存股現金流管家</div>", unsafe_allow_html=True)
+    st.markdown("<div class='infobox'>在下方輸入持有張數，系統即時試算投入本金、預估年化殖利率與未來 12 個月現金流。</div>", unsafe_allow_html=True)
 
-        @st.cache_data(ttl=1800)
-        def fetch_etf_price(stock_id: str) -> float:
-            try:
-                import yfinance as yf
-                for suffix in [".TW", ".TWO"]:
-                    tk = yf.Ticker(stock_id + suffix)
-                    hist = tk.history(period="2d")
-                    if not hist.empty:
-                        return round(float(hist["Close"].iloc[-1]), 2)
-            except Exception:
-                pass
-            return 0.0
+    @st.cache_data(ttl=1800)
+    def fetch_etf_price(stock_id: str) -> float:
+        try:
+            import yfinance as yf
+            for suffix in [".TW", ".TWO"]:
+                tk = yf.Ticker(stock_id + suffix)
+                hist = tk.history(period="2d")
+                if not hist.empty:
+                    return round(float(hist["Close"].iloc[-1]), 2)
+        except Exception:
+            pass
+        return 0.0
 
-        @st.cache_data(ttl=3600, show_spinner="載入 ETF 配息資料...")
-        def build_etf_menu() -> pd.DataFrame:
-            df_csv, ok = load_csv("etf_dividend_data.csv")
-            if not ok or df_csv.empty:
-                return pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
-            amt_col  = next((c for c in ["CashDividend","cash_dividend","dividend"] if c in df_csv.columns), None)
-            date_col = next((c for c in ["ex_dividend_date","ExDividendDate","date"] if c in df_csv.columns), None)
-            if not amt_col or not date_col:
-                return pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
-            df_csv["stock_id"] = df_csv["stock_id"].astype(str).str.strip()
-            df_csv[date_col]   = pd.to_datetime(df_csv[date_col], errors="coerce")
-            df_csv[amt_col]    = pd.to_numeric(df_csv[amt_col], errors="coerce").fillna(0)
-            df_csv = df_csv.dropna(subset=[date_col])
-            rows = []
-            for sid, grp in df_csv.groupby("stock_id"):
-                grp = grp.sort_values(date_col)
-                latest_div = round(float(grp[amt_col].iloc[-1]), 4)
-                one_year = grp[grp[date_col] >= pd.Timestamp(datetime.now() - timedelta(days=365))]
-                freq = len(one_year) if not one_year.empty else len(grp.tail(4))
-                freq_label = "月配" if freq >= 10 else ("季配" if freq >= 3 else ("半年配" if freq >= 2 else "年配"))
-                annual_div = round(float(grp[amt_col].tail(max(freq,1)).sum()), 4)
-                div_months = sorted(one_year[date_col].dt.month.unique().tolist()) if not one_year.empty \
-                             else sorted(grp.tail(max(freq,1))[date_col].dt.month.unique().tolist())
-                months_str = "/".join(str(m) for m in div_months) + "月"
-                rows.append({"代號": sid, "最新配息/股": latest_div, "年化配息/股": annual_div,
-                             "頻率": freq_label, "配息月份": months_str})
-            df_out = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
-            return df_out.sort_values("代號").reset_index(drop=True)
+    @st.cache_data(ttl=3600, show_spinner="載入 ETF 配息資料...")
+    def build_etf_menu() -> pd.DataFrame:
+        df_csv, ok = load_csv("etf_dividend_data.csv")
+        if not ok or df_csv.empty:
+            return pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
+        amt_col  = next((c for c in ["CashDividend","cash_dividend","dividend"] if c in df_csv.columns), None)
+        date_col = next((c for c in ["ex_dividend_date","ExDividendDate","date"] if c in df_csv.columns), None)
+        if not amt_col or not date_col:
+            return pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
+        df_csv["stock_id"] = df_csv["stock_id"].astype(str).str.strip()
+        df_csv[date_col]   = pd.to_datetime(df_csv[date_col], errors="coerce")
+        df_csv[amt_col]    = pd.to_numeric(df_csv[amt_col], errors="coerce").fillna(0)
+        df_csv = df_csv.dropna(subset=[date_col])
+        rows = []
+        for sid, grp in df_csv.groupby("stock_id"):
+            grp = grp.sort_values(date_col)
+            latest_div = round(float(grp[amt_col].iloc[-1]), 4)
+            one_year = grp[grp[date_col] >= pd.Timestamp(datetime.now() - timedelta(days=365))]
+            freq = len(one_year) if not one_year.empty else len(grp.tail(4))
+            freq_label = "月配" if freq >= 10 else ("季配" if freq >= 3 else ("半年配" if freq >= 2 else "年配"))
+            annual_div = round(float(grp[amt_col].tail(max(freq,1)).sum()), 4)
+            div_months = sorted(one_year[date_col].dt.month.unique().tolist()) if not one_year.empty \
+                         else sorted(grp.tail(max(freq,1))[date_col].dt.month.unique().tolist())
+            months_str = "/".join(str(m) for m in div_months) + "月"
+            rows.append({"代號": sid, "最新配息/股": latest_div, "年化配息/股": annual_div,
+                         "頻率": freq_label, "配息月份": months_str})
+        df_out = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
+        return df_out.sort_values("代號").reset_index(drop=True)
 
-        df_menu = build_etf_menu()
-        if df_menu.empty:
-            st.warning("ETF 配息資料載入失敗，請確認 data/etf_dividend_data.csv 是否存在。")
-            st.stop()
+    df_menu = build_etf_menu()
+    if df_menu.empty:
+        st.warning("ETF 配息資料載入失敗，請確認 data/etf_dividend_data.csv 是否存在。")
+        pass  # removed st.stop()
 
-        # etf_shares 已在啟動時從 GitHub 載入，不重設
-        if "etf_shares" not in st.session_state:
-            st.session_state.etf_shares = {}  # 備用（通常不會執行到）
-        # 自動還原上次確認的試算組合
-        if "etf_confirmed_portfolio" not in st.session_state:
-            st.session_state.etf_confirmed_portfolio = {
-                sid: sh for sid, sh in st.session_state.etf_shares.items() if sh > 0
-            }
+    # etf_shares 已在啟動時從 GitHub 載入，不重設
+    if "etf_shares" not in st.session_state:
+        st.session_state.etf_shares = {}  # 備用（通常不會執行到）
+    # 自動還原上次確認的試算組合
+    if "etf_confirmed_portfolio" not in st.session_state:
+        st.session_state.etf_confirmed_portfolio = {
+            sid: sh for sid, sh in st.session_state.etf_shares.items() if sh > 0
+        }
 
-        st.markdown(f"### 📋 ETF 清單　共 {len(df_menu)} 檔　輸入張數後自動試算")
-        st.caption("最新配息/股=最近一次除息　年化配息/股=近1年合計　配息月份=歷史除息月份")
+    st.markdown(f"### 📋 ETF 清單　共 {len(df_menu)} 檔　輸入張數後自動試算")
+    st.caption("最新配息/股=最近一次除息　年化配息/股=近1年合計　配息月份=歷史除息月份")
 
-        # 批次抓取所有 ETF 股價（快取1小時）
-        @st.cache_data(ttl=3600)
-        def get_all_etf_prices(sids: tuple) -> dict:
-            result = {}
-            for sid in sids:
-                result[sid] = fetch_etf_price(sid)
-            return result
+    # 批次抓取所有 ETF 股價（快取1小時）
+    @st.cache_data(ttl=3600)
+    def get_all_etf_prices(sids: tuple) -> dict:
+        result = {}
+        for sid in sids:
+            result[sid] = fetch_etf_price(sid)
+        return result
 
-        price_map = get_all_etf_prices(tuple(df_menu["代號"].tolist()))
+    price_map = get_all_etf_prices(tuple(df_menu["代號"].tolist()))
 
-        h = st.columns([1, 1, 1, 1, 1, 1, 1.5, 1.5])
-        for col, txt in zip(h, ["代號","現股價","最新配息/股","年化配息/股","年化殖利率","頻率","配息月份","持有張數"]):
-            col.markdown(f"<b style='color:#00d4ff;font-size:.82rem;'>{txt}</b>", unsafe_allow_html=True)
-        st.markdown("<div style='border-bottom:1px solid #1e3a5f;margin-bottom:4px;'></div>", unsafe_allow_html=True)
+    h = st.columns([1, 1, 1, 1, 1, 1, 1.5, 1.5])
+    for col, txt in zip(h, ["代號","現股價","最新配息/股","年化配息/股","年化殖利率","頻率","配息月份","持有張數"]):
+        col.markdown(f"<b style='color:#00d4ff;font-size:.82rem;'>{txt}</b>", unsafe_allow_html=True)
+    st.markdown("<div style='border-bottom:1px solid #1e3a5f;margin-bottom:4px;'></div>", unsafe_allow_html=True)
 
-        for _, row in df_menu.iterrows():
-            sid = str(row["代號"])
-            c1, c2, c3, c4, c5, c6, c7, c8 = st.columns([1, 1, 1, 1, 1, 1, 1.5, 1.5])
-            c1.markdown(f"<span style='color:#e8f4fd;font-size:.82rem;font-weight:600;'>{sid}</span>", unsafe_allow_html=True)
-            price = price_map.get(sid, 0.0)
-            price_str = f"{price:.2f}" if price > 0 else "—"
-            c2.markdown(f"<span style='color:#e8f4fd;font-size:.82rem;'>{price_str}</span>", unsafe_allow_html=True)
-            c3.markdown(f"<span style='color:#ffeb3b;font-size:.82rem;'>{row['最新配息/股']:.4f}</span>", unsafe_allow_html=True)
-            c4.markdown(f"<span style='color:#00e676;font-size:.82rem;'>{row['年化配息/股']:.4f}</span>", unsafe_allow_html=True)
-            # 年化殖利率
-            if price > 0:
-                yield_r = row['年化配息/股'] / price * 100
-                yield_color = "#ff5252" if yield_r >= 6 else ("#ffeb3b" if yield_r >= 4 else "#e8f4fd")
-                yield_str = f"{yield_r:.2f}%"
-            else:
-                yield_color = "#546e7a"
-                yield_str = "—"
-            c5.markdown(f"<span style='color:{yield_color};font-size:.82rem;font-weight:600;'>{yield_str}</span>", unsafe_allow_html=True)
-            freq_color = "#00d4ff" if row["頻率"] == "月配" else ("#ff9800" if row["頻率"] == "季配" else "#e8f4fd")
-            c6.markdown(f"<span style='color:{freq_color};font-size:.82rem;'>{row['頻率']}</span>", unsafe_allow_html=True)
-            c7.markdown(f"<span style='color:#b0cce0;font-size:.82rem;'>{row['配息月份']}</span>", unsafe_allow_html=True)
-            cur_sh = st.session_state.etf_shares.get(sid, 0)
-            new_sh = c8.number_input("張", value=cur_sh, min_value=0, step=1,
-                                      key=f"t5_sh_{sid}", label_visibility="collapsed")
-            if int(new_sh) != cur_sh:
-                st.session_state.etf_shares[sid] = int(new_sh)
-                save_watchlist_to_github(
-                    st.session_state.watchlist,
-                    st.session_state.watchlist_scan,
-                    {k: v for k, v in st.session_state.etf_shares.items() if v > 0}
-                )
-
-        # 確認鈕
-        st.markdown("<br>", unsafe_allow_html=True)
-        confirm_col, _ = st.columns([2, 6])
-        with confirm_col:
-            confirm = st.button("✅ 確認試算", key="etf_confirm", use_container_width=True, type="primary")
-
-        # 試算結果存入 session_state，按確認才更新
-        if confirm:
-            st.session_state.etf_confirmed_portfolio = {
-                sid: sh for sid, sh in st.session_state.etf_shares.items() if sh > 0
-            }
-
-        portfolio = st.session_state.get("etf_confirmed_portfolio", {})
-        if not portfolio:
-            st.info("👆 請在上方清單輸入張數後，按「✅ 確認試算」開始計算。")
-            st.stop()
-
-        st.markdown("---")
-        st.markdown(f"### 📊 試算組合：{len(portfolio)} 檔 ETF")
-
-        total_cost = 0.0
-        with st.spinner("抓取最新股價..."):
-            for sid in portfolio:
-                price = fetch_etf_price(sid)
-                total_cost += price * portfolio[sid] * 1000
-
-        today_dt = datetime.now()
-        months   = pd.date_range(today_dt, periods=12, freq="MS")
-        forecast_rows = []
-        total_annual_div = 0.0
-
-        for sid, shares in portfolio.items():
-            row_menu = df_menu[df_menu["代號"] == sid]
-            if row_menu.empty:
-                continue
-            annual = float(row_menu["年化配息/股"].iloc[0])
-            freq_l = row_menu["頻率"].iloc[0]
-            freq   = 12 if freq_l == "月配" else (4 if freq_l == "季配" else (2 if freq_l == "半年配" else 1))
-            per_time = annual / max(freq, 1)
-            interval = max(1, 12 // freq)
-            total_annual_div += annual * shares * 1000
-            for j, m in enumerate(months):
-                if j % interval == 0:
-                    forecast_rows.append({"月份": m.strftime("%Y-%m"), "ETF": sid,
-                                          "預估現金流": round(per_time * shares * 1000, 0)})
-
-        yield_rate = (total_annual_div / total_cost * 100) if total_cost > 0 else 0
-        m1, m2, m3 = st.columns(3)
-        m1.metric("💰 總投入預估本金",   f"${total_cost:,.0f}")
-        m2.metric("📅 未來一年預估股息", f"${total_annual_div:,.0f}")
-        m3.metric("📈 預估年化殖利率",   f"{yield_rate:.2f}%",
-                  delta="高" if yield_rate >= 5 else ("中" if yield_rate >= 3 else "低"))
-        st.markdown("---")
-
-        if not forecast_rows:
-            st.info("無法推算未來配息。")
-            st.stop()
-
-        df_forecast = pd.DataFrame(forecast_rows)
-        st.markdown("### 📅 未來 12 個月預估現金流")
-        colors_etf = ["#00d4ff","#ffeb3b","#00e676","#e91e8c","#ff9800","#e040fb","#69f0ae","#ff6e40","#40c4ff","#b2ff59"]
-        fig_etf = go.Figure()
-        for idx, sid in enumerate(portfolio.keys()):
-            sub_f = df_forecast[df_forecast["ETF"] == sid]
-            if sub_f.empty:
-                continue
-            fig_etf.add_trace(go.Bar(x=sub_f["月份"], y=sub_f["預估現金流"], name=sid,
-                                      marker_color=colors_etf[idx % len(colors_etf)]))
-        fig_etf.update_layout(**base_layout("未來12個月預估現金流（元）", 400), barmode="stack")
-        st.plotly_chart(fig_etf, width='stretch')
-
-        st.markdown("### 📋 財務總表")
-        pivot = df_forecast.pivot_table(index="月份", columns="ETF", values="預估現金流", aggfunc="sum", fill_value=0).reset_index()
-        pivot.columns.name = None
-        etf_cols = [c for c in pivot.columns if c != "月份"]
-        pivot["合計（元）"] = pivot[etf_cols].sum(axis=1)
-        st.markdown(df_to_html(pivot, height=440), unsafe_allow_html=True)
-
-
-        # ══════════════════════════════════════════════
-        # 🔍 主力資金流向雷達（ETF 籌碼追蹤）
-        # ══════════════════════════════════════════════
-        st.markdown("---")
-        st.markdown("<div class='sec-title'>🔍 主力資金流向雷達 · ETF 籌碼追蹤</div>",
-                    unsafe_allow_html=True)
-        st.markdown(
-            "<div class='infobox'>選擇 ETF 查看近 20 日三大法人買賣超與融資餘額變化，"
-            "系統自動診斷主力資金動向。</div>",
-            unsafe_allow_html=True
-        )
-
-        # ETF 選單（來自總表）
-        # 只顯示已確認試算組合的 ETF
-        etf_options = list(portfolio.keys()) if portfolio else []
-        if not etf_options:
-            st.info("請先在上方輸入張數並按「✅ 確認試算」。")
-            st.stop()
-
-        radar_sid = st.selectbox("選擇 ETF", etf_options, key="radar_etf")
-
-        # 讀取籌碼資料（真實三大法人+融資券）
-        df_c_etf, ok_c_etf = get_chips(radar_sid)
-
-        if not ok_c_etf or df_c_etf.empty:
-            st.warning(
-                f"{radar_sid} 在 chips_data.csv 中尚無資料。"
-                " 請執行：python update_data.py --only chips --force"
+    for _, row in df_menu.iterrows():
+        sid = str(row["代號"])
+        c1, c2, c3, c4, c5, c6, c7, c8 = st.columns([1, 1, 1, 1, 1, 1, 1.5, 1.5])
+        c1.markdown(f"<span style='color:#e8f4fd;font-size:.82rem;font-weight:600;'>{sid}</span>", unsafe_allow_html=True)
+        price = price_map.get(sid, 0.0)
+        price_str = f"{price:.2f}" if price > 0 else "—"
+        c2.markdown(f"<span style='color:#e8f4fd;font-size:.82rem;'>{price_str}</span>", unsafe_allow_html=True)
+        c3.markdown(f"<span style='color:#ffeb3b;font-size:.82rem;'>{row['最新配息/股']:.4f}</span>", unsafe_allow_html=True)
+        c4.markdown(f"<span style='color:#00e676;font-size:.82rem;'>{row['年化配息/股']:.4f}</span>", unsafe_allow_html=True)
+        # 年化殖利率
+        if price > 0:
+            yield_r = row['年化配息/股'] / price * 100
+            yield_color = "#ff5252" if yield_r >= 6 else ("#ffeb3b" if yield_r >= 4 else "#e8f4fd")
+            yield_str = f"{yield_r:.2f}%"
+        else:
+            yield_color = "#546e7a"
+            yield_str = "—"
+        c5.markdown(f"<span style='color:{yield_color};font-size:.82rem;font-weight:600;'>{yield_str}</span>", unsafe_allow_html=True)
+        freq_color = "#00d4ff" if row["頻率"] == "月配" else ("#ff9800" if row["頻率"] == "季配" else "#e8f4fd")
+        c6.markdown(f"<span style='color:{freq_color};font-size:.82rem;'>{row['頻率']}</span>", unsafe_allow_html=True)
+        c7.markdown(f"<span style='color:#b0cce0;font-size:.82rem;'>{row['配息月份']}</span>", unsafe_allow_html=True)
+        cur_sh = st.session_state.etf_shares.get(sid, 0)
+        new_sh = c8.number_input("張", value=cur_sh, min_value=0, step=1,
+                                  key=f"t5_sh_{sid}", label_visibility="collapsed")
+        if int(new_sh) != cur_sh:
+            st.session_state.etf_shares[sid] = int(new_sh)
+            save_watchlist_to_github(
+                st.session_state.watchlist,
+                st.session_state.watchlist_scan,
+                {k: v for k, v in st.session_state.etf_shares.items() if v > 0}
             )
-            st.stop()
 
-        df_c = df_c_etf.copy()
-        df_c["stock_id"] = df_c["stock_id"].astype(str).str.strip()
-        df_c = df_c[df_c["stock_id"] == str(radar_sid).strip()]
+    # 確認鈕
+    st.markdown("<br>", unsafe_allow_html=True)
+    confirm_col, _ = st.columns([2, 6])
+    with confirm_col:
+        confirm = st.button("✅ 確認試算", key="etf_confirm", use_container_width=True, type="primary")
 
-        if "date" in df_c.columns:
-            df_c["date"] = pd.to_datetime(df_c["date"], errors="coerce")
-            df_c = df_c.sort_values("date")
+    # 試算結果存入 session_state，按確認才更新
+    if confirm:
+        st.session_state.etf_confirmed_portfolio = {
+            sid: sh for sid, sh in st.session_state.etf_shares.items() if sh > 0
+        }
 
-        net_col  = "net"  if "net"  in df_c.columns else None
-        name_col = "name" if "name" in df_c.columns else None
+    portfolio = st.session_state.get("etf_confirmed_portfolio", {})
+    if not portfolio:
+        st.info("👆 請在上方清單輸入張數後，按「✅ 確認試算」開始計算。")
+        pass  # removed st.stop()
 
-        if not net_col or not name_col:
-            st.warning(f"欄位不足：{df_c.columns.tolist()}")
-            st.stop()
+    st.markdown("---")
+    st.markdown(f"### 📊 試算組合：{len(portfolio)} 檔 ETF")
 
-        df_c[net_col] = pd.to_numeric(df_c[net_col], errors="coerce").fillna(0)
+    total_cost = 0.0
+    with st.spinner("抓取最新股價..."):
+        for sid in portfolio:
+            price = fetch_etf_price(sid)
+            total_cost += price * portfolio[sid] * 1000
+
+    today_dt = datetime.now()
+    months   = pd.date_range(today_dt, periods=12, freq="MS")
+    forecast_rows = []
+    total_annual_div = 0.0
+
+    for sid, shares in portfolio.items():
+        row_menu = df_menu[df_menu["代號"] == sid]
+        if row_menu.empty:
+            continue
+        annual = float(row_menu["年化配息/股"].iloc[0])
+        freq_l = row_menu["頻率"].iloc[0]
+        freq   = 12 if freq_l == "月配" else (4 if freq_l == "季配" else (2 if freq_l == "半年配" else 1))
+        per_time = annual / max(freq, 1)
+        interval = max(1, 12 // freq)
+        total_annual_div += annual * shares * 1000
+        for j, m in enumerate(months):
+            if j % interval == 0:
+                forecast_rows.append({"月份": m.strftime("%Y-%m"), "ETF": sid,
+                                      "預估現金流": round(per_time * shares * 1000, 0)})
+
+    yield_rate = (total_annual_div / total_cost * 100) if total_cost > 0 else 0
+    m1, m2, m3 = st.columns(3)
+    m1.metric("💰 總投入預估本金",   f"${total_cost:,.0f}")
+    m2.metric("📅 未來一年預估股息", f"${total_annual_div:,.0f}")
+    m3.metric("📈 預估年化殖利率",   f"{yield_rate:.2f}%",
+              delta="高" if yield_rate >= 5 else ("中" if yield_rate >= 3 else "低"))
+    st.markdown("---")
+
+    if not forecast_rows:
+        st.info("無法推算未來配息。")
+        pass  # removed st.stop()
+
+    df_forecast = pd.DataFrame(forecast_rows)
+    st.markdown("### 📅 未來 12 個月預估現金流")
+    colors_etf = ["#00d4ff","#ffeb3b","#00e676","#e91e8c","#ff9800","#e040fb","#69f0ae","#ff6e40","#40c4ff","#b2ff59"]
+    fig_etf = go.Figure()
+    for idx, sid in enumerate(portfolio.keys()):
+        sub_f = df_forecast[df_forecast["ETF"] == sid]
+        if sub_f.empty:
+            continue
+        fig_etf.add_trace(go.Bar(x=sub_f["月份"], y=sub_f["預估現金流"], name=sid,
+                                  marker_color=colors_etf[idx % len(colors_etf)]))
+    fig_etf.update_layout(**base_layout("未來12個月預估現金流（元）", 400), barmode="stack")
+    st.plotly_chart(fig_etf, width='stretch')
+
+    st.markdown("### 📋 財務總表")
+    pivot = df_forecast.pivot_table(index="月份", columns="ETF", values="預估現金流", aggfunc="sum", fill_value=0).reset_index()
+    pivot.columns.name = None
+    etf_cols = [c for c in pivot.columns if c != "月份"]
+    pivot["合計（元）"] = pivot[etf_cols].sum(axis=1)
+    st.markdown(df_to_html(pivot, height=440), unsafe_allow_html=True)
+
+
+    # ══════════════════════════════════════════════
+    # 🔍 主力資金流向雷達（ETF 籌碼追蹤）
+    # ══════════════════════════════════════════════
+    st.markdown("---")
+    st.markdown("<div class='sec-title'>🔍 主力資金流向雷達 · ETF 籌碼追蹤</div>",
+                unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>選擇 ETF 查看近 20 日三大法人買賣超與融資餘額變化，"
+        "系統自動診斷主力資金動向。</div>",
+        unsafe_allow_html=True
+    )
+
+    # ETF 選單（來自總表）
+    # 只顯示已確認試算組合的 ETF
+    etf_options = list(portfolio.keys()) if portfolio else []
+    if not etf_options:
+        st.info("請先在上方輸入張數並按「✅ 確認試算」。")
+        pass  # removed st.stop()
+
+    radar_sid = st.selectbox("選擇 ETF", etf_options, key="radar_etf")
+
+    # 讀取籌碼資料（真實三大法人+融資券）
+    df_c_etf, ok_c_etf = get_chips(radar_sid)
+
+    if not ok_c_etf or df_c_etf.empty:
+        st.warning(
+            f"{radar_sid} 在 chips_data.csv 中尚無資料。"
+            " 請執行：python update_data.py --only chips --force"
+        )
+        pass  # removed st.stop()
+
+    df_c = df_c_etf.copy()
+    df_c["stock_id"] = df_c["stock_id"].astype(str).str.strip()
+    df_c = df_c[df_c["stock_id"] == str(radar_sid).strip()]
+
+    if "date" in df_c.columns:
+        df_c["date"] = pd.to_datetime(df_c["date"], errors="coerce")
+        df_c = df_c.sort_values("date")
+
+    net_col  = "net"  if "net"  in df_c.columns else None
+    name_col = "name" if "name" in df_c.columns else None
+
+    if not net_col or not name_col:
+        st.warning(f"欄位不足：{df_c.columns.tolist()}")
+        pass  # removed st.stop()
+
+    df_c[net_col] = pd.to_numeric(df_c[net_col], errors="coerce").fillna(0)
+
+    # 外資、投信
+    foreign = df_c[df_c[name_col].astype(str).str.contains("Foreign_Investor", na=False)]
+    trust   = df_c[df_c[name_col].astype(str).str.contains("Investment_Trust", na=False)]
+
+    def daily_net(df_sub, n=20):
+        if df_sub.empty:
+            return pd.Series(dtype=float)
+        return df_sub.groupby("date")[net_col].sum().sort_index().tail(n)
+
+    f_net = daily_net(foreign)
+    t_net = daily_net(trust)
+
+    if f_net.empty and t_net.empty:
+        st.warning(f"{radar_sid} 近期無外資或投信資料，請更新籌碼資料。")
+        pass  # removed st.stop()
+
+    all_dates = sorted(set(f_net.index.tolist() + t_net.index.tolist()))
+    f_vals    = [float(f_net.get(d, 0)) for d in all_dates]
+    t_vals    = [float(t_net.get(d, 0)) for d in all_dates]
+    date_strs = [d.strftime("%m/%d") if hasattr(d, "strftime") else str(d) for d in all_dates]
+
+    # 融資餘額
+    margin_col = next((c for c in df_c.columns if "MarginPurchaseTodayBalance" in c), None)
+    margin_vals, margin_dates = [], []
+    if margin_col:
+        margin_df = df_c[df_c["source"].astype(str) == "margin"] if "source" in df_c.columns else pd.DataFrame()
+        if not margin_df.empty:
+            mg = margin_df.groupby("date")[margin_col].last().sort_index().tail(20)
+            margin_vals  = pd.to_numeric(mg, errors="coerce").fillna(0).tolist()
+            margin_dates = [d.strftime("%m/%d") if hasattr(d, "strftime") else str(d) for d in mg.index]
+
+    # ── AI 短評（近5日）
+    recent_f = f_vals[-5:] if len(f_vals) >= 5 else f_vals
+    recent_t = t_vals[-5:] if len(t_vals) >= 5 else t_vals
+    combined  = [f + t for f, t in zip(recent_f, recent_t)]
+    buy_days  = sum(1 for v in combined if v > 0)
+    total_net = sum(combined)
+
+    if buy_days >= 3 and total_net > 0:
+        st.success(
+            f"🔥 【大資金湧入】法人近5日買超 {buy_days} 天，"
+            f"累積買超 {total_net/1000:.0f} 張，"
+            f"暗示其背後產業板塊具備波段動能，可作為選股方向！"
+        )
+    elif buy_days <= 2 and total_net < 0:
+        st.warning(
+            f"⚠️ 【主力提款】法人近5日賣超居多，"
+            f"累積賣超 {abs(total_net)/1000:.0f} 張，"
+            f"請留意該 ETF 關聯產業之修正風險。"
+        )
+    else:
+        st.info(f"📊 近5日法人買超 {buy_days} 天，多空訊號混沌，持續觀察中。")
+
+    # ── 雙軸圖：外資/投信買賣超（主軸）+ 融資餘額（副軸）
+    fig_radar = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig_radar.add_trace(go.Bar(
+        x=date_strs, y=f_vals, name="外資買賣超",
+        marker_color=["#ff5252" if v >= 0 else "#00e676" for v in f_vals],
+        opacity=0.85,
+    ), secondary_y=False)
+
+    fig_radar.add_trace(go.Bar(
+        x=date_strs, y=t_vals, name="投信買賣超",
+        marker_color=["#ff9800" if v >= 0 else "#69f0ae" for v in t_vals],
+        opacity=0.85,
+    ), secondary_y=False)
+
+    if margin_vals:
+        fig_radar.add_trace(go.Scatter(
+            x=margin_dates, y=margin_vals,
+            name="融資餘額", mode="lines+markers",
+            line=dict(color="#e040fb", width=2),
+            marker=dict(size=5),
+        ), secondary_y=True)
+
+    fig_radar.update_layout(
+        **base_layout(f"{radar_sid} 近20日主力資金雷達", 420),
+        barmode="relative",
+    )
+    fig_radar.update_yaxes(title_text="買賣超（股）", secondary_y=False, gridcolor="#1e3a5f")
+    fig_radar.update_yaxes(title_text="融資餘額（股）", secondary_y=True, showgrid=False)
+    st.plotly_chart(fig_radar, width='stretch')
+
+
+    # ══════════════════════════════════════════════
+    # 🌐 產業板塊資金熱力圖
+    # ══════════════════════════════════════════════
+    st.markdown("---")
+    st.markdown("<div class='sec-title'>🌐 產業板塊資金熱力圖 · Sector Fund Flow</div>",
+                unsafe_allow_html=True)
+
+    st.info(
+        "💡 **量化戰略提示**：結合 Tab1 的選股掃描儀，優先在「法人資金淨流入排行榜前三名」"
+        "的產業板塊中，尋找突破均線的強勢個股，勝率最高。"
+    )
+
+    @st.cache_data(ttl=3600, show_spinner="計算產業板塊資金流向...")
+    def build_sector_flow() -> pd.DataFrame:
+        # 讀取籌碼
+        df_c, ok_c = load_csv("chips_data.csv")
+        if not ok_c or df_c.empty:
+            return pd.DataFrame()
+
+        # 讀取股票資訊（含產業別）
+        df_si, ok_si = load_csv("stock_info.csv")
+        if not ok_si or df_si.empty:
+            return pd.DataFrame()
+
+        df_si["stock_id"] = df_si["stock_id"].astype(str).str.strip()
+        df_c["stock_id"]  = df_c["stock_id"].astype(str).str.strip()
+
+        # 取得產業別（只取有名稱的）
+        if "industry_category" not in df_si.columns:
+            return pd.DataFrame()
+
+        # 優先取有中文名稱的 stock_info
+        df_si_clean = df_si[df_si["stock_name"] != df_si["stock_id"]].copy()
+        df_si_clean = df_si_clean[["stock_id","industry_category"]].drop_duplicates("stock_id")
+        df_si_clean = df_si_clean[df_si_clean["industry_category"].notna()]
+
+        # 整理籌碼資料
+        if "date" not in df_c.columns or "name" not in df_c.columns or "net" not in df_c.columns:
+            return pd.DataFrame()
+
+        df_c["date"] = pd.to_datetime(df_c["date"], errors="coerce")
+        df_c["net"]  = pd.to_numeric(df_c["net"], errors="coerce").fillna(0)
+
+        latest = df_c["date"].max()
+        df_latest = df_c[df_c["date"] == latest].copy()
 
         # 外資、投信
-        foreign = df_c[df_c[name_col].astype(str).str.contains("Foreign_Investor", na=False)]
-        trust   = df_c[df_c[name_col].astype(str).str.contains("Investment_Trust", na=False)]
+        foreign = df_latest[df_latest["name"].astype(str).str.contains("Foreign_Investor", na=False)]
+        trust   = df_latest[df_latest["name"].astype(str).str.contains("Investment_Trust", na=False)]
 
-        def daily_net(df_sub, n=20):
-            if df_sub.empty:
-                return pd.Series(dtype=float)
-            return df_sub.groupby("date")[net_col].sum().sort_index().tail(n)
+        f_net = foreign.groupby("stock_id")["net"].sum().reset_index().rename(columns={"net":"外資淨買（股）"})
+        t_net = trust.groupby("stock_id")["net"].sum().reset_index().rename(columns={"net":"投信淨買（股）"})
 
-        f_net = daily_net(foreign)
-        t_net = daily_net(trust)
+        # Merge
+        df_merge = df_si_clean.merge(f_net, on="stock_id", how="left")
+        df_merge = df_merge.merge(t_net, on="stock_id", how="left")
+        df_merge["外資淨買（股）"] = df_merge["外資淨買（股）"].fillna(0)
+        df_merge["投信淨買（股）"] = df_merge["投信淨買（股）"].fillna(0)
 
-        if f_net.empty and t_net.empty:
-            st.warning(f"{radar_sid} 近期無外資或投信資料，請更新籌碼資料。")
-            st.stop()
+        # 換算億元（1股≈1000股/張，此為股數）
+        df_merge["外資淨買（億）"] = (df_merge["外資淨買（股）"] / 1e8).round(2)
+        df_merge["投信淨買（億）"] = (df_merge["投信淨買（股）"] / 1e8).round(2)
 
-        all_dates = sorted(set(f_net.index.tolist() + t_net.index.tolist()))
-        f_vals    = [float(f_net.get(d, 0)) for d in all_dates]
-        t_vals    = [float(t_net.get(d, 0)) for d in all_dates]
-        date_strs = [d.strftime("%m/%d") if hasattr(d, "strftime") else str(d) for d in all_dates]
+        # Groupby 產業
+        sector = df_merge.groupby("industry_category").agg(
+            外資淨買=("外資淨買（億）", "sum"),
+            投信淨買=("投信淨買（億）", "sum"),
+            檔數=("stock_id", "count")
+        ).reset_index()
+        sector = sector.rename(columns={"industry_category": "產業別"})
+        sector["外資淨買"] = sector["外資淨買"].round(2)
+        sector["投信淨買"] = sector["投信淨買"].round(2)
+        return sector.sort_values("外資淨買", ascending=False).reset_index(drop=True)
 
-        # 融資餘額
-        margin_col = next((c for c in df_c.columns if "MarginPurchaseTodayBalance" in c), None)
-        margin_vals, margin_dates = [], []
-        if margin_col:
-            margin_df = df_c[df_c["source"].astype(str) == "margin"] if "source" in df_c.columns else pd.DataFrame()
-            if not margin_df.empty:
-                mg = margin_df.groupby("date")[margin_col].last().sort_index().tail(20)
-                margin_vals  = pd.to_numeric(mg, errors="coerce").fillna(0).tolist()
-                margin_dates = [d.strftime("%m/%d") if hasattr(d, "strftime") else str(d) for d in mg.index]
+    df_sector = build_sector_flow()
 
-        # ── AI 短評（近5日）
-        recent_f = f_vals[-5:] if len(f_vals) >= 5 else f_vals
-        recent_t = t_vals[-5:] if len(t_vals) >= 5 else t_vals
-        combined  = [f + t for f, t in zip(recent_f, recent_t)]
-        buy_days  = sum(1 for v in combined if v > 0)
-        total_net = sum(combined)
-
-        if buy_days >= 3 and total_net > 0:
-            st.success(
-                f"🔥 【大資金湧入】法人近5日買超 {buy_days} 天，"
-                f"累積買超 {total_net/1000:.0f} 張，"
-                f"暗示其背後產業板塊具備波段動能，可作為選股方向！"
-            )
-        elif buy_days <= 2 and total_net < 0:
-            st.warning(
-                f"⚠️ 【主力提款】法人近5日賣超居多，"
-                f"累積賣超 {abs(total_net)/1000:.0f} 張，"
-                f"請留意該 ETF 關聯產業之修正風險。"
-            )
-        else:
-            st.info(f"📊 近5日法人買超 {buy_days} 天，多空訊號混沌，持續觀察中。")
-
-        # ── 雙軸圖：外資/投信買賣超（主軸）+ 融資餘額（副軸）
-        fig_radar = make_subplots(specs=[[{"secondary_y": True}]])
-
-        fig_radar.add_trace(go.Bar(
-            x=date_strs, y=f_vals, name="外資買賣超",
-            marker_color=["#ff5252" if v >= 0 else "#00e676" for v in f_vals],
-            opacity=0.85,
-        ), secondary_y=False)
-
-        fig_radar.add_trace(go.Bar(
-            x=date_strs, y=t_vals, name="投信買賣超",
-            marker_color=["#ff9800" if v >= 0 else "#69f0ae" for v in t_vals],
-            opacity=0.85,
-        ), secondary_y=False)
-
-        if margin_vals:
-            fig_radar.add_trace(go.Scatter(
-                x=margin_dates, y=margin_vals,
-                name="融資餘額", mode="lines+markers",
-                line=dict(color="#e040fb", width=2),
-                marker=dict(size=5),
-            ), secondary_y=True)
-
-        fig_radar.update_layout(
-            **base_layout(f"{radar_sid} 近20日主力資金雷達", 420),
-            barmode="relative",
+    if df_sector.empty:
+        st.warning("產業板塊資料載入失敗，請確認 chips_data.csv 與 stock_info.csv 是否存在。")
+    else:
+        # 選擇法人類型
+        flow_type = st.radio(
+            "選擇資金流向",
+            ["🏦 外資板塊資金流", "📊 投信板塊資金流"],
+            horizontal=True, key="sector_flow_type"
         )
-        fig_radar.update_yaxes(title_text="買賣超（股）", secondary_y=False, gridcolor="#1e3a5f")
-        fig_radar.update_yaxes(title_text="融資餘額（股）", secondary_y=True, showgrid=False)
-        st.plotly_chart(fig_radar, width='stretch')
+        col_name = "外資淨買" if "外資" in flow_type else "投信淨買"
+        label    = "外資" if "外資" in flow_type else "投信"
 
+        # 排序
+        df_sorted = df_sector.sort_values(col_name, ascending=False).reset_index(drop=True)
 
-        # ══════════════════════════════════════════════
-        # 🌐 產業板塊資金熱力圖
-        # ══════════════════════════════════════════════
-        st.markdown("---")
-        st.markdown("<div class='sec-title'>🌐 產業板塊資金熱力圖 · Sector Fund Flow</div>",
-                    unsafe_allow_html=True)
+        # 取前15買超 + 前10賣超
+        top_buy  = df_sorted.head(15)
+        top_sell = df_sorted[df_sorted[col_name] < 0].tail(10)
+        df_plot  = pd.concat([top_buy, top_sell]).drop_duplicates("產業別")
+        df_plot  = df_plot.sort_values(col_name, ascending=True)  # 水平長條圖由小到大
 
-        st.info(
-            "💡 **量化戰略提示**：結合 Tab1 的選股掃描儀，優先在「法人資金淨流入排行榜前三名」"
-            "的產業板塊中，尋找突破均線的強勢個股，勝率最高。"
+        colors = ["#ff5252" if v >= 0 else "#00e676" for v in df_plot[col_name]]
+
+        fig_sector = go.Figure(go.Bar(
+            x=df_plot[col_name],
+            y=df_plot["產業別"],
+            orientation="h",
+            marker_color=colors,
+            text=[f"{v:+.2f}億" for v in df_plot[col_name]],
+            textposition="outside",
+            hovertemplate="%{y}<br>" + label + "淨買：%{x:.2f}億<extra></extra>",
+        ))
+        layout_s = base_layout(f"{label}板塊資金流向（最新交易日，單位：億元）", 580)
+        layout_s["margin"] = dict(l=180, r=80, t=44, b=34)
+        layout_s["xaxis_title"] = f"{label}淨買超（億元）"
+        layout_s["yaxis_title"] = ""
+        fig_sector.update_layout(**layout_s)
+        fig_sector.update_xaxes(gridcolor="#1e3a5f")
+        st.plotly_chart(fig_sector, width='stretch')
+
+        # 前三名提示
+        top3 = df_sorted.head(3)["產業別"].tolist()
+        st.success(
+            f"🏆 **{label}資金淨流入前三大板塊：** "
+            + "　".join(f"**{i+1}. {s}**" for i, s in enumerate(top3))
+            + "　→ 建議優先在這些板塊中執行 Tab1 選股掃描！"
         )
 
-        @st.cache_data(ttl=3600, show_spinner="計算產業板塊資金流向...")
-        def build_sector_flow() -> pd.DataFrame:
-            # 讀取籌碼
-            df_c, ok_c = load_csv("chips_data.csv")
-            if not ok_c or df_c.empty:
-                return pd.DataFrame()
-
-            # 讀取股票資訊（含產業別）
-            df_si, ok_si = load_csv("stock_info.csv")
-            if not ok_si or df_si.empty:
-                return pd.DataFrame()
-
-            df_si["stock_id"] = df_si["stock_id"].astype(str).str.strip()
-            df_c["stock_id"]  = df_c["stock_id"].astype(str).str.strip()
-
-            # 取得產業別（只取有名稱的）
-            if "industry_category" not in df_si.columns:
-                return pd.DataFrame()
-
-            # 優先取有中文名稱的 stock_info
-            df_si_clean = df_si[df_si["stock_name"] != df_si["stock_id"]].copy()
-            df_si_clean = df_si_clean[["stock_id","industry_category"]].drop_duplicates("stock_id")
-            df_si_clean = df_si_clean[df_si_clean["industry_category"].notna()]
-
-            # 整理籌碼資料
-            if "date" not in df_c.columns or "name" not in df_c.columns or "net" not in df_c.columns:
-                return pd.DataFrame()
-
-            df_c["date"] = pd.to_datetime(df_c["date"], errors="coerce")
-            df_c["net"]  = pd.to_numeric(df_c["net"], errors="coerce").fillna(0)
-
-            latest = df_c["date"].max()
-            df_latest = df_c[df_c["date"] == latest].copy()
-
-            # 外資、投信
-            foreign = df_latest[df_latest["name"].astype(str).str.contains("Foreign_Investor", na=False)]
-            trust   = df_latest[df_latest["name"].astype(str).str.contains("Investment_Trust", na=False)]
-
-            f_net = foreign.groupby("stock_id")["net"].sum().reset_index().rename(columns={"net":"外資淨買（股）"})
-            t_net = trust.groupby("stock_id")["net"].sum().reset_index().rename(columns={"net":"投信淨買（股）"})
-
-            # Merge
-            df_merge = df_si_clean.merge(f_net, on="stock_id", how="left")
-            df_merge = df_merge.merge(t_net, on="stock_id", how="left")
-            df_merge["外資淨買（股）"] = df_merge["外資淨買（股）"].fillna(0)
-            df_merge["投信淨買（股）"] = df_merge["投信淨買（股）"].fillna(0)
-
-            # 換算億元（1股≈1000股/張，此為股數）
-            df_merge["外資淨買（億）"] = (df_merge["外資淨買（股）"] / 1e8).round(2)
-            df_merge["投信淨買（億）"] = (df_merge["投信淨買（股）"] / 1e8).round(2)
-
-            # Groupby 產業
-            sector = df_merge.groupby("industry_category").agg(
-                外資淨買=("外資淨買（億）", "sum"),
-                投信淨買=("投信淨買（億）", "sum"),
-                檔數=("stock_id", "count")
-            ).reset_index()
-            sector = sector.rename(columns={"industry_category": "產業別"})
-            sector["外資淨買"] = sector["外資淨買"].round(2)
-            sector["投信淨買"] = sector["投信淨買"].round(2)
-            return sector.sort_values("外資淨買", ascending=False).reset_index(drop=True)
-
-        df_sector = build_sector_flow()
-
-        if df_sector.empty:
-            st.warning("產業板塊資料載入失敗，請確認 chips_data.csv 與 stock_info.csv 是否存在。")
-        else:
-            # 選擇法人類型
-            flow_type = st.radio(
-                "選擇資金流向",
-                ["🏦 外資板塊資金流", "📊 投信板塊資金流"],
-                horizontal=True, key="sector_flow_type"
-            )
-            col_name = "外資淨買" if "外資" in flow_type else "投信淨買"
-            label    = "外資" if "外資" in flow_type else "投信"
-
-            # 排序
-            df_sorted = df_sector.sort_values(col_name, ascending=False).reset_index(drop=True)
-
-            # 取前15買超 + 前10賣超
-            top_buy  = df_sorted.head(15)
-            top_sell = df_sorted[df_sorted[col_name] < 0].tail(10)
-            df_plot  = pd.concat([top_buy, top_sell]).drop_duplicates("產業別")
-            df_plot  = df_plot.sort_values(col_name, ascending=True)  # 水平長條圖由小到大
-
-            colors = ["#ff5252" if v >= 0 else "#00e676" for v in df_plot[col_name]]
-
-            fig_sector = go.Figure(go.Bar(
-                x=df_plot[col_name],
-                y=df_plot["產業別"],
-                orientation="h",
-                marker_color=colors,
-                text=[f"{v:+.2f}億" for v in df_plot[col_name]],
-                textposition="outside",
-                hovertemplate="%{y}<br>" + label + "淨買：%{x:.2f}億<extra></extra>",
-            ))
-            layout_s = base_layout(f"{label}板塊資金流向（最新交易日，單位：億元）", 580)
-            layout_s["margin"] = dict(l=180, r=80, t=44, b=34)
-            layout_s["xaxis_title"] = f"{label}淨買超（億元）"
-            layout_s["yaxis_title"] = ""
-            fig_sector.update_layout(**layout_s)
-            fig_sector.update_xaxes(gridcolor="#1e3a5f")
-            st.plotly_chart(fig_sector, width='stretch')
-
-            # 前三名提示
-            top3 = df_sorted.head(3)["產業別"].tolist()
-            st.success(
-                f"🏆 **{label}資金淨流入前三大板塊：** "
-                + "　".join(f"**{i+1}. {s}**" for i, s in enumerate(top3))
-                + "　→ 建議優先在這些板塊中執行 Tab1 選股掃描！"
-            )
-
-            # 明細表
-            with st.expander("📋 完整產業板塊明細", expanded=False):
-                show_df = df_sector[["產業別", "外資淨買", "投信淨買", "檔數"]].copy()
-                show_df.columns = ["產業別", "外資淨買（億）", "投信淨買（億）", "涵蓋檔數"]
-                st.markdown(df_to_html(show_df, height=400), unsafe_allow_html=True)
+        # 明細表
+        with st.expander("📋 完整產業板塊明細", expanded=False):
+            show_df = df_sector[["產業別", "外資淨買", "投信淨買", "檔數"]].copy()
+            show_df.columns = ["產業別", "外資淨買（億）", "投信淨買（億）", "涵蓋檔數"]
+            st.markdown(df_to_html(show_df, height=400), unsafe_allow_html=True)
 
 
-    # ──────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
 
-    # ──────────────────────────────────────────────────────────────
-    except Exception as _e6:
-        st.error(f"Tab6 錯誤：{_e6}")
-        import traceback as _tb6
-        st.code(_tb6.format_exc())
-
-# ▌ TAB 7：策略回測實驗室
 # ──────────────────────────────────────────────────────────────
 with tab7:
     st.header("🧪 策略回測實驗室")
