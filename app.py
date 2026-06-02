@@ -2056,6 +2056,131 @@ with tab2:
                 st.info("財報 CSV 尚無此股票資料")
 
 # ──────────────────────────────────────────────────────────────
+# ▌ 換股推薦面板（Tab2 底部）
+# ──────────────────────────────────────────────────────────────
+with tab2:
+    st.markdown("---")
+    st.markdown("<div class='sec-title'>🔄 既有資產優化與換股推薦面板</div>",
+                unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>系統自動掃描監控名單，識別弱勢標的並推薦強勢轉進標的。</div>",
+        unsafe_allow_html=True
+    )
+
+    # 取得所有監控標的
+    all_watch = st.session_state.get("watchlist", []) + st.session_state.get("watchlist_scan", [])
+    seen_ids = set()
+    watch_dedup = []
+    for w in all_watch:
+        if w["id"] not in seen_ids:
+            seen_ids.add(w["id"])
+            watch_dedup.append(w)
+
+    if not watch_dedup:
+        st.info("監控清單為空，請先加入標的。")
+    else:
+        weak_list   = []  # 弱勢待汰
+        strong_list = []  # 強勢轉進
+
+        for w in watch_dedup:
+            sid  = w["id"]
+            name = w.get("name", sid)
+            df_p, ok_p = load_price_csv(sid)
+            if not ok_p or df_p.empty or len(df_p) < 20:
+                continue
+            df_i = add_indicators(df_p)
+            lt = df_i.iloc[-1]
+
+            close   = float(lt["Close"])
+            ema5    = float(lt.get("EMA5",   float("nan")))
+            bb_mid  = float(lt.get("BB_MID", float("nan")))
+            vol     = float(lt.get("Volume", 0))
+            vma5    = float(lt.get("VMA5",   float("nan")))
+
+            if any(np.isnan(v) for v in [ema5, bb_mid]):
+                continue
+
+            # 弱勢條件：現價 < EMA5 且 現價 < BB_MID 且 EMA5 < BB_MID
+            is_weak = (close < ema5) and (close < bb_mid) and (ema5 < bb_mid)
+
+            # 強勢條件：現價 >= EMA5 且 現價 >= BB_MID 且 量 <= VMA5*0.45
+            is_strong = (
+                (close >= ema5) and
+                (close >= bb_mid) and
+                (not np.isnan(vma5) and vma5 > 0 and vol <= vma5 * 0.45)
+            )
+
+            if is_weak:
+                weak_list.append({"id": sid, "name": name, "close": close,
+                                  "ema5": ema5, "bb_mid": bb_mid})
+            if is_strong:
+                strong_list.append({"id": sid, "name": name, "close": close,
+                                    "ema5": ema5, "bb_mid": bb_mid, "vol_ratio": vol/vma5})
+
+        # ── 弱勢警示
+        if weak_list:
+            st.markdown("#### 🔴 弱勢標的（建議汰弱）")
+            for w in weak_list:
+                st.markdown(
+                    f"<div style='background:rgba(255,82,82,0.1);border-left:4px solid #ff5252;"
+                    f"border-radius:8px;padding:12px 16px;margin:6px 0;'>"
+                    f"<b style='color:#ff5252;'>{w['id']} {w['name']}</b>"
+                    f"<span style='color:#ffcdd2;font-size:.85rem;'>"
+                    f"　收盤 {w['close']:.1f} ｜ EMA5 {w['ema5']:.1f} ｜ 布林中軌 {w['bb_mid']:.1f}</span><br>"
+                    f"<span style='color:#ff8a80;font-size:.88rem;'>"
+                    f"⚠️ 建議執行汰弱留強，清倉此部位。</span></div>",
+                    unsafe_allow_html=True
+                )
+        else:
+            st.success("✅ 監控名單中目前無弱勢標的，持股結構健康。")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── 強勢轉進推薦
+        st.markdown("#### 🎯 強勢轉進推薦")
+
+        # 若監控名單有強勢股，優先推薦
+        if strong_list:
+            # 依量比排序（越小越縮量）
+            strong_list.sort(key=lambda x: x["vol_ratio"])
+            for s in strong_list[:3]:
+                # 找被汰弱的標的配對
+                weak_names = "、".join(f"{w['name']}({w['id']})" for w in weak_list) if weak_list else "弱勢部位"
+                st.markdown(
+                    f"<div style='background:rgba(0,230,118,0.1);border-left:4px solid #00e676;"
+                    f"border-radius:8px;padding:12px 16px;margin:6px 0;'>"
+                    f"<b style='color:#00e676;'>🎯 {weak_names} 解凍資金最佳轉進標的："
+                    f"{s['name']} ({s['id']})</b><br>"
+                    f"<span style='color:#b9f6ca;font-size:.85rem;'>"
+                    f"收盤 {s['close']:.1f} ｜ EMA5 {s['ema5']:.1f} ｜ "
+                    f"量比 {s['vol_ratio']:.2f}（縮量惜售）——"
+                    f" 當前技術面與籌碼鎖定度最高。</span></div>",
+                    unsafe_allow_html=True
+                )
+        else:
+            # 監控名單無強勢股，從 Tab1 掃描結果取前3
+            scan_results = st.session_state.get("scan_results", [])
+            if scan_results:
+                df_scan = pd.DataFrame(scan_results)
+                # 取籌碼得分最高前3
+                top3 = df_scan.sort_values("籌碼得分", ascending=False).head(3)
+                weak_names = "、".join(f"{w['name']}({w['id']})" for w in weak_list) if weak_list else "弱勢部位"
+                for _, row in top3.iterrows():
+                    st.markdown(
+                        f"<div style='background:rgba(0,212,255,0.1);border-left:4px solid #00d4ff;"
+                        f"border-radius:8px;padding:12px 16px;margin:6px 0;'>"
+                        f"<b style='color:#00d4ff;'>🎯 {weak_names} 解凍資金推薦轉進："
+                        f"{row.get('名稱','—')} ({row.get('代號','—')})</b><br>"
+                        f"<span style='color:#b3e5fc;font-size:.85rem;'>"
+                        f"籌碼得分 {row.get('籌碼得分',0)}/6 ｜ EPS {row.get('EPS_TTM','—')} ｜"
+                        f" P/E {row.get('P/E','—')} ——"
+                        f" 來自最新掃描結果高分標的。</span></div>",
+                        unsafe_allow_html=True
+                    )
+            else:
+                st.info("📊 監控名單中目前無符合強勢條件的標的。建議先執行 Tab1 掃描，系統將自動從結果中推薦轉進標的。")
+
+# ──────────────────────────────────────────────────────────────
 # ▌ TAB 3：大盤預警
 # ──────────────────────────────────────────────────────────────
 with tab3:
