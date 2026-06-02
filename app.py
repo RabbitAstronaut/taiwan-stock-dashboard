@@ -3742,6 +3742,14 @@ with tab7:
             horizontal=True, key="bt_strategy"
         )
 
+    bt_sl_c1, bt_sl_c2 = st.columns([2, 6])
+    with bt_sl_c1:
+        bt_stop_loss = st.number_input(
+            "🛡️ 單筆強制停損 (%)",
+            value=10.0, step=1.0, min_value=1.0, max_value=50.0,
+            key="bt_stop_loss"
+        )
+
     st.markdown("---")
 
     if st.button("🚀 開始回測", type="primary", key="bt_run"):
@@ -3857,14 +3865,23 @@ with tab7:
                         raw_exit   = below_ma20 | (~eps_positive)
                         strat_name = "財報＋技術＋籌碼"
 
-                    # ── 持倉狀態（正確：買進後抱住，直到出場訊號）
-                    position_arr = np.zeros(len(df_bt), dtype=int)
-                    in_pos = False
+                    # ── 持倉狀態（買進後抱住 + 硬性停損保護）
+                    stop_loss_pct = bt_stop_loss / 100.0
+                    position_arr  = np.zeros(len(df_bt), dtype=int)
+                    in_pos        = False
+                    entry_price   = 0.0
                     for i in range(len(df_bt)):
+                        current_price = float(df_bt["Close"].iloc[i])
                         if not in_pos and raw_buy.iloc[i]:
-                            in_pos = True
-                        elif in_pos and raw_exit.iloc[i]:
-                            in_pos = False
+                            in_pos      = True
+                            entry_price = current_price
+                        elif in_pos:
+                            # 第一道防線：硬性停損
+                            if entry_price > 0 and (current_price - entry_price) / entry_price <= -stop_loss_pct:
+                                in_pos = False
+                            # 第二道防線：策略技術出場
+                            elif raw_exit.iloc[i]:
+                                in_pos = False
                         position_arr[i] = 1 if in_pos else 0
 
                     df_bt["position"] = position_arr
