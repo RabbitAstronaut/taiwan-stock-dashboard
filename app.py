@@ -3495,11 +3495,14 @@ with tab6:
     st.plotly_chart(fig_etf, width='stretch')
 
     st.markdown("### 📋 財務總表")
-    pivot = df_forecast.pivot_table(index="月份", columns="ETF", values="預估現金流", aggfunc="sum", fill_value=0).reset_index()
-    pivot.columns.name = None
-    etf_cols = [c for c in pivot.columns if c != "月份"]
-    pivot["合計（元）"] = pivot[etf_cols].sum(axis=1)
-    st.markdown(df_to_html(pivot, height=440), unsafe_allow_html=True)
+    if not df_forecast.empty and "ETF" in df_forecast.columns and "月份" in df_forecast.columns:
+        pivot = df_forecast.pivot_table(index="月份", columns="ETF", values="預估現金流", aggfunc="sum", fill_value=0).reset_index()
+        pivot.columns.name = None
+        etf_cols = [c for c in pivot.columns if c != "月份"]
+        pivot["合計（元）"] = pivot[etf_cols].sum(axis=1)
+        st.markdown(df_to_html(pivot, height=440), unsafe_allow_html=True)
+    else:
+        st.info("請先輸入張數並確認試算以顯示財務總表。")
 
 
     # ══════════════════════════════════════════════
