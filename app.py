@@ -3723,10 +3723,11 @@ with tab6:
 
 
 # ──────────────────────────────────────────────────────────────
+
+# ──────────────────────────────────────────────────────────────
 # ▌ TAB 7：策略回測實驗室
 # ──────────────────────────────────────────────────────────────
 with tab7:
-    st.write("TAB7 LOADED")  # debug
     st.markdown("<div class='sec-title'>🧪 策略回測實驗室</div>", unsafe_allow_html=True)
     st.markdown(
         "<div class='infobox'>選擇股票與策略維度，驗證財報/技術/籌碼因子的有效性。"
@@ -3734,138 +3735,182 @@ with tab7:
         unsafe_allow_html=True
     )
 
-    # ── 參數設定
-    bt_c1, bt_c2, bt_c3 = st.columns([2, 2, 2])
+    bt_c1, bt_c2, bt_c3 = st.columns([2, 2, 3])
     with bt_c1:
-        bt_sid = st.text_input("股票代號", value="2330", key="bt_sid",
-                               placeholder="如 2330")
+        bt_sid = st.text_input("股票代號", value="2330", key="bt_sid")
     with bt_c2:
         bt_capital = st.number_input("初始資金（元）", value=100000, step=10000,
                                       min_value=10000, key="bt_capital")
     with bt_c3:
         bt_strategy = st.radio(
-            "📊 選擇回測策略維度：",
-            ["1️⃣ 純財報基本面",
-             "2️⃣ 技術面＋籌碼面",
-             "3️⃣ 財報＋技術＋籌碼（全方位）"],
-            key="bt_strategy"
+            "策略維度",
+            ["1️⃣ 純財報基本面", "2️⃣ 技術面＋籌碼面", "3️⃣ 財報＋技術＋籌碼（全方位）"],
+            horizontal=True, key="bt_strategy"
         )
 
     st.markdown("---")
 
     if st.button("🚀 開始回測", type="primary", key="bt_run"):
-        st.write("✅ 按鈕已按下")
         sid_bt = bt_sid.strip()
-        st.write(f"股票代號：{sid_bt}")
         if not sid_bt:
             st.warning("請輸入股票代號")
         else:
             try:
-                with st.spinner("載入資料中..."):
+                with st.spinner(f"載入 {sid_bt} 資料中..."):
                     df_k, ok_k = load_price_csv(sid_bt)
 
                 if not ok_k or df_k.empty or len(df_k) < 30:
                     st.error(f"{sid_bt} 無足夠 K 線資料（需 30 日以上）")
                 else:
-                    # K線已以 date 為 index
+                    # ── K線整理（index 已是 date）
                     df_k = df_k.copy()
                     df_k.index = pd.to_datetime(df_k.index, errors="coerce")
                     df_k = df_k[~df_k.index.isna()].sort_index()
                     df_k["Close"]  = pd.to_numeric(df_k["Close"],  errors="coerce")
-                    df_k["Volume"] = pd.to_numeric(df_k.get("Volume", 0), errors="coerce").fillna(0)
-                    df_k["MA20"]   = df_k["Close"].rolling(20).mean()
-                    df_k = df_k.dropna(subset=["Close","MA20"])
+                    df_k["Volume"] = pd.to_numeric(df_k.get("Volume", pd.Series(0, index=df_k.index)),
+                                                   errors="coerce").fillna(0)
+                    df_k["MA20"]  = df_k["Close"].rolling(20).mean()
+                    df_k["VMA5"]  = df_k["Volume"].rolling(5).mean()
+                    df_k = df_k.dropna(subset=["Close", "MA20"])
 
-                    # 載入財報
+                    # ── 財報（EPS）
                     df_fin_bt, ok_fin_bt = get_financials(sid_bt)
-                    eps_by_date = pd.Series(dtype=float, name="eps_q")
+                    eps_series = pd.Series(dtype=float)
                     if ok_fin_bt and not df_fin_bt.empty and "type" in df_fin_bt.columns:
                         df_fin_bt["date"]  = pd.to_datetime(df_fin_bt["date"], errors="coerce")
                         df_fin_bt["value"] = pd.to_numeric(df_fin_bt["value"], errors="coerce")
-                        eps_q = df_fin_bt[df_fin_bt["type"]=="EPS"].dropna(subset=["date"])
+                        eps_q = df_fin_bt[df_fin_bt["type"] == "EPS"].dropna(subset=["date"])
                         if not eps_q.empty:
-                            eps_by_date = eps_q.set_index("date")["value"].sort_index()
+                            eps_series = eps_q.set_index("date")["value"].sort_index()
 
-                    # 載入籌碼
+                    # ── 籌碼（外資+投信+融資）
                     df_c_bt, ok_c_bt = get_chips(sid_bt)
-                    inst_by_date = pd.Series(dtype=float, name="inst_net")
-                    if ok_c_bt and not df_c_bt.empty and "date" in df_c_bt.columns and "net" in df_c_bt.columns and "name" in df_c_bt.columns:
-                        df_c_bt["date"] = pd.to_datetime(df_c_bt["date"], errors="coerce")
-                        df_c_bt["net"]  = pd.to_numeric(df_c_bt["net"], errors="coerce").fillna(0)
-                        inst = df_c_bt[df_c_bt["name"].astype(str).str.contains("Foreign_Investor|Investment_Trust", na=False)]
-                        inst_by_date = inst.groupby("date")["net"].sum().sort_index()
+                    foreign_series = pd.Series(0.0, index=df_k.index, name="foreign")
+                    trust_series   = pd.Series(0.0, index=df_k.index, name="trust")
+                    margin_series  = pd.Series(0.0, index=df_k.index, name="margin_chg")
 
-                    # Merge 財報到日K（ffill）
+                    if ok_c_bt and not df_c_bt.empty:
+                        df_c_bt["date"] = pd.to_datetime(df_c_bt.get("date"), errors="coerce")
+                        df_c_bt["net"]  = pd.to_numeric(df_c_bt.get("net", 0), errors="coerce").fillna(0)
+                        if "name" in df_c_bt.columns:
+                            f_df = df_c_bt[df_c_bt["name"].astype(str).str.contains("Foreign_Investor", na=False)]
+                            t_df = df_c_bt[df_c_bt["name"].astype(str).str.contains("Investment_Trust", na=False)]
+                            if not f_df.empty:
+                                f_grp = f_df.groupby("date")["net"].sum()
+                                foreign_series = f_grp.reindex(df_k.index).fillna(0)
+                            if not t_df.empty:
+                                t_grp = t_df.groupby("date")["net"].sum()
+                                trust_series = t_grp.reindex(df_k.index).fillna(0)
+                        # 融資變化
+                        mg_col = next((c for c in df_c_bt.columns if "MarginPurchaseTodayBalance" in c), None)
+                        if mg_col:
+                            mg_df = df_c_bt.dropna(subset=["date"]).groupby("date")[mg_col].last().sort_index()
+                            mg_num = pd.to_numeric(mg_df, errors="coerce").fillna(method="ffill")
+                            mg_chg = mg_num.diff().reindex(df_k.index).fillna(0)
+                            margin_series = mg_chg
+
+                    # ── 合併到 df_bt
                     df_bt = df_k.copy()
-                    if not eps_by_date.empty:
-                        combined_idx = df_bt.index.union(eps_by_date.index)
-                        df_bt["eps_q"] = eps_by_date.reindex(combined_idx).ffill().reindex(df_bt.index)
+                    if not eps_series.empty:
+                        combined_idx = df_bt.index.union(eps_series.index)
+                        df_bt["eps_q"] = eps_series.reindex(combined_idx).ffill().reindex(df_bt.index)
                     else:
                         df_bt["eps_q"] = np.nan
 
-                    if not inst_by_date.empty:
-                        df_bt["inst_net"] = inst_by_date.reindex(df_bt.index).fillna(0)
-                    else:
-                        df_bt["inst_net"] = 0.0
+                    df_bt["foreign"]    = foreign_series.values if len(foreign_series)==len(df_bt) else 0
+                    df_bt["trust"]      = trust_series.values   if len(trust_series)==len(df_bt)   else 0
+                    df_bt["margin_chg"] = margin_series.values  if len(margin_series)==len(df_bt)  else 0
+                    df_bt = df_bt.fillna({"foreign":0,"trust":0,"margin_chg":0})
 
-                    # 訊號條件
-                    cond_fin       = df_bt["eps_q"].fillna(0) > 0
-                    cond_tech_chip = (df_bt["Close"] > df_bt["MA20"]) & (df_bt["inst_net"] > 0)
+                    # ── 訊號條件
+                    above_ma20   = df_bt["Close"] > df_bt["MA20"]
+                    below_ma20   = df_bt["Close"] < df_bt["MA20"]
+                    eps_positive = df_bt["eps_q"].fillna(0) > 0
+
+                    # 策略2：技籌條件（放寬：任何大資金或放量跡象）
+                    any_buy_chip = (
+                        (df_bt["foreign"]    > 0) |
+                        (df_bt["trust"]      > 0) |
+                        (df_bt["margin_chg"] > 0) |
+                        (df_bt["Volume"]     > df_bt["VMA5"].fillna(0))
+                    )
 
                     if "1️⃣" in bt_strategy:
-                        buy_signal  = cond_fin
-                        sell_signal = ~cond_fin
-                        strat_name  = "純財報基本面"
+                        raw_buy  = eps_positive
+                        raw_exit = ~eps_positive
+                        strat_name = "純財報基本面"
                     elif "2️⃣" in bt_strategy:
-                        buy_signal  = cond_tech_chip
-                        sell_signal = df_bt["Close"] < df_bt["MA20"]
-                        strat_name  = "技術面＋籌碼面"
+                        raw_buy  = above_ma20 & any_buy_chip
+                        raw_exit = below_ma20
+                        strat_name = "技術面＋籌碼面"
                     else:
-                        buy_signal  = cond_fin & cond_tech_chip
-                        sell_signal = (df_bt["Close"] < df_bt["MA20"]) | (~cond_fin)
-                        strat_name  = "財報＋技術＋籌碼"
+                        raw_buy  = eps_positive & above_ma20 & any_buy_chip
+                        raw_exit = below_ma20 | (~eps_positive)
+                        strat_name = "財報＋技術＋籌碼"
 
-                    # 回測模擬
+                    # ── 持倉狀態（正確：買進後抱住，直到出場訊號）
+                    position_arr = np.zeros(len(df_bt), dtype=int)
+                    in_pos = False
+                    for i in range(len(df_bt)):
+                        if not in_pos and raw_buy.iloc[i]:
+                            in_pos = True
+                        elif in_pos and raw_exit.iloc[i]:
+                            in_pos = False
+                        position_arr[i] = 1 if in_pos else 0
+
+                    df_bt["position"] = position_arr
+
+                    # ── 資金曲線
                     capital  = float(bt_capital)
-                    position = 0
                     cash     = capital
+                    shares   = 0
                     equity   = []
-                    in_trade = False
+                    trades   = 0
 
                     for i in range(len(df_bt)):
                         price = float(df_bt["Close"].iloc[i])
-                        if not in_trade and buy_signal.iloc[i]:
-                            shares = int(cash / price / 1000) * 1000
-                            if shares > 0:
-                                position = shares
-                                cash    -= position * price
-                                in_trade = True
-                        elif in_trade and sell_signal.iloc[i]:
-                            cash    += position * price
-                            position = 0
-                            in_trade = False
-                        equity.append(cash + position * price)
+                        pos   = df_bt["position"].iloc[i]
+                        prev  = df_bt["position"].iloc[i-1] if i > 0 else 0
+
+                        if pos == 1 and prev == 0:  # 買進
+                            qty = int(cash / price / 1000) * 1000
+                            if qty > 0:
+                                shares = qty
+                                cash  -= shares * price
+                                trades += 1
+                        elif pos == 0 and prev == 1:  # 賣出
+                            cash  += shares * price
+                            shares = 0
+
+                        equity.append(cash + shares * price)
 
                     df_bt["equity_strat"] = equity
                     df_bt["equity_bnh"]   = capital * (df_bt["Close"] / df_bt["Close"].iloc[0])
 
-                    final_strat = df_bt["equity_strat"].iloc[-1]
-                    final_bnh   = df_bt["equity_bnh"].iloc[-1]
-                    ret_strat   = (final_strat - capital) / capital * 100
-                    ret_bnh     = (final_bnh   - capital) / capital * 100
-                    peak_strat  = df_bt["equity_strat"].cummax()
-                    dd_strat    = ((df_bt["equity_strat"] - peak_strat) / peak_strat * 100).min()
+                    # 若最後還在倉，計算已實現+未實現
+                    if shares > 0:
+                        last_price = float(df_bt["Close"].iloc[-1])
+                        final_strat = cash + shares * last_price
+                    else:
+                        final_strat = df_bt["equity_strat"].iloc[-1]
 
-                    # 績效顯示
+                    final_bnh  = df_bt["equity_bnh"].iloc[-1]
+                    ret_strat  = (final_strat - capital) / capital * 100
+                    ret_bnh    = (final_bnh   - capital) / capital * 100
+                    peak       = df_bt["equity_strat"].cummax()
+                    dd_strat   = ((df_bt["equity_strat"] - peak) / peak * 100).min()
+
+                    # ── 績效顯示
                     st.markdown(f"### 📊 {sid_bt} 回測結果｜策略：{strat_name}")
-                    m1, m2, m3, m4 = st.columns(4)
+                    m1, m2, m3, m4, m5 = st.columns(5)
                     m1.metric("策略總報酬", f"{ret_strat:+.1f}%",
-                              delta=f"{'優於' if ret_strat>ret_bnh else '遜於'} B&H {ret_strat-ret_bnh:+.1f}%")
+                              delta=f"{'優' if ret_strat>ret_bnh else '遜'}於B&H {ret_strat-ret_bnh:+.1f}%")
                     m2.metric("買入持有報酬", f"{ret_bnh:+.1f}%")
                     m3.metric("策略最大回撤", f"{dd_strat:.1f}%")
-                    m4.metric("回測期間", f"{len(df_bt)} 日")
+                    m4.metric("交易次數", f"{trades} 次")
+                    m5.metric("回測天數", f"{len(df_bt)} 日")
 
-                    # 資金曲線圖
+                    # ── 資金曲線圖
                     st.markdown("### 📈 資金曲線對比")
                     fig_bt = go.Figure()
                     fig_bt.add_trace(go.Scatter(
@@ -3879,9 +3924,27 @@ with tab7:
                         mode="lines", line=dict(color="#00d4ff", width=2),
                         fill="tonexty", fillcolor="rgba(0,212,255,0.05)"
                     ))
-                    fig_bt.update_layout(**base_layout(f"{sid_bt} 策略回測資金曲線", 460))
+                    # 標記買賣點
+                    buy_pts  = df_bt[(df_bt["position"]==1) & (df_bt["position"].shift(1).fillna(0)==0)]
+                    sell_pts = df_bt[(df_bt["position"]==0) & (df_bt["position"].shift(1).fillna(0)==1)]
+                    if not buy_pts.empty:
+                        fig_bt.add_trace(go.Scatter(
+                            x=buy_pts.index, y=buy_pts["equity_strat"],
+                            mode="markers", name="買入",
+                            marker=dict(color="#ff5252", size=8, symbol="triangle-up")
+                        ))
+                    if not sell_pts.empty:
+                        fig_bt.add_trace(go.Scatter(
+                            x=sell_pts.index, y=sell_pts["equity_strat"],
+                            mode="markers", name="賣出",
+                            marker=dict(color="#00e676", size=8, symbol="triangle-down")
+                        ))
+                    fig_bt.update_layout(**base_layout(f"{sid_bt} 策略回測資金曲線", 480))
                     fig_bt.update_yaxes(gridcolor="#1e3a5f")
                     st.plotly_chart(fig_bt, width='stretch')
+
+                    # ── 持倉區間說明
+                    st.caption(f"▲紅三角=買入  ▼綠三角=賣出  共 {trades} 次進場")
 
             except Exception as _e:
                 st.error(f"回測發生錯誤：{_e}")
