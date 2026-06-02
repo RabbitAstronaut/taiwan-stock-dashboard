@@ -889,13 +889,14 @@ st.markdown(f"""
 # ══════════════════════════════════════════════════════════════
 # ▌ 三大分頁
 # ══════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🔍 選股掃描儀",
     "📡 大數據雷達",
     "🚨 持股監控",
     "📡 大盤預警",
     "📝 每日作戰總部",
     "💰 ETF存股現金流",
+    "🧪 策略回測實驗室",
 ])
 
 # ──────────────────────────────────────────────────────────────
@@ -3719,3 +3720,218 @@ with tab6:
             show_df = df_sector[["產業別", "外資淨買", "投信淨買", "檔數"]].copy()
             show_df.columns = ["產業別", "外資淨買（億）", "投信淨買（億）", "涵蓋檔數"]
             st.markdown(df_to_html(show_df, height=400), unsafe_allow_html=True)
+
+
+# ──────────────────────────────────────────────────────────────
+# ▌ TAB 7：策略回測實驗室
+# ──────────────────────────────────────────────────────────────
+with tab7:
+    st.markdown("<div class='sec-title'>🧪 策略回測實驗室</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>選擇股票與策略維度，驗證財報/技術/籌碼因子的有效性。"
+        "買進持有基準線 vs 策略資金曲線，一眼看出濾網效果。</div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 參數設定
+    bt_c1, bt_c2, bt_c3 = st.columns([2, 2, 2])
+    with bt_c1:
+        bt_sid = st.text_input("股票代號", value="2330", key="bt_sid",
+                               placeholder="如 2330")
+    with bt_c2:
+        bt_capital = st.number_input("初始資金（元）", value=100000, step=10000,
+                                      min_value=10000, key="bt_capital")
+    with bt_c3:
+        bt_strategy = st.radio(
+            "📊 選擇回測策略維度：",
+            ["1️⃣ 純財報基本面",
+             "2️⃣ 技術面＋籌碼面",
+             "3️⃣ 財報＋技術＋籌碼（全方位）"],
+            key="bt_strategy"
+        )
+
+    st.markdown("---")
+
+    if st.button("🚀 開始回測", type="primary", key="bt_run"):
+        sid_bt = bt_sid.strip()
+        if not sid_bt:
+            st.warning("請輸入股票代號")
+            st.stop()
+
+        with st.spinner("載入資料中..."):
+            # ── 載入 K 線
+            df_k, ok_k = load_price_csv(sid_bt)
+            if not ok_k or df_k.empty or len(df_k) < 30:
+                st.error(f"{sid_bt} 無足夠 K 線資料（需 30 日以上）")
+                st.stop()
+
+            df_k = df_k.copy()
+            if "Date" in df_k.columns:
+                df_k["date"] = pd.to_datetime(df_k["Date"])
+            else:
+                df_k["date"] = pd.to_datetime(df_k.index)
+            df_k = df_k.sort_values("date").reset_index(drop=True)
+            df_k["Close"] = pd.to_numeric(df_k["Close"], errors="coerce")
+            df_k["Volume"] = pd.to_numeric(df_k["Volume"], errors="coerce").fillna(0)
+
+            # MA20
+            df_k["MA20"] = df_k["Close"].rolling(20).mean()
+
+            # ── 載入財報（EPS）
+            df_fin_bt, ok_fin_bt = get_financials(sid_bt)
+            eps_by_date = pd.Series(dtype=float)
+            gm_by_date  = pd.Series(dtype=float)
+            if ok_fin_bt and not df_fin_bt.empty:
+                df_fin_bt["date"]  = pd.to_datetime(df_fin_bt["date"], errors="coerce")
+                df_fin_bt["value"] = pd.to_numeric(df_fin_bt["value"], errors="coerce")
+                if "type" in df_fin_bt.columns:
+                    eps_q = df_fin_bt[df_fin_bt["type"] == "EPS"].set_index("date")["value"].sort_index()
+                    gm_q  = df_fin_bt[df_fin_bt["type"].astype(str).str.contains("GrossMargin|毛利", na=False)].set_index("date")["value"].sort_index()
+                    if not eps_q.empty:
+                        eps_by_date = eps_q
+                    if not gm_q.empty:
+                        gm_by_date = gm_q
+
+            # ── 載入籌碼（外資+投信）
+            df_c_bt, ok_c_bt = get_chips(sid_bt)
+            inst_by_date = pd.Series(dtype=float)
+            if ok_c_bt and not df_c_bt.empty and "date" in df_c_bt.columns and "net" in df_c_bt.columns:
+                df_c_bt["date"] = pd.to_datetime(df_c_bt["date"], errors="coerce")
+                df_c_bt["net"]  = pd.to_numeric(df_c_bt["net"], errors="coerce").fillna(0)
+                if "name" in df_c_bt.columns:
+                    inst = df_c_bt[df_c_bt["name"].astype(str).str.contains(
+                        "Foreign_Investor|Investment_Trust", na=False)]
+                    inst_by_date = inst.groupby("date")["net"].sum().sort_index()
+
+            # ── Merge 財報到日K（ffill 向前填補）
+            df_bt = df_k.set_index("date").copy()
+
+            # EPS 合併
+            if not eps_by_date.empty:
+                eps_reindexed = eps_by_date.reindex(
+                    df_bt.index.union(eps_by_date.index)
+                ).ffill().reindex(df_bt.index)
+                df_bt["eps_q"] = eps_reindexed
+                df_bt["eps_prev"] = df_bt["eps_q"].shift(1)
+            else:
+                df_bt["eps_q"]    = np.nan
+                df_bt["eps_prev"] = np.nan
+
+            # 毛利率合併
+            if not gm_by_date.empty:
+                gm_reindexed = gm_by_date.reindex(
+                    df_bt.index.union(gm_by_date.index)
+                ).ffill().reindex(df_bt.index)
+                df_bt["gm_q"]      = gm_reindexed
+                df_bt["gm_prev"]   = df_bt["gm_q"].shift(1)
+            else:
+                df_bt["gm_q"]    = np.nan
+                df_bt["gm_prev"] = np.nan
+
+            # 籌碼合併
+            if not inst_by_date.empty:
+                inst_reindexed = inst_by_date.reindex(df_bt.index).fillna(0)
+                df_bt["inst_net"] = inst_reindexed
+            else:
+                df_bt["inst_net"] = 0.0
+
+            df_bt = df_bt.dropna(subset=["Close","MA20"])
+
+            # ── 訊號生成（向量化）
+            # 財報條件：單季EPS>0 且 毛利率>前季
+            cond_fin = (df_bt["eps_q"] > 0)
+            if not gm_by_date.empty:
+                cond_fin = cond_fin & (df_bt["gm_q"] >= df_bt["gm_prev"].fillna(0))
+
+            # 技籌條件：站上MA20 且 法人買超>0
+            cond_tech_chip = (df_bt["Close"] > df_bt["MA20"]) & (df_bt["inst_net"] > 0)
+
+            # 依策略選擇訊號
+            if "1️⃣" in bt_strategy:
+                buy_signal  = cond_fin
+                sell_signal = ~cond_fin
+                strat_name  = "純財報基本面"
+            elif "2️⃣" in bt_strategy:
+                buy_signal  = cond_tech_chip
+                sell_signal = df_bt["Close"] < df_bt["MA20"]
+                strat_name  = "技術面＋籌碼面"
+            else:
+                buy_signal  = cond_fin & cond_tech_chip
+                sell_signal = (df_bt["Close"] < df_bt["MA20"]) | (~cond_fin)
+                strat_name  = "財報＋技術＋籌碼（全方位）"
+
+            # ── 回測模擬（簡單持倉）
+            capital   = float(bt_capital)
+            position  = 0  # 持股數
+            cash      = capital
+            equity    = []
+            in_trade  = False
+
+            for i, (idx, row) in enumerate(df_bt.iterrows()):
+                price = float(row["Close"])
+                if not in_trade and buy_signal.iloc[i]:
+                    shares = int(cash / price / 1000) * 1000  # 以千股為單位
+                    if shares > 0:
+                        position = shares
+                        cash    -= position * price
+                        in_trade = True
+                elif in_trade and sell_signal.iloc[i]:
+                    cash    += position * price
+                    position = 0
+                    in_trade = False
+                equity.append(cash + position * price)
+
+            df_bt["equity_strat"]  = equity
+            df_bt["equity_bnh"]    = capital * (df_bt["Close"] / df_bt["Close"].iloc[0])
+
+            # ── 績效計算
+            final_strat = df_bt["equity_strat"].iloc[-1]
+            final_bnh   = df_bt["equity_bnh"].iloc[-1]
+            ret_strat   = (final_strat - capital) / capital * 100
+            ret_bnh     = (final_bnh   - capital) / capital * 100
+
+            # 最大回撤
+            peak_strat  = df_bt["equity_strat"].cummax()
+            dd_strat    = ((df_bt["equity_strat"] - peak_strat) / peak_strat * 100).min()
+
+        # ── 顯示績效指標
+        st.markdown(f"### 📊 {sid_bt} 回測結果｜策略：{strat_name}")
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("策略總報酬", f"{ret_strat:+.1f}%",
+                  delta=f"{'優於' if ret_strat > ret_bnh else '遜於'} B&H {ret_strat-ret_bnh:+.1f}%")
+        m2.metric("買入持有報酬", f"{ret_bnh:+.1f}%")
+        m3.metric("策略最大回撤", f"{dd_strat:.1f}%")
+        m4.metric("回測期間", f"{len(df_bt)} 日")
+
+        # ── 資金曲線圖
+        st.markdown("### 📈 資金曲線對比")
+        fig_bt = go.Figure()
+
+        fig_bt.add_trace(go.Scatter(
+            x=df_bt.index, y=df_bt["equity_bnh"],
+            name="📦 Buy & Hold 基準",
+            mode="lines",
+            line=dict(color="#546e7a", width=1.5, dash="dot"),
+        ))
+        fig_bt.add_trace(go.Scatter(
+            x=df_bt.index, y=df_bt["equity_strat"],
+            name=f"🎯 {strat_name}",
+            mode="lines",
+            line=dict(color="#00d4ff", width=2),
+            fill="tonexty",
+            fillcolor="rgba(0,212,255,0.05)"
+        ))
+
+        fig_bt.update_layout(**base_layout(f"{sid_bt} 策略回測資金曲線", 460))
+        fig_bt.update_yaxes(gridcolor="#1e3a5f")
+        st.plotly_chart(fig_bt, width='stretch')
+
+        # ── 訊號標記（K線+買賣點）
+        st.markdown("### 📋 買賣訊號明細")
+        df_signals = df_bt[buy_signal | sell_signal][["Close","MA20","inst_net","eps_q"]].copy()
+        df_signals["訊號"] = "賣出"
+        df_signals.loc[buy_signal[buy_signal | sell_signal], "訊號"] = "買入"
+        df_signals = df_signals.rename(columns={
+            "Close":"收盤價","MA20":"月線","inst_net":"法人淨買","eps_q":"EPS"
+        })
+        st.markdown(df_to_html(df_signals.tail(30), height=300), unsafe_allow_html=True)
