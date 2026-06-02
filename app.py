@@ -240,6 +240,14 @@ section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"]{
 section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"] p{
     color:#ffffff!important;
 }
+section[data-testid="stSidebar"] button[kind="secondary"],
+section[data-testid="stSidebar"] button[kind="secondary"] p,
+section[data-testid="stSidebar"] .stButton button,
+section[data-testid="stSidebar"] .stButton button p,
+section[data-testid="stSidebar"] .stButton button span{
+    color:#e8f4fd!important;
+    background:linear-gradient(135deg,#162535,#1e3a5f)!important;
+}
 /* 所有文字強制可見 */
 p, span, label, div, h1, h2, h3, li {
     color:#ddeeff;
@@ -847,7 +855,10 @@ with st.sidebar:
             st.caption("📌 手動清單為空")
         st.caption(f"🔧 {st.session_state.get("wl_debug", "載入中...")}")
 
-        st.markdown("---")
+        st.markdown(
+            "<div style='border-top:1px solid #1e3a5f;margin:8px 0 4px;'></div>",
+            unsafe_allow_html=True
+        )
         if st.button("🔄 恢復監控清單", key="restore_wl", use_container_width=True,
                      help="從 GitHub 重新讀取監控清單，遺失時使用"):
             manual, scan, etf_sh = load_watchlist_from_github()
