@@ -3753,7 +3753,9 @@ with tab7:
     st.markdown("---")
 
     if st.button("🚀 開始回測", type="primary", key="bt_run"):
+        st.write("✅ 按鈕已按下")
         sid_bt = bt_sid.strip()
+        st.write(f"股票代號：{sid_bt}")
         if not sid_bt:
             st.warning("請輸入股票代號")
         else:
