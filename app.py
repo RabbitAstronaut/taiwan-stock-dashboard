@@ -3766,15 +3766,18 @@ with tab7:
                 st.error(f"{sid_bt} 無足夠 K 線資料（需 30 日以上）")
                 st.stop()
 
-            df_k = df_k.copy().reset_index()
+            df_k = df_k.copy()
+            # 重設 index，避免 date 同時是 index 和欄位
+            df_k.index.name = None
+            df_k = df_k.reset_index()
             # 找日期欄位
-            date_col = next((c for c in ["Date","date","index"] if c in df_k.columns), None)
+            date_col = next((c for c in ["Date","date","index","level_0"] if c in df_k.columns), None)
             if date_col:
-                df_k["_date"] = pd.to_datetime(df_k[date_col], errors="coerce")
+                df_k["_bt_date"] = pd.to_datetime(df_k[date_col], errors="coerce")
             else:
-                df_k["_date"] = pd.to_datetime(df_k.index, errors="coerce")
-            df_k = df_k.sort_values("_date").reset_index(drop=True)
-            df_k["date"] = df_k["_date"]
+                df_k["_bt_date"] = pd.RangeIndex(len(df_k))
+            df_k = df_k.sort_values("_bt_date").reset_index(drop=True)
+            df_k["date"] = df_k["_bt_date"]
             df_k["Close"] = pd.to_numeric(df_k["Close"], errors="coerce")
             df_k["Volume"] = pd.to_numeric(df_k["Volume"], errors="coerce").fillna(0)
 
