@@ -3595,12 +3595,11 @@ with tab6:
             textposition="outside",
             hovertemplate="%{y}<br>" + label + "淨買：%{x:.2f}億<extra></extra>",
         ))
-        fig_sector.update_layout(
-            **base_layout(f"{label}板塊資金流向（最新交易日，單位：億元）", 580),
-            xaxis_title=f"{label}淨買超（億元）",
-            yaxis_title="",
-            margin=dict(l=180, r=80, t=44, b=34),
-        )
+        layout_s = base_layout(f"{label}板塊資金流向（最新交易日，單位：億元）", 580)
+        layout_s["margin"] = dict(l=180, r=80, t=44, b=34)
+        layout_s["xaxis_title"] = f"{label}淨買超（億元）"
+        layout_s["yaxis_title"] = ""
+        fig_sector.update_layout(**layout_s)
         fig_sector.update_xaxes(gridcolor="#1e3a5f")
         st.plotly_chart(fig_sector, width='stretch')
 
