@@ -214,19 +214,23 @@ def scan_accumulation_phase(sid):
                         break
         inst_buying = inst_5d > 0 and inst_streak >= 3
 
-        # ── 大戶持股（stock_id str + strip 強制對齊）
+        # ── 大戶持股（100% 對齊 Tab3：HoldingSharesLevel + percent）
         df_sh, ok_sh = get_shareholder(sid)
         big_pct = 0.0
         if ok_sh and not df_sh.empty:
             df_sh["stock_id"] = df_sh["stock_id"].astype(str).str.strip()
             sub = df_sh[df_sh["stock_id"] == sid].copy()
-            if not sub.empty and "holdingSharesPercent" in sub.columns:
-                sub["holdingSharesPercent"] = pd.to_numeric(
-                    sub["holdingSharesPercent"], errors="coerce")
-                sub = sub.sort_values("date")
-                valid = sub["holdingSharesPercent"].dropna()
-                if len(valid) > 0:
-                    big_pct = float(valid.iloc[-1])
+            if not sub.empty and "HoldingSharesLevel" in sub.columns and "percent" in sub.columns:
+                sub["date"] = pd.to_datetime(sub["date"], errors="coerce")
+                sub["percent"] = pd.to_numeric(sub["percent"], errors="coerce").fillna(0)
+                latest_date = sub["date"].max()
+                sub_l = sub[sub["date"] == latest_date]
+                # 排除合計行
+                sub_l = sub_l[~sub_l["HoldingSharesLevel"].astype(str).str.contains("total|差異", na=False)]
+                # 千張以上大戶
+                big_kw = ["400,001","600,001","800,001","1,000,001","more than"]
+                is_big = sub_l["HoldingSharesLevel"].astype(str).str.contains("|".join(big_kw), na=False)
+                big_pct = float(sub_l[is_big]["percent"].sum())
         is_locked = big_pct >= 55.0
 
         conds = sum([is_in_box, inst_buying, is_locked])
@@ -3161,45 +3165,48 @@ with tab4:
                 _f     = _ac["facts"]
                 _conds = _f.get("conds", 0)
 
-                # 顏色
+                # 條件達成率顏色
                 if _conds == 3:
-                    _col = "#00ff88"
-                    _ico = "👑"
-                    _label = "3/3 全條件成立（強烈推介）"
+                    _col  = "#ffee55"
+                    _ico  = "👑"
+                    _label = "3/3 戰略黃金起漲點"
+                    _bg   = "rgba(255,238,85,0.08); border-left:4px solid #ffee55;"
                 elif _conds == 2:
-                    _col = "#ffcc00"
-                    _ico = "🟡"
-                    _label = "2/3 高度關注"
+                    _col  = "#ff9900"
+                    _ico  = "🟡"
+                    _label = "2/3 高度關注臨界點"
+                    _bg   = "rgba(255,153,0,0.06); border-left:4px solid #ff9900;"
                 else:
-                    _col = "#8892b0"
-                    _ico = "⏳"
+                    _col  = "#8892b0"
+                    _ico  = "⏳"
                     _label = f"{_conds}/3 條件成立"
+                    _bg   = "rgba(255,255,255,0.01); border-left:4px solid #44475a;"
 
-                # 張數千分位（net 單位若為股則除以1000）
+                # 張數（台股：紅買 綠賣）
                 _i5  = int(_f.get("inst_5d",  0))
                 _i15 = int(_f.get("inst_15d", 0))
-                # 若數值超過10萬，推測單位是股，除以1000換算成張
-                if abs(_i5) > 100000:
-                    _i5  //= 1000
-                    _i15 //= 1000
-                _i5_fmt  = f"+{_i5:,}"  if _i5  >= 0 else f"{_i5:,}"
-                _i15_fmt = f"+{_i15:,}" if _i15 >= 0 else f"{_i15:,}"
+                _c5  = "#ff3333" if _i5  >= 0 else "#00cc44"
+                _c15 = "#ff3333" if _i15 >= 0 else "#00cc44"
+                _s5  = f"+{_i5:,}"  if _i5  >= 0 else f"{_i5:,}"
+                _s15 = f"+{_i15:,}" if _i15 >= 0 else f"{_i15:,}"
 
                 _rows_html.append(
-                    f"<div style='font-size:.84rem;margin-bottom:6px;color:{_col};'>"
+                    f"<div style='font-size:.84rem;margin-bottom:8px;padding:6px 12px;"
+                    f"border-radius:4px;background:{_bg}color:{_col};'>"
                     f"{_ico} <b>{_sid_ac} {_name_ac}</b>｜"
-                    f"箱體震幅 {_f.get('box_amp','—')}%｜"
-                    f"大戶 {_f.get('big_pct','—')}%｜"
-                    f"投信連買 {_f.get('inst_streak',0)} 天｜"
-                    f"近5日 {_i5_fmt} 張｜15日 {_i15_fmt} 張｜"
-                    f"<span style='background:rgba(255,255,255,0.06);padding:1px 6px;"
-                    f"border-radius:4px;'>{_label}</span>"
+                    f"箱體 {_f.get('box_amp','—')}%｜"
+                    f"大戶 <b>{_f.get('big_pct','—')}%</b>｜"
+                    f"投信連買 <u>{_f.get('inst_streak',0)} 天</u>｜"
+                    f"近5日 <span style='color:{_c5};font-weight:700;'>{_s5}張</span>｜"
+                    f"15日 <span style='color:{_c15};font-weight:700;'>{_s15}張</span>｜"
+                    f"<span style='background:rgba(255,255,255,0.08);padding:1px 6px;"
+                    f"border-radius:3px;font-size:.78rem;'>{_label}</span>"
                     f"</div>"
                 )
 
             st.markdown(
                 "<div style='background:rgba(0,0,0,0.2);border:1px solid #1e3a5f;"
-                "border-radius:10px;padding:12px 16px;'>"
+                "border-radius:10px;padding:10px 4px;'>"
                 + "".join(_rows_html) + "</div>",
                 unsafe_allow_html=True
             )
