@@ -835,7 +835,7 @@ with st.sidebar:
                 entry = {"id": code, "name": name}
                 if not any(w["id"] == code for w in st.session_state.watchlist):
                     st.session_state.watchlist.append(entry)
-                    save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
+                    save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan, {k: v for k, v in st.session_state.get("etf_shares", {}).items() if v > 0}, st.session_state.get("reserve_list", []))
                     st.success(f"已加入：{name}")
                 else:
                     st.info("已在清單中")
@@ -853,7 +853,7 @@ with st.sidebar:
                     rm_idx = i
             if rm_idx is not None:
                 st.session_state.watchlist.pop(rm_idx)
-                save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
+                save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan, {k: v for k, v in st.session_state.get("etf_shares", {}).items() if v > 0}, st.session_state.get("reserve_list", []))
                 st.rerun()
         else:
             st.caption("📌 手動清單為空")
@@ -886,7 +886,7 @@ with st.sidebar:
                     rm_idx2 = i
             if rm_idx2 is not None:
                 st.session_state.watchlist_scan.pop(rm_idx2)
-                save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
+                save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan, {k: v for k, v in st.session_state.get("etf_shares", {}).items() if v > 0}, st.session_state.get("reserve_list", []))
                 st.rerun()
 
     st.markdown("---")
@@ -1642,7 +1642,7 @@ with tab1:
                             st.session_state.watchlist_scan.append({"id":code,"name":name})
                             added += 1
                     if added > 0:
-                        save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
+                        save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan, {k: v for k, v in st.session_state.get("etf_shares", {}).items() if v > 0}, st.session_state.get("reserve_list", []))
                         st.toast(f"✅ 已加入 {added} 檔到監控清單")
 
             st.markdown("<br>", unsafe_allow_html=True)
@@ -1704,7 +1704,7 @@ with tab1:
                             st.session_state.watchlist_scan.append({"id":code,"name":name})
                             added += 1
                     if added > 0:
-                        save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan)
+                        save_watchlist_to_github(st.session_state.watchlist, st.session_state.watchlist_scan, {k: v for k, v in st.session_state.get("etf_shares", {}).items() if v > 0}, st.session_state.get("reserve_list", []))
                         st.toast(f"✅ 已加入 {added} 檔到監控清單")
 
         # placeholder to keep old variable name for funnel chart below
