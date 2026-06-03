@@ -2212,6 +2212,7 @@ with tab3:
                     if len(big_grp2) >= 3:
                         last3 = big_grp2.tail(3).tolist()
                         big_declining = (last3[-1] < last3[-2]) and (last3[-2] < last3[-3])
+                        big_drop_pct  = last3[-2] - last3[-1] if big_declining else 0
 
                         if big_declining:
                             close_now2 = float(lt["Close"])
