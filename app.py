@@ -249,6 +249,88 @@ def scan_accumulation_phase(sid):
     return result
 
 # ══════════════════════════════════════════════════════════════
+# ▌ 戰略儲備庫籌碼飽和自動除名機制
+# ══════════════════════════════════════════════════════════════
+def refresh_reserve_metabolism():
+    """
+    每次進入 Tab4 時執行：審查儲備庫個股籌碼健康度，
+    自動剔除「投信飽和 / 大戶撤退 / 跌破季線」的失效精兵。
+    回傳：(removed_list, kept_list)
+    """
+    reserve = st.session_state.get("reserve_list", [])
+    if not reserve:
+        return [], []
+
+    kept    = []
+    removed = []
+
+    for item in reserve:
+        sid  = item["id"]
+        name = item.get("name", sid)
+        try:
+            # K線
+            df_k, ok_k = load_price_csv(sid)
+            if not ok_k or df_k.empty or len(df_k) < 62:
+                kept.append(item)   # 無資料保留，不誤殺
+                continue
+
+            df_k  = add_indicators(df_k)
+            close = float(df_k["Close"].iloc[-1])
+            sma60 = float(df_k["SMA60"].iloc[-1]) if "SMA60" in df_k.columns else float("nan")
+
+            # 事實3：跌破季線
+            structure_broken = not np.isnan(sma60) and close < sma60
+
+            # 大戶持股趨勢
+            df_sh, ok_sh = get_shareholder(sid)
+            large_retreat = False
+            if ok_sh and not df_sh.empty and "holdingSharesPercent" in df_sh.columns:
+                df_sh["holdingSharesPercent"] = pd.to_numeric(
+                    df_sh["holdingSharesPercent"], errors="coerce")
+                df_sh = df_sh.sort_values("date")
+                if len(df_sh) >= 4:
+                    pts = df_sh["holdingSharesPercent"].dropna().tail(4).tolist()
+                    # 事實2：連續2週下滑（大戶撤退）
+                    large_retreat = (pts[-1] < pts[-2]) and (pts[-2] < pts[-3])
+
+            # 投信持股飽和（籌碼比例）
+            df_c, ok_c = get_chips(sid)
+            inst_saturated = False
+            if ok_c and not df_c.empty:
+                df_c["date"] = pd.to_datetime(df_c["date"], errors="coerce")
+                name_col = next((c for c in ["name","institutional_investors"]
+                                 if c in df_c.columns), None)
+                if name_col:
+                    trust = df_c[df_c[name_col].astype(str).str.contains(
+                        "Investment_Trust", na=False)]
+                    if "net" in trust.columns and len(trust) >= 15:
+                        trust["net"] = pd.to_numeric(trust["net"], errors="coerce").fillna(0)
+                        # 15日累積投信賣超（負數=開始出貨）
+                        inst_net15 = float(trust["net"].tail(15).sum())
+                        # 事實1：投信轉為賣超（持倉已飽和出場）
+                        inst_saturated = inst_net15 < -500  # 累積賣超>500張
+
+            # 除名判定
+            reason = None
+            if structure_broken:
+                reason = f"跌破季線（現價 {close:.1f} < SMA60 {sma60:.1f}）"
+            elif large_retreat:
+                reason = "千張大戶連續兩週減碼，籌碼鬆動"
+            elif inst_saturated:
+                reason = f"投信近15日累積賣超轉負，籌碼飽和出場"
+
+            if reason:
+                item["_remove_reason"] = reason
+                removed.append(item)
+            else:
+                kept.append(item)
+
+        except Exception as _e:
+            kept.append(item)  # 出錯保留，不誤殺
+
+    return removed, kept
+
+# ══════════════════════════════════════════════════════════════
 # ▌ CSS 主題
 # ══════════════════════════════════════════════════════════════
 # ── 登入驗證
@@ -2921,6 +3003,39 @@ with tab4:
         except Exception:
             pass
         st.session_state.reserve_loaded = True
+
+    # ── 每次進入 Tab4 執行籌碼健檢（只提示，不自動除名）
+    if st.session_state.get("reserve_list"):
+        _removed, _kept = refresh_reserve_metabolism()
+        if _removed:
+            st.markdown(
+                "<div style='background:rgba(255,152,0,0.12);border:1px solid #ff9800;"
+                "border-radius:10px;padding:12px 16px;margin-bottom:10px;'>"
+                "<b style='color:#ff9800;'>⚠️ 籌碼健檢警報：以下標的出現除名訊號，請手動確認是否移除</b>"
+                "</div>",
+                unsafe_allow_html=True
+            )
+            for _rm in _removed:
+                _rm_c1, _rm_c2 = st.columns([5, 1])
+                _rm_c1.markdown(
+                    f"<span style='color:#ff9800;font-size:.88rem;'>"
+                    f"🚨 **{_rm.get('name','')}（{_rm['id']}）**｜"
+                    f"除名原因：{_rm.get('_remove_reason','—')}｜"
+                    f"20% 特赦風險提升，建議手動複核後移除</span>",
+                    unsafe_allow_html=True
+                )
+                if _rm_c2.button("🗑️ 除名", key=f"meta_rm_{_rm['id']}", use_container_width=True):
+                    st.session_state.reserve_list = [
+                        r for r in st.session_state.reserve_list if r["id"] != _rm["id"]
+                    ]
+                    save_watchlist_to_github(
+                        st.session_state.watchlist,
+                        st.session_state.watchlist_scan,
+                        {k: v for k, v in st.session_state.get("etf_shares", {}).items() if v > 0},
+                        reserve=st.session_state.reserve_list
+                    )
+                    st.toast(f"✅ {_rm.get('name','')} 已從儲備庫除名", icon="✅")
+                    st.rerun()
 
     # ── 新增標的輸入
     st.markdown("### ➕ 加入戰略儲備")
