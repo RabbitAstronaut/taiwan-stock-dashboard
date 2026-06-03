@@ -80,6 +80,86 @@ def save_watchlist_to_github(manual_list, scan_list, etf_shares=None, reserve=No
         return False
 
 # ══════════════════════════════════════════════════════════════
+# ▌ 風控卡閘核心函式（實時/回溯雙模隔離）
+# ══════════════════════════════════════════════════════════════
+def check_gatekeeper(sid, bias_ma20, rsi5, ema5, sma20,
+                     close_now, high60, high250, vol_now, vma20,
+                     is_holding=False, is_backtest=False):
+    """
+    完全體風控卡閘，具備時空隔離機制。
+    回傳 dict: {level, msg, color}
+    level: "purple"=停利 / "green_core"=精兵特赦 / "green_expand"=健康擴展
+           "green_safe"=安全 / "yellow"=突破放寬 / "red"=攔截
+    """
+    result = {}
+
+    if not is_backtest:
+        # ── 實時模式：與戰略儲備庫聯動
+        reserve_ids = set(r["id"] for r in st.session_state.get("reserve_list", []))
+        is_core = sid in reserve_ids
+    else:
+        # ── 回溯模式：完全依賴歷史硬數據，禁用 session_state
+        is_core = False
+
+    # 判定突破 Facts（回溯模式用歷史當日數據）
+    is_weekly_break = close_now >= high250 * 0.98 if high250 > 0 else False
+    is_box_break    = close_now >= high60          if high60  > 0 else False
+    is_volume_spike = vma20 > 0 and vol_now >= vma20 * 2.0
+
+    # ── 優先級1：極端超買停利（bias>25 or RSI>85）
+    if bias_ma20 > 25 or rsi5 > 85:
+        if is_holding:
+            result = {"level": "purple",
+                      "msg": f"🎯 系統移動停利提示：月乖離 {bias_ma20:.1f}%（RSI5:{rsi5:.1f}），市場情緒極端非理性超買，強烈建議主動減碼 50% 或全數落袋！"}
+        else:
+            result = {"level": "red",
+                      "msg": f"❌ 風控卡閘攔截：嚴重過載（乖離 {bias_ma20:.1f}%，RSI5:{rsi5:.1f}），嚴禁追高！"}
+
+    # ── 優先級2：戰略儲備庫精兵特赦（20% 寬限）
+    elif is_core:
+        if bias_ma20 <= 20.0:
+            result = {"level": "green_core",
+                      "msg": f"👑 風控卡閘【儲備精兵特赦】：月乖離 {bias_ma20:.1f}%，本股列管於戰略儲備庫，20% 安全特赦圈內屬健康動能擴張。{'安心波段留倉至 Q3！' if is_holding else '准許手動建倉/加碼，波段留倉至 Q3！'}"}
+        else:
+            result = {"level": "red",
+                      "msg": f"❌ 儲備精兵警示：{sid} 月乖離已達 {bias_ma20:.1f}%，超越 20% 歷史極限，請靜待拉回。"}
+
+    # ── 優先級3：週線大突破特赦（250日，20% 寬限）
+    elif is_weekly_break and is_volume_spike:
+        if bias_ma20 <= 20.0:
+            result = {"level": "green_core",
+                      "msg": f"👑 風控卡閘【週線大突破特赦】：月乖離 {bias_ma20:.1f}%，系統偵測到一整年大型橫盤底部歷史性突破！20% 內屬健康動能溢價，{'安心續抱！' if is_holding else '准許建立主攻部位！'}"}
+        else:
+            result = {"level": "red",
+                      "msg": f"❌ 週線突破但月乖離 {bias_ma20:.1f}% 超越 20% 極限，請靜待拉回。"}
+
+    # ── 優先級4：日線箱體突破特赦（60日，12% 寬限）
+    elif is_box_break and is_volume_spike and 5 < bias_ma20 <= 12:
+        result = {"level": "yellow",
+                  "msg": f"🟢 風控卡閘通過（強勢起漲點）：月乖離 {bias_ma20:.1f}%，帶量突破 60 日大箱體，{'安心續抱！' if is_holding else '准許手動建立第一筆主攻部位！'}"}
+
+    # ── 優先級5：健康擴展期（5%~25%，已持股）
+    elif 5 < bias_ma20 <= 25 and is_holding:
+        result = {"level": "green_expand",
+                  "msg": f"💡 高檔動能觀察：月乖離 {bias_ma20:.1f}%（RSI5:{rsi5:.1f}），多頭主升段正常動能擴張，籌碼極度安全，安心續抱。回踩 EMA5 ({ema5:.1f}) 或月線 ({sma20:.1f}) 是加碼甜甜點！"}
+
+    # ── 優先級6：常規過熱攔截（5%+ 無特赦資格）
+    elif bias_ma20 > 5:
+        result = {"level": "red",
+                  "msg": f"❌ 風控卡閘攔截：常規個股月乖離 {bias_ma20:.1f}%（RSI5:{rsi5:.1f}），無爆量突破事實，嚴禁追高！安全買點：EMA5 {ema5:.1f} 或月線 {sma20:.1f}。"}
+
+    # ── 優先級7：安全區（≤5% 守月線）
+    elif close_now > sma20:
+        result = {"level": "green_safe",
+                  "msg": f"🟢 風控卡閘通過：月乖離 {bias_ma20:.1f}%，安全右側拉回換手區。{'持股者安心續抱，拉回 EMA5 即加碼機會。' if is_holding else '可手動分批建倉。'}"}
+
+    else:
+        result = {"level": "green_safe",
+                  "msg": f"🟢 股價處於月線之下，技術面仍在修復中，可持續觀察。"}
+
+    return result
+
+# ══════════════════════════════════════════════════════════════
 # ▌ CSS 主題
 # ══════════════════════════════════════════════════════════════
 # ── 登入驗證
@@ -2327,116 +2407,35 @@ with tab3:
             if not np.isnan(_sma20_g) and _sma20_g > 0:
                 bias_ma20 = (display_close - _sma20_g) / _sma20_g * 100  # 統一用 display_close
 
-                # ── 突破 Facts 計算（日線60日 + 週線250日）
+                # ── 突破 Facts 計算
                 _close_series = df_ind["Close"].astype(float)
                 _high60  = float(_close_series.tail(60).max())  if len(df_ind) >= 60  else float(_close_series.max())
                 _high250 = float(_close_series.tail(250).max()) if len(df_ind) >= 250 else float(_close_series.max())
-                _vol_now = float(df_ind["Volume"].astype(float).iloc[-1])                            if "Volume" in df_ind.columns else 0
-                _vma20   = float(df_ind["Volume"].astype(float).rolling(20).mean().iloc[-1])                            if "Volume" in df_ind.columns else 0
-                is_box_breakout          = _close_now >= _high60
-                is_weekly_longterm_break = _close_now >= _high250 * 0.98  # 一年歷史高點98%附近
-                is_volume_reignition     = _vma20 > 0 and _vol_now >= _vma20 * 2.0
+                _vol_now = float(df_ind["Volume"].astype(float).iloc[-1]) if "Volume" in df_ind.columns else 0
+                _vma20   = float(df_ind["Volume"].astype(float).rolling(20).mean().iloc[-1]) if "Volume" in df_ind.columns else 0
 
-                # ══════════════════════════════════════════════
-                # 👑 動態特赦白名單：直接從戰略儲備庫讀取
-                # ══════════════════════════════════════════════
-                _reserve_ids = set(
-                    r["id"] for r in st.session_state.get("reserve_list", [])
+                # ── 呼叫統一風控卡閘函式
+                _gate = check_gatekeeper(
+                    sid=sid_watch, bias_ma20=bias_ma20, rsi5=_rsi5_g,
+                    ema5=_ema5_g, sma20=_sma20_g,
+                    close_now=display_close, high60=_high60, high250=_high250,
+                    vol_now=_vol_now, vma20=_vma20,
+                    is_holding=_is_holding, is_backtest=False
                 )
-                if sid_watch in _reserve_ids:
-                    # 儲備精兵特赦：20% 寬限
-                    if bias_ma20 <= 20.0:
-                        st.success(
-                            f"👑 **風控卡閘【儲備精兵特赦通過】**："
-                            f"當前真實月乖離率 **{bias_ma20:.1f}%**。"
-                            f"本股為您列管於戰略儲備庫之「長線大結構橫盤突破常規軍」！"
-                            f"20% 安全特赦圈內屬於健康動能擴張。"
-                            f"{'籌碼極度安全，安心波段留倉至 Q3！' if _is_holding else '准許手動建倉/加碼，波段留倉至 Q3！'}"
-                        )
-                    else:
-                        st.warning(
-                            f"❌ **儲備精兵警示**：{sid_watch} 當前月乖離已達 **{bias_ma20:.1f}%**，"
-                            f"超越 20% 歷史極限，請靜待拉回再加碼。"
-                        )
+                _lvl = _gate.get("level", "green_safe")
+                _msg = _gate.get("msg", "")
 
-                # ── 三階層精密分流（依乖離率嚴重度）
-                elif bias_ma20 > 25 or _rsi5_g > 85:
-                    # 階層二：極度超買警戒期
-                    if _is_holding:
-                        st.markdown(
-                            f"<div style='background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(74,20,140,0.3));"
-                            f"border:2px solid #ce93d8;border-radius:10px;padding:16px 20px;'>"
-                            f"<b style='color:#ce93d8;font-size:1rem;'>🎯 系統移動停利提示（實質賣出訊號）</b><br><br>"
-                            f"<span style='color:#f3e5f5;font-size:.9rem;'>"
-                            f"本股與月線正乖離已達 <b style='color:#ff80ab;'>{bias_ma20:.1f}%</b>"
-                            f"（RSI5: <b style='color:#ff80ab;'>{_rsi5_g:.1f}</b>），"
-                            f"市場情緒已進入極端非理性超買區。<br><br>"
-                            f"為防止利潤大幅回吐，<b>強烈建議已持股者此時執行手動「主動減碼 50%」"
-                            f"或「獲利全數落袋」，將真金白銀鎖定在右側高潮高點！</b>"
-                            f"</span></div>",
-                            unsafe_allow_html=True
-                        )
-                    else:
-                        st.warning(
-                            f"❌ **風控卡閘攔截**：短線嚴重過載（乖離 {bias_ma20:.1f}%，"
-                            f"RSI5: {_rsi5_g:.1f}），嚴禁手動追高買進！"
-                        )
-
-                elif 5 < bias_ma20 <= 25:
-                    # 階層一：健康擴展期
-                    if _is_holding:
-                        st.success(
-                            f"💡 **高檔動能觀察**：當前與月線正乖離率為 **{bias_ma20:.1f}%**"
-                            f"（RSI5: {_rsi5_g:.1f}），屬於多頭主升段初期的正常動能擴張。"
-                            f"目前「籌碼極度安全」，請安心續抱。"
-                            f"若未來股價拉回測試 EMA5 ({_ema5_g:.1f}元) 或月線時，"
-                            f"非但不是減碼點，反而是系統認證的「手動右側加碼/撿便宜甜甜點」！"
-                        )
-                    else:
-                        # 未持股：三層特赦判定
-                        if is_weekly_longterm_break and is_volume_reignition:
-                            # 👑 週線級歷史大突破特赦（一年橫盤剛突破）
-                            if bias_ma20 <= 20.0:
-                                st.success(
-                                    f"👑 **風控卡閘【最高級別特赦】**：當前真實月乖離率 **{bias_ma20:.1f}%**。"
-                                    f"系統偵測到本股正處於「長達一整年大型週線橫盤底部歷史性大突破」！"
-                                    f"此種大時框結構剛啟動時的 10%~20% 乖離屬於極度健康的右側動能溢價，"
-                                    f"長線空間全面打開，准許建立主攻/加碼部位！"
-                                )
-                            else:
-                                st.warning(
-                                    f"❌ **風控卡閘攔截**：雖為週線級大突破，但當前月乖離率已達 **{bias_ma20:.1f}%**"
-                                    f"（超過長線寬限 20%），短線追價風險過高，請靜待拉回。"
-                                )
-                        elif is_box_breakout and is_volume_reignition:
-                            # 🟢 日線60日箱體突破特赦
-                            if bias_ma20 <= 12.0:
-                                st.success(
-                                    f"🟢 **風控卡閘通過（強勢起漲點）**：當前與月線乖離率 **{bias_ma20:.1f}%**。"
-                                    f"系統偵測到本股「帶量實質突破 60 日大箱體平台」，"
-                                    f"此為正宗右側主升段第一天發動！"
-                                    f"此點位具備強大動能溢價，准許手動建立第一筆主攻部位！"
-                                )
-                            else:
-                                st.warning(
-                                    f"❌ **風控卡閘攔截**：雖為突破型態，但當前正乖離率已達 **{bias_ma20:.1f}%**"
-                                    f"（超過起漲寬限 12%），短線已有過度追價風險，請靜待盤中回踩。"
-                                )
-                        else:
-                            # ⏳ 常規個股：5% 嚴格攔截
-                            st.warning(
-                                f"❌ **風控卡閘攔截**：常規個股短線月乖離率已達 **{bias_ma20:.1f}%**"
-                                f"（RSI5: {_rsi5_g:.1f}），無爆量突破事實支撐，嚴禁手動追高！"
-                                f" 安全買點：EMA5 ({_ema5_g:.1f}元) 或月線 ({_sma20_g:.1f}元)。"
-                            )
-
-                elif _close_now > _sma20_g:
-                    # 安全區：乖離 <= 5% 且守月線
-                    st.success(
-                        f"🟢 **風控卡閘通過**：當前現價與月線乖離率僅 **{bias_ma20:.1f}%**，"
-                        f"處於安全的「右側拉回換手區」或「強勢起漲第一天」。"
-                        f"{'持股者可安心續抱，拉回EMA5即加碼機會。' if _is_holding else '可手動分批執行現股加碼/建倉。'}"
+                if _lvl == "purple":
+                    st.markdown(
+                        f"<div style='background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(74,20,140,0.3));"
+                        f"border:2px solid #ce93d8;border-radius:10px;padding:14px 18px;'>"
+                        f"<span style='color:#f3e5f5;font-size:.9rem;'>{_msg}</span></div>",
+                        unsafe_allow_html=True
                     )
+                elif _lvl == "red":
+                    st.warning(_msg)
+                else:
+                    st.success(_msg)
 
             mc1, mc2 = st.columns([3, 1])
             with mc1:
