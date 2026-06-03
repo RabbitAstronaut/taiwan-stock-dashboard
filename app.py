@@ -1911,6 +1911,11 @@ with tab3:
         sid_watch  = selected_clean.split()[0]
         name_watch = " ".join(selected_clean.split()[1:])
 
+        # 個股切換時清除推薦快取（避免殘留上一檔的推薦）
+        if sid_watch != st.session_state.get("last_stock_watch"):
+            st.session_state["current_recommendation"] = None
+            st.session_state["last_stock_watch"] = sid_watch
+
         # ── 投信期貨熔斷 + 個股防守點設定
         fuse_c1, fuse_c2, fuse_c3 = st.columns([2, 2, 2])
         with fuse_c1:
@@ -2535,7 +2540,8 @@ with tab3:
     st.markdown("<div class='sec-title'>🔄 既有資產優化與換股推薦面板</div>",
                 unsafe_allow_html=True)
     st.markdown(
-        "<div class='infobox'>系統自動掃描監控名單，識別弱勢標的並推薦強勢轉進標的。</div>",
+        "<div class='infobox'>系統自動掃描監控名單，識別弱勢與強勢標的。"
+        "推薦結果依當前選定個股動態生成，切換標的時自動清除。</div>",
         unsafe_allow_html=True
     )
 
@@ -2547,6 +2553,9 @@ with tab3:
         if w["id"] not in seen_ids:
             seen_ids.add(w["id"])
             watch_dedup.append(w)
+
+    # 當前選定個股（來自上方 selectbox）
+    _current_sid = st.session_state.get("last_stock_watch", "")
 
     if not watch_dedup:
         st.info("監控清單為空，請先加入標的。")
@@ -2609,6 +2618,24 @@ with tab3:
         st.markdown("<br>", unsafe_allow_html=True)
 
         # ── 強勢轉進推薦
+        # 若當前快取已清除（個股切換），重新計算
+        if st.session_state.get("current_recommendation") is None:
+            st.session_state["current_recommendation"] = {
+                "sid": _current_sid,
+                "strong": strong_list,
+                "weak": weak_list,
+            }
+        elif st.session_state["current_recommendation"].get("sid") != _current_sid:
+            st.session_state["current_recommendation"] = {
+                "sid": _current_sid,
+                "strong": strong_list,
+                "weak": weak_list,
+            }
+
+        # 只顯示與當前個股無關的推薦（排除自己）
+        _cached = st.session_state["current_recommendation"]
+        strong_list = [s for s in _cached.get("strong", []) if s["id"] != _current_sid]
+
         st.markdown("#### 🎯 強勢轉進推薦")
 
         # 若監控名單有強勢股，優先推薦
@@ -2630,27 +2657,31 @@ with tab3:
                     unsafe_allow_html=True
                 )
         else:
-            # 監控名單無強勢股，從 Tab1 掃描結果取前3
-            scan_results = st.session_state.get("scan_results", [])
-            if scan_results:
-                df_scan = pd.DataFrame(scan_results)
-                # 取籌碼得分最高前3
-                top3 = df_scan.sort_values("籌碼得分", ascending=False).head(3)
-                weak_names = "、".join(f"{w['name']}({w['id']})" for w in weak_list) if weak_list else "弱勢部位"
-                for _, row in top3.iterrows():
-                    st.markdown(
-                        f"<div style='background:rgba(0,212,255,0.1);border-left:4px solid #00d4ff;"
-                        f"border-radius:8px;padding:12px 16px;margin:6px 0;'>"
-                        f"<b style='color:#00d4ff;'>🎯 {weak_names} 解凍資金推薦轉進："
-                        f"{row.get('名稱','—')} ({row.get('代號','—')})</b><br>"
-                        f"<span style='color:#b3e5fc;font-size:.85rem;'>"
-                        f"籌碼得分 {row.get('籌碼得分',0)}/6 ｜ EPS {row.get('EPS_TTM','—')} ｜"
-                        f" P/E {row.get('P/E','—')} ——"
-                        f" 來自最新掃描結果高分標的。</span></div>",
-                        unsafe_allow_html=True
-                    )
-            else:
-                st.info("📊 監控名單中目前無符合強勢條件的標的。建議先執行 Tab1 掃描，系統將自動從結果中推薦轉進標的。")
+            # 監控名單無強勢股
+            # ⚠️ 只有在有弱勢標的需要換股時，才顯示 Tab1 掃描結果
+            # 若無弱勢標的，不顯示任何推薦（避免殘留其他個股的建議）
+            if weak_list:
+                scan_results = st.session_state.get("scan_results", [])
+                # 掃描結果必須不包含當前個股才顯示
+                if scan_results:
+                    df_scan = pd.DataFrame(scan_results)
+                    df_scan = df_scan[df_scan.get("代號", pd.Series()) != _current_sid]                               if "代號" in df_scan.columns else df_scan
+                    top3 = df_scan.sort_values("籌碼得分", ascending=False).head(3)                            if "籌碼得分" in df_scan.columns else df_scan.head(3)
+                    weak_names = "、".join(f"{w['name']}({w['id']})" for w in weak_list)
+                    for _, row in top3.iterrows():
+                        st.markdown(
+                            f"<div style='background:rgba(0,212,255,0.1);border-left:4px solid #00d4ff;"
+                            f"border-radius:8px;padding:12px 16px;margin:6px 0;'>"
+                            f"<b style='color:#00d4ff;'>🎯 {weak_names} 解凍資金推薦轉進："
+                            f"{row.get('名稱','—')} ({row.get('代號','—')})</b><br>"
+                            f"<span style='color:#b3e5fc;font-size:.85rem;'>"
+                            f"籌碼得分 {row.get('籌碼得分',0)}/6 ｜ EPS {row.get('EPS_TTM','—')} ｜"
+                            f" P/E {row.get('P/E','—')} —— 來自最新掃描結果高分標的。</span></div>",
+                            unsafe_allow_html=True
+                        )
+                else:
+                    st.info("📊 監控名單中目前無符合強勢條件的標的。建議先執行 Tab1 掃描。")
+            # 若無弱勢標的，不顯示推薦區塊（介面保持純淨）
 
 
 # ──────────────────────────────────────────────────────────────
