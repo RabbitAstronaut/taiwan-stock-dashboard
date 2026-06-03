@@ -2673,8 +2673,16 @@ with tab4:
           "down" if mtx_inst_total < 0 else "up")
     mcard(pk3, "散戶淨多（導火線）", f"{retail_net:+,}",
           "down" if retail_net > 0 else "up")
-    mcard(pk4, "散戶多空比", f"{retail_ratio:+.1f}%",
-          "down" if retail_ratio > 10 else "up" if retail_ratio < 0 else "")
+    # 散戶多空比四色警戒
+    if retail_ratio > 20:
+        _rr_status = "down"   # 紅
+    elif retail_ratio > 10:
+        _rr_status = "warn"   # 橘
+    elif retail_ratio < -10:
+        _rr_status = "up"     # 綠
+    else:
+        _rr_status = ""       # 白
+    mcard(pk4, "散戶多空比", f"{retail_ratio:+.1f}%", _rr_status)
 
     # ── 期貨預警引擎紅綠燈
     st.markdown("<br>", unsafe_allow_html=True)
@@ -2889,9 +2897,20 @@ with tab4:
                 "- 個股選擇籌碼乾淨、法人持續買入者"
             )
 
+        # 散戶多空比四區間警戒
+        if r_ratio < -10:
+            retail_alert = "🟢 **散戶偏空（{:.1f}%）**：具備軋空動能，相對安全區".format(r_ratio)
+        elif r_ratio <= 10:
+            retail_alert = "⚪ **散戶中性（{:.1f}%）**：盤整區，暫無明確方向".format(r_ratio)
+        elif r_ratio <= 20:
+            retail_alert = "🟠 **散戶偏多（{:.1f}%）**：主力高檔倒貨警戒，注意出貨陷阱".format(r_ratio)
+        else:
+            retail_alert = "🔴 **散戶極度樂觀（{:.1f}%）**：歷史崩盤高危區，極端危險".format(r_ratio)
+
         ai_text = (
             f"**📍 當前階段{note}：{stage}**\n\n"
             f"> {desc}\n\n"
+            f"**📊 散戶多空比警戒**\n{retail_alert}\n\n"
             f"**📌 現貨操作建議**\n{action}\n\n"
         )
 
