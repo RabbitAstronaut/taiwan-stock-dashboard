@@ -2031,6 +2031,22 @@ with tab3:
 
             chg_s  = "up" if display_chg >= 0 else "down"
 
+            # 乖離率計算
+            _ma20_kpi = float(df_ind.iloc[-1].get("MA20", float("nan")))
+            _ema5_kpi = float(df_ind.iloc[-1].get("EMA5", float("nan")))
+            if not np.isnan(_ma20_kpi) and _ma20_kpi > 0:
+                _bias_kpi = (display_close - _ma20_kpi) / _ma20_kpi * 100
+                _bias_str = f"{_bias_kpi:+.1f}%"
+                _bias_status = "down" if _bias_kpi > 5 else "up" if _bias_kpi < -5 else ""
+            else:
+                _bias_str, _bias_status = "—", ""
+
+            # 安全低接點
+            if not np.isnan(_ema5_kpi) and not np.isnan(_ma20_kpi):
+                _safe_buy = f"EMA5 {_ema5_kpi:.1f} / 月線 {_ma20_kpi:.1f}"
+            else:
+                _safe_buy = "—"
+
             # ── KPI 列
             kpi_cols = st.columns(6)
             mcard(kpi_cols[0], "收盤價" + live_tag,
@@ -2041,6 +2057,25 @@ with tab3:
             mcard(kpi_cols[3], "SMA60", f"{lt.get('SMA60', float('nan')):.1f}", "")
             mcard(kpi_cols[4], "RSI5",  f"{lt.get('RSI5',  float('nan')):.1f}", "")
             mcard(kpi_cols[5], "RSI20", f"{lt.get('RSI20', float('nan')):.1f}", "")
+
+            # 硬核化欄位：乖離率 + 安全低接點
+            hc1, hc2 = st.columns(2)
+            hc1.markdown(
+                f"<div style='background:rgba({'255,82,82' if _bias_str not in ['—'] and _bias_kpi > 5 else '0,230,118' if _bias_str not in ['—'] and _bias_kpi < 0 else '30,58,95'},0.2);"
+                f"border:1px solid {'#ff5252' if _bias_str not in ['—'] and _bias_kpi > 5 else '#00e676' if _bias_str not in ['—'] and _bias_kpi < 0 else '#1e3a5f'};"
+                f"border-radius:8px;padding:8px 14px;'>"
+                f"<div style='color:#7fb3d3;font-size:.72rem;'>📊 與月線乖離率</div>"
+                f"<div style='color:{'#ff5252' if _bias_str not in ['—'] and _bias_kpi > 5 else '#00e676' if _bias_str not in ['—'] and _bias_kpi < 0 else '#e8f4fd'};"
+                f"font-size:1.2rem;font-weight:700;'>{_bias_str}</div></div>",
+                unsafe_allow_html=True
+            )
+            hc2.markdown(
+                f"<div style='background:rgba(30,58,95,0.2);border:1px solid #1e3a5f;"
+                f"border-radius:8px;padding:8px 14px;'>"
+                f"<div style='color:#7fb3d3;font-size:.72rem;'>🎯 下一個安全低接點</div>"
+                f"<div style='color:#ffeb3b;font-size:.85rem;font-weight:600;'>{_safe_buy}</div></div>",
+                unsafe_allow_html=True
+            )
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ══════════════════════════════════════════════
@@ -2216,6 +2251,34 @@ with tab3:
                     st.success(msg)
 
             # K線主圖 + RSI 副圖
+            # ══════════════════════════════════════════════
+            # 🚨 進場安全性卡閘（Gatekeeper）
+            # ══════════════════════════════════════════════
+            _close_now = float(lt["Close"])
+            _sma20_g   = float(lt.get("MA20",  float("nan")))
+            _ema5_g    = float(lt.get("EMA5",  float("nan")))
+            _rsi5_g    = float(lt.get("RSI5",  50))
+
+            if not np.isnan(_sma20_g) and _sma20_g > 0:
+                bias_ma20 = (_close_now - _sma20_g) / _sma20_g * 100
+
+                if bias_ma20 > 5 or _rsi5_g > 80:
+                    # 情境A：超載禁止進場
+                    st.warning(
+                        f"❌ **風控卡閘攔截**：本股短線正乖離率已達 **{bias_ma20:.1f}%**"
+                        f"（RSI5: {_rsi5_g:.1f}），嚴重過熱！"
+                        f"雖處於多頭，但此點位手動「追高極度危險」。"
+                        f"安全手動買點為：待股價回踩 "
+                        f"**EMA5 ({_ema5_g:.1f}元)** 或 **月線 ({_sma20_g:.1f}元)** 且量能萎縮時。"
+                    )
+                elif _close_now > _sma20_g:
+                    # 情境B：安全期准許進場
+                    st.success(
+                        f"🟢 **風控卡閘通過**：當前現價與月線乖離率僅 **{bias_ma20:.1f}%**，"
+                        f"處於安全的「右側拉回換手區」或「強勢起漲第一天」。"
+                        f"此點位具備極高價格抵抗力，可手動分批執行現股加碼/建倉。"
+                    )
+
             mc1, mc2 = st.columns([3, 1])
             with mc1:
                 fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
