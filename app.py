@@ -54,12 +54,12 @@ def load_watchlist_from_github():
         pass
     return [], [], {}
 
-def save_watchlist_to_github(manual_list, scan_list, etf_shares=None):
+def save_watchlist_to_github(manual_list, scan_list, etf_shares=None, reserve=None):
     """用 GitHub API 把監控清單與 ETF 持倉存到 data/watchlist.json"""
     if not GITHUB_TOKEN:
         return False
     import base64, json as _json
-    payload = _json.dumps({"manual": manual_list, "scan": scan_list, "etf_shares": etf_shares or {}}, ensure_ascii=False, indent=2)
+    payload = _json.dumps({"manual": manual_list, "scan": scan_list, "etf_shares": etf_shares or {}, "reserve": reserve or []}, ensure_ascii=False, indent=2)
     api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/data/watchlist.json"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
     # 先取得現有 sha（更新需要）
@@ -941,10 +941,11 @@ st.markdown(f"""
 # ══════════════════════════════════════════════════════════════
 # ▌ 三大分頁
 # ══════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🔍 選股掃描儀",
     "📡 大數據雷達",
     "🚨 持股監控",
+    "🏹 戰略儲備庫",
     "📡 大盤預警",
     "📝 每日作戰總部",
     "💰 ETF存股現金流",
@@ -2645,10 +2646,177 @@ with tab3:
             else:
                 st.info("📊 監控名單中目前無符合強勢條件的標的。建議先執行 Tab1 掃描，系統將自動從結果中推薦轉進標的。")
 
+
 # ──────────────────────────────────────────────────────────────
-# ▌ TAB 4：大盤預警
+# ▌ TAB 4：戰略儲備庫（精兵回頭草雷達）
 # ──────────────────────────────────────────────────────────────
 with tab4:
+    st.markdown("<div class='sec-title'>🏹 戰略儲備庫 · 精兵回頭草雷達</div>",
+                unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>存放「曾持有但因短線破位暫時出清」的優質標的。"
+        "系統每日自動監控，一旦籌碼沉澱完成即觸發精準獵殺警報。</div>",
+        unsafe_allow_html=True
+    )
+
+    # ── Session State 初始化（戰略儲備清單）
+    if "reserve_list" not in st.session_state:
+        # 從 watchlist.json 讀取（若有）
+        _rsv = st.session_state.get("_reserve_raw", [])
+        st.session_state.reserve_list = _rsv
+
+    # 從 GitHub 讀取 reserve（整合進 watchlist.json 的 reserve key）
+    if "reserve_loaded" not in st.session_state:
+        try:
+            _ru = f"{GITHUB_RAW}/watchlist.json"
+            import requests as _rqr
+            _rr = _rqr.get(_ru, timeout=8)
+            if _rr.status_code == 200:
+                _rd = _rr.json()
+                st.session_state.reserve_list = _rd.get("reserve", [])
+        except Exception:
+            pass
+        st.session_state.reserve_loaded = True
+
+    # ── 新增標的輸入
+    st.markdown("### ➕ 加入戰略儲備")
+    rsv_c1, rsv_c2, rsv_c3 = st.columns([2, 2, 2])
+    with rsv_c1:
+        rsv_sid = st.text_input("股票代號", placeholder="如 2345",
+                                key="rsv_sid", label_visibility="collapsed")
+    with rsv_c2:
+        rsv_note = st.text_input("備註（可選）", placeholder="如：散熱主力股，等月線回測",
+                                 key="rsv_note", label_visibility="collapsed")
+    with rsv_c3:
+        if st.button("🏹 加入儲備庫", key="rsv_add", use_container_width=True):
+            sid_r = rsv_sid.strip()
+            if sid_r and not any(r["id"] == sid_r for r in st.session_state.reserve_list):
+                df_si_r, ok_si_r = get_stock_info()
+                name_r = sid_r
+                if ok_si_r and not df_si_r.empty:
+                    row_r = df_si_r[df_si_r["stock_id"] == sid_r]
+                    if not row_r.empty:
+                        name_r = str(row_r["stock_name"].iloc[0])
+                st.session_state.reserve_list.append({
+                    "id": sid_r, "name": name_r,
+                    "note": rsv_note.strip(),
+                    "added_at": datetime.now().strftime("%Y-%m-%d")
+                })
+                # 存回 GitHub
+                _wl = st.session_state.watchlist
+                _sc = st.session_state.watchlist_scan
+                _es = {k: v for k, v in st.session_state.etf_shares.items() if v > 0}
+                save_watchlist_to_github(_wl, _sc, _es,
+                                         reserve=st.session_state.reserve_list)
+                st.toast(f"✅ {sid_r} {name_r} 已加入戰略儲備庫", icon="✅")
+                st.rerun()
+            elif not sid_r:
+                st.warning("請輸入股票代號")
+
+    st.markdown("---")
+
+    if not st.session_state.reserve_list:
+        st.info("🏹 戰略儲備庫尚無標的，請從上方加入或從 Tab3 持股監控移入。")
+    else:
+        st.markdown(f"### 📡 精兵回頭草雷達｜共 {len(st.session_state.reserve_list)} 檔監控中")
+
+        # 掃描所有儲備標的
+        triggered = []
+        waiting   = []
+
+        for item in st.session_state.reserve_list:
+            sid_rv  = item["id"]
+            name_rv = item.get("name", sid_rv)
+            note_rv = item.get("note", "")
+
+            df_rv, ok_rv = load_price_csv(sid_rv)
+            if not ok_rv or df_rv.empty or len(df_rv) < 10:
+                waiting.append((sid_rv, name_rv, note_rv, None, None, "無K線資料"))
+                continue
+
+            df_rv = add_indicators(df_rv)
+            lt_rv = df_rv.iloc[-1]
+            close_rv  = float(lt_rv["Close"])
+            ema5_rv   = float(lt_rv.get("EMA5",  float("nan")))
+            sma20_rv  = float(lt_rv.get("MA20",  float("nan")))
+            vol_rv    = float(lt_rv.get("Volume", 0))
+            vma5_rv   = float(lt_rv.get("VMA5",  float("nan")))
+            open_rv   = float(lt_rv.get("Open",  close_rv))
+
+            # 乖離率
+            bias_rv = (close_rv - sma20_rv) / sma20_rv * 100 if not np.isnan(sma20_rv) and sma20_rv > 0 else float("nan")
+
+            # 條件一：成交量連續3日萎縮（< VMA5 * 0.5）
+            if not np.isnan(vma5_rv) and vma5_rv > 0 and len(df_rv) >= 4:
+                vols = df_rv["Volume"].astype(float).tail(3).tolist()
+                cond1 = all(v < vma5_rv * 0.5 for v in vols)
+            else:
+                cond1 = False
+
+            # 條件二：乖離率 <= 5%
+            cond2 = not np.isnan(bias_rv) and bias_rv <= 5
+
+            # 條件三：今日收紅K 且現價 > EMA5
+            cond3 = (close_rv > open_rv) and (not np.isnan(ema5_rv)) and (close_rv > ema5_rv)
+
+            if cond1 and cond2 and cond3:
+                triggered.append((sid_rv, name_rv, note_rv, close_rv, bias_rv))
+            else:
+                conds_met = sum([cond1, cond2, cond3])
+                waiting.append((sid_rv, name_rv, note_rv, close_rv, bias_rv,
+                                f"{conds_met}/3 條件成立"))
+
+        # ── 觸發警報顯示
+        if triggered:
+            for sid_rv, name_rv, note_rv, close_rv, bias_rv in triggered:
+                _alert_msg = (
+                    f"🎯 精兵回頭草警報：戰略儲備股 {name_rv}（{sid_rv}）已在冷宮完成沉澱！"
+                    f" 今日現價 {close_rv:.1f} 元，與月線乖離率僅 +{bias_rv:.1f}%（符合<5%限制），"
+                    f"且成交量極致萎縮後首度帶量收復5日線。"
+                    f" 基本面基因優良，短線防禦安全邊際極高，准許執行手動第二波精準獵殺！"
+                )
+                st.info(_alert_msg)
+
+        # ── 等待中標的
+        st.markdown("#### ⏳ 籌碼沉澱中...")
+        rm_rsv = None
+        for sid_rv, name_rv, note_rv, close_rv, bias_rv, status in waiting:
+            w_c1, w_c2, w_c3, w_c4, w_c5 = st.columns([1.5, 2, 1.5, 2, 1])
+            w_c1.markdown(f"<span style='color:#546e7a;font-weight:600;'>{sid_rv}</span>",
+                         unsafe_allow_html=True)
+            w_c2.markdown(f"<span style='color:#546e7a;'>{name_rv}</span>",
+                         unsafe_allow_html=True)
+            if close_rv is not None:
+                w_c3.markdown(f"<span style='color:#546e7a;'>{close_rv:.1f} 元</span>",
+                             unsafe_allow_html=True)
+                if not np.isnan(bias_rv):
+                    w_c4.markdown(
+                        f"<span style='color:#546e7a;font-size:.82rem;'>⏳ 籌碼沉澱中，乖離率 {bias_rv:+.1f}%，靜待拉回守穩。</span>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    w_c4.caption(status)
+            else:
+                w_c3.caption("—")
+                w_c4.caption(status)
+            if w_c5.button("✕", key=f"rsv_rm_{sid_rv}", use_container_width=True):
+                rm_rsv = sid_rv
+
+        if rm_rsv:
+            st.session_state.reserve_list = [
+                r for r in st.session_state.reserve_list if r["id"] != rm_rsv
+            ]
+            _wl = st.session_state.watchlist
+            _sc = st.session_state.watchlist_scan
+            _es = {k: v for k, v in st.session_state.etf_shares.items() if v > 0}
+            save_watchlist_to_github(_wl, _sc, _es,
+                                     reserve=st.session_state.reserve_list)
+            st.rerun()
+
+# ──────────────────────────────────────────────────────────────
+# ▌ TAB 5：大盤預警
+# ──────────────────────────────────────────────────────────────
+with tab5:
     st.markdown("<div class='sec-title'>📡 大盤預警 · 期貨引擎 ＋ 蒙格行為學 ＋ AI診斷</div>",
                 unsafe_allow_html=True)
 
@@ -3198,9 +3366,9 @@ with tab4:
     )
 
 # ──────────────────────────────────────────────────────────────
-# ▌ TAB 5：每日作戰總部（MTFA 專屬報告）
+# ▌ TAB 6：每日作戰總部（MTFA 專屬報告）
 # ──────────────────────────────────────────────────────────────
-with tab5:
+with tab6:
     st.markdown("<div class='sec-title'>📝 每日作戰總部 · MTFA 狙擊報告</div>",
                 unsafe_allow_html=True)
 
@@ -3691,9 +3859,9 @@ with tab2:
                                              {k:v for k,v in st.session_state.etf_shares.items() if v>0})
                     st.toast(f"✅ 已加入 {added} 檔到掃描監控清單")
 
-# ▌ TAB 6：ETF 存股現金流管家
+# ▌ TAB 7：ETF 存股現金流管家
 # ──────────────────────────────────────────────────────────────
-with tab6:
+with tab7:
     st.markdown("<div class='sec-title'>💰 ETF 存股現金流管家</div>", unsafe_allow_html=True)
     st.markdown("<div class='infobox'>在下方輸入持有張數，系統即時試算投入本金、預估年化殖利率與未來 12 個月現金流。</div>", unsafe_allow_html=True)
 
@@ -4152,7 +4320,7 @@ with tab6:
 # ──────────────────────────────────────────────────────────────
 
 # ──────────────────────────────────────────────────────────────
-with tab7:
+with tab8:
     st.header("🧪 策略回測實驗室")
     st.info("選擇股票與策略維度，驗證財報/技術/籌碼因子的有效性。")
 
