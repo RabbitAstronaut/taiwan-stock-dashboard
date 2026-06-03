@@ -2810,25 +2810,75 @@ with tab4:
     st.markdown("<div class='sec-title'>🧠 查理·蒙格行為學大崩盤信號</div>",
                 unsafe_allow_html=True)
 
+    # ── 讀取 AI 蒙格情緒分析結果
+    munger_ai = None
+    try:
+        _mu = f"{GITHUB_RAW}/munger_sentiment.json"
+        import requests as _rqmu
+        _rmu = _rqmu.get(_mu, timeout=8)
+        if _rmu.status_code == 200:
+            munger_ai = _rmu.json()
+    except Exception:
+        pass
+
+    # ── AI 趨勢總結展示
+    if munger_ai:
+        _trend    = munger_ai.get("trend_analysis", "")
+        _dscore   = munger_ai.get("danger_score", 0)
+        _days     = munger_ai.get("analysis_days", 1)
+        _gen_at   = munger_ai.get("generated_at", "")
+        _triggered = munger_ai.get("triggered_indexes", [])
+        _keys     = munger_ai.get("key_signals", [])
+
+        # 危險分數顏色
+        _dc = "#ff5252" if _dscore >= 60 else "#ff9800" if _dscore >= 30 else "#00e676"
+        _di = "🔴" if _dscore >= 60 else "🟠" if _dscore >= 30 else "🟢"
+
+        st.markdown(
+            f"<div style='background:linear-gradient(135deg,rgba(30,58,95,0.6),rgba(15,32,39,0.8));"
+            f"border:1px solid #1e3a5f;border-left:4px solid {_dc};"
+            f"border-radius:10px;padding:14px 18px;margin-bottom:10px;'>"
+            f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
+            f"<span style='color:#00d4ff;font-size:.82rem;font-weight:700;letter-spacing:.05em;'>"
+            f"🧠 AI 連續 {_days} 日情緒趨勢分析</span>"
+            f"<span style='color:{_dc};font-size:1.1rem;font-weight:700;'>"
+            f"{_di} 危險分數 {_dscore}/100</span></div>"
+            f"<div style='color:#b0cce0;font-size:.85rem;margin-top:8px;line-height:1.6;'>{_trend}</div>"
+            + (f"<div style='margin-top:8px;'>"
+               + "".join(f"<span style='background:rgba(255,82,82,0.15);color:#ff8a80;"
+                         f"border:1px solid #ff5252;padding:2px 8px;border-radius:10px;"
+                         f"font-size:.75rem;margin:2px;display:inline-block;'>⚠️ {s}</span>"
+                         for s in _keys)
+               + "</div>" if _keys else "")
+            + f"<div style='color:#546e7a;font-size:.72rem;margin-top:6px;'>生成時間：{_gen_at}</div>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+    else:
+        st.caption("🧠 AI情緒分析尚無資料，請執行 generate_munger_sentiment.py")
+
+    # AI 自動觸發的信號索引（1-based）
+    _auto = set(munger_ai.get("triggered_indexes", [])) if munger_ai else set()
+
     bc1, bc2 = st.columns(2)
     with bc1:
         st.markdown("<span style='color:#ffab40;font-size:.76rem;font-weight:600;'>📣 市場情緒面</span>",
                     unsafe_allow_html=True)
-        b1  = st.checkbox("市場充斥「這次不一樣、估值重構」言論")
-        b2  = st.checkbox("散戶對利空麻木，認為拉回就是買點")
-        b3  = st.checkbox("強勢股（AI概念）出現大量散戶追捧")
-        b4  = st.checkbox("媒體頻繁出現「萬八萬九」類標題")
-        b5  = st.checkbox("身邊非投資人士開始詢問如何開戶")
-        b6  = st.checkbox("散戶急於向下攤平，加碼重挫個股")
+        b1  = st.checkbox("市場充斥「這次不一樣、估值重構」言論",  value=(1 in _auto))
+        b2  = st.checkbox("散戶對利空麻木，認為拉回就是買點",      value=(2 in _auto))
+        b3  = st.checkbox("強勢股（AI概念）出現大量散戶追捧",      value=(3 in _auto))
+        b4  = st.checkbox("媒體頻繁出現「萬八萬九」類標題",        value=(4 in _auto))
+        b5  = st.checkbox("身邊非投資人士開始詢問如何開戶",        value=(5 in _auto))
+        b6  = st.checkbox("散戶急於向下攤平，加碼重挫個股",        value=(6 in _auto))
     with bc2:
         st.markdown("<span style='color:#e040fb;font-size:.76rem;font-weight:600;'>📊 技術籌碼面</span>",
                     unsafe_allow_html=True)
-        b7  = st.checkbox("融資餘額創近期新高或大量新增信用帳戶")
-        b8  = st.checkbox("指數創新高但多數個股跌破均線（背離）")
-        b9  = st.checkbox("外資連續多日在現貨大額賣超")
-        b10 = st.checkbox("量縮價穩假象（成交量萎縮指數卻在高點）")
-        b11 = st.checkbox("權值股無量上攻後急跌，籌碼鬆動")
-        b12 = st.checkbox("期貨逆價差擴大（法人對沖意願增強）")
+        b7  = st.checkbox("融資餘額創近期新高或大量新增信用帳戶",  value=(7 in _auto))
+        b8  = st.checkbox("指數創新高但多數個股跌破均線（背離）",  value=(8 in _auto))
+        b9  = st.checkbox("外資連續多日在現貨大額賣超",            value=(9 in _auto))
+        b10 = st.checkbox("量縮價穩假象（成交量萎縮指數卻在高點）", value=(10 in _auto))
+        b11 = st.checkbox("權值股無量上攻後急跌，籌碼鬆動",        value=(11 in _auto))
+        b12 = st.checkbox("期貨逆價差擴大（法人對沖意願增強）",    value=(12 in _auto))
 
     checks    = [b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12]
     chk_count = sum(checks)
