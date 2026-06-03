@@ -2060,13 +2060,28 @@ with tab3:
 
             # 硬核化欄位：乖離率 + 安全低接點
             hc1, hc2 = st.columns(2)
+            # 乖離率卡片顏色邏輯
+            _bias_valid = _bias_str not in ["—"]
+            if _bias_valid and _bias_kpi > 25:
+                _bc, _bb, _bt = "156,39,176", "#ce93d8", "#ff80ab"  # 紫色：停利區
+                _op_hint = "🟣 建議減碼/停利"
+            elif _bias_valid and _bias_kpi > 5:
+                _bc, _bb, _bt = "255,82,82", "#ff5252", "#ff5252"   # 紅色：過熱
+                _op_hint = "⚠️ 追高危險"
+            elif _bias_valid and _bias_kpi < 0:
+                _bc, _bb, _bt = "0,230,118", "#00e676", "#00e676"   # 綠色：折價
+                _op_hint = "🟢 可布局"
+            else:
+                _bc, _bb, _bt = "30,58,95", "#1e3a5f", "#e8f4fd"    # 藍：中性
+                _op_hint = "⚪ 續抱"
+
             hc1.markdown(
-                f"<div style='background:rgba({'255,82,82' if _bias_str not in ['—'] and _bias_kpi > 5 else '0,230,118' if _bias_str not in ['—'] and _bias_kpi < 0 else '30,58,95'},0.2);"
-                f"border:1px solid {'#ff5252' if _bias_str not in ['—'] and _bias_kpi > 5 else '#00e676' if _bias_str not in ['—'] and _bias_kpi < 0 else '#1e3a5f'};"
+                f"<div style='background:rgba({_bc},0.2);border:1px solid {_bb};"
                 f"border-radius:8px;padding:8px 14px;'>"
                 f"<div style='color:#7fb3d3;font-size:.72rem;'>📊 與月線乖離率</div>"
-                f"<div style='color:{'#ff5252' if _bias_str not in ['—'] and _bias_kpi > 5 else '#00e676' if _bias_str not in ['—'] and _bias_kpi < 0 else '#e8f4fd'};"
-                f"font-size:1.2rem;font-weight:700;'>{_bias_str}</div></div>",
+                f"<div style='color:{_bt};font-size:1.2rem;font-weight:700;'>{_bias_str}</div>"
+                f"<div style='color:{_bt};font-size:.75rem;margin-top:2px;'>{_op_hint}</div>"
+                f"</div>",
                 unsafe_allow_html=True
             )
             hc2.markdown(
@@ -2252,31 +2267,62 @@ with tab3:
 
             # K線主圖 + RSI 副圖
             # ══════════════════════════════════════════════
-            # 🚨 進場安全性卡閘（Gatekeeper）
+            # 🚨 進場安全性卡閘 + 移動停利訊號
             # ══════════════════════════════════════════════
             _close_now = float(lt["Close"])
             _sma20_g   = float(lt.get("MA20",  float("nan")))
             _ema5_g    = float(lt.get("EMA5",  float("nan")))
             _rsi5_g    = float(lt.get("RSI5",  50))
 
+            # 是否已持有此部位
+            _is_holding = st.toggle(
+                f"📌 我已持有 {name_watch}（切換以顯示停利訊號）",
+                key=f"holding_{sid_watch}", value=False
+            )
+
             if not np.isnan(_sma20_g) and _sma20_g > 0:
                 bias_ma20 = (_close_now - _sma20_g) / _sma20_g * 100
 
-                if bias_ma20 > 5 or _rsi5_g > 80:
-                    # 情境A：超載禁止進場
-                    st.warning(
-                        f"❌ **風控卡閘攔截**：本股短線正乖離率已達 **{bias_ma20:.1f}%**"
-                        f"（RSI5: {_rsi5_g:.1f}），嚴重過熱！"
-                        f"雖處於多頭，但此點位手動「追高極度危險」。"
-                        f"安全手動買點為：待股價回踩 "
-                        f"**EMA5 ({_ema5_g:.1f}元)** 或 **月線 ({_sma20_g:.1f}元)** 且量能萎縮時。"
-                    )
+                # ── 極端超買停利卡閘（bias > 25% 且 RSI5 > 85）
+                if bias_ma20 > 25 and _rsi5_g > 85:
+                    if _is_holding:
+                        # 已持股：主動停利訊號（紫色）
+                        st.markdown(
+                            f"<div style='background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(74,20,140,0.3));"
+                            f"border:2px solid #ce93d8;border-radius:10px;padding:16px 20px;'>"
+                            f"<b style='color:#ce93d8;font-size:1rem;'>🎯 系統移動停利提示（賣出訊號）</b><br><br>"
+                            f"<span style='color:#f3e5f5;font-size:.9rem;'>"
+                            f"本股當前與月線正乖離已達 <b style='color:#ff80ab;'>{bias_ma20:.1f}%</b>，"
+                            f"RSI5 飆高至 <b style='color:#ff80ab;'>{_rsi5_g:.1f}</b>。"
+                            f"此為典型的主力情緒高潮與高檔換手區。<br><br>"
+                            f"為防止利潤大幅回吐，<b>強烈建議此時執行手動「主動減碼 50%」或「全數落袋為安」！</b>"
+                            f"把獲利鎖定在最瘋狂的右側高點。</span></div>",
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        # 未持股：禁止追高
+                        st.warning(
+                            f"❌ **風控卡閘攔截**：短線嚴重過載（乖離 {bias_ma20:.1f}%，"
+                            f"RSI5: {_rsi5_g:.1f}），嚴禁手動追高買進！"
+                        )
+
+                elif bias_ma20 > 5 or _rsi5_g > 80:
+                    if _is_holding:
+                        st.warning(
+                            f"⚠️ **高檔預警**：乖離率 {bias_ma20:.1f}%（RSI5: {_rsi5_g:.1f}）。"
+                            f"持股者建議啟動移動停利，回踩 EMA5 ({_ema5_g:.1f}) 可考慮減碼。"
+                        )
+                    else:
+                        st.warning(
+                            f"❌ **風控卡閘攔截**：本股短線正乖離率已達 **{bias_ma20:.1f}%**"
+                            f"（RSI5: {_rsi5_g:.1f}），嚴重過熱！"
+                            f"安全買點：EMA5 ({_ema5_g:.1f}元) 或月線 ({_sma20_g:.1f}元) 且量縮時。"
+                        )
                 elif _close_now > _sma20_g:
-                    # 情境B：安全期准許進場
                     st.success(
                         f"🟢 **風控卡閘通過**：當前現價與月線乖離率僅 **{bias_ma20:.1f}%**，"
                         f"處於安全的「右側拉回換手區」或「強勢起漲第一天」。"
-                        f"此點位具備極高價格抵抗力，可手動分批執行現股加碼/建倉。"
+                        f"{'持股者可安心續抱。' if _is_holding else '可手動分批執行現股加碼/建倉。'}"
                     )
 
             mc1, mc2 = st.columns([3, 1])
