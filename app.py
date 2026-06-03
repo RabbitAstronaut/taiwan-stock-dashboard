@@ -248,6 +248,10 @@ section[data-testid="stSidebar"] .stButton button span{
     color:#e8f4fd!important;
     background:linear-gradient(135deg,#162535,#1e3a5f)!important;
 }
+/* AI題材個股按鈕 */
+button[kind="secondary"] p, button[kind="secondary"] span{
+    color:#e8f4fd!important;
+}
 /* 所有文字強制可見 */
 p, span, label, div, h1, h2, h3, li {
     color:#ddeeff;
@@ -1308,6 +1312,10 @@ with tab1:
                 stock_ids = [s for s in all_fin_ids if s.startswith(prefix_digit)]
             elif rng_type == "✏️ 自訂代號":
                 stock_ids = [s for s in scan_pool_ids if s in all_fin_ids]
+            elif rng_type in ["🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達",
+                              "🤖 AI題材相關個股", "🎯 MTFA 狙擊名單"]:
+                # 直接用雷達/AI題材結果，不強制過濾 all_fin_ids（避免漏掉）
+                stock_ids = scan_pool_ids if scan_pool_ids else all_fin_ids
             else:  # 全市場
                 stock_ids = all_fin_ids
 
