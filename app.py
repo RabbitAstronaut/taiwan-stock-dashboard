@@ -2687,8 +2687,11 @@ with tab4:
                                 key="rsv_sid", label_visibility="collapsed")
     with rsv_c2:
         if st.button("🏹 加入儲備庫", key="rsv_add", use_container_width=True):
-            rsv_note = ""
-            sid_r = rsv_sid.strip()
+            # 解析代號和備註（如 "2345 散熱主力股"）
+            _raw = rsv_sid.strip()
+            _parts = _raw.split(" ", 1)
+            sid_r = _parts[0].strip()
+            rsv_note = _parts[1].strip() if len(_parts) > 1 else ""
             if sid_r and not any(r["id"] == sid_r for r in st.session_state.reserve_list):
                 df_si_r, ok_si_r = get_stock_info()
                 name_r = sid_r
@@ -2696,9 +2699,6 @@ with tab4:
                     row_r = df_si_r[df_si_r["stock_id"] == sid_r]
                     if not row_r.empty:
                         name_r = str(row_r["stock_name"].iloc[0])
-                # 解析備註（代號後面的文字）
-                _parts = rsv_sid.strip().split(" ", 1)
-                rsv_note = _parts[1] if len(_parts) > 1 else ""
                 st.session_state.reserve_list.append({
                     "id": sid_r, "name": name_r,
                     "note": rsv_note.strip(),
@@ -2805,10 +2805,10 @@ with tab4:
                              unsafe_allow_html=True)
                 if not np.isnan(bias_rv):
                     _bias_txt = f"乖離 {bias_rv:+.1f}%"
-                    _note_txt = f"　{note_rv}" if note_rv else ""
+                    _note_txt = f"　💬 {note_rv}" if note_rv else ""
                     w_c4.markdown(
                         f"<span style='color:{_col};font-size:.82rem;'>"
-                        f"{_ico} {status} 條件成立｜{_bias_txt}，靜待拉回守穩{_note_txt}</span>",
+                        f"{_ico} {status}｜{_bias_txt}，靜待拉回守穩{_note_txt}</span>",
                         unsafe_allow_html=True
                     )
                 else:
