@@ -1896,8 +1896,25 @@ with tab3:
             st.warning("找不到符合的標的")
             st.stop()
 
-        selected = st.selectbox("選擇監控標的", src_options, key="t2_sel",
-                                 format_func=lambda x: x)
+        _sel_col, _btn_col = st.columns([5, 1])
+        with _sel_col:
+            selected = st.selectbox("選擇監控標的", src_options, key="t2_sel",
+                                     format_func=lambda x: x)
+        with _btn_col:
+            st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+            if st.button("🔄 即時報價", key="t2_refresh", use_container_width=True,
+                         help="強制抓取最新即時報價，更新月乖離計算"):
+                # 清除此股的 live_prices 快取，強制重新抓取
+                _sid_cur = selected.lstrip("📌🔍 ").strip().split()[0] if selected else ""
+                if _sid_cur:
+                    st.session_state.live_prices.pop(_sid_cur, None)
+                    live_data = fetch_live_price(_sid_cur)
+                    if live_data:
+                        st.session_state.live_prices[_sid_cur] = live_data
+                        st.toast(f"✅ {_sid_cur} 已更新：{live_data['close']} 元（{live_data['time']}）", icon="✅")
+                    else:
+                        st.toast("⚠️ 即時報價抓取失敗（非交易時間或網路問題）", icon="⚠️")
+                st.rerun()
 
         # 如果選到標題行，自動跳到下一個有效選項
         if selected.startswith("──"):
