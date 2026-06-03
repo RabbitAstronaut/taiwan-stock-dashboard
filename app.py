@@ -2311,12 +2311,15 @@ with tab3:
             if not np.isnan(_sma20_g) and _sma20_g > 0:
                 bias_ma20 = (display_close - _sma20_g) / _sma20_g * 100  # 統一用 display_close
 
-                # ── 起漲突破 Facts 計算
-                _high60 = float(df_ind["Close"].astype(float).tail(60).max())                           if len(df_ind) >= 60 else float(df_ind["Close"].astype(float).max())
-                _vol_now  = float(df_ind["Volume"].astype(float).iloc[-1])                             if "Volume" in df_ind.columns else 0
-                _vma20    = float(df_ind["Volume"].astype(float).rolling(20).mean().iloc[-1])                             if "Volume" in df_ind.columns else 0
-                is_box_breakout     = _close_now >= _high60
-                is_volume_reignition = _vma20 > 0 and _vol_now >= _vma20 * 2.0
+                # ── 突破 Facts 計算（日線60日 + 週線250日）
+                _close_series = df_ind["Close"].astype(float)
+                _high60  = float(_close_series.tail(60).max())  if len(df_ind) >= 60  else float(_close_series.max())
+                _high250 = float(_close_series.tail(250).max()) if len(df_ind) >= 250 else float(_close_series.max())
+                _vol_now = float(df_ind["Volume"].astype(float).iloc[-1])                            if "Volume" in df_ind.columns else 0
+                _vma20   = float(df_ind["Volume"].astype(float).rolling(20).mean().iloc[-1])                            if "Volume" in df_ind.columns else 0
+                is_box_breakout          = _close_now >= _high60
+                is_weekly_longterm_break = _close_now >= _high250 * 0.98  # 一年歷史高點98%附近
+                is_volume_reignition     = _vma20 > 0 and _vol_now >= _vma20 * 2.0
 
                 # ── 三階層精密分流（依乖離率嚴重度）
                 if bias_ma20 > 25 or _rsi5_g > 85:
@@ -2352,12 +2355,27 @@ with tab3:
                             f"非但不是減碼點，反而是系統認證的「手動右側加碼/撿便宜甜甜點」！"
                         )
                     else:
-                        # 未持股：先檢查是否為起漲第一天
-                        if is_box_breakout and is_volume_reignition:
+                        # 未持股：三層特赦判定
+                        if is_weekly_longterm_break and is_volume_reignition:
+                            # 👑 週線級歷史大突破特赦（一年橫盤剛突破）
+                            if bias_ma20 <= 20.0:
+                                st.success(
+                                    f"👑 **風控卡閘【最高級別特赦】**：當前真實月乖離率 **{bias_ma20:.1f}%**。"
+                                    f"系統偵測到本股正處於「長達一整年大型週線橫盤底部歷史性大突破」！"
+                                    f"此種大時框結構剛啟動時的 10%~20% 乖離屬於極度健康的右側動能溢價，"
+                                    f"長線空間全面打開，准許建立主攻/加碼部位！"
+                                )
+                            else:
+                                st.warning(
+                                    f"❌ **風控卡閘攔截**：雖為週線級大突破，但當前月乖離率已達 **{bias_ma20:.1f}%**"
+                                    f"（超過長線寬限 20%），短線追價風險過高，請靜待拉回。"
+                                )
+                        elif is_box_breakout and is_volume_reignition:
+                            # 🟢 日線60日箱體突破特赦
                             if bias_ma20 <= 12.0:
                                 st.success(
-                                    f"🟢 **風控卡閘通過（強勢起漲點）**：當前與月線乖離率為 **{bias_ma20:.1f}%**。"
-                                    f"雖大於常規 5% 限制，但系統偵測到本股「帶量實質突破 60 日大箱體平台」，"
+                                    f"🟢 **風控卡閘通過（強勢起漲點）**：當前與月線乖離率 **{bias_ma20:.1f}%**。"
+                                    f"系統偵測到本股「帶量實質突破 60 日大箱體平台」，"
                                     f"此為正宗右側主升段第一天發動！"
                                     f"此點位具備強大動能溢價，准許手動建立第一筆主攻部位！"
                                 )
@@ -2367,10 +2385,11 @@ with tab3:
                                     f"（超過起漲寬限 12%），短線已有過度追價風險，請靜待盤中回踩。"
                                 )
                         else:
+                            # ⏳ 常規個股：5% 嚴格攔截
                             st.warning(
-                                f"❌ **風控卡閘攔截**：本股短線正乖離率已達 **{bias_ma20:.1f}%**"
-                                f"（RSI5: {_rsi5_g:.1f}），嚴重過熱！"
-                                f"安全買點：EMA5 ({_ema5_g:.1f}元) 或月線 ({_sma20_g:.1f}元) 且量縮時。"
+                                f"❌ **風控卡閘攔截**：常規個股短線月乖離率已達 **{bias_ma20:.1f}%**"
+                                f"（RSI5: {_rsi5_g:.1f}），無爆量突破事實支撐，嚴禁手動追高！"
+                                f" 安全買點：EMA5 ({_ema5_g:.1f}元) 或月線 ({_sma20_g:.1f}元)。"
                             )
 
                 elif _close_now > _sma20_g:
