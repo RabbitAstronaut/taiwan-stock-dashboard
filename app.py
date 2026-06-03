@@ -1013,7 +1013,7 @@ with tab1:
         rng_type = st.radio(
             "掃描方式",
             ["📂 產業分類", "📊 產業板塊（動態）", "🔢 股號開頭", "🌏 全市場", "✏️ 自訂代號",
-             "🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達"],
+             "🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達", "🤖 AI題材相關個股", "🎯 MTFA 狙擊名單"],
             horizontal=True, label_visibility="collapsed"
         )
 
@@ -1128,6 +1128,55 @@ with tab1:
                 unsafe_allow_html=True
             )
             scan_pool_ids = []  # 掃描時動態取全部
+
+        elif rng_type == "🤖 AI題材相關個股":
+            # 從 dynamic_themes.json 讀取 top15
+            try:
+                url_t = f"{GITHUB_RAW}/dynamic_themes.json"
+                import requests as _rq
+                _r = _rq.get(url_t, timeout=8)
+                if _r.status_code == 200:
+                    _tj = _r.json()
+                    _top15 = _tj.get("top15", [])
+                    scan_pool_ids = [s.split()[0] for s in _top15 if s.split()]
+                    _trade_dt = _tj.get("trade_date", "")
+                    _themes   = "、".join(_tj.get("themes", []))
+                    st.markdown(
+                        f"<div class='infobox'>🤖 AI題材：<b style='color:#00d4ff;'>{_themes}</b>"
+                        f"　｜　交易日：{_trade_dt}　｜　共 <b>{len(scan_pool_ids)}</b> 檔</div>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    scan_pool_ids = []
+                    st.warning("AI題材資料讀取失敗，請確認 dynamic_themes.json 是否存在")
+            except Exception as _e:
+                scan_pool_ids = []
+                st.warning(f"AI題材資料讀取失敗：{_e}")
+
+        elif rng_type == "🎯 MTFA 狙擊名單":
+            # 從 dynamic_themes.json 讀取今日狙擊個股
+            try:
+                url_m = f"{GITHUB_RAW}/dynamic_themes.json"
+                import requests as _rqm
+                _rm = _rqm.get(url_m, timeout=8)
+                if _rm.status_code == 200:
+                    _tmj = _rm.json()
+                    _top = _tmj.get("top15", [])
+                    scan_pool_ids = [s.split()[0] for s in _top if s.split()]
+                    _dt  = _tmj.get("trade_date", "")
+                    _th  = "、".join(_tmj.get("themes", []))
+                    st.markdown(
+                        f"<div class='infobox'>🎯 <b style='color:#00d4ff;'>MTFA 狙擊名單</b>"
+                        f"　｜　{_dt} AI萃取題材：<b style='color:#ffeb3b;'>{_th}</b>"
+                        f"　｜　共 <b>{len(scan_pool_ids)}</b> 檔</div>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    scan_pool_ids = []
+                    st.warning("MTFA 狙擊名單讀取失敗，請先執行 generate_dynamic_themes.py")
+            except Exception as _em:
+                scan_pool_ids = []
+                st.warning(f"MTFA 狙擊名單讀取失敗：{_em}")
 
         elif rng_type in ["🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達"]:
             # 從 session_state 取雷達結果
@@ -2966,22 +3015,42 @@ with tab5:
             f"</div>",
             unsafe_allow_html=True
         )
-        # 相關個股清單
+        # 相關個股清單 + 加入監控
         top15 = themes_data.get("top15", [])
         if top15:
             st.markdown(
-                "<div style='margin-top:10px;'>"
+                "<div style='margin-top:10px;margin-bottom:6px;'>"
                 "<span style='color:#7fb3d3;font-size:.82rem;font-weight:600;"
-                "letter-spacing:.05em;'>📋 相關個股：</span>"
-                + "".join(
-                    f"<span style='background:rgba(0,212,255,0.1);color:#00d4ff;"
-                    f"border:1px solid #1e3a5f;padding:3px 10px;border-radius:12px;"
-                    f"font-size:.8rem;margin:2px 3px;display:inline-block;'>{s}</span>"
-                    for s in top15
-                )
-                + "</div>",
+                "letter-spacing:.05em;'>📋 相關個股（點選加入監控）：</span></div>",
                 unsafe_allow_html=True
             )
+            # 每行顯示5個
+            rows = [top15[i:i+5] for i in range(0, len(top15), 5)]
+            for row in rows:
+                cols = st.columns(len(row))
+                for col, stock_str in zip(cols, row):
+                    parts = stock_str.split(" ", 1)
+                    sid   = parts[0].strip()
+                    sname = parts[1].strip() if len(parts) > 1 else sid
+                    with col:
+                        already = any(w["id"] == sid for w in
+                                      st.session_state.get("watchlist", []) +
+                                      st.session_state.get("watchlist_scan", []))
+                        label = f"✅ {sid}" if already else f"➕ {sid}"
+                        if st.button(label, key=f"ai_add_{sid}",
+                                     use_container_width=True,
+                                     help=sname):
+                            if not already:
+                                st.session_state.watchlist.append(
+                                    {"id": sid, "name": sname})
+                                save_watchlist_to_github(
+                                    st.session_state.watchlist,
+                                    st.session_state.watchlist_scan,
+                                    {k: v for k, v in
+                                     st.session_state.etf_shares.items() if v > 0}
+                                )
+                                st.toast(f"✅ {sid} {sname} 已加入監控", icon="✅")
+                                st.rerun()
         st.caption(
             f"*此報告由 Gemini 2.5 Flash 分析 {trade_dt} 法人買超 Top 15 個股自動生成"
         )
