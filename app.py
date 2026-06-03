@@ -2057,6 +2057,75 @@ with tab3:
             if rsi5_now > 80 and rsi5_now < rsi20_now:
                 alerts.append(f"RSI(5)={rsi5_now:.1f} 高檔回落且低於 RSI(20)")
 
+            # ══════════════════════════════════════════════
+            # ⚡ 風控一：高檔動能熄火預警器（EMA5 減速機制）
+            # ══════════════════════════════════════════════
+            is_momentum_killed = False
+            if len(df_ind) >= 4:
+                closes  = df_ind["Close"].astype(float)
+                ema5s   = df_ind["EMA5"].astype(float)
+                sma60   = float(df_ind["SMA60"].iloc[-1]) if "SMA60" in df_ind.columns else float("nan")
+                close_n = float(closes.iloc[-1])
+
+                if not np.isnan(sma60) and sma60 > 0:
+                    # 條件1：高基期（現價 > SMA60 * 1.15）
+                    high_base = close_n > sma60 * 1.15
+                    # 條件2：連續3日收盤 < EMA5
+                    below_ema5_3d = all(
+                        float(closes.iloc[i]) < float(ema5s.iloc[i])
+                        for i in [-1, -2, -3]
+                    )
+                    # 條件3：EMA5 連續2天下彎（斜率 < 0）
+                    ema5_slope_down = (
+                        float(ema5s.iloc[-1]) < float(ema5s.iloc[-2]) and
+                        float(ema5s.iloc[-2]) < float(ema5s.iloc[-3])
+                    )
+                    is_momentum_killed = high_base and below_ema5_3d and ema5_slope_down
+
+            if is_momentum_killed:
+                st.warning(
+                    "⚠️ **【高檔動能熄火】** 短線衝刺動能已實質熄火。"
+                    "主力高檔有出貨嫌疑（受制於EMA5），"
+                    "建議立即主動減碼 50%，嚴禁加碼攤平！"
+                )
+                alerts.append("高檔動能熄火：高基期 + EMA5連跌3日 + 斜率下彎")
+
+            # ══════════════════════════════════════════════
+            # 📊 風控三：量縮反彈真偽自動判定引擎
+            # ══════════════════════════════════════════════
+            is_volume_shrink_rally = False
+            volume_shrink_verdict  = None
+            if len(df_ind) >= 6:
+                vol_now  = float(df_ind["Volume"].iloc[-1]) if "Volume" in df_ind.columns else 0
+                vma5_now = float(df_ind["VMA5"].iloc[-1])   if "VMA5"   in df_ind.columns else 0
+                pct_chg  = (float(df_ind["Close"].iloc[-1]) - float(df_ind["Close"].iloc[-2])) /                            float(df_ind["Close"].iloc[-2]) * 100 if float(df_ind["Close"].iloc[-2]) > 0 else 0
+                sma20_now = float(df_ind["MA20"].iloc[-1]) if "MA20" in df_ind.columns else float("nan")
+
+                # 觸發：量 <= VMA5*0.5 且漲幅 > 3%
+                if vma5_now > 0 and vol_now <= vma5_now * 0.5 and pct_chg > 3:
+                    is_volume_shrink_rally = True
+                    # 取大戶持股
+                    _bp_now = float(big_pct.iloc[-1]) if "big_pct" in dir() and len(big_pct) > 0 else 0
+                    # 判定真偽
+                    if not np.isnan(sma20_now) and close_n >= sma20_now and _bp_now >= 65:
+                        volume_shrink_verdict = "clean"
+                    else:
+                        volume_shrink_verdict = "weak"
+
+            if is_volume_shrink_rally:
+                if volume_shrink_verdict == "clean":
+                    st.success(
+                        "🟢 **【籌碼極度乾淨】** 優質高檔鎖倉，主力惜售，"
+                        "拉回即是黃金買點，波段續抱！"
+                    )
+                else:
+                    st.error(
+                        "🚨 **【弱勢無量回抽】** 此為無前景之弱勢縮量反彈！"
+                        "主力大戶未認同追價，純屬短線套利解套波，"
+                        "嚴禁手動追高介入！"
+                    )
+                    alerts.append("量縮漲：弱勢回抽訊號，主力未認同")
+
             # ── 大戶持股 + 融資交叉熔斷（股權死亡交叉熔斷器）
             big_divergence_msg = None
 
@@ -2093,28 +2162,29 @@ with tab3:
                             sma20_val  = float(lt.get("MA20", float("nan")))
 
                             if not np.isnan(sma20_val):
-                                # 死亡交叉條件：大戶下滑 + 融資上升
-                                cross_signal = big_declining and margin_rising
-                                cross_tag = "（大戶↓ + 融資↑ 死亡交叉）" if cross_signal else "（大戶↓）"
+                                # 死亡交叉條件：大戶下滑>1.5% + 融資上升（業界標準閾值）
+                                big_drop_significant = big_drop_pct > 1.5
+                                cross_signal = big_declining and margin_rising and big_drop_significant
+                                cross_tag = "（大戶↓>1.5%+融資↑ 死亡交叉）" if cross_signal else "（大戶↓）"
 
                                 if close_now2 < sma20_val:
-                                    # 情況A：跌破月線 → 實質出貨/散戶套牢
-                                    msg = (f"🔴 【實質出貨{cross_tag}】"
-                                           f"大戶持股連續下滑（{last3[-1]:.1f}%）"
-                                           f"且現價（{close_now2:.1f}）跌破月線（{sma20_val:.1f}），"
-                                           f"股價無抵抗力，主力確認撤退，建議啟動防守。")
+                                    # 情況A：真．大戶出貨 → 紅燈強制清倉
+                                    msg = (f"🔴 【情況A：真．大戶出貨{cross_tag}】"
+                                           f"大戶持股週降 {big_drop_pct:.1f}%（{last3[-1]:.1f}%），"
+                                           f"現價（{close_now2:.1f}）跌破月線（{sma20_val:.1f}），"
+                                           f"基本面出現重大逆風，強制紅色風控——建議清倉離場！")
                                     big_divergence_msg = ("danger", msg)
-                                    alerts.append("大戶持股下滑+跌破月線，判定實質出貨")
+                                    alerts.append("真．大戶出貨+跌破月線，強制清倉警告")
                                 else:
-                                    # 情況B：守月線 → 良性換手，綠燈
+                                    # 情況B：良性換手/ETF被動鎖倉 → 綠燈覆寫
                                     if cross_signal:
-                                        tag = "大戶下滑但融資上升，有被動資金（ETF）高檔承接，"
+                                        tag = f"大戶下滑 {big_drop_pct:.1f}% 但ETF/主力高檔承接，"
                                     else:
                                         tag = "大戶持股雖下滑，"
                                     big_divergence_msg = ("safe",
-                                        f"🟢 【良性籌碼換手】{tag}"
+                                        f"🟢 【情況B：良性籌碼換手/ETF被動鎖倉】{tag}"
                                         f"現價（{close_now2:.1f}）仍守月線（{sma20_val:.1f}）之上，"
-                                        f"判定為高檔換手，覆寫為綠燈安全，可續抱至 Q3。")
+                                        f"有強大被動資金承接，覆寫綠燈，可波段留倉至Q3。")
 
             dc1, dc2 = st.columns([1, 3])
             with dc1:
