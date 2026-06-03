@@ -3170,17 +3170,17 @@ with tab4:
                     _col  = "#ffee55"
                     _ico  = "👑"
                     _label = "3/3 戰略黃金起漲點"
-                    _bg   = "rgba(255,238,85,0.08); border-left:4px solid #ffee55;"
+                    _bg   = "background:rgba(255,238,85,0.08);border-left:4px solid #ffee55;"
                 elif _conds == 2:
                     _col  = "#ff9900"
                     _ico  = "🟡"
                     _label = "2/3 高度關注臨界點"
-                    _bg   = "rgba(255,153,0,0.06); border-left:4px solid #ff9900;"
+                    _bg   = "background:rgba(255,153,0,0.06);border-left:4px solid #ff9900;"
                 else:
                     _col  = "#8892b0"
                     _ico  = "⏳"
                     _label = f"{_conds}/3 條件成立"
-                    _bg   = "rgba(255,255,255,0.01); border-left:4px solid #44475a;"
+                    _bg   = "background:rgba(255,255,255,0.01);border-left:4px solid #44475a;"
 
                 # 張數（台股：紅買 綠賣）
                 _i5  = int(_f.get("inst_5d",  0))
@@ -3192,7 +3192,7 @@ with tab4:
 
                 _rows_html.append(
                     f"<div style='font-size:.84rem;margin-bottom:8px;padding:6px 12px;"
-                    f"border-radius:4px;background:{_bg}color:{_col};'>"
+                    f"border-radius:4px;{_bg}color:{_col};'>"
                     f"{_ico} <b>{_sid_ac} {_name_ac}</b>｜"
                     f"箱體 {_f.get('box_amp','—')}%｜"
                     f"大戶 <b>{_f.get('big_pct','—')}%</b>｜"
