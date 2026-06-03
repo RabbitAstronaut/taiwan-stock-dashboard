@@ -2300,10 +2300,26 @@ with tab3:
             _rsi5_g    = float(lt.get("RSI5",  50))
 
             # 是否已持有此部位
-            _is_holding = st.toggle(
-                f"📌 我已持有 {name_watch}（切換以顯示停利訊號）",
-                key=f"holding_{sid_watch}", value=False
-            )
+            _hold_col, _core_col = st.columns([3, 2])
+            with _hold_col:
+                _is_holding = st.toggle(
+                    f"📌 我已持有 {name_watch}（切換以顯示停利訊號）",
+                    key=f"holding_{sid_watch}", value=False
+                )
+            with _core_col:
+                _in_reserve = sid_watch in set(
+                    r["id"] for r in st.session_state.get("reserve_list", [])
+                )
+                if _in_reserve:
+                    st.markdown(
+                        "<span style='color:#ce93d8;font-size:.8rem;'>👑 戰略儲備庫精兵｜20% 特赦啟用</span>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    st.markdown(
+                        "<span style='color:#546e7a;font-size:.8rem;'>⬜ 常規股｜5% 標準卡閘</span>",
+                        unsafe_allow_html=True
+                    )
 
             # 統一用 _ma20_kpi（與 KPI 大字相同的 MA20）確保一致性
             _sma20_g = _ma20_kpi  # 覆寫成與顯示一致的 MA20
@@ -2321,8 +2337,30 @@ with tab3:
                 is_weekly_longterm_break = _close_now >= _high250 * 0.98  # 一年歷史高點98%附近
                 is_volume_reignition     = _vma20 > 0 and _vol_now >= _vma20 * 2.0
 
+                # ══════════════════════════════════════════════
+                # 👑 動態特赦白名單：直接從戰略儲備庫讀取
+                # ══════════════════════════════════════════════
+                _reserve_ids = set(
+                    r["id"] for r in st.session_state.get("reserve_list", [])
+                )
+                if sid_watch in _reserve_ids:
+                    # 儲備精兵特赦：20% 寬限
+                    if bias_ma20 <= 20.0:
+                        st.success(
+                            f"👑 **風控卡閘【儲備精兵特赦通過】**："
+                            f"當前真實月乖離率 **{bias_ma20:.1f}%**。"
+                            f"本股為您列管於戰略儲備庫之「長線大結構橫盤突破常規軍」！"
+                            f"20% 安全特赦圈內屬於健康動能擴張。"
+                            f"{'籌碼極度安全，安心波段留倉至 Q3！' if _is_holding else '准許手動建倉/加碼，波段留倉至 Q3！'}"
+                        )
+                    else:
+                        st.warning(
+                            f"❌ **儲備精兵警示**：{sid_watch} 當前月乖離已達 **{bias_ma20:.1f}%**，"
+                            f"超越 20% 歷史極限，請靜待拉回再加碼。"
+                        )
+
                 # ── 三階層精密分流（依乖離率嚴重度）
-                if bias_ma20 > 25 or _rsi5_g > 85:
+                elif bias_ma20 > 25 or _rsi5_g > 85:
                     # 階層二：極度超買警戒期
                     if _is_holding:
                         st.markdown(
