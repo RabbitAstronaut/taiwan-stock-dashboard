@@ -2284,34 +2284,38 @@ with tab3:
             if not np.isnan(_sma20_g) and _sma20_g > 0:
                 bias_ma20 = (_close_now - _sma20_g) / _sma20_g * 100
 
-                # ── 極端超買停利卡閘（bias > 25% 且 RSI5 > 85）
-                if bias_ma20 > 25 and _rsi5_g > 85:
+                # ── 三階層精密分流（依乖離率嚴重度）
+                if bias_ma20 > 25 or _rsi5_g > 85:
+                    # 階層二：極度超買警戒期
                     if _is_holding:
-                        # 已持股：主動停利訊號（紫色）
                         st.markdown(
                             f"<div style='background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(74,20,140,0.3));"
                             f"border:2px solid #ce93d8;border-radius:10px;padding:16px 20px;'>"
-                            f"<b style='color:#ce93d8;font-size:1rem;'>🎯 系統移動停利提示（賣出訊號）</b><br><br>"
+                            f"<b style='color:#ce93d8;font-size:1rem;'>🎯 系統移動停利提示（實質賣出訊號）</b><br><br>"
                             f"<span style='color:#f3e5f5;font-size:.9rem;'>"
-                            f"本股當前與月線正乖離已達 <b style='color:#ff80ab;'>{bias_ma20:.1f}%</b>，"
-                            f"RSI5 飆高至 <b style='color:#ff80ab;'>{_rsi5_g:.1f}</b>。"
-                            f"此為典型的主力情緒高潮與高檔換手區。<br><br>"
-                            f"為防止利潤大幅回吐，<b>強烈建議此時執行手動「主動減碼 50%」或「全數落袋為安」！</b>"
-                            f"把獲利鎖定在最瘋狂的右側高點。</span></div>",
+                            f"本股與月線正乖離已達 <b style='color:#ff80ab;'>{bias_ma20:.1f}%</b>"
+                            f"（RSI5: <b style='color:#ff80ab;'>{_rsi5_g:.1f}</b>），"
+                            f"市場情緒已進入極端非理性超買區。<br><br>"
+                            f"為防止利潤大幅回吐，<b>強烈建議已持股者此時執行手動「主動減碼 50%」"
+                            f"或「獲利全數落袋」，將真金白銀鎖定在右側高潮高點！</b>"
+                            f"</span></div>",
                             unsafe_allow_html=True
                         )
                     else:
-                        # 未持股：禁止追高
                         st.warning(
                             f"❌ **風控卡閘攔截**：短線嚴重過載（乖離 {bias_ma20:.1f}%，"
                             f"RSI5: {_rsi5_g:.1f}），嚴禁手動追高買進！"
                         )
 
-                elif bias_ma20 > 5 or _rsi5_g > 80:
+                elif 5 < bias_ma20 <= 25:
+                    # 階層一：健康擴展期
                     if _is_holding:
-                        st.warning(
-                            f"⚠️ **高檔預警**：乖離率 {bias_ma20:.1f}%（RSI5: {_rsi5_g:.1f}）。"
-                            f"持股者建議啟動移動停利，回踩 EMA5 ({_ema5_g:.1f}) 可考慮減碼。"
+                        st.success(
+                            f"💡 **高檔動能觀察**：當前與月線正乖離率為 **{bias_ma20:.1f}%**"
+                            f"（RSI5: {_rsi5_g:.1f}），屬於多頭主升段初期的正常動能擴張。"
+                            f"目前「籌碼極度安全」，請安心續抱。"
+                            f"若未來股價拉回測試 EMA5 ({_ema5_g:.1f}元) 或月線時，"
+                            f"非但不是減碼點，反而是系統認證的「手動右側加碼/撿便宜甜甜點」！"
                         )
                     else:
                         st.warning(
@@ -2319,11 +2323,13 @@ with tab3:
                             f"（RSI5: {_rsi5_g:.1f}），嚴重過熱！"
                             f"安全買點：EMA5 ({_ema5_g:.1f}元) 或月線 ({_sma20_g:.1f}元) 且量縮時。"
                         )
+
                 elif _close_now > _sma20_g:
+                    # 安全區：乖離 <= 5% 且守月線
                     st.success(
                         f"🟢 **風控卡閘通過**：當前現價與月線乖離率僅 **{bias_ma20:.1f}%**，"
                         f"處於安全的「右側拉回換手區」或「強勢起漲第一天」。"
-                        f"{'持股者可安心續抱。' if _is_holding else '可手動分批執行現股加碼/建倉。'}"
+                        f"{'持股者可安心續抱，拉回EMA5即加碼機會。' if _is_holding else '可手動分批執行現股加碼/建倉。'}"
                     )
 
             mc1, mc2 = st.columns([3, 1])
