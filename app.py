@@ -2680,15 +2680,14 @@ with tab4:
 
     # ── 新增標的輸入
     st.markdown("### ➕ 加入戰略儲備")
-    rsv_c1, rsv_c2, rsv_c3 = st.columns([2, 2, 2])
+    rsv_c1, rsv_c2 = st.columns([3, 1])
     with rsv_c1:
-        rsv_sid = st.text_input("股票代號", placeholder="如 2345",
+        rsv_sid = st.text_input("股票代號（可加備註，如：2345 散熱主力股）",
+                                placeholder="輸入代號，如：2345",
                                 key="rsv_sid", label_visibility="collapsed")
     with rsv_c2:
-        rsv_note = st.text_input("備註（可選）", placeholder="如：散熱主力股，等月線回測",
-                                 key="rsv_note", label_visibility="collapsed")
-    with rsv_c3:
         if st.button("🏹 加入儲備庫", key="rsv_add", use_container_width=True):
+            rsv_note = ""
             sid_r = rsv_sid.strip()
             if sid_r and not any(r["id"] == sid_r for r in st.session_state.reserve_list):
                 df_si_r, ok_si_r = get_stock_info()
@@ -2697,6 +2696,9 @@ with tab4:
                     row_r = df_si_r[df_si_r["stock_id"] == sid_r]
                     if not row_r.empty:
                         name_r = str(row_r["stock_name"].iloc[0])
+                # 解析備註（代號後面的文字）
+                _parts = rsv_sid.strip().split(" ", 1)
+                rsv_note = _parts[1] if len(_parts) > 1 else ""
                 st.session_state.reserve_list.append({
                     "id": sid_r, "name": name_r,
                     "note": rsv_note.strip(),
@@ -2781,24 +2783,41 @@ with tab4:
         st.markdown("#### ⏳ 籌碼沉澱中...")
         rm_rsv = None
         for sid_rv, name_rv, note_rv, close_rv, bias_rv, status in waiting:
-            w_c1, w_c2, w_c3, w_c4, w_c5 = st.columns([1.5, 2, 1.5, 2, 1])
-            w_c1.markdown(f"<span style='color:#546e7a;font-weight:600;'>{sid_rv}</span>",
+            # 依條件成立數量決定顏色
+            conds_n = int(status.split("/")[0]) if "/" in status else 0
+            if conds_n == 2:
+                _col = "#ffeb3b"   # 黃：快了！2/3
+                _ico = "🟡"
+            elif conds_n == 1:
+                _col = "#ff9800"   # 橘：1/3
+                _ico = "🟠"
+            else:
+                _col = "#546e7a"   # 灰：0/3
+                _ico = "⏳"
+
+            w_c1, w_c2, w_c3, w_c4, w_c5 = st.columns([1.2, 1.8, 1.2, 3, 0.8])
+            w_c1.markdown(f"<span style='color:{_col};font-weight:600;font-size:.88rem;'>{sid_rv}</span>",
                          unsafe_allow_html=True)
-            w_c2.markdown(f"<span style='color:#546e7a;'>{name_rv}</span>",
+            w_c2.markdown(f"<span style='color:{_col};font-size:.88rem;'>{name_rv}</span>",
                          unsafe_allow_html=True)
             if close_rv is not None:
-                w_c3.markdown(f"<span style='color:#546e7a;'>{close_rv:.1f} 元</span>",
+                w_c3.markdown(f"<span style='color:{_col};font-size:.88rem;'>{close_rv:.1f} 元</span>",
                              unsafe_allow_html=True)
                 if not np.isnan(bias_rv):
+                    _bias_txt = f"乖離 {bias_rv:+.1f}%"
+                    _note_txt = f"　{note_rv}" if note_rv else ""
                     w_c4.markdown(
-                        f"<span style='color:#546e7a;font-size:.82rem;'>⏳ 籌碼沉澱中，乖離率 {bias_rv:+.1f}%，靜待拉回守穩。</span>",
+                        f"<span style='color:{_col};font-size:.82rem;'>"
+                        f"{_ico} {status} 條件成立｜{_bias_txt}，靜待拉回守穩{_note_txt}</span>",
                         unsafe_allow_html=True
                     )
                 else:
-                    w_c4.caption(status)
+                    w_c4.markdown(f"<span style='color:{_col};font-size:.82rem;'>{status}</span>",
+                                 unsafe_allow_html=True)
             else:
                 w_c3.caption("—")
-                w_c4.caption(status)
+                w_c4.markdown(f"<span style='color:{_col};font-size:.82rem;'>{status}</span>",
+                             unsafe_allow_html=True)
             if w_c5.button("✕", key=f"rsv_rm_{sid_rv}", use_container_width=True):
                 rm_rsv = sid_rv
 
