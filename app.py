@@ -164,78 +164,76 @@ def check_gatekeeper(sid, bias_ma20, rsi5, ema5, sma20,
 # ══════════════════════════════════════════════════════════════
 def scan_accumulation_phase(sid):
     """
-    潛伏期法人暗中鎖碼雷達 V2（完全對齊真實欄位）
-    回傳 dict: {alert, type, msg, facts}
+    潛伏期法人暗中鎖碼雷達 V3
+    完全使用 .iloc 位置索引 + str.strip() 強制清洗
     """
     result = {"alert": False, "type": "常規盤整", "msg": "", "facts": {}}
     try:
-        # ── K線（用高低價計算箱體）
+        sid = str(sid).strip()
+
+        # ── K線（High/Low 箱體震幅）
         df_k, ok_k = load_price_csv(sid)
         if not ok_k or df_k.empty or len(df_k) < 22:
             return result
         df_k = add_indicators(df_k)
-        df_k20  = df_k.tail(20)
-        high20  = float(df_k20["High"].astype(float).max())  if "High"  in df_k20.columns else float(df_k20["Close"].astype(float).max())
-        low20   = float(df_k20["Low"].astype(float).min())   if "Low"   in df_k20.columns else float(df_k20["Close"].astype(float).min())
-        box_amp = (high20 - low20) / low20 * 100 if low20 > 0 else 0.0
-        is_in_box = box_amp <= 10.0
+        r20   = df_k.iloc[-20:].copy()
+        high20 = float(pd.to_numeric(r20["High"],  errors="coerce").max()) if "High" in r20.columns else float(pd.to_numeric(r20["Close"], errors="coerce").max())
+        low20  = float(pd.to_numeric(r20["Low"],   errors="coerce").min()) if "Low"  in r20.columns else float(pd.to_numeric(r20["Close"], errors="coerce").min())
+        box_amp   = (high20 - low20) / low20 * 100 if low20 > 0 else 0.0
+        is_in_box = box_amp <= 15.0
 
-        # ── 籌碼（投信連續買超分析）
+        # ── 籌碼（投信，.iloc 位置回溯）
         df_c, ok_c = get_chips(sid)
-        inst_5d = 0.0
-        inst_15d = 0.0
-        inst_streak = 0  # 連續買超天數
+        inst_5d = 0.0; inst_15d = 0.0; inst_streak = 0
         if ok_c and not df_c.empty:
-            name_col = next((c for c in ["name","institutional_investors"]
-                             if c in df_c.columns), None)
+            df_c["stock_id"] = df_c["stock_id"].astype(str).str.strip()
+            name_col = next((c for c in ["name","institutional_investors"] if c in df_c.columns), None)
             if name_col and "net" in df_c.columns:
-                trust = df_c[df_c[name_col].astype(str).str.contains(
-                    "Investment_Trust", na=False)].copy()
-                trust = trust.sort_values("date")
+                trust = df_c[
+                    (df_c["stock_id"] == sid) &
+                    df_c[name_col].astype(str).str.contains("Investment_Trust", na=False)
+                ].copy()
                 trust["net"] = pd.to_numeric(trust["net"], errors="coerce").fillna(0)
-                # 按日加總（一天可能多筆）
-                daily_trust = trust.groupby("date")["net"].sum().sort_index()
-                if len(daily_trust) >= 5:
-                    inst_5d  = float(daily_trust.tail(5).sum())
-                if len(daily_trust) >= 15:
-                    inst_15d = float(daily_trust.tail(15).sum())
-                # 自動換算：若數值超過10萬推測單位為股，除以1000轉成張
+                trust = trust.sort_values("date")
+                # 按日加總後用 .iloc
+                daily = trust.groupby("date")["net"].sum().reset_index().sort_values("date")
+                daily["net"] = pd.to_numeric(daily["net"], errors="coerce").fillna(0)
+                n = len(daily)
+                if n >= 5:
+                    inst_5d  = float(daily["net"].iloc[max(0,n-5):].sum())
+                if n >= 1:
+                    inst_15d = float(daily["net"].iloc[max(0,n-15):].sum())
+                # 單位自動換算（超過10萬 → 股轉張）
                 if abs(inst_5d) > 100000:
-                    inst_5d  /= 1000
-                    inst_15d /= 1000
-                # 連續買超天數（從最新往回算）
-                for v in reversed(daily_trust.tail(20).tolist()):
-                    if v > 0:
+                    inst_5d /= 1000; inst_15d /= 1000
+                # 連續買超天數（位置倒數）
+                for i in range(n-1, max(n-21,-1), -1):
+                    if daily["net"].iloc[i] > 0:
                         inst_streak += 1
                     else:
                         break
-
-        # 投信條件：近5日買超 > 0 且連續≥3天
         inst_buying = inst_5d > 0 and inst_streak >= 3
 
-        # ── 大戶持股（stock_id 強制轉 str 對齊）
+        # ── 大戶持股（stock_id str + strip 強制對齊）
         df_sh, ok_sh = get_shareholder(sid)
         big_pct = 0.0
         if ok_sh and not df_sh.empty:
             df_sh["stock_id"] = df_sh["stock_id"].astype(str).str.strip()
-            df_sh_sid = df_sh[df_sh["stock_id"] == str(sid).strip()]
-            if not df_sh_sid.empty and "holdingSharesPercent" in df_sh_sid.columns:
-                df_sh_sid = df_sh_sid.copy()
-                df_sh_sid["holdingSharesPercent"] = pd.to_numeric(
-                    df_sh_sid["holdingSharesPercent"], errors="coerce")
-                df_sh_sid = df_sh_sid.sort_values("date")
-                valid = df_sh_sid["holdingSharesPercent"].dropna()
+            sub = df_sh[df_sh["stock_id"] == sid].copy()
+            if not sub.empty and "holdingSharesPercent" in sub.columns:
+                sub["holdingSharesPercent"] = pd.to_numeric(
+                    sub["holdingSharesPercent"], errors="coerce")
+                sub = sub.sort_values("date")
+                valid = sub["holdingSharesPercent"].dropna()
                 if len(valid) > 0:
                     big_pct = float(valid.iloc[-1])
-
         is_locked = big_pct >= 55.0
 
         conds = sum([is_in_box, inst_buying, is_locked])
-
         result["facts"] = {
             "box_amp":     round(box_amp, 1),
-            "inst_5d":     round(inst_5d, 0),
-            "inst_15d":    round(inst_15d, 0),
+            "inst_5d":     int(inst_5d),
+            "inst_15d":    int(inst_15d),
             "inst_streak": inst_streak,
             "big_pct":     round(big_pct, 1),
             "is_in_box":   is_in_box,
@@ -245,25 +243,13 @@ def scan_accumulation_phase(sid):
         }
 
         if conds == 3:
-            result.update({
-                "alert": True,
-                "type":  "👑【潛伏期大戶暗中鎖碼】",
-                "msg": (
-                    f"本股橫盤箱體震幅僅 {box_amp:.1f}%（近20日高低），"
-                    f"投信連續買超 {inst_streak} 天（近5日+{inst_5d:.0f}張，15日+{inst_15d:.0f}張），"
-                    f"千張大戶持股高達 {big_pct:.1f}% 完美鎖倉！"
-                    f"市場零關注，此處即為大戶建倉黃金第3階段，強烈建議列為優先狙擊部位！"
-                )
-            })
+            result.update({"alert": True, "type": "👑【潛伏期大戶暗中鎖碼】",
+                "msg": (f"橫盤震幅僅 {box_amp:.1f}%，投信連買 {inst_streak} 天"
+                        f"（近5日{inst_5d:+,.0f}張/15日{inst_15d:+,.0f}張），"
+                        f"大戶持股 {big_pct:.1f}% 鎖倉！黃金第3階段，強烈狙擊！")})
         elif conds == 2:
-            result.update({
-                "type": "🟡 部分條件成立",
-                "msg": (
-                    f"箱體震幅 {box_amp:.1f}%｜"
-                    f"大戶 {big_pct:.1f}%｜"
-                    f"投信連買 {inst_streak} 天（近5日{inst_5d:+.0f}張）"
-                )
-            })
+            result.update({"type": "🟡 部分條件成立",
+                "msg": f"箱體 {box_amp:.1f}%｜大戶 {big_pct:.1f}%｜投信連買 {inst_streak}天（近5日{inst_5d:+,.0f}張）"})
 
     except Exception as _e:
         result["msg"] = f"掃描失敗：{_e}"
