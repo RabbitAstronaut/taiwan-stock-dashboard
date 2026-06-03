@@ -2290,6 +2290,13 @@ with tab3:
             if not np.isnan(_sma20_g) and _sma20_g > 0:
                 bias_ma20 = (_close_now - _sma20_g) / _sma20_g * 100
 
+                # ── 起漲突破 Facts 計算
+                _high60 = float(df_ind["Close"].astype(float).tail(60).max())                           if len(df_ind) >= 60 else float(df_ind["Close"].astype(float).max())
+                _vol_now  = float(df_ind["Volume"].astype(float).iloc[-1])                             if "Volume" in df_ind.columns else 0
+                _vma20    = float(df_ind["Volume"].astype(float).rolling(20).mean().iloc[-1])                             if "Volume" in df_ind.columns else 0
+                is_box_breakout     = _close_now >= _high60
+                is_volume_reignition = _vma20 > 0 and _vol_now >= _vma20 * 2.0
+
                 # ── 三階層精密分流（依乖離率嚴重度）
                 if bias_ma20 > 25 or _rsi5_g > 85:
                     # 階層二：極度超買警戒期
@@ -2324,11 +2331,26 @@ with tab3:
                             f"非但不是減碼點，反而是系統認證的「手動右側加碼/撿便宜甜甜點」！"
                         )
                     else:
-                        st.warning(
-                            f"❌ **風控卡閘攔截**：本股短線正乖離率已達 **{bias_ma20:.1f}%**"
-                            f"（RSI5: {_rsi5_g:.1f}），嚴重過熱！"
-                            f"安全買點：EMA5 ({_ema5_g:.1f}元) 或月線 ({_sma20_g:.1f}元) 且量縮時。"
-                        )
+                        # 未持股：先檢查是否為起漲第一天
+                        if is_box_breakout and is_volume_reignition:
+                            if bias_ma20 <= 12.0:
+                                st.success(
+                                    f"🟢 **風控卡閘通過（強勢起漲點）**：當前與月線乖離率為 **{bias_ma20:.1f}%**。"
+                                    f"雖大於常規 5% 限制，但系統偵測到本股「帶量實質突破 60 日大箱體平台」，"
+                                    f"此為正宗右側主升段第一天發動！"
+                                    f"此點位具備強大動能溢價，准許手動建立第一筆主攻部位！"
+                                )
+                            else:
+                                st.warning(
+                                    f"❌ **風控卡閘攔截**：雖為突破型態，但當前正乖離率已達 **{bias_ma20:.1f}%**"
+                                    f"（超過起漲寬限 12%），短線已有過度追價風險，請靜待盤中回踩。"
+                                )
+                        else:
+                            st.warning(
+                                f"❌ **風控卡閘攔截**：本股短線正乖離率已達 **{bias_ma20:.1f}%**"
+                                f"（RSI5: {_rsi5_g:.1f}），嚴重過熱！"
+                                f"安全買點：EMA5 ({_ema5_g:.1f}元) 或月線 ({_sma20_g:.1f}元) 且量縮時。"
+                            )
 
                 elif _close_now > _sma20_g:
                     # 安全區：乖離 <= 5% 且守月線
