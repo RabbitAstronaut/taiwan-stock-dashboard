@@ -2037,14 +2037,15 @@ with tab3:
 
             chg_s  = "up" if display_chg >= 0 else "down"
 
-            # 乖離率計算
-            _ma20_kpi = float(df_ind.iloc[-1].get("MA20", float("nan")))
-            _ema5_kpi = float(df_ind.iloc[-1].get("EMA5", float("nan")))
+            # 乖離率計算（統一用 display_close 即時價 對 MA20）
+            _ma20_kpi = float(df_ind["MA20"].dropna().iloc[-1]) if "MA20" in df_ind.columns and not df_ind["MA20"].dropna().empty else float("nan")
+            _ema5_kpi = float(df_ind["EMA5"].dropna().iloc[-1]) if "EMA5" in df_ind.columns and not df_ind["EMA5"].dropna().empty else float("nan")
             if not np.isnan(_ma20_kpi) and _ma20_kpi > 0:
-                _bias_kpi = (display_close - _ma20_kpi) / _ma20_kpi * 100
+                _bias_kpi = (display_close - _ma20_kpi) / _ma20_kpi * 100  # 用即時價
                 _bias_str = f"{_bias_kpi:+.1f}%"
                 _bias_status = "down" if _bias_kpi > 5 else "up" if _bias_kpi < -5 else ""
             else:
+                _bias_kpi = float("nan")
                 _bias_str, _bias_status = "—", ""
 
             # 安全低接點
@@ -2287,8 +2288,11 @@ with tab3:
                 key=f"holding_{sid_watch}", value=False
             )
 
+            # 統一用 _ma20_kpi（與 KPI 大字相同的 MA20）確保一致性
+            _sma20_g = _ma20_kpi  # 覆寫成與顯示一致的 MA20
+
             if not np.isnan(_sma20_g) and _sma20_g > 0:
-                bias_ma20 = (_close_now - _sma20_g) / _sma20_g * 100
+                bias_ma20 = (display_close - _sma20_g) / _sma20_g * 100  # 統一用 display_close
 
                 # ── 起漲突破 Facts 計算
                 _high60 = float(df_ind["Close"].astype(float).tail(60).max())                           if len(df_ind) >= 60 else float(df_ind["Close"].astype(float).max())
