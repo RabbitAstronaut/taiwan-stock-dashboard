@@ -1017,7 +1017,7 @@ with tab1:
         rng_type = st.radio(
             "掃描方式",
             ["📂 產業分類", "📊 產業板塊（動態）", "🔢 股號開頭", "🌏 全市場", "✏️ 自訂代號",
-             "🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達", "🤖 AI題材相關個股", "🎯 MTFA 狙擊名單"],
+             "🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達", "🎯 MTFA 狙擊名單"],
             horizontal=True, label_visibility="collapsed"
         )
 
@@ -1132,30 +1132,6 @@ with tab1:
                 unsafe_allow_html=True
             )
             scan_pool_ids = []  # 掃描時動態取全部
-
-        elif rng_type == "🤖 AI題材相關個股":
-            # 從 dynamic_themes.json 讀取 top15
-            try:
-                url_t = f"{GITHUB_RAW}/dynamic_themes.json"
-                import requests as _rq
-                _r = _rq.get(url_t, timeout=8)
-                if _r.status_code == 200:
-                    _tj = _r.json()
-                    _top15 = _tj.get("top15", [])
-                    scan_pool_ids = [s.split()[0] for s in _top15 if s.split()]
-                    _trade_dt = _tj.get("trade_date", "")
-                    _themes   = "、".join(_tj.get("themes", []))
-                    st.markdown(
-                        f"<div class='infobox'>🤖 AI題材：<b style='color:#00d4ff;'>{_themes}</b>"
-                        f"　｜　交易日：{_trade_dt}　｜　共 <b>{len(scan_pool_ids)}</b> 檔</div>",
-                        unsafe_allow_html=True
-                    )
-                else:
-                    scan_pool_ids = []
-                    st.warning("AI題材資料讀取失敗，請確認 dynamic_themes.json 是否存在")
-            except Exception as _e:
-                scan_pool_ids = []
-                st.warning(f"AI題材資料讀取失敗：{_e}")
 
         elif rng_type == "🎯 MTFA 狙擊名單":
             # 從 dynamic_themes.json 讀取今日狙擊個股
@@ -1313,7 +1289,7 @@ with tab1:
             elif rng_type == "✏️ 自訂代號":
                 stock_ids = [s for s in scan_pool_ids if s in all_fin_ids]
             elif rng_type in ["🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達",
-                              "🤖 AI題材相關個股", "🎯 MTFA 狙擊名單"]:
+                              "🎯 MTFA 狙擊名單"]:
                 # 直接用雷達/AI題材結果，不強制過濾 all_fin_ids（避免漏掉）
                 stock_ids = scan_pool_ids if scan_pool_ids else all_fin_ids
             else:  # 全市場
@@ -3032,8 +3008,17 @@ with tab5:
                 "letter-spacing:.05em;'>📋 相關個股（點選加入監控）：</span></div>",
                 unsafe_allow_html=True
             )
-            # 每行顯示5個
-            rows = [top15[i:i+5] for i in range(0, len(top15), 5)]
+            # 每行8個，按鈕小字：「2887 台新金 ＋」
+            st.markdown("""<style>
+            div[data-testid="stHorizontalBlock"] button{
+                font-size:.72rem!important;padding:2px 4px!important;
+                background:linear-gradient(135deg,#162535,#1e3a5f)!important;
+                color:#e8f4fd!important;border:1px solid #2a5080!important;
+                min-height:28px!important;line-height:1.2!important;}
+            div[data-testid="stHorizontalBlock"] button p{color:#e8f4fd!important;}
+            div[data-testid="stHorizontalBlock"] button:hover{border-color:#00d4ff!important;}
+            </style>""", unsafe_allow_html=True)
+            rows = [top15[i:i+8] for i in range(0, len(top15), 8)]
             for row in rows:
                 cols = st.columns(len(row))
                 for col, stock_str in zip(cols, row):
@@ -3044,10 +3029,10 @@ with tab5:
                         already = any(w["id"] == sid for w in
                                       st.session_state.get("watchlist", []) +
                                       st.session_state.get("watchlist_scan", []))
-                        label = f"✅ {sid}" if already else f"➕ {sid}"
+                        label = f"{sid} ✅" if already else f"{sid} {sname[:3]} ＋"
                         if st.button(label, key=f"ai_add_{sid}",
                                      use_container_width=True,
-                                     help=sname):
+                                     help=f"{sid} {sname}"):
                             if not already:
                                 st.session_state.watchlist.append(
                                     {"id": sid, "name": sname})
