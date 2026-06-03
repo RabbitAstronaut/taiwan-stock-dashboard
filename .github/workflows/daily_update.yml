@@ -73,7 +73,7 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests pandas yfinance tqdm
+          pip install requests pandas yfinance tqdm google-genai
 
       # ── Step 4：建立 data/ 目錄（首次執行時可能不存在）
       - name: 📁 Ensure data directories exist
@@ -93,9 +93,9 @@ jobs:
             ARGS="$ARGS --only ${{ github.event.inputs.module }}"
             echo "📌 只更新模組：${{ github.event.inputs.module }}"
           else
-            # 自動排程：排除財報（財報每季手動更新，避免超時）
+            # 自動排程：排除財報（每季手動更新，避免超時）
             ARGS="$ARGS --skip financials"
-            echo "ℹ️  自動排程：跳過財報模組（請每季手動更新）"
+            echo "ℹ️  自動排程：跳過財報模組"
           fi
 
           # 若強制重新下載
@@ -106,6 +106,18 @@ jobs:
 
           echo "執行指令：python update_data.py $ARGS"
           python update_data.py $ARGS
+
+      # ── Step 5.5：執行 AI 題材分析（Gemini 2.5 Flash）
+      - name: 🤖 Run generate_dynamic_themes.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -f "generate_dynamic_themes.py" ]; then
+            echo "🤖 執行 AI 題材分析..."
+            python generate_dynamic_themes.py || echo "⚠️ Gemini 分析失敗，保留舊有題材"
+          else
+            echo "ℹ️ generate_dynamic_themes.py 不存在，跳過"
+          fi
 
       # ── Step 6：設定 Git 使用者
       - name: ⚙️ Configure Git

@@ -2966,6 +2966,22 @@ with tab5:
             f"</div>",
             unsafe_allow_html=True
         )
+        # 相關個股清單
+        top15 = themes_data.get("top15", [])
+        if top15:
+            st.markdown(
+                "<div style='margin-top:10px;'>"
+                "<span style='color:#7fb3d3;font-size:.82rem;font-weight:600;"
+                "letter-spacing:.05em;'>📋 相關個股：</span>"
+                + "".join(
+                    f"<span style='background:rgba(0,212,255,0.1);color:#00d4ff;"
+                    f"border:1px solid #1e3a5f;padding:3px 10px;border-radius:12px;"
+                    f"font-size:.8rem;margin:2px 3px;display:inline-block;'>{s}</span>"
+                    for s in top15
+                )
+                + "</div>",
+                unsafe_allow_html=True
+            )
         st.caption(
             f"*此報告由 Gemini 2.5 Flash 分析 {trade_dt} 法人買超 Top 15 個股自動生成"
         )
