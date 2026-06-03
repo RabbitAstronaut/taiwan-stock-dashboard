@@ -160,6 +160,95 @@ def check_gatekeeper(sid, bias_ma20, rsi5, ema5, sma20,
     return result
 
 # ══════════════════════════════════════════════════════════════
+# ▌ 潛伏期法人暗中鎖碼掃描函式（中信金模型）
+# ══════════════════════════════════════════════════════════════
+def scan_accumulation_phase(sid):
+    """
+    偵測第3階段（橫向盤整）但法人暗中吃貨的標的
+    回傳 dict: {alert, type, msg, facts}
+    """
+    result = {"alert": False, "type": "常規盤整", "msg": "", "facts": {}}
+    try:
+        # K線
+        df_k, ok_k = load_price_csv(sid)
+        if not ok_k or df_k.empty or len(df_k) < 22:
+            return result
+        df_k = add_indicators(df_k)
+        closes = df_k["Close"].astype(float)
+
+        # Fact1：近20日箱體幅度 <= 6%（橫盤）
+        c20 = closes.tail(20)
+        box_range = (c20.max() - c20.min()) / c20.min() * 100
+        is_in_box = box_range <= 6.0
+
+        # 籌碼（投信）
+        df_c, ok_c = get_chips(sid)
+        inst_diff  = 0.0
+        if ok_c and not df_c.empty:
+            df_c["date"] = pd.to_datetime(df_c["date"], errors="coerce")
+            name_col = next((c for c in ["name","institutional_investors"] if c in df_c.columns), None)
+            if name_col:
+                trust = df_c[df_c[name_col].astype(str).str.contains("Investment_Trust", na=False)]
+                trust = trust.sort_values("date")
+                if "net" in trust.columns and len(trust) >= 15:
+                    trust["net"] = pd.to_numeric(trust["net"], errors="coerce").fillna(0)
+                    # 15日累積投信買超（正數=持續吃貨）
+                    inst_diff = float(trust["net"].tail(15).sum())
+
+        # Fact2：投信15日累積買超 > 0（持續增持）
+        inst_buying = inst_diff > 0
+
+        # 大戶持股
+        df_sh, ok_sh = get_shareholder(sid)
+        big_pct_now = 0.0
+        if ok_sh and not df_sh.empty and "holdingSharesPercent" in df_sh.columns:
+            df_sh["date"] = pd.to_datetime(df_sh["date"], errors="coerce")
+            df_sh = df_sh.sort_values("date")
+            df_sh["holdingSharesPercent"] = pd.to_numeric(
+                df_sh["holdingSharesPercent"], errors="coerce")
+            if len(df_sh) > 0:
+                big_pct_now = float(df_sh["holdingSharesPercent"].iloc[-1])
+
+        # Fact3：千張大戶持股 >= 65%（高度集中鎖倉）
+        is_locked = big_pct_now >= 65.0
+
+        result["facts"] = {
+            "box_range":   round(box_range, 1),
+            "inst_diff":   round(inst_diff, 0),
+            "big_pct":     round(big_pct_now, 1),
+            "is_in_box":   is_in_box,
+            "inst_buying": inst_buying,
+            "is_locked":   is_locked,
+        }
+
+        if is_in_box and is_locked and inst_buying:
+            result.update({
+                "alert": True,
+                "type":  "👑【潛伏期大戶暗中鎖碼】",
+                "msg": (
+                    f"系統雷達預警：本股處於極度無聊橫盤箱體內（20日震幅僅 {box_range:.1f}%），"
+                    f"但投信過去15日已暗中累積買超 {inst_diff:+.0f} 張，"
+                    f"千張大戶持股高達 {big_pct_now:.1f}% 完美鎖倉！"
+                    f"市場目前零新聞零關注，此處即為大戶建倉的黃金第3階段，"
+                    f"強烈建議納入優先狙擊部位，坐等利多新聞抬轎！"
+                )
+            })
+        elif is_in_box and is_locked:
+            result.update({
+                "alert": False,
+                "type":  "🟡 大戶鎖倉橫盤",
+                "msg":   (
+                    f"大戶持股 {big_pct_now:.1f}% 鎖倉中，20日震幅 {box_range:.1f}%，"
+                    f"投信尚未明顯增持，持續觀察。"
+                )
+            })
+
+    except Exception as _e:
+        result["msg"] = f"掃描失敗：{_e}"
+
+    return result
+
+# ══════════════════════════════════════════════════════════════
 # ▌ CSS 主題
 # ══════════════════════════════════════════════════════════════
 # ── 登入驗證
@@ -2922,6 +3011,49 @@ with tab4:
                 conds_met = sum([cond1, cond2, cond3])
                 waiting.append((sid_rv, name_rv, note_rv, close_rv, bias_rv,
                                 f"{conds_met}/3 條件成立"))
+
+        # ══════════════════════════════════════════════
+        # 🕵️ 潛伏期法人鎖碼雷達掃描
+        # ══════════════════════════════════════════════
+        st.markdown("#### 🕵️ 潛伏期法人暗中鎖碼雷達")
+        _accum_alerts = []
+        _accum_watch  = []
+        with st.spinner("掃描潛伏期籌碼密度中..."):
+            for item in st.session_state.reserve_list:
+                _sid_ac = item["id"]
+                _name_ac = item.get("name", _sid_ac)
+                _ac = scan_accumulation_phase(_sid_ac)
+                if _ac["alert"]:
+                    _accum_alerts.append((_sid_ac, _name_ac, _ac))
+                elif _ac["facts"]:
+                    _accum_watch.append((_sid_ac, _name_ac, _ac))
+
+        if _accum_alerts:
+            for _sid_ac, _name_ac, _ac in _accum_alerts:
+                _f = _ac["facts"]
+                _alert_txt = (
+                    f"👑 【潛伏期大戶暗中鎖碼】{_name_ac}（{_sid_ac}）"
+                    f"  {_ac['msg']}"
+                )
+                st.info(_alert_txt)
+        if _accum_watch:
+            for _sid_ac, _name_ac, _ac in _accum_watch:
+                _f = _ac["facts"]
+                _conds = sum([_f.get('is_in_box',False), _f.get('inst_buying',False), _f.get('is_locked',False)])
+                _col = "#ffeb3b" if _conds == 2 else "#546e7a"
+                st.markdown(
+                    f"<span style='color:{_col};font-size:.83rem;'>"
+                    f"{'🟡' if _conds==2 else '⏳'} {_name_ac}（{_sid_ac}）｜"
+                    f"箱體震幅 {_f.get('box_range','—')}%｜"
+                    f"大戶 {_f.get('big_pct','—')}%｜"
+                    f"投信15日 {_f.get('inst_diff',0):+.0f}張｜"
+                    f"{_conds}/3 條件成立</span>",
+                    unsafe_allow_html=True
+                )
+        elif not _accum_alerts:
+            st.caption("⏳ 目前儲備庫無標的觸發潛伏期鎖碼警報。")
+
+        st.markdown("---")
 
         # ── 觸發警報顯示
         if triggered:
