@@ -199,6 +199,10 @@ def scan_accumulation_phase(sid):
                     inst_5d  = float(daily_trust.tail(5).sum())
                 if len(daily_trust) >= 15:
                     inst_15d = float(daily_trust.tail(15).sum())
+                # 自動換算：若數值超過10萬推測單位為股，除以1000轉成張
+                if abs(inst_5d) > 100000:
+                    inst_5d  /= 1000
+                    inst_15d /= 1000
                 # 連續買超天數（從最新往回算）
                 for v in reversed(daily_trust.tail(20).tolist()):
                     if v > 0:
@@ -209,16 +213,20 @@ def scan_accumulation_phase(sid):
         # 投信條件：近5日買超 > 0 且連續≥3天
         inst_buying = inst_5d > 0 and inst_streak >= 3
 
-        # ── 大戶持股（100% 對齊 Tab3 顯示）
+        # ── 大戶持股（stock_id 強制轉 str 對齊）
         df_sh, ok_sh = get_shareholder(sid)
         big_pct = 0.0
-        if ok_sh and not df_sh.empty and "holdingSharesPercent" in df_sh.columns:
-            df_sh["holdingSharesPercent"] = pd.to_numeric(
-                df_sh["holdingSharesPercent"], errors="coerce")
-            df_sh = df_sh.sort_values("date")
-            valid = df_sh["holdingSharesPercent"].dropna()
-            if len(valid) > 0:
-                big_pct = float(valid.iloc[-1])
+        if ok_sh and not df_sh.empty:
+            df_sh["stock_id"] = df_sh["stock_id"].astype(str).str.strip()
+            df_sh_sid = df_sh[df_sh["stock_id"] == str(sid).strip()]
+            if not df_sh_sid.empty and "holdingSharesPercent" in df_sh_sid.columns:
+                df_sh_sid = df_sh_sid.copy()
+                df_sh_sid["holdingSharesPercent"] = pd.to_numeric(
+                    df_sh_sid["holdingSharesPercent"], errors="coerce")
+                df_sh_sid = df_sh_sid.sort_values("date")
+                valid = df_sh_sid["holdingSharesPercent"].dropna()
+                if len(valid) > 0:
+                    big_pct = float(valid.iloc[-1])
 
         is_locked = big_pct >= 55.0
 
@@ -3157,31 +3165,58 @@ with tab4:
                 elif _ac["facts"]:
                     _accum_watch.append((_sid_ac, _name_ac, _ac))
 
-        if _accum_alerts:
-            for _sid_ac, _name_ac, _ac in _accum_alerts:
-                _f = _ac["facts"]
-                _alert_txt = (
-                    f"👑 【潛伏期大戶暗中鎖碼】{_name_ac}（{_sid_ac}）"
-                    f"  {_ac['msg']}"
-                )
-                st.info(_alert_txt)
-        if _accum_watch:
-            for _sid_ac, _name_ac, _ac in _accum_watch:
-                _f    = _ac["facts"]
+        # 合併所有標的，統一渲染
+        _all_accum = _accum_alerts + _accum_watch
+        if not _all_accum:
+            st.caption("⏳ 目前儲備庫無標的觸發潛伏期鎖碼警報。")
+        else:
+            _rows_html = []
+            for _sid_ac, _name_ac, _ac in _all_accum:
+                _f     = _ac["facts"]
                 _conds = _f.get("conds", 0)
-                _col  = "#ffeb3b" if _conds == 2 else "#546e7a"
-                st.markdown(
-                    f"<span style='color:{_col};font-size:.83rem;'>"
-                    f"{'🟡' if _conds==2 else '⏳'} {_name_ac}（{_sid_ac}）｜"
+
+                # 顏色
+                if _conds == 3:
+                    _col = "#00ff88"
+                    _ico = "👑"
+                    _label = "3/3 全條件成立（強烈推介）"
+                elif _conds == 2:
+                    _col = "#ffcc00"
+                    _ico = "🟡"
+                    _label = "2/3 高度關注"
+                else:
+                    _col = "#8892b0"
+                    _ico = "⏳"
+                    _label = f"{_conds}/3 條件成立"
+
+                # 張數千分位（net 單位若為股則除以1000）
+                _i5  = int(_f.get("inst_5d",  0))
+                _i15 = int(_f.get("inst_15d", 0))
+                # 若數值超過10萬，推測單位是股，除以1000換算成張
+                if abs(_i5) > 100000:
+                    _i5  //= 1000
+                    _i15 //= 1000
+                _i5_fmt  = f"+{_i5:,}"  if _i5  >= 0 else f"{_i5:,}"
+                _i15_fmt = f"+{_i15:,}" if _i15 >= 0 else f"{_i15:,}"
+
+                _rows_html.append(
+                    f"<div style='font-size:.84rem;margin-bottom:6px;color:{_col};'>"
+                    f"{_ico} <b>{_sid_ac} {_name_ac}</b>｜"
                     f"箱體震幅 {_f.get('box_amp','—')}%｜"
                     f"大戶 {_f.get('big_pct','—')}%｜"
                     f"投信連買 {_f.get('inst_streak',0)} 天｜"
-                    f"近5日 {_f.get('inst_5d',0):+.0f}張｜"
-                    f"{_conds}/3 條件成立</span>",
-                    unsafe_allow_html=True
+                    f"近5日 {_i5_fmt} 張｜15日 {_i15_fmt} 張｜"
+                    f"<span style='background:rgba(255,255,255,0.06);padding:1px 6px;"
+                    f"border-radius:4px;'>{_label}</span>"
+                    f"</div>"
                 )
-        elif not _accum_alerts:
-            st.caption("⏳ 目前儲備庫無標的觸發潛伏期鎖碼警報。")
+
+            st.markdown(
+                "<div style='background:rgba(0,0,0,0.2);border:1px solid #1e3a5f;"
+                "border-radius:10px;padding:12px 16px;'>"
+                + "".join(_rows_html) + "</div>",
+                unsafe_allow_html=True
+            )
 
         st.markdown("---")
 
