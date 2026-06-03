@@ -2923,6 +2923,57 @@ with tab5:
     st.markdown("<div class='sec-title'>📝 每日作戰總部 · MTFA 狙擊報告</div>",
                 unsafe_allow_html=True)
 
+    # ── AI 今日市場資金題材洞察
+    def load_dynamic_themes():
+        try:
+            p = os.path.join("data", "dynamic_themes.json")
+            df_raw, ok = load_csv_raw("dynamic_themes.json") if False else (None, False)
+            # 直接用 requests 從 GitHub 讀
+            url = f"{GITHUB_RAW}/dynamic_themes.json"
+            import requests as _req
+            r = _req.get(url, timeout=8)
+            if r.status_code == 200:
+                return r.json()
+        except Exception:
+            pass
+        return None
+
+    themes_data = load_dynamic_themes()
+    st.markdown("<div class='sec-title'>🤖 AI 今日市場資金題材洞察</div>",
+                unsafe_allow_html=True)
+
+    if themes_data:
+        themes   = themes_data.get("themes", [])
+        reason   = themes_data.get("reason", "")
+        trade_dt = themes_data.get("trade_date", "")
+        is_fb    = themes_data.get("is_fallback", False)
+
+        # 題材標籤
+        tag_html = "".join(
+            f"<span style='background:linear-gradient(135deg,#0066cc,#0044aa);"
+            f"color:#fff;padding:5px 16px;border-radius:20px;font-size:.92rem;"
+            f"font-weight:700;margin-right:10px;letter-spacing:.05em;'>"
+            f"🔥 {t}</span>"
+            for t in themes
+        )
+        st.markdown(
+            f"<div style='background:rgba(0,100,200,0.08);border:1px solid #0066cc;"
+            f"border-radius:12px;padding:16px 20px;margin-bottom:8px;'>"
+            f"<div style='margin-bottom:10px;'>{tag_html}</div>"
+            f"<div style='color:#b0cce0;font-size:.88rem;line-height:1.6;'>"
+            f"💡 <b style='color:#e8f4fd;'>深度解析：</b>{reason}</div>"
+            f"{'<div style="color:#ff9800;font-size:.75rem;margin-top:6px;">⚠️ 使用預設題材（API 降級）</div>' if is_fb else ''}"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+        st.caption(
+            f"*此報告由 Gemini 2.5 Flash 分析 {trade_dt} 法人買超 Top 15 個股自動生成"
+        )
+    else:
+        st.caption("🤖 題材分析引擎尚無資料，請等待 GitHub Actions 每日排程更新。")
+
+    st.markdown("---")
+
     # 合併手動+掃描清單
     all_wl = st.session_state.get("watchlist", []) + st.session_state.get("watchlist_scan", [])
     # 去重
