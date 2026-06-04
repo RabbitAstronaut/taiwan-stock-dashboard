@@ -4114,7 +4114,11 @@ with tab6:
             # 直接用 requests 從 GitHub 讀
             url = f"{GITHUB_RAW}/dynamic_themes.json"
             import requests as _req
-            r = _req.get(url, timeout=8)
+            # 加時間戳強制跳過 CDN 快取
+            import time as _t
+            r = _req.get(url, timeout=8,
+                         headers={"Cache-Control": "no-cache"},
+                         params={"_t": int(_t.time() // 300)})  # 每5分鐘換一次
             if r.status_code == 200:
                 return r.json()
         except Exception:
