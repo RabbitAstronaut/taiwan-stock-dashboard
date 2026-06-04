@@ -3401,34 +3401,41 @@ with tab4:
             _rm["name"] = _rname
             _rocket_results.append(_rm)
 
-        _rockets = [r for r in _rocket_results if r.get("trigger")]
-        _watching = [r for r in _rocket_results if not r.get("trigger")]
-
-        if _rockets:
-            for _r in _rockets:
-                st.warning(
-                    f"🚀 **{_r['name']}（{_r['sid']}）** {_r['msg']}"
-                )
-        
-        if _watching:
-            _watch_html = []
-            for _r in _watching:
-                _f = _r.get("facts", {})
-                _sc = _f.get("score", 0)
-                _col = "#ff9800" if _sc == 2 else "#546e7a"
-                _ico = "🟠" if _sc == 2 else "⏳"
-                _watch_html.append(
-                    f"<span style='color:{_col};font-size:.82rem;'>"
-                    f"{_ico} {_r['sid']} {_r['name']}｜"
-                    f"法人3日{_f.get('inst_net3',0):+,.0f}張｜"
-                    f"融資變化{_f.get('margin_change_pct',0):+.1f}%｜"
-                    f"資券比{_f.get('margin_short_ratio',0):.1f}%｜"
-                    f"{_sc}/3</span><br>"
+        # 全部合併，依觸發狀態+分數排序，統一色卡渲染
+        _rocket_results.sort(key=lambda x: (x.get("trigger",False), x.get("score",0)), reverse=True)
+        if _rocket_results:
+            _rows_rk4 = []
+            for _r in _rocket_results:
+                _f   = _r.get("facts", {})
+                _sc  = _r.get("score", 0)
+                _trg = _r.get("trigger", False)
+                # 顏色
+                if _trg:
+                    _col = "#ffee55"; _ico = "🚀"; _bg = "background:rgba(255,238,85,0.08);border-left:4px solid #ffee55;"
+                elif _sc >= 2:
+                    _col = "#ff9900"; _ico = "⚡"; _bg = "background:rgba(255,153,0,0.06);border-left:4px solid #ff9900;"
+                else:
+                    _col = "#8892b0"; _ico = "⏳"; _bg = "background:rgba(255,255,255,0.01);border-left:4px solid #44475a;"
+                # 法人張數（台股紅買綠賣）
+                _inst = _f.get("inst_net3", 0)
+                _ic   = "#ff3333" if _inst >= 0 else "#00cc44"
+                _is   = f"+{int(_inst):,}" if _inst >= 0 else f"{int(_inst):,}"
+                _label = f"觸發！得分{_sc}/3" if _trg else f"{_sc}/3 條件成立"
+                _rows_rk4.append(
+                    f"<div style='font-size:.84rem;margin-bottom:8px;padding:6px 12px;"
+                    f"border-radius:4px;{_bg}color:{_col};'>"
+                    f"{_ico} <b>{_r['sid']} {_r['name']}</b>｜"
+                    f"法人3日 <span style='color:{_ic};font-weight:700;'>{_is}張</span>｜"
+                    f"融資變化 {_f.get('margin_change_pct',0):+.1f}%｜"
+                    f"資券比 {_f.get('margin_short_ratio',0):.1f}%｜"
+                    f"<span style='background:rgba(255,255,255,0.08);padding:1px 6px;"
+                    f"border-radius:3px;font-size:.78rem;'>{_label}</span>"
+                    f"</div>"
                 )
             st.markdown(
-                "<div style='background:rgba(0,0,0,0.15);border:1px solid #1e3a5f;"
-                "border-radius:8px;padding:10px 14px;'>"
-                + "".join(_watch_html) + "</div>",
+                "<div style='background:rgba(0,0,0,0.2);border:1px solid #1e3a5f;"
+                "border-radius:10px;padding:10px 4px;'>"
+                + "".join(_rows_rk4) + "</div>",
                 unsafe_allow_html=True
             )
 
