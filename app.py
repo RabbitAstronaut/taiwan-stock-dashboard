@@ -4660,7 +4660,7 @@ with tab7:
     st.caption("最新配息/股=最近一次除息　年化配息/股=近1年合計　配息月份=歷史除息月份")
 
     # 批次抓取所有 ETF 股價（快取1小時）
-    @st.cache_data(ttl=3600)
+    @st.cache_data(ttl=600)
     def get_all_etf_prices(sids: tuple) -> dict:
         result = {}
         for sid in sids:
