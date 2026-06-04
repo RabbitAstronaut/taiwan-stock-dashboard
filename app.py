@@ -3331,7 +3331,11 @@ with tab4:
                     _accum_watch.append((_sid_ac, _name_ac, _ac))
 
         # 合併所有標的，統一渲染
-        _all_accum = _accum_alerts + _accum_watch
+        # 排序：3/3 > 2/3 > 1/3 > 0/3，同分依股號
+        _all_accum = sorted(
+            _accum_alerts + _accum_watch,
+            key=lambda x: (-x[2]["facts"].get("conds", 0), x[0])
+        )
         if not _all_accum:
             st.caption("⏳ 目前儲備庫無標的觸發潛伏期鎖碼警報。")
         else:
@@ -3347,14 +3351,19 @@ with tab4:
                     _label = "3/3 戰略黃金起漲點"
                     _bg   = "background:rgba(255,238,85,0.08);border-left:4px solid #ffee55;"
                 elif _conds == 2:
-                    _col  = "#ff9900"
+                    _col  = "#ffcc00"
                     _ico  = "🟡"
                     _label = "2/3 高度關注臨界點"
-                    _bg   = "background:rgba(255,153,0,0.06);border-left:4px solid #ff9900;"
+                    _bg   = "background:rgba(255,204,0,0.06);border-left:4px solid #ffcc00;"
+                elif _conds == 1:
+                    _col  = "#ff6b35"
+                    _ico  = "🟠"
+                    _label = "1/3 條件成立"
+                    _bg   = "background:rgba(255,107,53,0.04);border-left:4px solid #ff6b35;"
                 else:
                     _col  = "#8892b0"
                     _ico  = "⏳"
-                    _label = f"{_conds}/3 條件成立"
+                    _label = "0/3 條件成立"
                     _bg   = "background:rgba(255,255,255,0.01);border-left:4px solid #44475a;"
 
                 # 張數（台股：紅買 綠賣）
@@ -3414,6 +3423,8 @@ with tab4:
                     _col = "#ffee55"; _ico = "🚀"; _bg = "background:rgba(255,238,85,0.08);border-left:4px solid #ffee55;"
                 elif _sc >= 2:
                     _col = "#ff9900"; _ico = "⚡"; _bg = "background:rgba(255,153,0,0.06);border-left:4px solid #ff9900;"
+                elif _sc == 1:
+                    _col = "#ff6b35"; _ico = "🟠"; _bg = "background:rgba(255,107,53,0.04);border-left:4px solid #ff6b35;"
                 else:
                     _col = "#8892b0"; _ico = "⏳"; _bg = "background:rgba(255,255,255,0.01);border-left:4px solid #44475a;"
                 # 法人張數（台股紅買綠賣）
@@ -3452,20 +3463,21 @@ with tab4:
                 )
                 st.info(_alert_msg)
 
-        # ── 等待中標的
+        # ── 等待中標的（依條件數排序，同分依股號）
         st.markdown("#### ⏳ 籌碼沉澱中...")
         rm_rsv = None
+        waiting.sort(key=lambda x: (-int(x[5].split("/")[0]) if "/" in x[5] else 0, x[0]))
         for sid_rv, name_rv, note_rv, close_rv, bias_rv, status in waiting:
             # 依條件成立數量決定顏色
             conds_n = int(status.split("/")[0]) if "/" in status else 0
             if conds_n == 2:
-                _col = "#ffeb3b"   # 黃：快了！2/3
+                _col = "#ffcc00"   # 黃：2/3
                 _ico = "🟡"
             elif conds_n == 1:
-                _col = "#ff9800"   # 橘：1/3
+                _col = "#ff6b35"   # 橘：1/3
                 _ico = "🟠"
             else:
-                _col = "#546e7a"   # 灰：0/3
+                _col = "#8892b0"   # 灰：0/3
                 _ico = "⏳"
 
             w_c1, w_c2, w_c3, w_c4, w_c5 = st.columns([1.2, 1.8, 1.2, 3, 0.8])
