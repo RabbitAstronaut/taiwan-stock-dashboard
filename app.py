@@ -4102,8 +4102,8 @@ with tab6:
                                 save_watchlist_to_github(
                                     st.session_state.watchlist,
                                     st.session_state.watchlist_scan,
-                                    {k: v for k, v in
-                                     st.session_state.etf_shares.items() if v > 0}
+                                    {k: v for k, v in st.session_state.etf_shares.items() if v > 0},
+                                    reserve=st.session_state.get("reserve_list", [])
                                 )
                                 st.toast(f"✅ {sid} {sname} 已加入監控", icon="✅")
                                 st.rerun()
@@ -4503,7 +4503,8 @@ with tab2:
                 if added > 0:
                     save_watchlist_to_github(st.session_state.watchlist,
                                              st.session_state.watchlist_scan,
-                                             {k:v for k,v in st.session_state.etf_shares.items() if v>0})
+                                             {k:v for k,v in st.session_state.etf_shares.items() if v>0},
+                                             reserve=st.session_state.get("reserve_list", []))
                     st.toast(f"✅ 已加入 {added} 檔到掃描監控清單")
 
 # ▌ TAB 7：ETF 存股現金流管家
