@@ -1528,21 +1528,59 @@ with tab1:
             if ok_si_rk and not df_si_rk.empty:
                 _all_sids_rk = df_si_rk["stock_id"].astype(str).str.strip().tolist()
                 _scan_n = min(300, len(_all_sids_rk))
-                _rocket_ids = []
+                _rocket_ids   = []
+                _rocket_data  = []  # 儲存完整掃描結果
                 _prog_rk = st.progress(0, text="🚀 短線火箭雷達掃描中...")
+                df_si_name = df_si_rk.set_index("stock_id")["stock_name"].to_dict()                              if "stock_name" in df_si_rk.columns else {}
                 for _ri, _rsid in enumerate(_all_sids_rk[:_scan_n]):
                     _prog_rk.progress((_ri+1)/_scan_n,
                         text=f"🚀 掃描 {_ri+1}/{_scan_n}：{_rsid}")
                     _rm = scan_short_term_momentum(_rsid)
                     if _rm.get("trigger"):
                         _rocket_ids.append(_rsid)
+                        _rocket_data.append((_rsid, df_si_name.get(_rsid, _rsid), _rm))
                 _prog_rk.empty()
                 scan_pool_ids = _rocket_ids
-                if scan_pool_ids:
+
+                if _rocket_data:
                     st.markdown(
                         f"<div class='infobox'>🚀 短線火箭雷達掃出 "
-                        f"<b style='color:#ff5252;'>{len(scan_pool_ids)}</b> 檔"
+                        f"<b style='color:#ff5252;'>{len(_rocket_data)}</b> 檔"
                         f"法人點火+融資退場標的，進入三道篩選</div>",
+                        unsafe_allow_html=True
+                    )
+                    # 依 score 排序，顯示詳細色卡
+                    _rocket_data.sort(key=lambda x: x[2].get("score", 0), reverse=True)
+                    _rows_rk = []
+                    for _rsid, _rname, _rm in _rocket_data:
+                        _score = _rm.get("score", 0)
+                        _facts = _rm.get("facts", {})
+                        _msg   = _rm.get("msg", "")
+                        # 分數顏色
+                        if _score >= 4:
+                            _col = "#ffee55"; _ico = "🚀"; _bg = "background:rgba(255,238,85,0.08);border-left:4px solid #ffee55;"
+                        elif _score >= 2:
+                            _col = "#ff9900"; _ico = "⚡"; _bg = "background:rgba(255,153,0,0.06);border-left:4px solid #ff9900;"
+                        else:
+                            _col = "#00d4ff"; _ico = "📡"; _bg = "background:rgba(0,212,255,0.04);border-left:4px solid #00d4ff;"
+                        # 投信買超（台股紅買綠賣）
+                        _inst = _facts.get("inst_net", 0)
+                        _ic   = "#ff3333" if _inst >= 0 else "#00cc44"
+                        _is   = f"+{int(_inst):,}" if _inst >= 0 else f"{int(_inst):,}"
+                        _rows_rk.append(
+                            f"<div style='font-size:.84rem;margin-bottom:8px;padding:6px 12px;"
+                            f"border-radius:4px;{_bg}color:{_col};'>"
+                            f"{_ico} <b>{_rsid} {_rname}</b>｜"
+                            f"得分 {_score}｜"
+                            f"法人淨買 <span style='color:{_ic};font-weight:700;'>{_is}張</span>｜"
+                            f"融資比 {_facts.get('margin_ratio','—')}｜"
+                            f"{_msg[:40]}"
+                            f"</div>"
+                        )
+                    st.markdown(
+                        "<div style='background:rgba(0,0,0,0.2);border:1px solid #1e3a5f;"
+                        "border-radius:10px;padding:10px 4px;'>"
+                        + "".join(_rows_rk) + "</div>",
                         unsafe_allow_html=True
                     )
                 else:
