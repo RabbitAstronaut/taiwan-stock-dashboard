@@ -3526,11 +3526,15 @@ with tab4:
             _wait_rm_btns.append(sid_rv)
 
         if _wait_rows:
+            # 每行：色卡 + 刪除按鈕同一列
             for _wi, (_wrow, _wsid) in enumerate(zip(_wait_rows, _wait_rm_btns)):
-                _wc_main, _wc_btn = st.columns([11, 1])
-                _wc_main.markdown(_wrow, unsafe_allow_html=True)
-                if _wc_btn.button("✕", key=f"rsv_rm_{_wsid}", use_container_width=True):
-                    rm_rsv = _wsid
+                _wc_main, _wc_btn = st.columns([20, 1])
+                with _wc_main:
+                    st.markdown(_wrow, unsafe_allow_html=True)
+                with _wc_btn:
+                    st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
+                    if st.button("✕", key=f"rsv_rm_{_wsid}", use_container_width=True):
+                        rm_rsv = _wsid
 
         if rm_rsv:
             st.session_state.reserve_list = [
