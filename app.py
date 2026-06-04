@@ -3320,8 +3320,12 @@ with tab4:
                 triggered.append((sid_rv, name_rv, note_rv, close_rv, bias_rv))
             else:
                 conds_met = sum([cond1, cond2, cond3])
+                # 計算量比（當日量/VMA5）
+                vol_ratio_rv = round(vol_rv / vma5_rv, 2) if not np.isnan(vma5_rv) and vma5_rv > 0 else None
                 waiting.append((sid_rv, name_rv, note_rv, close_rv, bias_rv,
-                                f"{conds_met}/3 條件成立"))
+                                f"{conds_met}/3 條件成立",
+                                cond1, cond2, cond3,
+                                vol_ratio_rv, ema5_rv, sma20_rv))
 
         # ══════════════════════════════════════════════
         # 🕵️ 潛伏期法人鎖碼雷達掃描
@@ -3472,48 +3476,67 @@ with tab4:
                 )
                 st.info(_alert_msg)
 
-        # ── 等待中標的（依條件數排序，同分依股號）
+        # ── 等待中標的（依條件數排序，同分依股號，色卡格式）
         st.markdown("#### ⏳ 籌碼沉澱中...")
         rm_rsv = None
         waiting.sort(key=lambda x: (-int(x[5].split("/")[0]) if "/" in x[5] else 0, x[0]))
-        for sid_rv, name_rv, note_rv, close_rv, bias_rv, status in waiting:
-            # 依條件成立數量決定顏色
+        _wait_rows = []
+        _wait_rm_btns = []
+        for _w in waiting:
+            sid_rv, name_rv, note_rv, close_rv, bias_rv, status = _w[:6]
+            _c1 = _w[6] if len(_w) > 6 else None
+            _c2 = _w[7] if len(_w) > 7 else None
+            _c3 = _w[8] if len(_w) > 8 else None
+            _vr = _w[9] if len(_w) > 9 else None
+            _e5 = _w[10] if len(_w) > 10 else None
+            _s20= _w[11] if len(_w) > 11 else None
+
             conds_n = int(status.split("/")[0]) if "/" in status else 0
             if conds_n == 2:
-                _col = "#ffcc00"   # 黃：2/3
-                _ico = "🟡"
+                _col = "#ffcc00"; _ico = "🟡"
+                _bg  = "background:rgba(255,204,0,0.06);border-left:4px solid #ffcc00;"
             elif conds_n == 1:
-                _col = "#ff6b35"   # 橘：1/3
-                _ico = "🟠"
+                _col = "#ff6b35"; _ico = "🟠"
+                _bg  = "background:rgba(255,107,53,0.04);border-left:4px solid #ff6b35;"
             else:
-                _col = "#8892b0"   # 灰：0/3
-                _ico = "⏳"
+                _col = "#8892b0"; _ico = "⏳"
+                _bg  = "background:rgba(255,255,255,0.01);border-left:4px solid #44475a;"
 
-            w_c1, w_c2, w_c3, w_c4, w_c5 = st.columns([1.2, 1.8, 1.2, 3, 0.8])
-            w_c1.markdown(f"<span style='color:{_col};font-weight:600;font-size:.88rem;'>{sid_rv}</span>",
-                         unsafe_allow_html=True)
-            w_c2.markdown(f"<span style='color:{_col};font-size:.88rem;'>{name_rv}</span>",
-                         unsafe_allow_html=True)
-            if close_rv is not None:
-                w_c3.markdown(f"<span style='color:{_col};font-size:.88rem;'>{close_rv:.1f} 元</span>",
-                             unsafe_allow_html=True)
-                if not np.isnan(bias_rv):
-                    _bias_txt = f"乖離 {bias_rv:+.1f}%"
-                    _note_txt = f"　💬 {note_rv}" if note_rv else ""
-                    w_c4.markdown(
-                        f"<span style='color:{_col};font-size:.82rem;'>"
-                        f"{_ico} {status}｜{_bias_txt}，靜待拉回守穩{_note_txt}</span>",
-                        unsafe_allow_html=True
-                    )
-                else:
-                    w_c4.markdown(f"<span style='color:{_col};font-size:.82rem;'>{status}</span>",
-                                 unsafe_allow_html=True)
-            else:
-                w_c3.caption("—")
-                w_c4.markdown(f"<span style='color:{_col};font-size:.82rem;'>{status}</span>",
-                             unsafe_allow_html=True)
-            if w_c5.button("✕", key=f"rsv_rm_{sid_rv}", use_container_width=True):
-                rm_rsv = sid_rv
+            # 條件指示燈
+            _c1_txt = f"<span style='color:{'#ff3333' if _c1 else '#546e7a'}'>{'✅' if _c1 else '❌'}量縮</span>" if _c1 is not None else ""
+            _c2_txt = f"<span style='color:{'#ff3333' if _c2 else '#546e7a'}'>{'✅' if _c2 else '❌'}乖離{'≤5%' if _c2 else f'{bias_rv:+.1f}%'}</span>" if _c2 is not None and close_rv else ""
+            _c3_txt = f"<span style='color:{'#ff3333' if _c3 else '#546e7a'}'>{'✅' if _c3 else '❌'}收紅守EMA5</span>" if _c3 is not None else ""
+            _vr_txt = f"量比{_vr:.2f}" if _vr is not None else ""
+            _e5_txt = f"EMA5={_e5:.1f}" if _e5 and not np.isnan(_e5) else ""
+            _note_txt = f"　💬{note_rv}" if note_rv else ""
+
+            _close_str = f"{close_rv:.1f}元｜" if close_rv else "—｜"
+            _bias_str  = f"乖離{bias_rv:+.1f}%｜" if close_rv and not np.isnan(bias_rv) else ""
+
+            _wait_rows.append(
+                f"<div style='font-size:.83rem;margin-bottom:8px;padding:6px 12px;"
+                f"border-radius:4px;{_bg}color:{_col};'>"
+                f"{_ico} <b>{sid_rv} {name_rv}</b>｜"
+                f"{_close_str}{_bias_str}"
+                f"{_c1_txt} {_c2_txt} {_c3_txt}"
+                f"{'｜'+_vr_txt if _vr_txt else ''}{'｜'+_e5_txt if _e5_txt else ''}"
+                f"{_note_txt}"
+                f"</div>"
+            )
+            _wait_rm_btns.append(sid_rv)
+
+        if _wait_rows:
+            st.markdown(
+                "<div style='background:rgba(0,0,0,0.2);border:1px solid #1e3a5f;"
+                "border-radius:10px;padding:10px 4px;'>"
+                + "".join(_wait_rows) + "</div>",
+                unsafe_allow_html=True
+            )
+            # 刪除按鈕獨立一列
+            _del_cols = st.columns(len(_wait_rm_btns))
+            for _di, (_dc, _dsid) in enumerate(zip(_del_cols, _wait_rm_btns)):
+                if _dc.button("✕", key=f"rsv_rm_{_dsid}", use_container_width=True):
+                    rm_rsv = _dsid
 
         if rm_rsv:
             st.session_state.reserve_list = [
