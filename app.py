@@ -4604,9 +4604,11 @@ with tab7:
     def fetch_etf_price(stock_id: str) -> float:
         try:
             import yfinance as yf
+            # ETF 代號補零到4碼（如 50 → 0050）
+            sid = str(stock_id).strip().zfill(4)
             for suffix in [".TW", ".TWO"]:
-                tk = yf.Ticker(stock_id + suffix)
-                hist = tk.history(period="2d")
+                tk = yf.Ticker(sid + suffix)
+                hist = tk.history(period="5d")
                 if not hist.empty:
                     return round(float(hist["Close"].iloc[-1]), 2)
         except Exception:
