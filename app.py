@@ -199,9 +199,8 @@ def scan_short_term_momentum(sid):
                 _combined = functools.reduce(lambda a, b: a.add(b, fill_value=0), _daily_nets)
                 if len(_combined) >= 3:
                     inst_net3 = float(_combined.iloc[-3:].sum())
-        # 單位換算：若超過100萬推測為股，除以1000轉為張
-        if abs(inst_net3) > 1_000_000:
-            inst_net3 /= 1000
+        # 單位換算：FinMind chips_data 的 net 單位為「股」，統一除以1000轉為張
+        inst_net3 /= 1000
         is_institutional_swarm = inst_net3 > 0
 
         # ── Fact2：融資餘額近3日是否減少（散戶退場）
@@ -306,9 +305,9 @@ def scan_accumulation_phase(sid):
                     inst_5d  = float(daily["net"].iloc[max(0,n-5):].sum())
                 if n >= 1:
                     inst_15d = float(daily["net"].iloc[max(0,n-15):].sum())
-                # 單位自動換算（超過10萬 → 股轉張）
-                if abs(inst_5d) > 100000:
-                    inst_5d /= 1000; inst_15d /= 1000
+                # FinMind chips_data net 單位為股，統一除以1000轉為張
+                inst_5d  /= 1000
+                inst_15d /= 1000
                 # 連續買超天數（位置倒數）
                 for i in range(n-1, max(n-21,-1), -1):
                     if daily["net"].iloc[i] > 0:
