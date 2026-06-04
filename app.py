@@ -183,15 +183,25 @@ def scan_short_term_momentum(sid):
         name_col = next((c for c in ["name","institutional_investors"]
                          if c in df_c.columns), None)
 
-        # ── Fact1：三大法人近3日合計淨買超
+        # ── Fact1：三大法人近3日合計淨買超（物理分別加總，避免重複計算）
         inst_net3 = 0.0
         if name_col and "net" in df_c.columns:
-            inst = df_c[df_c[name_col].astype(str).str.contains(
-                "Foreign_Investor|Investment_Trust|Dealer", na=False)].copy()
-            inst["net"] = pd.to_numeric(inst["net"], errors="coerce").fillna(0)
-            daily_inst  = inst.groupby("date")["net"].sum().sort_index()
-            if len(daily_inst) >= 3:
-                inst_net3 = float(daily_inst.iloc[-3:].sum())
+            df_c["net"] = pd.to_numeric(df_c["net"], errors="coerce").fillna(0)
+            # 分別抓外資/投信/自營，再各自按日加總後相加
+            _daily_nets = []
+            for _kw in ["Foreign_Investor", "Investment_Trust", "Dealer"]:
+                _sub = df_c[df_c[name_col].astype(str).str.contains(_kw, na=False)].copy()
+                if not _sub.empty:
+                    _daily = _sub.groupby("date")["net"].sum().sort_index()
+                    _daily_nets.append(_daily)
+            if _daily_nets:
+                import functools
+                _combined = functools.reduce(lambda a, b: a.add(b, fill_value=0), _daily_nets)
+                if len(_combined) >= 3:
+                    inst_net3 = float(_combined.iloc[-3:].sum())
+        # 單位換算：若超過100萬推測為股，除以1000轉為張
+        if abs(inst_net3) > 1_000_000:
+            inst_net3 /= 1000
         is_institutional_swarm = inst_net3 > 0
 
         # ── Fact2：融資餘額近3日是否減少（散戶退場）
