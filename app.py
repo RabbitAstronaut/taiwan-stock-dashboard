@@ -2446,7 +2446,10 @@ with tab3:
                 display_chg   = None  # 無即時資料，不顯示今日漲跌
                 live_tag = " <span style='color:#546e7a;font-size:.7rem;'>📅 昨收</span>"
 
-            chg_s = "up" if (display_chg or 0) >= 0 else "down"
+            if display_chg is None:
+                chg_s = ""  # 無即時資料，不給顏色
+            else:
+                chg_s = "up" if display_chg >= 0 else "down"
 
             # 乖離率計算（統一用 display_close 即時價 對 MA20）
             _ma20_kpi = float(df_ind["MA20"].dropna().iloc[-1]) if "MA20" in df_ind.columns and not df_ind["MA20"].dropna().empty else float("nan")
