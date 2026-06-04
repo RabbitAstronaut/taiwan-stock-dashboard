@@ -4109,18 +4109,19 @@ with tab6:
     # ── AI 今日市場資金題材洞察
     def load_dynamic_themes():
         try:
-            p = os.path.join("data", "dynamic_themes.json")
-            df_raw, ok = load_csv_raw("dynamic_themes.json") if False else (None, False)
-            # 直接用 requests 從 GitHub 讀
-            url = f"{GITHUB_RAW}/dynamic_themes.json"
-            import requests as _req
-            # 加時間戳強制跳過 CDN 快取
-            import time as _t
-            r = _req.get(url, timeout=8,
-                         headers={"Cache-Control": "no-cache"},
-                         params={"_t": int(_t.time() // 300)})  # 每5分鐘換一次
-            if r.status_code == 200:
-                return r.json()
+            import requests as _req, base64 as _b64, json as _json
+            # 用 GitHub API 讀取（完全繞過 CDN 快取）
+            _api_url = (f"https://api.github.com/repos/"
+                       f"RabbitAstronaut/taiwan-stock-dashboard/"
+                       f"contents/data/dynamic_themes.json")
+            _headers = {"Accept": "application/vnd.github.v3+json"}
+            if GITHUB_TOKEN:
+                _headers["Authorization"] = f"token {GITHUB_TOKEN}"
+            _r = _req.get(_api_url, headers=_headers, timeout=10)
+            if _r.status_code == 200:
+                _content = _r.json().get("content", "")
+                _decoded = _b64.b64decode(_content).decode("utf-8")
+                return _json.loads(_decoded)
         except Exception:
             pass
         return None
