@@ -162,6 +162,99 @@ def check_gatekeeper(sid, bias_ma20, rsi5, ema5, sma20,
 # ══════════════════════════════════════════════════════════════
 # ▌ 潛伏期法人暗中鎖碼掃描函式（中信金模型）
 # ══════════════════════════════════════════════════════════════
+def scan_short_term_momentum(sid):
+    """
+    捕獲『三大法人合力點火』與『融資退場+信用軋空』的短線火箭演算法
+    回傳 dict: {trigger, score, msg, facts}
+    """
+    result = {"trigger": False, "score": 0, "msg": "", "facts": {}}
+    try:
+        sid = str(sid).strip()
+
+        # ── 籌碼資料
+        df_c, ok_c = get_chips(sid)
+        if not ok_c or df_c.empty:
+            return result
+
+        df_c["stock_id"] = df_c["stock_id"].astype(str).str.strip()
+        df_c["date"]     = pd.to_datetime(df_c["date"], errors="coerce")
+        df_c = df_c[df_c["stock_id"] == sid].sort_values("date")
+
+        name_col = next((c for c in ["name","institutional_investors"]
+                         if c in df_c.columns), None)
+
+        # ── Fact1：三大法人近3日合計淨買超
+        inst_net3 = 0.0
+        if name_col and "net" in df_c.columns:
+            inst = df_c[df_c[name_col].astype(str).str.contains(
+                "Foreign_Investor|Investment_Trust|Dealer", na=False)].copy()
+            inst["net"] = pd.to_numeric(inst["net"], errors="coerce").fillna(0)
+            daily_inst  = inst.groupby("date")["net"].sum().sort_index()
+            if len(daily_inst) >= 3:
+                inst_net3 = float(daily_inst.iloc[-3:].sum())
+        is_institutional_swarm = inst_net3 > 0
+
+        # ── Fact2：融資餘額近3日是否減少（散戶退場）
+        margin_bal_now  = 0.0
+        margin_bal_3d   = 0.0
+        short_bal_now   = 0.0
+        margin_source   = df_c[df_c["source"].astype(str) == "margin"]                           if "source" in df_c.columns else pd.DataFrame()
+        if not margin_source.empty:
+            mg_col = next((c for c in margin_source.columns
+                           if "MarginPurchaseTodayBalance" in c), None)
+            sh_col = next((c for c in margin_source.columns
+                           if "ShortSale" in c and "Balance" in c), None)
+            if mg_col:
+                mg_vals = pd.to_numeric(margin_source[mg_col], errors="coerce").dropna()
+                if len(mg_vals) >= 3:
+                    margin_bal_now = float(mg_vals.iloc[-1])
+                    margin_bal_3d  = float(mg_vals.iloc[-3])
+            if sh_col:
+                sh_vals = pd.to_numeric(margin_source[sh_col], errors="coerce").dropna()
+                if len(sh_vals) >= 1:
+                    short_bal_now = float(sh_vals.iloc[-1])
+
+        is_margin_decreasing = margin_bal_3d > 0 and margin_bal_now < margin_bal_3d
+
+        # 資券比
+        margin_short_ratio = (short_bal_now / margin_bal_now * 100)                              if margin_bal_now > 0 and short_bal_now > 0 else 0.0
+        is_squeeze_potential = margin_short_ratio >= 25.0
+
+        # ── 評分
+        score = sum([is_institutional_swarm, is_squeeze_potential, is_margin_decreasing])
+
+        result["facts"] = {
+            "inst_net3":          round(inst_net3, 0),
+            "margin_bal_now":     round(margin_bal_now, 0),
+            "margin_change_pct":  round((margin_bal_now - margin_bal_3d) / margin_bal_3d * 100, 1)
+                                  if margin_bal_3d > 0 else 0.0,
+            "margin_short_ratio": round(margin_short_ratio, 1),
+            "is_swarm":           is_institutional_swarm,
+            "is_squeeze":         is_squeeze_potential,
+            "is_margin_exit":     is_margin_decreasing,
+            "score":              score,
+        }
+
+        if is_institutional_swarm and (is_squeeze_potential or is_margin_decreasing):
+            _squeeze_txt = f"資券比 {margin_short_ratio:.1f}%（軋空基因）、" if is_squeeze_potential else ""
+            _margin_txt  = f"融資近3日退場" if is_margin_decreasing else ""
+            result.update({
+                "trigger": True,
+                "score":   score,
+                "msg": (
+                    f"⚡ 短線火箭標的！三大法人近3日合計買超 {inst_net3:+,.0f} 張，"
+                    f"{_squeeze_txt}{_margin_txt}。"
+                    f"法人點火＋散戶退場，建議啟動 3-5 天短線閃擊！"
+                )
+            })
+        else:
+            result["score"] = score
+
+    except Exception as _e:
+        result["msg"] = f"掃描失敗：{_e}"
+
+    return result
+
 def scan_accumulation_phase(sid):
     """
     潛伏期法人暗中鎖碼雷達 V3
@@ -1046,6 +1139,12 @@ if "last_auto_refresh" not in st.session_state:
 if "live_prices" not in st.session_state:
     st.session_state.live_prices = {}  # {sid: {close, high, low, volume, time}}
 
+# 每天自動清除舊的即時報價快取（避免昨日漲跌殘留）
+_today_str = datetime.now().strftime("%Y-%m-%d")
+if st.session_state.get("live_prices_date") != _today_str:
+    st.session_state.live_prices = {}
+    st.session_state.live_prices_date = _today_str
+
 if "wl_loaded" not in st.session_state:
     manual, scan, etf_sh = load_watchlist_from_github()
     st.session_state.watchlist      = manual  # 手動加入
@@ -1281,7 +1380,8 @@ with tab1:
         rng_type = st.radio(
             "掃描方式",
             ["📂 產業分類", "📊 產業板塊（動態）", "🔢 股號開頭", "🌏 全市場", "✏️ 自訂代號",
-             "🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達", "🎯 MTFA 狙擊名單"],
+             "🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達", "🎯 MTFA 狙擊名單",
+             "🚀 短線火箭雷達"],
             horizontal=True, label_visibility="collapsed"
         )
 
@@ -1422,6 +1522,34 @@ with tab1:
                 scan_pool_ids = []
                 st.warning(f"MTFA 狙擊名單讀取失敗：{_em}")
 
+        elif rng_type == "🚀 短線火箭雷達":
+            # 掃描全市場找法人點火+融資退場標的
+            df_si_rk, ok_si_rk = get_stock_info()
+            if ok_si_rk and not df_si_rk.empty:
+                _all_sids_rk = df_si_rk["stock_id"].astype(str).str.strip().tolist()
+                _scan_n = min(300, len(_all_sids_rk))
+                _rocket_ids = []
+                _prog_rk = st.progress(0, text="🚀 短線火箭雷達掃描中...")
+                for _ri, _rsid in enumerate(_all_sids_rk[:_scan_n]):
+                    _prog_rk.progress((_ri+1)/_scan_n,
+                        text=f"🚀 掃描 {_ri+1}/{_scan_n}：{_rsid}")
+                    _rm = scan_short_term_momentum(_rsid)
+                    if _rm.get("trigger"):
+                        _rocket_ids.append(_rsid)
+                _prog_rk.empty()
+                scan_pool_ids = _rocket_ids
+                if scan_pool_ids:
+                    st.markdown(
+                        f"<div class='infobox'>🚀 短線火箭雷達掃出 "
+                        f"<b style='color:#ff5252;'>{len(scan_pool_ids)}</b> 檔"
+                        f"法人點火+融資退場標的，進入三道篩選</div>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    st.info("🚀 今日無標的觸發短線火箭條件（法人未明顯點火或融資未退場）")
+            else:
+                scan_pool_ids = []
+
         elif rng_type in ["🌊 土洋認養雷達", "⚡ 黃金窒息量雷達", "💎 大戶硬漢雷達"]:
             # 從 session_state 取雷達結果
             radar_map = {
@@ -1556,6 +1684,9 @@ with tab1:
                               "🎯 MTFA 狙擊名單"]:
                 # 直接用雷達/AI題材結果，不強制過濾 all_fin_ids（避免漏掉）
                 stock_ids = scan_pool_ids if scan_pool_ids else all_fin_ids
+            elif rng_type == "🚀 短線火箭雷達":
+                # 短線火箭：只用雷達掃出的標的，無結果就停止不跑全市場
+                stock_ids = scan_pool_ids
             else:  # 全市場
                 stock_ids = all_fin_ids
 
@@ -2312,10 +2443,10 @@ with tab3:
                 live_tag = f" <span style='color:#ffeb3b;font-size:.7rem;'>⚡ {live['time']}</span>"
             else:
                 display_close = lt["Close"]
-                display_chg   = chg
-                live_tag = ""
+                display_chg   = None  # 無即時資料，不顯示今日漲跌
+                live_tag = " <span style='color:#546e7a;font-size:.7rem;'>📅 昨收</span>"
 
-            chg_s  = "up" if display_chg >= 0 else "down"
+            chg_s = "up" if (display_chg or 0) >= 0 else "down"
 
             # 乖離率計算（統一用 display_close 即時價 對 MA20）
             _ma20_kpi = float(df_ind["MA20"].dropna().iloc[-1]) if "MA20" in df_ind.columns and not df_ind["MA20"].dropna().empty else float("nan")
@@ -2338,8 +2469,11 @@ with tab3:
             kpi_cols = st.columns(6)
             mcard(kpi_cols[0], "收盤價" + live_tag,
                   f"{display_close:.1f}", chg_s)
-            mcard(kpi_cols[1], "漲跌幅",
-                  f"{'▲' if display_chg>=0 else '▼'}{abs(display_chg):.2f}%", chg_s)
+            if display_chg is not None:
+                mcard(kpi_cols[1], "漲跌幅",
+                      f"{'▲' if display_chg>=0 else '▼'}{abs(display_chg):.2f}%", chg_s)
+            else:
+                mcard(kpi_cols[1], "漲跌幅", "— 待更新", "")
             mcard(kpi_cols[2], "EMA5",  f"{lt.get('EMA5',  float('nan')):.1f}", "")
             mcard(kpi_cols[3], "SMA60", f"{lt.get('SMA60', float('nan')):.1f}", "")
             mcard(kpi_cols[4], "RSI5",  f"{lt.get('RSI5',  float('nan')):.1f}", "")
@@ -3208,6 +3342,52 @@ with tab4:
                 "<div style='background:rgba(0,0,0,0.2);border:1px solid #1e3a5f;"
                 "border-radius:10px;padding:10px 4px;'>"
                 + "".join(_rows_html) + "</div>",
+                unsafe_allow_html=True
+            )
+
+        st.markdown("---")
+
+        # ══════════════════════════════════════════════
+        # 🚀 短線火箭雷達（儲備庫個股）
+        # ══════════════════════════════════════════════
+        st.markdown("#### 🚀 短線火箭雷達")
+        _rocket_results = []
+        for item in st.session_state.reserve_list:
+            _rsid  = item["id"]
+            _rname = item.get("name", _rsid)
+            _rm    = scan_short_term_momentum(_rsid)
+            _rm["sid"]  = _rsid
+            _rm["name"] = _rname
+            _rocket_results.append(_rm)
+
+        _rockets = [r for r in _rocket_results if r.get("trigger")]
+        _watching = [r for r in _rocket_results if not r.get("trigger")]
+
+        if _rockets:
+            for _r in _rockets:
+                st.warning(
+                    f"🚀 **{_r['name']}（{_r['sid']}）** {_r['msg']}"
+                )
+        
+        if _watching:
+            _watch_html = []
+            for _r in _watching:
+                _f = _r.get("facts", {})
+                _sc = _f.get("score", 0)
+                _col = "#ff9800" if _sc == 2 else "#546e7a"
+                _ico = "🟠" if _sc == 2 else "⏳"
+                _watch_html.append(
+                    f"<span style='color:{_col};font-size:.82rem;'>"
+                    f"{_ico} {_r['sid']} {_r['name']}｜"
+                    f"法人3日{_f.get('inst_net3',0):+,.0f}張｜"
+                    f"融資變化{_f.get('margin_change_pct',0):+.1f}%｜"
+                    f"資券比{_f.get('margin_short_ratio',0):.1f}%｜"
+                    f"{_sc}/3</span><br>"
+                )
+            st.markdown(
+                "<div style='background:rgba(0,0,0,0.15);border:1px solid #1e3a5f;"
+                "border-radius:8px;padding:10px 14px;'>"
+                + "".join(_watch_html) + "</div>",
                 unsafe_allow_html=True
             )
 
@@ -4474,12 +4654,30 @@ with tab7:
         freq_l = row_menu["頻率"].iloc[0]
         freq   = 12 if freq_l == "月配" else (4 if freq_l == "季配" else (2 if freq_l == "半年配" else 1))
         per_time = annual / max(freq, 1)
-        interval = max(1, 12 // freq)
         total_annual_div += annual * shares * 1000
-        for j, m in enumerate(months):
-            if j % interval == 0:
-                forecast_rows.append({"月份": m.strftime("%Y-%m"), "ETF": sid,
-                                      "預估現金流": round(per_time * shares * 1000, 0)})
+
+        # 用真實配息月份（從 div_months 欄位解析）
+        months_str = str(row_menu["配息月份"].iloc[0]) if "配息月份" in row_menu.columns else ""
+        real_months = []
+        try:
+            real_months = [int(x) for x in months_str.replace("月","").split("/") if x.strip().isdigit()]
+        except Exception:
+            real_months = []
+
+        # 若無真實月份資料，退化為等間隔
+        if not real_months:
+            interval = max(1, 12 // freq)
+            for j, m in enumerate(months):
+                if j % interval == 0:
+                    forecast_rows.append({"月份": m.strftime("%Y-%m"), "ETF": sid,
+                                          "預估現金流": round(per_time * shares * 1000, 0)})
+        else:
+            # 用真實配息月份決定現金流
+            real_months_set = set(real_months)
+            for m in months:
+                if m.month in real_months_set:
+                    forecast_rows.append({"月份": m.strftime("%Y-%m"), "ETF": sid,
+                                          "預估現金流": round(per_time * shares * 1000, 0)})
 
     yield_rate = (total_annual_div / total_cost * 100) if total_cost > 0 else 0
     m1, m2, m3 = st.columns(3)
