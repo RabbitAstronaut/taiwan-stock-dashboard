@@ -1007,10 +1007,10 @@ def refresh_all_live_prices():
             st.session_state.live_prices[sid] = data
     st.session_state.last_auto_refresh = datetime.now(ZoneInfo("Asia/Taipei"))
 
-def df_to_html(df, height=380):
+def df_to_html(df, height=380, font_size=".82rem"):
     """把 DataFrame 渲染成黑底白字的 HTML 表格"""
-    TD = "padding:6px 10px;border-bottom:1px solid #1a2a3a;white-space:nowrap;color:#e8f4fd;font-size:.82rem;"
-    TH = "padding:6px 10px;background:#0d1826;color:#00d4ff;font-size:.82rem;white-space:nowrap;border-bottom:2px solid #1e3a5f;"
+    TD = f"padding:6px 10px;border-bottom:1px solid #1a2a3a;white-space:nowrap;color:#e8f4fd;font-size:{font_size};"
+    TH = f"padding:6px 10px;background:#0d1826;color:#00d4ff;font-size:{font_size};white-space:nowrap;border-bottom:2px solid #1e3a5f;"
     rows_html = ""
     for i, (_, row) in enumerate(df.iterrows()):
         bg = "#060b14" if i % 2 == 0 else "#080e18"
@@ -4671,18 +4671,18 @@ with tab7:
 
     h = st.columns([1, 1, 1, 1, 1, 1, 1.5, 1.5])
     for col, txt in zip(h, ["代號","現股價","最新配息/股","年化配息/股","年化殖利率","頻率","配息月份","持有張數"]):
-        col.markdown(f"<b style='color:#00d4ff;font-size:.82rem;'>{txt}</b>", unsafe_allow_html=True)
+        col.markdown(f"<b style='color:#00d4ff;font-size:.9rem;'>{txt}</b>", unsafe_allow_html=True)
     st.markdown("<div style='border-bottom:1px solid #1e3a5f;margin-bottom:4px;'></div>", unsafe_allow_html=True)
 
     for _, row in df_menu.iterrows():
         sid = str(row["代號"])
         c1, c2, c3, c4, c5, c6, c7, c8 = st.columns([1, 1, 1, 1, 1, 1, 1.5, 1.5])
-        c1.markdown(f"<span style='color:#e8f4fd;font-size:.82rem;font-weight:600;'>{sid}</span>", unsafe_allow_html=True)
+        c1.markdown(f"<span style='color:#e8f4fd;font-size:.9rem;font-weight:600;'>{sid}</span>", unsafe_allow_html=True)
         price = price_map.get(sid, 0.0)
         price_str = f"{price:.2f}" if price > 0 else "—"
-        c2.markdown(f"<span style='color:#e8f4fd;font-size:.82rem;'>{price_str}</span>", unsafe_allow_html=True)
-        c3.markdown(f"<span style='color:#ffeb3b;font-size:.82rem;'>{row['最新配息/股']:.4f}</span>", unsafe_allow_html=True)
-        c4.markdown(f"<span style='color:#00e676;font-size:.82rem;'>{row['年化配息/股']:.4f}</span>", unsafe_allow_html=True)
+        c2.markdown(f"<span style='color:#e8f4fd;font-size:.9rem;'>{price_str}</span>", unsafe_allow_html=True)
+        c3.markdown(f"<span style='color:#ffeb3b;font-size:.9rem;'>{row['最新配息/股']:.4f}</span>", unsafe_allow_html=True)
+        c4.markdown(f"<span style='color:#00e676;font-size:.9rem;'>{row['年化配息/股']:.4f}</span>", unsafe_allow_html=True)
         # 年化殖利率
         if price > 0:
             yield_r = row['年化配息/股'] / price * 100
@@ -4691,10 +4691,10 @@ with tab7:
         else:
             yield_color = "#546e7a"
             yield_str = "—"
-        c5.markdown(f"<span style='color:{yield_color};font-size:.82rem;font-weight:600;'>{yield_str}</span>", unsafe_allow_html=True)
+        c5.markdown(f"<span style='color:{yield_color};font-size:.9rem;font-weight:600;'>{yield_str}</span>", unsafe_allow_html=True)
         freq_color = "#00d4ff" if row["頻率"] == "月配" else ("#ff9800" if row["頻率"] == "季配" else "#e8f4fd")
-        c6.markdown(f"<span style='color:{freq_color};font-size:.82rem;'>{row['頻率']}</span>", unsafe_allow_html=True)
-        c7.markdown(f"<span style='color:#b0cce0;font-size:.82rem;'>{row['配息月份']}</span>", unsafe_allow_html=True)
+        c6.markdown(f"<span style='color:{freq_color};font-size:.9rem;'>{row['頻率']}</span>", unsafe_allow_html=True)
+        c7.markdown(f"<span style='color:#b0cce0;font-size:.9rem;'>{row['配息月份']}</span>", unsafe_allow_html=True)
         cur_sh = st.session_state.etf_shares.get(sid, 0)
         new_sh = c8.number_input("張", value=cur_sh, min_value=0, step=1,
                                   key=f"t5_sh_{sid}", label_visibility="collapsed")
@@ -4801,7 +4801,7 @@ with tab7:
         pivot.columns.name = None
         etf_cols = [c for c in pivot.columns if c != "月份"]
         pivot["合計（元）"] = pivot[etf_cols].sum(axis=1)
-        st.markdown(df_to_html(pivot, height=440), unsafe_allow_html=True)
+        st.markdown(df_to_html(pivot, height=440, font_size=".92rem"), unsafe_allow_html=True)
     else:
         st.info("請先輸入張數並確認試算以顯示財務總表。")
 
