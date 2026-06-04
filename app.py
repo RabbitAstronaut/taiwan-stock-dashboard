@@ -3526,17 +3526,11 @@ with tab4:
             _wait_rm_btns.append(sid_rv)
 
         if _wait_rows:
-            st.markdown(
-                "<div style='background:rgba(0,0,0,0.2);border:1px solid #1e3a5f;"
-                "border-radius:10px;padding:10px 4px;'>"
-                + "".join(_wait_rows) + "</div>",
-                unsafe_allow_html=True
-            )
-            # 刪除按鈕獨立一列
-            _del_cols = st.columns(len(_wait_rm_btns))
-            for _di, (_dc, _dsid) in enumerate(zip(_del_cols, _wait_rm_btns)):
-                if _dc.button("✕", key=f"rsv_rm_{_dsid}", use_container_width=True):
-                    rm_rsv = _dsid
+            for _wi, (_wrow, _wsid) in enumerate(zip(_wait_rows, _wait_rm_btns)):
+                _wc_main, _wc_btn = st.columns([11, 1])
+                _wc_main.markdown(_wrow, unsafe_allow_html=True)
+                if _wc_btn.button("✕", key=f"rsv_rm_{_wsid}", use_container_width=True):
+                    rm_rsv = _wsid
 
         if rm_rsv:
             st.session_state.reserve_list = [
