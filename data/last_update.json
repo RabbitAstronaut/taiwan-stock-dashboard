@@ -1,13 +1,8 @@
 {
-  "updated_at": "2026-06-02",
+  "updated_at": "2026-06-04",
   "stock_count": 295,
   "mode": "每日更新（增量）",
   "modules": [
-    "info",
-    "chips",
-    "financials",
-    "futures",
-    "shareholder",
     "prices"
   ]
 }
