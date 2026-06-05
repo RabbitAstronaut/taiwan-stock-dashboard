@@ -1,5 +1,5 @@
 """
-app.py  ── 台股全週期量化交易系統 V4
+app.py  ── 台股全週期量化交易系統 V5
 ═══════════════════════════════════════════════════════════════
 架構：Serverless CSV 託管
   資料來源：GitHub raw CSV（由 update_data.py / GitHub Actions 更新）
@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore")
 # ▌ 頁面基礎設定
 # ══════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="台股量化系統 V4",
+    page_title="台股量化系統 V5",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -1172,7 +1172,7 @@ with st.sidebar:
     <div style="text-align:center;padding:10px 0 14px;">
         <div style="font-size:2rem;">📈</div>
         <div style="color:#00d4ff;font-size:.9rem;font-weight:700;letter-spacing:2px;">台股量化系統</div>
-        <div style="color:#7fb3d3;font-size:.66rem;margin-top:3px;">QUANT TRADING SYSTEM V4</div>
+        <div style="color:#7fb3d3;font-size:.66rem;margin-top:3px;">QUANT TRADING SYSTEM V5</div>
     </div>""", unsafe_allow_html=True)
 
     # ── 資料更新時間
@@ -1298,7 +1298,7 @@ st.markdown(f"""
      background:linear-gradient(90deg,#0f2027,#203a43,#2c5364);
      padding:18px 26px;margin-bottom:14px;">
     <h1 style="color:#e8f4fd;font-size:1.4rem;font-weight:700;margin:0;letter-spacing:1px;">
-        📊 台股全週期量化交易系統 V4
+        📊 台股全週期量化交易系統 V5
     </h1>
     <p style="color:#7fb3d3;margin:4px 0 0;font-size:.76rem;">
         架構：本機爬蟲 → GitHub CSV → Streamlit Cloud ｜
@@ -3425,17 +3425,47 @@ with tab4:
                 "總分/9": _total, "_score": _total,
             })
 
+        # ── 大盤聯鎖風控：讀取外資期貨空單
+        _chips_df, _chips_ok = get_chips("TX")
+        _tx_net = 0
+        if _chips_ok and not _chips_df.empty:
+            try:
+                _tx_col = next((c for c in _chips_df.columns
+                                if "NetBuySell" in c or "net" in c.lower()), None)
+                _tx_fore = _chips_df[_chips_df.get("name","").astype(str).str.contains(
+                    "Foreign", na=False)] if "name" in _chips_df.columns else pd.DataFrame()
+                if not _tx_fore.empty and _tx_col:
+                    _tx_net = int(pd.to_numeric(_tx_fore[_tx_col], errors="coerce").dropna().iloc[-1])
+            except:
+                pass
+
+        _is_danger = _tx_net <= -30000
+        if _is_danger:
+            st.error(f"🚨 **【最高防空警報】** 外資期貨未平倉空單 {abs(_tx_net):,} 口！"
+                     f"大盤土石流風險極高，系統已啟動防衛機制，**個股進場權限全面關閉！**")
+        else:
+            st.success(f"🟢 **【大盤環境安全】** 外資期貨空單 {abs(_tx_net):,} 口，"
+                       f"處於可控範圍，個股依正常技術型態執行 SOP。")
+
         if _rank_rows:
             _rank_rows.sort(key=lambda x: (-x["_score"], x["股號"]))
             _cards = []
             for _r in _rank_rows:
                 _sc = _r["_score"]
                 if _sc >= 7:
-                    _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.08);border-left:5px solid #ff9900;"
-                    _sop = "👑 <b>【黃金特赦區】</b>：安全基期已到，技術面煞車！建議 <b>13:25 尾盤建立 1/3 底倉</b>，停損設 EMA5 下。"
+                    if _is_danger:
+                        _rc = "#f43f5e"; _bg = "background:rgba(244,63,94,0.08);border-left:5px solid #f43f5e;"
+                        _sop = f"🛑 <b>【大盤警報・強制拒絕】</b>：技術面高達 <b>{_sc}分</b>，但大盤空單壓頂！<b>系統強制關閉建倉，嚴禁手癢！</b>"
+                    else:
+                        _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.08);border-left:5px solid #ff9900;"
+                        _sop = "👑 <b>【黃金特赦區】</b>：安全基期已到，技術面煞車！建議 <b>13:25 尾盤建立 1/3 底倉</b>，停損設 EMA5 下。"
                 elif _sc >= 5:
-                    _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.06);border-left:5px solid #ffee55;"
-                    _sop = "🎯 <b>【動能蓄勢區】</b>：已到防守地基，心跳訊號初現。<b>鎖定觀察</b>，早盤爆量突破 EMA5 直接閃擊。"
+                    if _is_danger:
+                        _rc = "#8892b0"; _bg = "background:rgba(255,255,255,0.01);border-left:5px solid #44475a;"
+                        _sop = f"⏳ <b>【大盤壓頂・取消閃擊】</b>：個股蓄勢中（{_sc}分），但大盤空單太重，取消進場計畫，繼續空倉觀望。"
+                    else:
+                        _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.06);border-left:5px solid #ffee55;"
+                        _sop = "🎯 <b>【動能蓄勢區】</b>：已到防守地基，心跳訊號初現。<b>鎖定觀察</b>，早盤爆量突破 EMA5 直接閃擊。"
                 elif _sc >= 3:
                     _rc = "#ff6b35"; _bg = "background:rgba(255,107,53,0.05);border-left:5px solid #ff6b35;"
                     _sop = "🟠 <b>【條件未齊】</b>：部分訊號成立，繼續等待量縮或乖離回落，<b>耐心持倉觀察</b>。"
