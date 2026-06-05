@@ -4401,9 +4401,11 @@ with tab6:
                 status_text = "觀望"
 
             # ── 渲染卡片
+            _price_tag = "⚡" if live_t4 else "📅"
+            _price_lbl = f"{_price_tag} {close_now:.1f}"
             with st.expander(
                 f"{status_icon} {sid} {name}｜{status_text}"
-                f"  ┊  收盤 {close_now:.1f}"
+                f"  ┊  {_price_lbl}"
                 f"  ┊  RSI5 {rsi5:.0f}"
                 f"  ┊  EMA5 {ema5:.1f}" if not np.isnan(ema5) else
                 f"{status_icon} {sid} {name}｜{status_text}",
