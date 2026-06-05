@@ -3364,6 +3364,95 @@ with tab4:
                                 vol_ratio_rv, ema5_rv, sma20_rv))
 
         # ══════════════════════════════════════════════
+        # 📊 精兵回頭草總表排名
+        # ══════════════════════════════════════════════
+        st.markdown("#### 📊 精兵綜合評分排名")
+
+        _rank_rows = []
+        def _calc_score(cond1, cond2, cond3, vol_ratio, bias):
+            """量化三條件各給 0-3 分，總分最高 9 分"""
+            # 條件一：量縮評分（量比越低越好）
+            if cond1:
+                s1 = 3 if (vol_ratio is not None and vol_ratio < 0.3) else 2
+            else:
+                s1 = 1 if (vol_ratio is not None and vol_ratio < 0.8) else 0
+            # 條件二：乖離評分（乖離越低越好）
+            if cond2:
+                b = bias if (bias is not None and not np.isnan(bias)) else 5
+                s2 = 3 if b <= 1 else (2 if b <= 3 else 1)
+            else:
+                b = bias if (bias is not None and not np.isnan(bias)) else 99
+                s2 = 1 if b <= 8 else 0
+            # 條件三：收紅EMA5（是/否）
+            s3 = 3 if cond3 else 0
+            return s1 + s2 + s3, s1, s2, s3
+
+        # triggered 全部 3/3
+        for sid_rv, name_rv, note_rv, close_rv, bias_rv in triggered:
+            _vr = None
+            _total, _s1, _s2, _s3 = _calc_score(True, True, True, _vr, bias_rv)
+            _rank_rows.append({
+                "股號": sid_rv, "名稱": name_rv,
+                "現價": f"{close_rv:.1f}" if close_rv else "—",
+                "乖離%": f"{bias_rv:+.1f}" if close_rv and not np.isnan(bias_rv) else "—",
+                "量縮": f"✅{_s1}",  "乖離≤5%": f"✅{_s2}", "收紅EMA5": f"✅{_s3}",
+                "總分/9": _total, "_score": _total,
+            })
+        # waiting
+        for _w in waiting:
+            if len(_w) < 9:
+                continue
+            sid_rv, name_rv, note_rv, close_rv, bias_rv, status = _w[:6]
+            _c1, _c2, _c3 = _w[6], _w[7], _w[8]
+            _vr9 = _w[9] if len(_w) > 9 else None
+            _total, _s1, _s2, _s3 = _calc_score(_c1, _c2, _c3, _vr9, bias_rv)
+            _rank_rows.append({
+                "股號": sid_rv, "名稱": name_rv,
+                "現價": f"{close_rv:.1f}" if close_rv else "—",
+                "乖離%": f"{bias_rv:+.1f}" if close_rv and not np.isnan(bias_rv) else "—",
+                "量縮": f"✅{_s1}" if _c1 else f"❌{_s1}",
+                "乖離≤5%": f"✅{_s2}" if _c2 else f"❌{_s2}",
+                "收紅EMA5": f"✅{_s3}" if _c3 else f"❌{_s3}",
+                "總分/9": _total, "_score": _total,
+            })
+
+        if _rank_rows:
+            _rank_rows.sort(key=lambda x: (-x["_score"], x["股號"]))
+            _hdr = ["股號","名稱","現價","乖離%","量縮","乖離≤5%","收紅EMA5","總分/9"]
+            _html_rows = []
+            for _r in _rank_rows:
+                _sc = _r["_score"]
+                _sc = _r["_score"]
+                if _sc >= 7:
+                    _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.08);"
+                elif _sc >= 5:
+                    _rc = "#ffcc00"; _bg = "background:rgba(255,204,0,0.05);"
+                elif _sc >= 3:
+                    _rc = "#ff6b35"; _bg = "background:rgba(255,107,53,0.04);"
+                else:
+                    _rc = "#8892b0"; _bg = "background:rgba(255,255,255,0.01);"
+                _cells = "".join(
+                    f"<td style='padding:4px 10px;border-bottom:1px solid #1e3a5f;"
+                    f"color:{_rc};font-size:.82rem;'>{_r[h]}</td>"
+                    for h in _hdr
+                )
+                _html_rows.append(f"<tr style='{_bg}'>{_cells}</tr>")
+
+            _th = "".join(
+                f"<th style='padding:5px 10px;color:#00d4ff;font-size:.82rem;"
+                f"border-bottom:2px solid #1e3a5f;text-align:left;'>{h}</th>"
+                for h in _hdr
+            )
+            st.markdown(
+                f"<div style='overflow-x:auto;'>"
+                f"<table style='width:100%;border-collapse:collapse;'>"
+                f"<thead><tr>{_th}</tr></thead>"
+                f"<tbody>{''.join(_html_rows)}</tbody>"
+                f"</table></div>",
+                unsafe_allow_html=True
+            )
+
+        # ══════════════════════════════════════════════
         # 🕵️ 潛伏期法人鎖碼雷達掃描
         # ══════════════════════════════════════════════
         st.markdown("#### 🕵️ 潛伏期法人暗中鎖碼雷達")
