@@ -3554,6 +3554,35 @@ with tab5:
     st.markdown("<div class='sec-title'>📡 大盤預警 · 期貨引擎 ＋ 蒙格行為學 ＋ AI診斷</div>",
                 unsafe_allow_html=True)
 
+    # ── 智慧刷新：比對期貨資料日期是否為今日
+    _today_tw = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
+    _fut_df, _fut_ok = get_futures()
+    _fut_date = "—"
+    if _fut_ok and not _fut_df.empty and "date" in _fut_df.columns:
+        _fut_date = str(pd.to_datetime(_fut_df["date"], errors="coerce").max())[:10]
+
+    _fut_stale = _fut_date != _today_tw
+    _refresh_col, _status_col = st.columns([2, 5])
+    with _refresh_col:
+        if st.button("🔄 刷新期貨籌碼", key="refresh_futures",
+                     type="primary" if _fut_stale else "secondary",
+                     use_container_width=True):
+            # 清除 CSV 快取，強制重新載入
+            load_csv.clear()
+            st.toast("✅ 期貨籌碼已刷新", icon="✅")
+            st.rerun()
+    with _status_col:
+        if _fut_stale:
+            st.markdown(
+                f"<span style='color:#ff9800;font-size:.85rem;'>⚠️ 期貨資料停在 {_fut_date}，今日（{_today_tw}）尚未更新</span>",
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                f"<span style='color:#00e676;font-size:.85rem;'>✅ 期貨資料已是今日（{_today_tw}）最新</span>",
+                unsafe_allow_html=True
+            )
+
     # ══════════════════════════════════════════════════════════════
     # ▌ 盤後三大健康指標手動診斷面板
     # ══════════════════════════════════════════════════════════════
@@ -4105,6 +4134,39 @@ with tab5:
 with tab6:
     st.markdown("<div class='sec-title'>📝 每日作戰總部 · MTFA 狙擊報告</div>",
                 unsafe_allow_html=True)
+
+    # ── 智慧刷新：比對個股 live_prices 是否為今日
+    _today_tw6 = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
+    _price_date = st.session_state.get("live_prices_date", "—")
+    _prices_stale = _price_date != _today_tw6
+    _r6c1, _r6c2 = st.columns([2, 5])
+    with _r6c1:
+        if st.button("🔄 刷新個股即時價", key="refresh_live_tab6",
+                     type="primary" if _prices_stale else "secondary",
+                     use_container_width=True):
+            st.session_state.live_prices = {}
+            st.session_state.live_prices_date = _today_tw6
+            all_wl6 = list({w["id"] for w in
+                           st.session_state.get("watchlist", []) +
+                           st.session_state.get("watchlist_scan", [])})
+            with st.spinner(f"抓取 {len(all_wl6)} 檔即時報價..."):
+                for _sid6 in all_wl6:
+                    _lv6 = fetch_live_price(_sid6)
+                    if _lv6:
+                        st.session_state.live_prices[_sid6] = _lv6
+            st.toast(f"✅ 已更新 {len(st.session_state.live_prices)} 檔即時報價", icon="✅")
+            st.rerun()
+    with _r6c2:
+        if _prices_stale:
+            st.markdown(
+                f"<span style='color:#ff9800;font-size:.85rem;'>⚠️ 個股報價停在 {_price_date}，點左側按鈕刷新</span>",
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                f"<span style='color:#00e676;font-size:.85rem;'>✅ 個股報價已是今日（{_today_tw6}）最新</span>",
+                unsafe_allow_html=True
+            )
 
     # ── AI 今日市場資金題材洞察
     def load_dynamic_themes():
@@ -4675,6 +4737,33 @@ with tab7:
         return result
 
     price_map = get_all_etf_prices(tuple(df_menu["代號"].tolist()))
+
+    # ── 匯出 CSV 按鈕（直接下載，不需額外套件）
+    import io as _io
+    _rows_export = []
+    for _, _row in df_menu.iterrows():
+        _sid   = str(_row["代號"])
+        _price = price_map.get(_sid, 0.0)
+        _yr    = round(_row["年化配息/股"] / _price * 100, 2) if _price > 0 else 0.0
+        _rows_export.append({
+            "代號": _sid,
+            "現股價": _price if _price > 0 else "",
+            "最新配息/股": _row["最新配息/股"],
+            "年化配息/股": _row["年化配息/股"],
+            "年化殖利率%": _yr,
+            "配息頻率": _row["頻率"],
+            "配息月份": _row["配息月份"],
+        })
+    _df_export = pd.DataFrame(_rows_export)
+    _csv_buf = _io.StringIO()
+    _df_export.to_csv(_csv_buf, index=False, encoding='utf-8-sig')
+    st.download_button(
+        label="📥 匯出 ETF 清單 CSV",
+        data=_csv_buf.getvalue().encode('utf-8-sig'),
+        file_name=f"ETF清單_{datetime.now().strftime('%Y%m%d')}.csv",
+        mime="text/csv",
+        key="dl_etf_csv"
+    )
 
     h = st.columns([1, 1, 1, 1, 1, 1, 1.5, 1.5])
     for col, txt in zip(h, ["代號","現股價","最新配息/股","年化配息/股","年化殖利率","頻率","配息月份","持有張數"]):
