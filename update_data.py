@@ -640,6 +640,8 @@ def run_prices(stock_ids: list[str], prices_dir: str):
                 if "Rate" in str(e) or "Too Many" in str(e):
                     log.warning("  yfinance 限速，等待 30s...")
                     time.sleep(30)
+                # 其他錯誤（404、delisted等）繼續嘗試下一個 suffix
+                continue
 
         if not df_p.empty:
             save_price_csv(df_p, sid, prices_dir)
@@ -745,6 +747,8 @@ def main():
     parser.add_argument("--token",       type=str,  help="覆蓋 FinMind Token")
     parser.add_argument("--full-market", action="store_true",
         help="全台股模式（付費版）：從 stock_info.csv 取得所有上市櫃股票")
+    parser.add_argument("--skip",        type=str,  default="",
+                        help="跳過指定模組，如 financials")
     parser.add_argument("--paid",        action="store_true",
         help="付費版模式：加快請求速度，縮短批次間隔")
     args = parser.parse_args()
@@ -769,6 +773,7 @@ def main():
     first  = is_first_run()
     mode   = "首次執行（歷史資料）" if first else "每日更新（增量）"
     only   = args.only.lower()
+    skip   = args.skip.lower() if args.skip else ""
     force  = args.force
 
     log.info("═" * 55)
@@ -837,7 +842,10 @@ def main():
 
     # ── 3. 財務報表
     if _should("financials"):
-        run_financials(stock_ids, data_dir)
+        if "financials" not in skip:
+            run_financials(stock_ids, data_dir)
+        else:
+            log.info("  ⏭️  跳過財報（--skip financials）")
         mark_done("financials")
 
     # ── 4. 期貨籌碼
