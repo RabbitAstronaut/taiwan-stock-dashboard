@@ -3248,20 +3248,43 @@ with tab4:
         else:
             st.button("💾 備份", disabled=True, key="dl_reserve_backup_empty", use_container_width=True)
     with _add_c3:
-        # 隱藏 file_uploader 的白色外框，只保留 Upload 小按鈕
+        # 完全隱藏 file_uploader，用 CSS 覆蓋成跟備份按鈕一樣的樣式
         st.markdown("""
         <style>
+        div[data-testid="stFileUploader"] {
+            display: flex !important;
+        }
         div[data-testid="stFileUploader"] > section {
-            border: none !important;
-            background: transparent !important;
+            border: 1px solid rgba(250,250,250,0.2) !important;
+            background: #0d1826 !important;
             padding: 0 !important;
+            border-radius: 6px !important;
+            width: 100% !important;
+        }
+        div[data-testid="stFileUploader"] > section > div {
+            justify-content: center !important;
+            padding: 6px 12px !important;
         }
         div[data-testid="stFileUploaderDropzoneInstructions"] {
             display: none !important;
         }
+        div[data-testid="stFileUploader"] button {
+            background: transparent !important;
+            border: none !important;
+            color: #e8f4fd !important;
+            font-size: 0.875rem !important;
+            padding: 0 !important;
+            width: 100% !important;
+        }
+        div[data-testid="stFileUploader"] button::before {
+            content: "📂 還原" !important;
+        }
+        div[data-testid="stFileUploader"] button span {
+            display: none !important;
+        }
         </style>
         """, unsafe_allow_html=True)
-        _up = st.file_uploader("📂", type=["json"], key="restore_reserve_upload",
+        _up = st.file_uploader("📂 還原", type=["json"], key="restore_reserve_upload",
                                label_visibility="collapsed")
         if _up:
             try:
