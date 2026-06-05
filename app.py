@@ -3233,12 +3233,11 @@ with tab4:
                     st.toast(f"✅ {_rm.get('name','')} 已從儲備庫除名", icon="✅")
                     st.rerun()
 
-    # ── 新增標的輸入 + 備份/還原 同一列
-    _add_c1, _add_c2, _add_c3 = st.columns([4, 1, 1])
+    # ── 新增標的輸入 + 備份 同一列
+    _add_c1, _add_c2 = st.columns([5, 1])
     with _add_c1:
         st.markdown("### ➕ 加入戰略儲備")
     with _add_c2:
-        # 備份
         if st.session_state.get("reserve_list"):
             import json as _json
             _bk_data = _json.dumps(st.session_state.reserve_list, ensure_ascii=False, indent=2)
@@ -3247,61 +3246,26 @@ with tab4:
                 mime="application/json", key="dl_reserve_backup", use_container_width=True)
         else:
             st.button("💾 備份", disabled=True, key="dl_reserve_backup_empty", use_container_width=True)
-    with _add_c3:
-        # 完全隱藏 file_uploader，用 CSS 覆蓋成跟備份按鈕一樣的樣式
-        st.markdown("""
-        <style>
-        div[data-testid="stFileUploader"] {
-            display: flex !important;
-        }
-        div[data-testid="stFileUploader"] > section {
-            border: 1px solid rgba(250,250,250,0.2) !important;
-            background: #0d1826 !important;
-            padding: 0 !important;
-            border-radius: 6px !important;
-            width: 100% !important;
-        }
-        div[data-testid="stFileUploader"] > section > div {
-            justify-content: center !important;
-            padding: 6px 12px !important;
-        }
-        div[data-testid="stFileUploaderDropzoneInstructions"] {
-            display: none !important;
-        }
-        div[data-testid="stFileUploader"] button {
-            background: transparent !important;
-            border: none !important;
-            color: #e8f4fd !important;
-            font-size: 0.875rem !important;
-            padding: 0 !important;
-            width: 100% !important;
-        }
-        div[data-testid="stFileUploader"] button::before {
-            content: "📂 還原" !important;
-        }
-        div[data-testid="stFileUploader"] button span {
-            display: none !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        _up = st.file_uploader("📂 還原", type=["json"], key="restore_reserve_upload",
-                               label_visibility="collapsed")
-        if _up:
-            try:
-                import json as _json
-                _restored = _json.loads(_up.read().decode("utf-8"))
-                if isinstance(_restored, list) and len(_restored) > 0:
-                    st.session_state.reserve_list = _restored
-                    save_watchlist_to_github(
-                        st.session_state.watchlist, st.session_state.watchlist_scan,
-                        {k: v for k, v in st.session_state.get("etf_shares", {}).items() if v > 0},
-                        reserve=_restored)
-                    st.toast(f"✅ 已還原 {len(_restored)} 檔", icon="✅")
-                    st.rerun()
-                else:
-                    st.error("❌ 格式不正確")
-            except Exception as _e:
-                st.error(f"❌ 還原失敗：{_e}")
+
+    # ── 還原（獨立一列，uploader 展開時自然佔空間）
+    _up = st.file_uploader("📂 還原備份 JSON", type=["json"],
+                           key="restore_reserve_upload")
+    if _up:
+        try:
+            import json as _json
+            _restored = _json.loads(_up.read().decode("utf-8"))
+            if isinstance(_restored, list) and len(_restored) > 0:
+                st.session_state.reserve_list = _restored
+                save_watchlist_to_github(
+                    st.session_state.watchlist, st.session_state.watchlist_scan,
+                    {k: v for k, v in st.session_state.get("etf_shares", {}).items() if v > 0},
+                    reserve=_restored)
+                st.toast(f"✅ 已還原 {len(_restored)} 檔", icon="✅")
+                st.rerun()
+            else:
+                st.error("❌ 格式不正確")
+        except Exception as _e:
+            st.error(f"❌ 還原失敗：{_e}")
     rsv_c1, rsv_c2 = st.columns([3, 1])
     with rsv_c1:
         rsv_sid = st.text_input("股票代號（可加備註，如：2345 散熱主力股）",
