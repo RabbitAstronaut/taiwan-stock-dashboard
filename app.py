@@ -4362,10 +4362,79 @@ with tab6:
     st.markdown("<div class='sec-title'>📝 每日作戰總部 · MTFA 狙擊報告</div>",
                 unsafe_allow_html=True)
 
-    # ── 智慧刷新：比對個股 live_prices 是否為今日
+    # ── 大盤期貨聯鎖警示（頂部置頂）
+    _df_fut_t6, _ok_fut_t6 = get_futures()
+    _tx_net_t6 = 0
+    if _ok_fut_t6 and not _df_fut_t6.empty:
+        try:
+            _nm_t6 = next((c for c in ["name","institutional_investors"]
+                           if c in _df_fut_t6.columns), None)
+            _lc_t6 = next((c for c in _df_fut_t6.columns
+                           if "long_open_interest_balance" in c and "amount" not in c), None)
+            _sc_t6 = next((c for c in _df_fut_t6.columns
+                           if "short_open_interest_balance" in c and "amount" not in c), None)
+            _inst_t6 = _df_fut_t6[_df_fut_t6["source"]=="institutional"]                        if "source" in _df_fut_t6.columns else _df_fut_t6
+            _tx_t6  = _inst_t6[_inst_t6["contract"]=="TX"]                       if "contract" in _inst_t6.columns else pd.DataFrame()
+            if not _tx_t6.empty and _lc_t6 and _sc_t6 and _nm_t6:
+                _ld_t6 = _tx_t6["date"].max()
+                _row_t6 = _tx_t6[(_tx_t6["date"]==_ld_t6) &
+                                  _tx_t6[_nm_t6].astype(str).str.contains("外資", na=False)]
+                if not _row_t6.empty:
+                    _tx_net_t6 = int(float(_row_t6[_lc_t6].values[0])) -                                  int(float(_row_t6[_sc_t6].values[0]))
+        except:
+            pass
+
+    _danger_t6 = _tx_net_t6 <= -30000
+    if _danger_t6:
+        st.error(f"🚨 **【最高防空警報】** 外資期貨未平倉空單 **{abs(_tx_net_t6):,} 口**！"
+                 f"大盤土石流風險極高，短線部位請全面縮緊，隨時準備執行盤中緊急平倉！")
+    else:
+        st.success(f"🟢 **【大盤環境安全】** 外資期貨空單 {abs(_tx_net_t6):,} 口，"
+                   f"環境健康，依個股長短線策略常規控盤。")
+
+    # ── 長短線分類標籤（可在此調整）
+    _LONG_TERM = {"2330","2454","2317","2308","3017","6274","2301","3044","2383",
+                  "2345","2379","6285","1519","1503","2634","3661","6669"}
+    _SHORT_TERM = {"8033","3324","3653","3533","6271","2359","6188","3491","3289",
+                   "8299","3037","3481","2404","2327","3131","6187","6510","6515",
+                   "3455","6239","2059","2368","8358","2344","2357","3665","2313"}
+
+    # ── 智慧刷新 + 大盤聯鎖警示
     _today_tw6 = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
     _price_date = st.session_state.get("live_prices_date", "—")
     _prices_stale = _price_date != _today_tw6
+
+    # 讀取期貨空單
+    _df_fut_t6, _ok_fut_t6 = get_futures()
+    _tx_net_t6 = 0
+    if _ok_fut_t6 and not _df_fut_t6.empty:
+        try:
+            _nm_t6 = next((c for c in ["name","institutional_investors"]
+                           if c in _df_fut_t6.columns), None)
+            _lc_t6 = next((c for c in _df_fut_t6.columns
+                           if "long_open_interest_balance" in c and "amount" not in c), None)
+            _sc_t6 = next((c for c in _df_fut_t6.columns
+                           if "short_open_interest_balance" in c and "amount" not in c), None)
+            _inst_t6 = _df_fut_t6[_df_fut_t6["source"]=="institutional"]                        if "source" in _df_fut_t6.columns else _df_fut_t6
+            _tx_t6  = _inst_t6[_inst_t6["contract"]=="TX"]                       if "contract" in _inst_t6.columns else pd.DataFrame()
+            if not _tx_t6.empty and _lc_t6 and _sc_t6 and _nm_t6:
+                _ld_t6 = _tx_t6["date"].max()
+                _row_t6 = _tx_t6[(_tx_t6["date"]==_ld_t6) &
+                                  _tx_t6[_nm_t6].astype(str).str.contains("外資", na=False)]
+                if not _row_t6.empty:
+                    _tx_net_t6 = int(float(_row_t6[_lc_t6].values[0])) -                                  int(float(_row_t6[_sc_t6].values[0]))
+        except:
+            pass
+    _danger_t6 = _tx_net_t6 <= -30000
+
+    # 期貨警示
+    if _danger_t6:
+        st.error(f"🚨 **【最高防空警報】** 外資期貨空單 {abs(_tx_net_t6):,} 口！"
+                 f"短線部位請全面縮緊，隨時準備盤中緊急平倉！")
+    else:
+        st.success(f"🟢 **【大盤環境安全】** 外資期貨空單 {abs(_tx_net_t6):,} 口，"
+                   f"依各別個股策略常規控盤。")
+
     _r6c1, _r6c2 = st.columns([2, 5])
     with _r6c1:
         if st.button("🔄 刷新個股即時價", key="refresh_live_tab6",
@@ -4635,17 +4704,64 @@ with tab6:
                 status_icon = "⚪"
                 status_text = "觀望"
 
+            # ── 長短線分類標籤
+            _is_long  = sid in _LONG_TERM
+            _is_short = sid in _SHORT_TERM
+            _type_tag = "🏢長線" if _is_long else ("⚡短線" if _is_short else "📊觀察")
+
+            # ── 大盤聯鎖：短線且大盤危險且跌破EMA5 → 緊急平倉令
+            _ema5_break = not np.isnan(ema5) and close_now < ema5
+            if _danger_t6 and _is_short and _ema5_break:
+                st.markdown(
+                    f"<div style='background:rgba(244,63,94,0.15);border:2px solid #e11d48;"
+                    f"border-radius:8px;padding:8px 14px;margin-bottom:4px;'>"
+                    f"<span style='color:#f43f5e;font-size:.88rem;font-weight:700;'>"
+                    f"🛑 【盤中緊急平倉令】{sid} {name}：大盤空單壓頂且即時現價 {close_now:.1f}"
+                    f" 已跌破 EMA5（{ema5:.1f}），短線火箭熄火！請立即平倉落袋！"
+                    f"</span></div>",
+                    unsafe_allow_html=True
+                )
+
+            # ── 長短線雙重 SOP 建議
+            _is_above_ema5 = not np.isnan(ema5) and close_now >= ema5
+            _long_sop = (f"🛡️ 長線：乖離 {bias_ma20:.1f}%，趨勢健康，無視盤中震盪續抱。"
+                         if bias_ma20 <= 15 else
+                         f"🛡️ 長線：乖離 {bias_ma20:.1f}% 偏高，縮緊至30週線為停利基準。")
+            if _danger_t6 and not _is_above_ema5:
+                _short_sop = f"🛑 短線：大盤空單壓頂+跌破EMA5，立即平倉！"
+                _sop_color = "#f43f5e"
+            elif _danger_t6:
+                _short_sop = f"⚠️ 短線：大盤空單{abs(_tx_net_t6):,}口，縮緊停利至EMA5。"
+                _sop_color = "#fbbf24"
+            elif not _is_above_ema5:
+                _short_sop = f"⚠️ 短線：跌破EMA5（{ema5:.1f}），減碼1/2或停利。"
+                _sop_color = "#fbbf24"
+            else:
+                _short_sop = f"🚀 短線：站上EMA5（{ema5:.1f}），動能正常，安心續抱。"
+                _sop_color = "#ff9900"
+
             # ── 渲染卡片
             _price_tag = "⚡" if live_t4 else "📅"
             _price_lbl = f"{_price_tag} {close_now:.1f}"
             with st.expander(
-                f"{status_icon} {sid} {name}｜{status_text}"
+                f"{status_icon} {sid} {name}｜{_type_tag}｜{status_text}"
                 f"  ┊  {_price_lbl}"
                 f"  ┊  RSI5 {rsi5:.0f}"
                 f"  ┊  EMA5 {ema5:.1f}" if not np.isnan(ema5) else
-                f"{status_icon} {sid} {name}｜{status_text}",
+                f"{status_icon} {sid} {name}｜{_type_tag}｜{status_text}",
                 expanded=True
             ):
+                # ── 長短線 SOP 區
+                st.markdown(
+                    f"<div style='display:flex;gap:8px;margin-bottom:8px;'>"
+                    f"<div style='flex:1;background:rgba(74,222,128,0.08);border-left:3px solid #4ade80;"
+                    f"border-radius:4px;padding:5px 10px;font-size:.78rem;color:#a7f3d0;'>{_long_sop}</div>"
+                    f"<div style='flex:1;background:rgba(255,255,255,0.03);border-left:3px solid {_sop_color};"
+                    f"border-radius:4px;padding:5px 10px;font-size:.78rem;color:{_sop_color};'>{_short_sop}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
                 # 警示區
                 if alerts:
                     st.markdown("<div style='margin-bottom:6px;'>", unsafe_allow_html=True)
