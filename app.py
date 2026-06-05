@@ -4562,7 +4562,15 @@ with tab6:
             live_t4 = st.session_state.live_prices.get(sid)
             close_now  = float(live_t4["close"]) if live_t4 else float(lt["Close"])
             close_prev = float(pv["Close"])
-            ema5  = float(lt.get("EMA5",  float("nan")))
+
+            # 若有即時現價，動態替換最後一筆收盤價重算 EMA5
+            if live_t4:
+                _df_dyn = df_w.copy()
+                _df_dyn.loc[_df_dyn.index[-1], "Close"] = close_now
+                _ema5_series = _df_dyn["Close"].astype(float).ewm(span=5, adjust=False).mean()
+                ema5 = float(_ema5_series.iloc[-1])
+            else:
+                ema5 = float(lt.get("EMA5", float("nan")))
             rsi5  = float(lt.get("RSI5",  float("nan")))
             rsi20 = float(lt.get("RSI20", float("nan")))
             bb_mid = float(lt.get("BB_MID", float("nan")))
