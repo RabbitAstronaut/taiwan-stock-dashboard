@@ -2794,7 +2794,57 @@ with tab3:
                 _lvl = _gate.get("level", "green_safe")
                 _msg = _gate.get("msg", "")
 
-                if _lvl == "purple":
+                # ── 大盤聯鎖：讀取外資期貨空單
+                _chips_t3, _ok_t3 = get_chips("TX")
+                _tx_net_t3 = 0
+                if _ok_t3 and not _chips_t3.empty:
+                    try:
+                        _n_col = next((c for c in _chips_t3.columns
+                                      if "NetBuySell" in c or "net" in c.lower()), None)
+                        _fore_t3 = _chips_t3[_chips_t3.get("name","").astype(str).str.contains(
+                            "Foreign", na=False)] if "name" in _chips_t3.columns else pd.DataFrame()
+                        if not _fore_t3.empty and _n_col:
+                            _tx_net_t3 = int(pd.to_numeric(_fore_t3[_n_col], errors="coerce").dropna().iloc[-1])
+                    except:
+                        pass
+                _danger_t3 = _tx_net_t3 <= -30000
+
+                # 大盤危險時覆寫 SOP 訊息
+                if _danger_t3:
+                    if bias_ma20 > 10:
+                        st.markdown(
+                            f"<div style='background:rgba(244,63,94,0.1);border:2px solid #f43f5e;"
+                            f"border-radius:10px;padding:12px 16px;'>"
+                            f"<span style='color:#f43f5e;font-size:.9rem;'>"
+                            f"⚡ <b>【大盤空單壓頂・獲利落袋 SOP】</b>：外資期貨空單 {abs(_tx_net_t3):,} 口，"
+                            f"土石流風險高！本股月乖離 {bias_ma20:.1f}%，"
+                            f"<b>強烈建議縮緊停利至今日低點/EMA5，一破立刻獲利了結！</b>"
+                            f"</span></div>",
+                            unsafe_allow_html=True
+                        )
+                    elif bias_ma20 < -5:
+                        st.markdown(
+                            f"<div style='background:rgba(244,63,94,0.12);border:2px solid #e11d48;"
+                            f"border-radius:10px;padding:12px 16px;'>"
+                            f"<span style='color:#e11d48;font-size:.9rem;'>"
+                            f"🛑 <b>【大盤壓頂・斷尾求生 SOP】</b>：外資空單 {abs(_tx_net_t3):,} 口！"
+                            f"本股月乖離已負 {bias_ma20:.1f}%，弱勢套牢中。"
+                            f"<b>系統下達一票否決：尾盤無條件硬停損，絕不留下來當祭品！</b>"
+                            f"</span></div>",
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.markdown(
+                            f"<div style='background:rgba(251,191,36,0.08);border:1px solid #fbbf24;"
+                            f"border-radius:10px;padding:12px 16px;'>"
+                            f"<span style='color:#fbbf24;font-size:.9rem;'>"
+                            f"⚠️ <b>【大盤防禦降載 SOP】</b>：外資空單 {abs(_tx_net_t3):,} 口，"
+                            f"本股月乖離 {bias_ma20:.1f}%（平盤附近）。"
+                            f"<b>建議尾盤減碼 50%，保留現金降低曝險！</b>"
+                            f"</span></div>",
+                            unsafe_allow_html=True
+                        )
+                elif _lvl == "purple":
                     st.markdown(
                         f"<div style='background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(74,20,140,0.3));"
                         f"border:2px solid #ce93d8;border-radius:10px;padding:14px 18px;'>"
