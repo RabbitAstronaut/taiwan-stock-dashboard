@@ -2794,17 +2794,25 @@ with tab3:
                 _lvl = _gate.get("level", "green_safe")
                 _msg = _gate.get("msg", "")
 
-                # ── 大盤聯鎖：讀取外資期貨空單
-                _chips_t3, _ok_t3 = get_chips("TX")
+                # ── 大盤聯鎖：使用 parse_futures_chips 解析正確的外資大台淨部位
+                _df_fut_t3, _ok_fut_t3 = get_futures()
                 _tx_net_t3 = 0
-                if _ok_t3 and not _chips_t3.empty:
+                if _ok_fut_t3 and not _df_fut_t3.empty:
                     try:
-                        _n_col = next((c for c in _chips_t3.columns
-                                      if "NetBuySell" in c or "net" in c.lower()), None)
-                        _fore_t3 = _chips_t3[_chips_t3.get("name","").astype(str).str.contains(
-                            "Foreign", na=False)] if "name" in _chips_t3.columns else pd.DataFrame()
-                        if not _fore_t3.empty and _n_col:
-                            _tx_net_t3 = int(pd.to_numeric(_fore_t3[_n_col], errors="coerce").dropna().iloc[-1])
+                        _nm_t3 = next((c for c in ["name","institutional_investors"]
+                                       if c in _df_fut_t3.columns), None)
+                        _lc_t3 = next((c for c in _df_fut_t3.columns
+                                       if "long_open_interest_balance" in c and "amount" not in c), None)
+                        _sc_t3 = next((c for c in _df_fut_t3.columns
+                                       if "short_open_interest_balance" in c and "amount" not in c), None)
+                        _inst_t3 = _df_fut_t3[_df_fut_t3["source"]=="institutional"]                                    if "source" in _df_fut_t3.columns else _df_fut_t3
+                        _tx_t3  = _inst_t3[_inst_t3["contract"]=="TX"]                                   if "contract" in _inst_t3.columns else pd.DataFrame()
+                        if not _tx_t3.empty and _lc_t3 and _sc_t3 and _nm_t3:
+                            _ld_t3 = _tx_t3["date"].max()
+                            _row_t3 = _tx_t3[(_tx_t3["date"]==_ld_t3) &
+                                              _tx_t3[_nm_t3].astype(str).str.contains("外資", na=False)]
+                            if not _row_t3.empty:
+                                _tx_net_t3 = int(float(_row_t3[_lc_t3].values[0])) -                                              int(float(_row_t3[_sc_t3].values[0]))
                     except:
                         pass
                 _danger_t3 = _tx_net_t3 <= -30000
@@ -3475,20 +3483,27 @@ with tab4:
                 "總分/9": _total, "_score": _total,
             })
 
-        # ── 大盤聯鎖風控：讀取外資期貨空單
-        _chips_df, _chips_ok = get_chips("TX")
+        # ── 大盤聯鎖風控：使用 futures_data.csv 的外資大台淨部位
+        _df_fut_t4, _ok_fut_t4 = get_futures()
         _tx_net = 0
-        if _chips_ok and not _chips_df.empty:
+        if _ok_fut_t4 and not _df_fut_t4.empty:
             try:
-                _tx_col = next((c for c in _chips_df.columns
-                                if "NetBuySell" in c or "net" in c.lower()), None)
-                _tx_fore = _chips_df[_chips_df.get("name","").astype(str).str.contains(
-                    "Foreign", na=False)] if "name" in _chips_df.columns else pd.DataFrame()
-                if not _tx_fore.empty and _tx_col:
-                    _tx_net = int(pd.to_numeric(_tx_fore[_tx_col], errors="coerce").dropna().iloc[-1])
+                _nm_t4 = next((c for c in ["name","institutional_investors"]
+                               if c in _df_fut_t4.columns), None)
+                _lc_t4 = next((c for c in _df_fut_t4.columns
+                               if "long_open_interest_balance" in c and "amount" not in c), None)
+                _sc_t4 = next((c for c in _df_fut_t4.columns
+                               if "short_open_interest_balance" in c and "amount" not in c), None)
+                _inst_t4 = _df_fut_t4[_df_fut_t4["source"]=="institutional"]                            if "source" in _df_fut_t4.columns else _df_fut_t4
+                _tx_t4  = _inst_t4[_inst_t4["contract"]=="TX"]                           if "contract" in _inst_t4.columns else pd.DataFrame()
+                if not _tx_t4.empty and _lc_t4 and _sc_t4 and _nm_t4:
+                    _ld_t4 = _tx_t4["date"].max()
+                    _row_t4 = _tx_t4[(_tx_t4["date"]==_ld_t4) &
+                                      _tx_t4[_nm_t4].astype(str).str.contains("外資", na=False)]
+                    if not _row_t4.empty:
+                        _tx_net = int(float(_row_t4[_lc_t4].values[0])) -                                   int(float(_row_t4[_sc_t4].values[0]))
             except:
                 pass
-
         _is_danger = _tx_net <= -30000
         if _is_danger:
             st.error(f"🚨 **【最高防空警報】** 外資期貨未平倉空單 {abs(_tx_net):,} 口！"
