@@ -3523,20 +3523,20 @@ with tab4:
                         _sop = f"🛑 <b>【大盤警報・強制拒絕】</b>：技術面高達 <b>{_sc}分</b>，但大盤空單壓頂！<b>系統強制關閉建倉，嚴禁手癢！</b>"
                     else:
                         _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.08);border-left:5px solid #ff9900;"
-                        _sop = "👑 <b>【黃金特赦區】</b>：安全基期已到，技術面煞車！建議 <b>13:25 尾盤建立 1/3 底倉</b>，停損設 EMA5 下。"
+                        _sop = "👑 <b>【黃金特赦區 SOP】</b>：大盤安全，個股安全基期已到且實質煞車！建議 <b>13:25 尾盤建立 1/3 基本底倉</b>，停損設 EMA5 下，老神在在等回頭噴發。"
                 elif _sc >= 5:
                     if _is_danger:
                         _rc = "#8892b0"; _bg = "background:rgba(255,255,255,0.01);border-left:5px solid #44475a;"
                         _sop = f"⏳ <b>【大盤壓頂・取消閃擊】</b>：個股蓄勢中（{_sc}分），但大盤空單太重，取消進場計畫，繼續空倉觀望。"
                     else:
                         _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.06);border-left:5px solid #ffee55;"
-                        _sop = "🎯 <b>【動能蓄勢區】</b>：已到防守地基，心跳訊號初現。<b>鎖定觀察</b>，早盤爆量突破 EMA5 直接閃擊。"
+                        _sop = "🎯 <b>【動能蓄勢區 SOP】</b>：已到技術防守地基，心跳訊號初現。建議<b>鎖定為週一首選儲備</b>，早盤若爆量突破 EMA5 直接閃擊。"
                 elif _sc >= 3:
                     _rc = "#ff6b35"; _bg = "background:rgba(255,107,53,0.05);border-left:5px solid #ff6b35;"
-                    _sop = "🟠 <b>【條件未齊】</b>：部分訊號成立，繼續等待量縮或乖離回落，<b>耐心持倉觀察</b>。"
+                    _sop = "🟠 <b>【條件未齊 SOP】</b>：部分訊號成立，繼續等待量縮或乖離回落，<b>耐心觀察，不宜進場</b>。"
                 else:
                     _rc = "#8892b0"; _bg = "background:rgba(255,255,255,0.01);border-left:5px solid #44475a;"
-                    _sop = "⏳ <b>【高空過熱】</b>：短線乖離過大，<b>嚴禁追高</b>，靜待回檔打底再說。"
+                    _sop = "⏳ <b>【高空過熱區 SOP】</b>：高高掛在天上，短線乖離過大！<b>嚴禁手癢追高</b>，靜待其回檔打底。"
 
                 _cards.append(
                     f"<div style='font-size:.85rem;margin-bottom:10px;padding:8px 14px;"
