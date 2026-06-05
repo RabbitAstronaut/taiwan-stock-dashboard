@@ -447,6 +447,43 @@ def refresh_reserve_metabolism():
     return removed, kept
 
 # ══════════════════════════════════════════════════════════════
+# ▌ 大台外資淨留倉計算（全域共用）
+# ══════════════════════════════════════════════════════════════
+def get_tx_foreign_position():
+    """外資大台淨留倉（正=多 / 負=空）"""
+    try:
+        df_fut, ok_fut = get_futures()
+        if not ok_fut or df_fut.empty: return 0
+        nm = next((c for c in ["name","institutional_investors"] if c in df_fut.columns), None)
+        lc = next((c for c in df_fut.columns if "long_open_interest_balance" in c and "amount" not in c), None)
+        sc = next((c for c in df_fut.columns if "short_open_interest_balance" in c and "amount" not in c), None)
+        if not nm or not lc or not sc: return 0
+        inst = df_fut[df_fut["source"]=="institutional"] if "source" in df_fut.columns else df_fut
+        tx   = inst[inst["contract"]=="TX"] if "contract" in inst.columns else pd.DataFrame()
+        if tx.empty: return 0
+        ld  = tx["date"].max()
+        row = tx[(tx["date"]==ld) & tx[nm].astype(str).str.contains("外資", na=False)]
+        if not row.empty:
+            return int(float(row[lc].values[0])) - int(float(row[sc].values[0]))
+    except: pass
+    return 0
+
+def get_dual_alert():
+    """
+    大小台雙軌聯鎖警戒判定
+    回傳 (level, tx_net, mtx_retail)
+    level: 'red' / 'yellow' / 'safe'
+    """
+    tx_net     = get_tx_foreign_position()
+    mtx_retail = get_mtx_retail_position()
+    if mtx_retail >= 12000 and tx_net <= -30000:
+        return "red", tx_net, mtx_retail
+    elif mtx_retail >= 8000 and tx_net <= -15000:
+        return "yellow", tx_net, mtx_retail
+    else:
+        return "safe", tx_net, mtx_retail
+
+# ══════════════════════════════════════════════════════════════
 # ▌ 小台散戶淨留倉計算（全域共用）
 # ══════════════════════════════════════════════════════════════
 def get_mtx_retail_position():
@@ -2851,43 +2888,28 @@ with tab3:
                                 _tx_net_t3 = int(float(_row_t3[_lc_t3].values[0])) -                                              int(float(_row_t3[_sc_t3].values[0]))
                     except:
                         pass
-                _danger_t3 = _tx_net_t3 <= -30000
+                # 升級為雙軌聯鎖
+                _alert_lvl_t3, _tx_net_t3, _mtx_retail_t3 = get_dual_alert()
+                _danger_t3 = _alert_lvl_t3 == "red"
+                _yellow_t3 = _alert_lvl_t3 == "yellow"
 
                 # 大盤危險時覆寫 SOP 訊息
-                if _danger_t3:
+                if _danger_t3 or _yellow_t3:
+                    _t3_warn_col = "#e11d48" if _danger_t3 else "#fbbf24"
+                    _t3_warn_bg  = "rgba(244,63,94,0.1)" if _danger_t3 else "rgba(251,191,36,0.08)"
+                    _t3_level    = f"🔴 大台空單 {abs(_tx_net_t3):,}口+散戶多單 {_mtx_retail_t3:,}口" if _danger_t3 else f"🟡 大台空單 {abs(_tx_net_t3):,}口+散戶多單 {_mtx_retail_t3:,}口"
                     if bias_ma20 > 10:
-                        st.markdown(
-                            f"<div style='background:rgba(244,63,94,0.1);border:2px solid #f43f5e;"
-                            f"border-radius:10px;padding:12px 16px;'>"
-                            f"<span style='color:#f43f5e;font-size:.9rem;'>"
-                            f"⚡ <b>【大盤空單壓頂・獲利落袋 SOP】</b>：外資期貨空單 {abs(_tx_net_t3):,} 口，"
-                            f"土石流風險高！本股月乖離 {bias_ma20:.1f}%，"
-                            f"<b>強烈建議縮緊停利至今日低點/EMA5，一破立刻獲利了結！</b>"
-                            f"</span></div>",
-                            unsafe_allow_html=True
-                        )
+                        _t3_sop = f"⚡ <b>【{_t3_level}・獲利落袋】</b>：本股月乖離 {bias_ma20:.1f}%，<b>縮緊停利至今日低點/EMA5，一破立刻獲利了結！</b>"
                     elif bias_ma20 < -5:
-                        st.markdown(
-                            f"<div style='background:rgba(244,63,94,0.12);border:2px solid #e11d48;"
-                            f"border-radius:10px;padding:12px 16px;'>"
-                            f"<span style='color:#e11d48;font-size:.9rem;'>"
-                            f"🛑 <b>【大盤壓頂・斷尾求生 SOP】</b>：外資空單 {abs(_tx_net_t3):,} 口！"
-                            f"本股月乖離已負 {bias_ma20:.1f}%，弱勢套牢中。"
-                            f"<b>系統下達一票否決：尾盤無條件硬停損，絕不留下來當祭品！</b>"
-                            f"</span></div>",
-                            unsafe_allow_html=True
-                        )
+                        _t3_sop = f"🛑 <b>【{_t3_level}・斷尾求生】</b>：本股弱勢套牢 {bias_ma20:.1f}%，<b>尾盤無條件硬停損，絕不留下當祭品！</b>"
                     else:
-                        st.markdown(
-                            f"<div style='background:rgba(251,191,36,0.08);border:1px solid #fbbf24;"
-                            f"border-radius:10px;padding:12px 16px;'>"
-                            f"<span style='color:#fbbf24;font-size:.9rem;'>"
-                            f"⚠️ <b>【大盤防禦降載 SOP】</b>：外資空單 {abs(_tx_net_t3):,} 口，"
-                            f"本股月乖離 {bias_ma20:.1f}%（平盤附近）。"
-                            f"<b>建議尾盤減碼 50%，保留現金降低曝險！</b>"
-                            f"</span></div>",
-                            unsafe_allow_html=True
-                        )
+                        _t3_sop = f"⚠️ <b>【{_t3_level}・減碼防禦】</b>：本股月乖離 {bias_ma20:.1f}%，<b>建議尾盤減碼 50%，保留現金降低曝險！</b>"
+                    st.markdown(
+                        f"<div style='background:{_t3_warn_bg};border:2px solid {_t3_warn_col};"
+                        f"border-radius:10px;padding:12px 16px;'>"
+                        f"<span style='color:{_t3_warn_col};font-size:.9rem;'>{_t3_sop}</span></div>",
+                        unsafe_allow_html=True
+                    )
                 elif _lvl == "purple":
                     st.markdown(
                         f"<div style='background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(74,20,140,0.3));"
@@ -3519,19 +3541,23 @@ with tab4:
                 "總分/9": _total, "_score": _total,
             })
 
-        # ── 小台散戶淨留倉聯鎖（正=散戶做多=危險 / 負=散戶做空=軋空機會）
-        _mtx_retail = get_mtx_retail_position()
-        _is_danger       = _mtx_retail >= 15000   # 散戶多單爆棚
-        _is_short_squeeze = _mtx_retail <= -15000  # 散戶空單爆棚=軋空機會
+        # ── 大小台雙軌聯鎖警戒
+        _alert_lvl, _tx_net, _mtx_retail = get_dual_alert()
+        _is_danger        = _alert_lvl == "red"
+        _is_yellow        = _alert_lvl == "yellow"
+        _is_short_squeeze = _mtx_retail <= -15000
         if _is_danger:
-            st.error(f"🚨 **【最高防空警報】** 小台散戶瘋狂做多 {_mtx_retail:,} 口！"
-                     f"散戶正在集體接刀，大盤土石流風險極高，**系統強制關閉建倉權限！**")
+            st.error(f"🔴 **【最高防空警報・高度警戒】** 大台空單 {abs(_tx_net):,} 口 × 小台散戶多單 {_mtx_retail:,} 口！"
+                     f"法人全力壓制，散戶面臨集體總崩，**系統強制關閉所有買進權限！**")
+        elif _is_yellow:
+            st.warning(f"🟡 **【環境風險升溫・常規警戒】** 大台空單 {abs(_tx_net):,} 口 × 小台散戶多單 {_mtx_retail:,} 口！"
+                       f"散戶接刀初現，**下方建倉資金強制砍半（僅能建立 1/6 底倉）！**")
         elif _is_short_squeeze:
-            st.info(f"🔥 **【黃金軋空訊號】** 小台散戶瘋狂放空 {abs(_mtx_retail):,} 口！"
-                    f"主力大機率發動軋空，短線部位動能充足，**全面放行甚至加碼！**")
+            st.info(f"🔥 **【黃金軋空訊號】** 小台散戶放空 {abs(_mtx_retail):,} 口！"
+                    f"主力大機率發動軋空，短線動能充足，**全面放行甚至加碼！**")
         else:
-            st.success(f"🟢 **【市場情緒冷靜】** 小台散戶淨部位 {_mtx_retail:,} 口，"
-                       f"處於常規區間，個股依正常技術型態執行 SOP。")
+            st.success(f"🟢 **【大盤環境安全】** 大台 {_tx_net:+,} 口 × 小台散戶 {_mtx_retail:+,} 口，"
+                       f"籌碼結構安全，依正常 SOP 執行。")
 
         if _rank_rows:
             _rank_rows.sort(key=lambda x: (-x["_score"], x["股號"]))
@@ -3540,8 +3566,11 @@ with tab4:
                 _sc = _r["_score"]
                 if _sc >= 7:
                     if _is_danger:
-                        _rc = "#f43f5e"; _bg = "background:rgba(244,63,94,0.08);border-left:5px solid #f43f5e;"
-                        _sop = f"🛑 <b>【小台警報・拒絕交易】</b>：技術面高達 <b>{_sc}分</b>，但散戶正在瘋狂做多 {_mtx_retail:,} 口！市場底部未到，<b>系統強制禁止建倉！</b>"
+                        _rc = "#e11d48"; _bg = "background:rgba(244,63,94,0.12);border-left:5px solid #e11d48;"
+                        _sop = f"🛑 <b>【高度警戒・強制禁買】</b>：個股雖達 <b>{_sc}分</b>，但大台空單 {abs(_tx_net):,} 口+小台散戶多單 {_mtx_retail:,} 口！土石流即將無差別拋售，<b>系統強制關閉交易！</b>"
+                    elif _is_yellow:
+                        _rc = "#fbbf24"; _bg = "background:rgba(251,191,36,0.08);border-left:5px solid #fbbf24;"
+                        _sop = f"⚠️ <b>【常規警戒・資金減半】</b>：個股技術面 <b>{_sc}分</b>，但大盤進入黃燈警戒。<b>建倉資金強制砍半（僅能建立 1/6 底倉）</b>，嚴格控管風險！"
                     elif _is_short_squeeze:
                         _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.12);border-left:5px solid #ff9900;"
                         _sop = f"🚀 <b>【黃金軋空・全力進擊】</b>：個股高達 <b>{_sc}分</b>，且散戶放空 {abs(_mtx_retail):,} 口！史詩級軋空點，建議尾盤無懸念建立 1/3~1/2 波段先鋒倉！"
@@ -3551,13 +3580,16 @@ with tab4:
                 elif _sc >= 5:
                     if _is_danger:
                         _rc = "#8892b0"; _bg = "background:rgba(255,255,255,0.01);border-left:5px solid #44475a;"
-                        _sop = f"⏳ <b>【散戶多單壓頂・取消閃擊】</b>：個股蓄勢中（{_sc}分），但散戶做多 {_mtx_retail:,} 口，取消進場計畫，繼續觀望。"
+                        _sop = f"⏳ <b>【高度警戒・取消閃擊】</b>：個股蓄勢（{_sc}分），但大台空單 {abs(_tx_net):,}+散戶多單 {_mtx_retail:,} 口，取消進場，繼續觀望。"
+                    elif _is_yellow:
+                        _rc = "#fbbf24"; _bg = "background:rgba(251,191,36,0.05);border-left:5px solid #fbbf24;"
+                        _sop = f"⚠️ <b>【黃燈警戒・延後閃擊】</b>：個股蓄勢（{_sc}分），但大盤黃燈，等黃燈解除後再執行閃擊計畫。"
                     elif _is_short_squeeze:
                         _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.08);border-left:5px solid #ffee55;"
-                        _sop = f"🎯 <b>【蓄勢+軋空加持】</b>：個股蓄勢（{_sc}分）且散戶放空 {abs(_mtx_retail):,} 口，<b>早盤爆量即刻閃擊，優先執行！</b>"
+                        _sop = f"🎯 <b>【蓄勢+軋空加持】</b>：個股蓄勢（{_sc}分）且散戶放空 {abs(_mtx_retail):,} 口，<b>早盤爆量即刻閃擊！</b>"
                     else:
                         _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.06);border-left:5px solid #ffee55;"
-                        _sop = "🎯 <b>【動能蓄勢區 SOP】</b>：已到技術防守地基，心跳訊號初現。建議<b>鎖定為週一首選儲備</b>，早盤若爆量突破 EMA5 直接閃擊。"
+                        _sop = "🎯 <b>【動能蓄勢區 SOP】</b>：已到技術防守地基，建議<b>鎖定為週一首選儲備</b>，早盤爆量突破 EMA5 直接閃擊。"
                 elif _sc >= 3:
                     _rc = "#ff6b35"; _bg = "background:rgba(255,107,53,0.05);border-left:5px solid #ff6b35;"
                     _sop = "🟠 <b>【條件未齊 SOP】</b>：部分訊號成立，繼續等待量縮或乖離回落，<b>耐心觀察，不宜進場</b>。"
@@ -4389,19 +4421,22 @@ with tab6:
     st.markdown("<div class='sec-title'>📝 每日作戰總部 · MTFA 狙擊報告</div>",
                 unsafe_allow_html=True)
 
-    # ── 小台散戶淨留倉聯鎖警示（頂部置頂）
-    _mtx_retail_t6 = get_mtx_retail_position()
-    _danger_t6     = _mtx_retail_t6 >= 15000
-    _squeeze_t6    = _mtx_retail_t6 <= -15000
+    # ── 大小台雙軌聯鎖警示（頂部置頂）
+    _alert_lvl_t6, _tx_net_t6, _mtx_retail_t6 = get_dual_alert()
+    _danger_t6  = _alert_lvl_t6 == "red"
+    _yellow_t6  = _alert_lvl_t6 == "yellow"
+    _squeeze_t6 = _mtx_retail_t6 <= -15000
     if _danger_t6:
-        st.error(f"🚨 **【最高防空警報】** 小台散戶瘋狂做多 {_mtx_retail_t6:,} 口！"
-                 f"散戶集體接刀，大盤土石流風險極高，短線部位請全面縮緊！")
+        st.error(f"🔴 **【最高防空警報・高度警戒】** 大台空單 {abs(_tx_net_t6):,} 口 × 小台散戶多單 {_mtx_retail_t6:,} 口！"
+                 f"短線部位全面縮緊，隨時準備盤中緊急平倉！")
+    elif _yellow_t6:
+        st.warning(f"🟡 **【環境風險升溫・常規警戒】** 大台空單 {abs(_tx_net_t6):,} 口 × 小台散戶多單 {_mtx_retail_t6:,} 口！"
+                   f"散戶接刀初現，短線建倉資金嚴格控管！")
     elif _squeeze_t6:
-        st.info(f"🔥 **【黃金軋空訊號】** 小台散戶瘋狂放空 {abs(_mtx_retail_t6):,} 口！"
-                f"主力大機率發動軋空，短線火箭部位動能充足！")
+        st.info(f"🔥 **【黃金軋空訊號】** 小台散戶放空 {abs(_mtx_retail_t6):,} 口！"
+                f"主力大機率發動軋空，短線動能充足！")
     else:
-        st.success(f"🟢 **【市場情緒冷靜】** 小台散戶淨部位 {_mtx_retail_t6:,} 口，"
-                   f"環境健康，依個股長短線策略常規控盤。")
+        st.success(f"🟢 **【大盤環境安全】** 大台 {_tx_net_t6:+,} 口 × 小台散戶 {_mtx_retail_t6:+,} 口，環境健康。")
 
     _LONG_TERM = {"2330","2454","2317","2308","3017","6274","2301","3044","2383",
                   "2345","2379","6285","1519","1503","2634","3661","6669"}
@@ -4738,10 +4773,14 @@ with tab6:
                          if bias_ma20 <= 15 else
                          f"🛡️ 長線：乖離 {bias_ma20:.1f}% 偏高，縮緊至30週線為停利基準。")
             if _danger_t6 and not _is_above_ema5:
-                _short_sop = f"🛑 短線：散戶多單 {_mtx_retail_t6:,} 口+跌破EMA5，立即平倉！"
+                _short_sop = f"🛑 短線：大台空單+散戶多單壓頂+跌破EMA5，立即平倉！"
                 _sop_color = "#f43f5e"
-            elif _danger_t6:
-                _short_sop = f"⚠️ 短線：散戶多單壓頂 {_mtx_retail_t6:,} 口，縮緊停利至EMA5。"
+            elif _yellow_t6 and not _is_above_ema5:
+                _short_sop = f"⚠️ 短線：黃燈警戒+跌破EMA5，減碼1/2。"
+                _sop_color = "#fbbf24"
+            elif _danger_t6 or _yellow_t6:
+                _short_sop = f"⚠️ 短線：大盤警戒中，縮緊停利至EMA5({ema5:.1f})。"
+                _sop_color = "#fbbf24"
                 _sop_color = "#fbbf24"
             elif not _is_above_ema5:
                 _short_sop = f"⚠️ 短線：跌破EMA5（{ema5:.1f}），減碼1/2或停利。"
