@@ -3367,6 +3367,15 @@ with tab4:
         # 📊 精兵回頭草總表排名
         # ══════════════════════════════════════════════
         st.markdown("#### 📊 精兵綜合評分排名")
+        with st.expander("💡 9分制實戰執行意義與進場 SOP"):
+            st.markdown("""
+| 分數 | 意義 | 進場 SOP |
+|------|------|---------|
+| **7~9分 👑** | 安全基期已到，今日實質煞車收紅，籌碼極度冷靜 | **13:25 尾盤建立 1/3 底倉**，停損設 EMA5 下 |
+| **5~6分 🎯** | 已到防守地基，心跳訊號初現，仍在洗盤 | **鎖定重點觀察**，早盤爆量突破直接閃擊 |
+| **3~4分 🟠** | 部分條件成立，尚未完全沉澱 | **耐心等待**，不宜進場 |
+| **0~2分 ⏳** | 高空過熱，短線乖離過大 | **嚴禁追高**，靜待回檔排毒 |
+            """)
 
         _rank_rows = []
         def _calc_score(cond1, cond2, cond3, vol_ratio, bias):
@@ -3418,39 +3427,37 @@ with tab4:
 
         if _rank_rows:
             _rank_rows.sort(key=lambda x: (-x["_score"], x["股號"]))
-            _hdr = ["股號","名稱","現價","乖離%","量縮","乖離≤5%","收紅EMA5","總分/9"]
-            _html_rows = []
+            _cards = []
             for _r in _rank_rows:
                 _sc = _r["_score"]
-                _sc = _r["_score"]
                 if _sc >= 7:
-                    _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.08);"
+                    _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.08);border-left:5px solid #ff9900;"
+                    _sop = "👑 <b>【黃金特赦區】</b>：安全基期已到，技術面煞車！建議 <b>13:25 尾盤建立 1/3 底倉</b>，停損設 EMA5 下。"
                 elif _sc >= 5:
-                    _rc = "#ffcc00"; _bg = "background:rgba(255,204,0,0.05);"
+                    _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.06);border-left:5px solid #ffee55;"
+                    _sop = "🎯 <b>【動能蓄勢區】</b>：已到防守地基，心跳訊號初現。<b>鎖定觀察</b>，早盤爆量突破 EMA5 直接閃擊。"
                 elif _sc >= 3:
-                    _rc = "#ff6b35"; _bg = "background:rgba(255,107,53,0.04);"
+                    _rc = "#ff6b35"; _bg = "background:rgba(255,107,53,0.05);border-left:5px solid #ff6b35;"
+                    _sop = "🟠 <b>【條件未齊】</b>：部分訊號成立，繼續等待量縮或乖離回落，<b>耐心持倉觀察</b>。"
                 else:
-                    _rc = "#8892b0"; _bg = "background:rgba(255,255,255,0.01);"
-                _cells = "".join(
-                    f"<td style='padding:4px 10px;border-bottom:1px solid #1e3a5f;"
-                    f"color:{_rc};font-size:.82rem;'>{_r[h]}</td>"
-                    for h in _hdr
-                )
-                _html_rows.append(f"<tr style='{_bg}'>{_cells}</tr>")
+                    _rc = "#8892b0"; _bg = "background:rgba(255,255,255,0.01);border-left:5px solid #44475a;"
+                    _sop = "⏳ <b>【高空過熱】</b>：短線乖離過大，<b>嚴禁追高</b>，靜待回檔打底再說。"
 
-            _th = "".join(
-                f"<th style='padding:5px 10px;color:#00d4ff;font-size:.82rem;"
-                f"border-bottom:2px solid #1e3a5f;text-align:left;'>{h}</th>"
-                for h in _hdr
-            )
-            st.markdown(
-                f"<div style='overflow-x:auto;'>"
-                f"<table style='width:100%;border-collapse:collapse;'>"
-                f"<thead><tr>{_th}</tr></thead>"
-                f"<tbody>{''.join(_html_rows)}</tbody>"
-                f"</table></div>",
-                unsafe_allow_html=True
-            )
+                _cards.append(
+                    f"<div style='font-size:.85rem;margin-bottom:10px;padding:8px 14px;"
+                    f"border-radius:6px;{_bg}color:{_rc};line-height:1.7;'>"
+                    f"<div style='font-size:.9rem;'>"
+                    f"<b>{_r['股號']} {_r['名稱']}</b>｜"
+                    f"總分 <span style='font-size:1.1rem;font-weight:700;'>{_sc}/9</span>｜"
+                    f"現價 {_r['現價']}｜乖離 {_r['乖離%']}｜"
+                    f"量縮 {_r['量縮']}｜乖離≤5% {_r['乖離≤5%']}｜收紅EMA5 {_r['收紅EMA5']}"
+                    f"</div>"
+                    f"<div style='margin-top:5px;padding:4px 10px;background:rgba(0,0,0,0.25);"
+                    f"border-radius:4px;font-size:.8rem;color:#ffffff;"
+                    f"border-top:1px dashed rgba(255,255,255,0.1);'>{_sop}</div>"
+                    f"</div>"
+                )
+            st.markdown("".join(_cards), unsafe_allow_html=True)
 
         # ══════════════════════════════════════════════
         # 🕵️ 潛伏期法人鎖碼雷達掃描
