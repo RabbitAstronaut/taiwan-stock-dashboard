@@ -3253,7 +3253,25 @@ with tab4:
             st.button("💾 備份儲備庫", disabled=True,
                       use_container_width=True, key="dl_reserve_backup_empty")
     with _bk_c2:
-        # 還原：上傳 JSON
+        # 還原：上傳 JSON（隱藏原生上傳元件，用自訂樣式）
+        st.markdown(
+            "<style>"
+            "[data-testid='stFileUploader'] section {"
+            "  padding:4px 8px !important;"
+            "  border:1px solid #1e3a5f !important;"
+            "  background:#0d1826 !important;"
+            "  border-radius:6px !important;"
+            "  min-height:0 !important;"
+            "}"
+            "[data-testid='stFileUploader'] section > div {"
+            "  gap:4px !important;"
+            "}"
+            "[data-testid='stFileUploaderDropzoneInstructions'] {"
+            "  display:none !important;"
+            "}"
+            "</style>",
+            unsafe_allow_html=True
+        )
         _up = st.file_uploader("📂 還原備份", type=["json"],
                                key="restore_reserve_upload",
                                label_visibility="collapsed")
