@@ -3248,7 +3248,19 @@ with tab4:
         else:
             st.button("💾 備份", disabled=True, key="dl_reserve_backup_empty", use_container_width=True)
     with _add_c3:
-        # 還原
+        # 隱藏 file_uploader 的白色外框，只保留 Upload 小按鈕
+        st.markdown("""
+        <style>
+        div[data-testid="stFileUploader"] > section {
+            border: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+        }
+        div[data-testid="stFileUploaderDropzoneInstructions"] {
+            display: none !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
         _up = st.file_uploader("📂", type=["json"], key="restore_reserve_upload",
                                label_visibility="collapsed")
         if _up:
