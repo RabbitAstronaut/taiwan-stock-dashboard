@@ -3251,8 +3251,15 @@ with tab4:
         else:
             st.button("💾", disabled=True, key="dl_rsv_bk_empty", use_container_width=True)
     with rsv_c4:
+        st.markdown("""<style>
+        div[data-testid="stFileUploader"] > section {
+            border:none !important; background:transparent !important; padding:0 !important;
+        }
+        div[data-testid="stFileUploaderDropzoneInstructions"] { display:none !important; }
+        div[data-testid="stFileUploader"] label { display:none !important; }
+        </style>""", unsafe_allow_html=True)
         _up = st.file_uploader("還原", type=["json"], key="restore_reserve_upload",
-                               label_visibility="visible")
+                               label_visibility="collapsed")
         if _up:
             try:
                 _restored = _json.loads(_up.read().decode("utf-8"))
