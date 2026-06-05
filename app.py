@@ -3233,47 +3233,23 @@ with tab4:
                     st.toast(f"✅ {_rm.get('name','')} 已從儲備庫除名", icon="✅")
                     st.rerun()
 
-    # ── 備份 / 還原儲備庫
-    _bk_c1, _bk_c2 = st.columns([1, 1])
-    with _bk_c1:
-        # 備份：下載 JSON
+    # ── 新增標的輸入 + 備份/還原 同一列
+    _add_c1, _add_c2, _add_c3 = st.columns([4, 1, 1])
+    with _add_c1:
+        st.markdown("### ➕ 加入戰略儲備")
+    with _add_c2:
+        # 備份
         if st.session_state.get("reserve_list"):
-            import json as _json, io as _io
-            _bk_data = _json.dumps(st.session_state.reserve_list,
-                                   ensure_ascii=False, indent=2)
-            st.download_button(
-                label="💾 備份儲備庫",
-                data=_bk_data.encode("utf-8"),
-                file_name=f"reserve_backup_{datetime.now().strftime('%Y%m%d')}.json",
-                mime="application/json",
-                key="dl_reserve_backup",
-                use_container_width=True
-            )
+            import json as _json
+            _bk_data = _json.dumps(st.session_state.reserve_list, ensure_ascii=False, indent=2)
+            st.download_button("💾 備份", data=_bk_data.encode("utf-8"),
+                file_name=f"reserve_{datetime.now().strftime('%Y%m%d')}.json",
+                mime="application/json", key="dl_reserve_backup", use_container_width=True)
         else:
-            st.button("💾 備份儲備庫", disabled=True,
-                      use_container_width=True, key="dl_reserve_backup_empty")
-    with _bk_c2:
-        # 還原：上傳 JSON（隱藏原生上傳元件，用自訂樣式）
-        st.markdown(
-            "<style>"
-            "[data-testid='stFileUploader'] section {"
-            "  padding:4px 8px !important;"
-            "  border:1px solid #1e3a5f !important;"
-            "  background:#0d1826 !important;"
-            "  border-radius:6px !important;"
-            "  min-height:0 !important;"
-            "}"
-            "[data-testid='stFileUploader'] section > div {"
-            "  gap:4px !important;"
-            "}"
-            "[data-testid='stFileUploaderDropzoneInstructions'] {"
-            "  display:none !important;"
-            "}"
-            "</style>",
-            unsafe_allow_html=True
-        )
-        _up = st.file_uploader("📂 還原備份", type=["json"],
-                               key="restore_reserve_upload",
+            st.button("💾 備份", disabled=True, key="dl_reserve_backup_empty", use_container_width=True)
+    with _add_c3:
+        # 還原
+        _up = st.file_uploader("📂", type=["json"], key="restore_reserve_upload",
                                label_visibility="collapsed")
         if _up:
             try:
@@ -3282,20 +3258,15 @@ with tab4:
                 if isinstance(_restored, list) and len(_restored) > 0:
                     st.session_state.reserve_list = _restored
                     save_watchlist_to_github(
-                        st.session_state.watchlist,
-                        st.session_state.watchlist_scan,
+                        st.session_state.watchlist, st.session_state.watchlist_scan,
                         {k: v for k, v in st.session_state.get("etf_shares", {}).items() if v > 0},
-                        reserve=_restored
-                    )
-                    st.toast(f"✅ 已還原 {len(_restored)} 檔到戰略儲備庫", icon="✅")
+                        reserve=_restored)
+                    st.toast(f"✅ 已還原 {len(_restored)} 檔", icon="✅")
                     st.rerun()
                 else:
-                    st.error("❌ 檔案格式不正確")
+                    st.error("❌ 格式不正確")
             except Exception as _e:
                 st.error(f"❌ 還原失敗：{_e}")
-
-    # ── 新增標的輸入
-    st.markdown("### ➕ 加入戰略儲備")
     rsv_c1, rsv_c2 = st.columns([3, 1])
     with rsv_c1:
         rsv_sid = st.text_input("股票代號（可加備註，如：2345 散熱主力股）",
