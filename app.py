@@ -3233,44 +3233,40 @@ with tab4:
                     st.toast(f"✅ {_rm.get('name','')} 已從儲備庫除名", icon="✅")
                     st.rerun()
 
-    # ── 新增標的輸入 + 備份 同一列
-    _add_c1, _add_c2 = st.columns([5, 1])
-    with _add_c1:
-        st.markdown("### ➕ 加入戰略儲備")
-    with _add_c2:
-        if st.session_state.get("reserve_list"):
-            import json as _json
-            _bk_data = _json.dumps(st.session_state.reserve_list, ensure_ascii=False, indent=2)
-            st.download_button("💾 備份", data=_bk_data.encode("utf-8"),
-                file_name=f"reserve_{datetime.now().strftime('%Y%m%d')}.json",
-                mime="application/json", key="dl_reserve_backup", use_container_width=True)
-        else:
-            st.button("💾 備份", disabled=True, key="dl_reserve_backup_empty", use_container_width=True)
+    st.markdown("### ➕ 加入戰略儲備")
 
-    # ── 還原（獨立一列，uploader 展開時自然佔空間）
-    _up = st.file_uploader("📂 還原備份 JSON", type=["json"],
-                           key="restore_reserve_upload")
-    if _up:
-        try:
-            import json as _json
-            _restored = _json.loads(_up.read().decode("utf-8"))
-            if isinstance(_restored, list) and len(_restored) > 0:
-                st.session_state.reserve_list = _restored
-                save_watchlist_to_github(
-                    st.session_state.watchlist, st.session_state.watchlist_scan,
-                    {k: v for k, v in st.session_state.get("etf_shares", {}).items() if v > 0},
-                    reserve=_restored)
-                st.toast(f"✅ 已還原 {len(_restored)} 檔", icon="✅")
-                st.rerun()
-            else:
-                st.error("❌ 格式不正確")
-        except Exception as _e:
-            st.error(f"❌ 還原失敗：{_e}")
-    rsv_c1, rsv_c2 = st.columns([3, 1])
+
+    rsv_c1, rsv_c2, rsv_c3, rsv_c4 = st.columns([3, 1.2, 0.8, 0.8])
     with rsv_c1:
         rsv_sid = st.text_input("股票代號（可加備註，如：2345 散熱主力股）",
                                 placeholder="輸入代號，如：2345",
                                 key="rsv_sid", label_visibility="collapsed")
+    with rsv_c3:
+        import json as _json
+        if st.session_state.get("reserve_list"):
+            _bk = _json.dumps(st.session_state.reserve_list, ensure_ascii=False, indent=2)
+            st.download_button("💾 備份", data=_bk.encode("utf-8"),
+                file_name=f"reserve_{datetime.now().strftime('%Y%m%d')}.json",
+                mime="application/json", key="dl_reserve_backup", use_container_width=True)
+        else:
+            st.button("💾", disabled=True, key="dl_rsv_bk_empty", use_container_width=True)
+    with rsv_c4:
+        _up = st.file_uploader("還原", type=["json"], key="restore_reserve_upload",
+                               label_visibility="visible")
+        if _up:
+            try:
+                _restored = _json.loads(_up.read().decode("utf-8"))
+                if isinstance(_restored, list) and len(_restored) > 0:
+                    st.session_state.reserve_list = _restored
+                    save_watchlist_to_github(
+                        st.session_state.watchlist, st.session_state.watchlist_scan,
+                        {k: v for k, v in st.session_state.get("etf_shares", {}).items() if v > 0},
+                        reserve=_restored)
+                    st.toast(f"✅ 已還原 {len(_restored)} 檔", icon="✅")
+                    st.rerun()
+            except Exception as _e:
+                st.error(f"❌ {_e}")
+
     with rsv_c2:
         if st.button("🏹 加入儲備庫", key="rsv_add", use_container_width=True):
             # 解析代號和備註（如 "2345 散熱主力股"）
