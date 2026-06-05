@@ -447,6 +447,42 @@ def refresh_reserve_metabolism():
     return removed, kept
 
 # ══════════════════════════════════════════════════════════════
+# ▌ 小台散戶淨留倉計算（全域共用）
+# ══════════════════════════════════════════════════════════════
+def get_mtx_retail_position():
+    """
+    回傳小台散戶淨留倉口數
+    正數=散戶做多（危險）/ 負數=散戶放空（軋空機會）
+    """
+    try:
+        df_fut, ok_fut = get_futures()
+        if not ok_fut or df_fut.empty:
+            return 0
+        nm = next((c for c in ["name","institutional_investors"] if c in df_fut.columns), None)
+        lc = next((c for c in df_fut.columns if "long_open_interest_balance" in c and "amount" not in c), None)
+        sc = next((c for c in df_fut.columns if "short_open_interest_balance" in c and "amount" not in c), None)
+        if not nm or not lc or not sc:
+            return 0
+        inst = df_fut[df_fut["source"]=="institutional"] if "source" in df_fut.columns else df_fut
+        mtx  = inst[inst["contract"]=="MTX"] if "contract" in inst.columns else pd.DataFrame()
+        if mtx.empty:
+            return 0
+        ld = mtx["date"].max()
+        day = mtx[mtx["date"]==ld].copy()
+        total_inst = 0
+        for kw in ["自營","投信","外資"]:
+            row = day[day[nm].astype(str).str.contains(kw, na=False)]
+            if not row.empty:
+                try:
+                    total_inst += int(float(row[lc].values[0])) - int(float(row[sc].values[0]))
+                except:
+                    pass
+        # 散戶 = 法人反向
+        return -total_inst
+    except:
+        return 0
+
+# ══════════════════════════════════════════════════════════════
 # ▌ CSS 主題
 # ══════════════════════════════════════════════════════════════
 # ── 登入驗證
@@ -3483,34 +3519,19 @@ with tab4:
                 "總分/9": _total, "_score": _total,
             })
 
-        # ── 大盤聯鎖風控：使用 futures_data.csv 的外資大台淨部位
-        _df_fut_t4, _ok_fut_t4 = get_futures()
-        _tx_net = 0
-        if _ok_fut_t4 and not _df_fut_t4.empty:
-            try:
-                _nm_t4 = next((c for c in ["name","institutional_investors"]
-                               if c in _df_fut_t4.columns), None)
-                _lc_t4 = next((c for c in _df_fut_t4.columns
-                               if "long_open_interest_balance" in c and "amount" not in c), None)
-                _sc_t4 = next((c for c in _df_fut_t4.columns
-                               if "short_open_interest_balance" in c and "amount" not in c), None)
-                _inst_t4 = _df_fut_t4[_df_fut_t4["source"]=="institutional"]                            if "source" in _df_fut_t4.columns else _df_fut_t4
-                _tx_t4  = _inst_t4[_inst_t4["contract"]=="TX"]                           if "contract" in _inst_t4.columns else pd.DataFrame()
-                if not _tx_t4.empty and _lc_t4 and _sc_t4 and _nm_t4:
-                    _ld_t4 = _tx_t4["date"].max()
-                    _row_t4 = _tx_t4[(_tx_t4["date"]==_ld_t4) &
-                                      _tx_t4[_nm_t4].astype(str).str.contains("外資", na=False)]
-                    if not _row_t4.empty:
-                        _tx_net = int(float(_row_t4[_lc_t4].values[0])) -                                   int(float(_row_t4[_sc_t4].values[0]))
-            except:
-                pass
-        _is_danger = _tx_net <= -30000
+        # ── 小台散戶淨留倉聯鎖（正=散戶做多=危險 / 負=散戶做空=軋空機會）
+        _mtx_retail = get_mtx_retail_position()
+        _is_danger       = _mtx_retail >= 15000   # 散戶多單爆棚
+        _is_short_squeeze = _mtx_retail <= -15000  # 散戶空單爆棚=軋空機會
         if _is_danger:
-            st.error(f"🚨 **【最高防空警報】** 外資期貨未平倉空單 {abs(_tx_net):,} 口！"
-                     f"大盤土石流風險極高，系統已啟動防衛機制，**個股進場權限全面關閉！**")
+            st.error(f"🚨 **【最高防空警報】** 小台散戶瘋狂做多 {_mtx_retail:,} 口！"
+                     f"散戶正在集體接刀，大盤土石流風險極高，**系統強制關閉建倉權限！**")
+        elif _is_short_squeeze:
+            st.info(f"🔥 **【黃金軋空訊號】** 小台散戶瘋狂放空 {abs(_mtx_retail):,} 口！"
+                    f"主力大機率發動軋空，短線部位動能充足，**全面放行甚至加碼！**")
         else:
-            st.success(f"🟢 **【大盤環境安全】** 外資期貨空單 {abs(_tx_net):,} 口，"
-                       f"處於可控範圍，個股依正常技術型態執行 SOP。")
+            st.success(f"🟢 **【市場情緒冷靜】** 小台散戶淨部位 {_mtx_retail:,} 口，"
+                       f"處於常規區間，個股依正常技術型態執行 SOP。")
 
         if _rank_rows:
             _rank_rows.sort(key=lambda x: (-x["_score"], x["股號"]))
@@ -3520,14 +3541,20 @@ with tab4:
                 if _sc >= 7:
                     if _is_danger:
                         _rc = "#f43f5e"; _bg = "background:rgba(244,63,94,0.08);border-left:5px solid #f43f5e;"
-                        _sop = f"🛑 <b>【大盤警報・強制拒絕】</b>：技術面高達 <b>{_sc}分</b>，但大盤空單壓頂！<b>系統強制關閉建倉，嚴禁手癢！</b>"
+                        _sop = f"🛑 <b>【小台警報・拒絕交易】</b>：技術面高達 <b>{_sc}分</b>，但散戶正在瘋狂做多 {_mtx_retail:,} 口！市場底部未到，<b>系統強制禁止建倉！</b>"
+                    elif _is_short_squeeze:
+                        _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.12);border-left:5px solid #ff9900;"
+                        _sop = f"🚀 <b>【黃金軋空・全力進擊】</b>：個股高達 <b>{_sc}分</b>，且散戶放空 {abs(_mtx_retail):,} 口！史詩級軋空點，建議尾盤無懸念建立 1/3~1/2 波段先鋒倉！"
                     else:
                         _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.08);border-left:5px solid #ff9900;"
-                        _sop = "👑 <b>【黃金特赦區 SOP】</b>：大盤安全，個股安全基期已到且實質煞車！建議 <b>13:25 尾盤建立 1/3 基本底倉</b>，停損設 EMA5 下，老神在在等回頭噴發。"
+                        _sop = "👑 <b>【黃金特赦區 SOP】</b>：市場常態，個股安全基期已到且止跌！建議 <b>13:25 尾盤建立 1/3 基本底倉</b>，停損設 EMA5 下。"
                 elif _sc >= 5:
                     if _is_danger:
                         _rc = "#8892b0"; _bg = "background:rgba(255,255,255,0.01);border-left:5px solid #44475a;"
-                        _sop = f"⏳ <b>【大盤壓頂・取消閃擊】</b>：個股蓄勢中（{_sc}分），但大盤空單太重，取消進場計畫，繼續空倉觀望。"
+                        _sop = f"⏳ <b>【散戶多單壓頂・取消閃擊】</b>：個股蓄勢中（{_sc}分），但散戶做多 {_mtx_retail:,} 口，取消進場計畫，繼續觀望。"
+                    elif _is_short_squeeze:
+                        _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.08);border-left:5px solid #ffee55;"
+                        _sop = f"🎯 <b>【蓄勢+軋空加持】</b>：個股蓄勢（{_sc}分）且散戶放空 {abs(_mtx_retail):,} 口，<b>早盤爆量即刻閃擊，優先執行！</b>"
                     else:
                         _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.06);border-left:5px solid #ffee55;"
                         _sop = "🎯 <b>【動能蓄勢區 SOP】</b>：已到技術防守地基，心跳訊號初現。建議<b>鎖定為週一首選儲備</b>，早盤若爆量突破 EMA5 直接閃擊。"
@@ -4362,37 +4389,20 @@ with tab6:
     st.markdown("<div class='sec-title'>📝 每日作戰總部 · MTFA 狙擊報告</div>",
                 unsafe_allow_html=True)
 
-    # ── 大盤期貨聯鎖警示（頂部置頂）
-    _df_fut_t6, _ok_fut_t6 = get_futures()
-    _tx_net_t6 = 0
-    if _ok_fut_t6 and not _df_fut_t6.empty:
-        try:
-            _nm_t6 = next((c for c in ["name","institutional_investors"]
-                           if c in _df_fut_t6.columns), None)
-            _lc_t6 = next((c for c in _df_fut_t6.columns
-                           if "long_open_interest_balance" in c and "amount" not in c), None)
-            _sc_t6 = next((c for c in _df_fut_t6.columns
-                           if "short_open_interest_balance" in c and "amount" not in c), None)
-            _inst_t6 = _df_fut_t6[_df_fut_t6["source"]=="institutional"]                        if "source" in _df_fut_t6.columns else _df_fut_t6
-            _tx_t6  = _inst_t6[_inst_t6["contract"]=="TX"]                       if "contract" in _inst_t6.columns else pd.DataFrame()
-            if not _tx_t6.empty and _lc_t6 and _sc_t6 and _nm_t6:
-                _ld_t6 = _tx_t6["date"].max()
-                _row_t6 = _tx_t6[(_tx_t6["date"]==_ld_t6) &
-                                  _tx_t6[_nm_t6].astype(str).str.contains("外資", na=False)]
-                if not _row_t6.empty:
-                    _tx_net_t6 = int(float(_row_t6[_lc_t6].values[0])) -                                  int(float(_row_t6[_sc_t6].values[0]))
-        except:
-            pass
-
-    _danger_t6 = _tx_net_t6 <= -30000
+    # ── 小台散戶淨留倉聯鎖警示（頂部置頂）
+    _mtx_retail_t6 = get_mtx_retail_position()
+    _danger_t6     = _mtx_retail_t6 >= 15000
+    _squeeze_t6    = _mtx_retail_t6 <= -15000
     if _danger_t6:
-        st.error(f"🚨 **【最高防空警報】** 外資期貨未平倉空單 **{abs(_tx_net_t6):,} 口**！"
-                 f"大盤土石流風險極高，短線部位請全面縮緊，隨時準備執行盤中緊急平倉！")
+        st.error(f"🚨 **【最高防空警報】** 小台散戶瘋狂做多 {_mtx_retail_t6:,} 口！"
+                 f"散戶集體接刀，大盤土石流風險極高，短線部位請全面縮緊！")
+    elif _squeeze_t6:
+        st.info(f"🔥 **【黃金軋空訊號】** 小台散戶瘋狂放空 {abs(_mtx_retail_t6):,} 口！"
+                f"主力大機率發動軋空，短線火箭部位動能充足！")
     else:
-        st.success(f"🟢 **【大盤環境安全】** 外資期貨空單 {abs(_tx_net_t6):,} 口，"
+        st.success(f"🟢 **【市場情緒冷靜】** 小台散戶淨部位 {_mtx_retail_t6:,} 口，"
                    f"環境健康，依個股長短線策略常規控盤。")
 
-    # ── 長短線分類標籤（可在此調整）
     _LONG_TERM = {"2330","2454","2317","2308","3017","6274","2301","3044","2383",
                   "2345","2379","6285","1519","1503","2634","3661","6669"}
     _SHORT_TERM = {"8033","3324","3653","3533","6271","2359","6188","3491","3289",
@@ -4728,10 +4738,10 @@ with tab6:
                          if bias_ma20 <= 15 else
                          f"🛡️ 長線：乖離 {bias_ma20:.1f}% 偏高，縮緊至30週線為停利基準。")
             if _danger_t6 and not _is_above_ema5:
-                _short_sop = f"🛑 短線：大盤空單壓頂+跌破EMA5，立即平倉！"
+                _short_sop = f"🛑 短線：散戶多單 {_mtx_retail_t6:,} 口+跌破EMA5，立即平倉！"
                 _sop_color = "#f43f5e"
             elif _danger_t6:
-                _short_sop = f"⚠️ 短線：大盤空單{abs(_tx_net_t6):,}口，縮緊停利至EMA5。"
+                _short_sop = f"⚠️ 短線：散戶多單壓頂 {_mtx_retail_t6:,} 口，縮緊停利至EMA5。"
                 _sop_color = "#fbbf24"
             elif not _is_above_ema5:
                 _short_sop = f"⚠️ 短線：跌破EMA5（{ema5:.1f}），減碼1/2或停利。"
