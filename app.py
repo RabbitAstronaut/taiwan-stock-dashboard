@@ -1,5 +1,5 @@
 """
-app.py  ── 台股全週期量化交易系統 V5
+app.py  ── 台股全週期量化交易系統 V6
 ═══════════════════════════════════════════════════════════════
 架構：Serverless CSV 託管
   資料來源：GitHub raw CSV（由 update_data.py / GitHub Actions 更新）
@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore")
 # ▌ 頁面基礎設定
 # ══════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="台股量化系統 V5",
+    page_title="台股量化系統 V6",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -445,6 +445,90 @@ def refresh_reserve_metabolism():
             kept.append(item)  # 出錯保留，不誤殺
 
     return removed, kept
+
+# ══════════════════════════════════════════════════════════════
+# ▌ CBOE Put/Call Ratio 即時抓取
+# ══════════════════════════════════════════════════════════════
+def get_cboe_pc_ratio():
+    """
+    CBOE 個股期權 Put/Call Ratio（^PCALL）
+    常態 0.7~0.9；<0.65 散戶極度做多；>1.05 散戶極度恐慌
+    """
+    try:
+        import requests as _req
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EPCALL"
+        hdrs = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        r = _req.get(url, headers=hdrs, timeout=5)
+        data = r.json()
+        val = data["chart"]["result"][0]["indicators"]["quote"][0]["close"][-1]
+        return round(float(val), 3) if val else 0.80
+    except:
+        return 0.80  # 預設常態中立值
+
+# ══════════════════════════════════════════════════════════════
+# ▌ 總經事件日曆（動態倒數計時）
+# ══════════════════════════════════════════════════════════════
+def get_macro_countdown():
+    """
+    回傳 (days, event_name) 距離最近一場總經核彈的倒數天數
+    """
+    from datetime import datetime as _dt
+    tz_tw = ZoneInfo("Asia/Taipei")
+    today = _dt.now(tz_tw).date()
+    events = {
+        "🇺🇸 美國 5月 CPI/PPI 通膨數據":       _dt(2026, 6, 10, tzinfo=tz_tw).date(),
+        "🇺🇸 聯準會 FOMC 利率決策（鮑爾）":     _dt(2026, 6, 18, tzinfo=tz_tw).date(),
+        "🇺🇸 美國 6月 非農就業報告":            _dt(2026, 7,  3, tzinfo=tz_tw).date(),
+        "🇹🇼 台積電 Q2 法說會（CoWoS產能）":   _dt(2026, 7, 16, tzinfo=tz_tw).date(),
+    }
+    nearest_days = 999
+    nearest_name = "無近期事件"
+    for name, date in events.items():
+        delta = (date - today).days
+        if 0 <= delta < nearest_days:
+            nearest_days = delta
+            nearest_name = name
+    return nearest_days, nearest_name
+
+# ══════════════════════════════════════════════════════════════
+# ▌ 全系統統一最高權限斷路器
+# ══════════════════════════════════════════════════════════════
+def get_system_risk_status():
+    """
+    三軌聯鎖：大台外資 × 小台散戶 × CBOE P/C × 總經事件倒數
+    回傳 (status, info_dict)
+    status: RED_ALERT / YELLOW_ALERT / SHORT_SQUEEZE / GREEN_NORMAL
+    """
+    tx_net     = get_tx_foreign_position()
+    mtx_retail = get_mtx_retail_position()
+    pc_ratio   = get_cboe_pc_ratio()
+    days, event = get_macro_countdown()
+
+    is_tw_red  = mtx_retail >= 12000 and tx_net <= -30000
+    is_us_red  = pc_ratio <= 0.65
+    is_event   = days <= 3
+
+    if (is_tw_red and is_us_red) or (is_tw_red and is_event):
+        status = "RED_ALERT"
+    elif mtx_retail >= 8000 and tx_net <= -15000:
+        status = "YELLOW_ALERT"
+    elif mtx_retail <= -15000 and pc_ratio >= 1.05:
+        status = "SHORT_SQUEEZE"
+    else:
+        status = "GREEN_NORMAL"
+
+    return status, {
+        "tx_net": tx_net, "mtx_retail": mtx_retail,
+        "pc_ratio": pc_ratio, "days": days, "event": event,
+        "is_tw_red": is_tw_red, "is_us_red": is_us_red, "is_event": is_event,
+    }
+
+def get_dual_alert():
+    """相容舊版呼叫，回傳 (level, tx_net, mtx_retail)"""
+    status, info = get_system_risk_status()
+    level = {"RED_ALERT":"red","YELLOW_ALERT":"yellow",
+             "SHORT_SQUEEZE":"safe","GREEN_NORMAL":"safe"}.get(status, "safe")
+    return level, info["tx_net"], info["mtx_retail"]
 
 # ══════════════════════════════════════════════════════════════
 # ▌ 大台外資淨留倉計算（全域共用）
@@ -1112,7 +1196,54 @@ def df_to_html(df, height=380, font_size=".82rem"):
         f"</table></div>"
     )
 
+# ── Render 中繼站 URL（台灣即時籌碼）
+RELAY_URL = "https://taiwan-chips-relay.onrender.com"
+
+def _ping_relay():
+    """背景 ping Render 防止睡眠（每10分鐘）"""
+    import threading, time
+    def _keep_alive():
+        while True:
+            try:
+                import requests as _req
+                _req.get(f"{RELAY_URL}/health", timeout=5, verify=False)
+            except:
+                pass
+            time.sleep(600)  # 每10分鐘ping一次
+    t = threading.Thread(target=_keep_alive, daemon=True)
+    t.start()
+
+_ping_relay()
+
+@st.cache_data(ttl=1800)
+def _load_relay_chips():
+    """從 Render 中繼站讀取即時籌碼（快取30分鐘）"""
+    try:
+        import requests as _req
+        r = _req.get(f"{RELAY_URL}/api/chips", timeout=10, verify=False)
+        if r.status_code == 200:
+            df = pd.DataFrame(r.json())
+            if not df.empty:
+                df["stock_id"] = df["stock_id"].astype(str).str.strip()
+                df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                df["net"] = pd.to_numeric(df["net"], errors="coerce")
+                # 單位轉換：股→張
+                df["net"] = df["net"] / 1000
+                return df
+    except:
+        pass
+    return pd.DataFrame()
+
 def get_chips(stock_id=None):
+    # 優先讀 Render 即時資料
+    df_relay = _load_relay_chips()
+    if not df_relay.empty:
+        df = df_relay.copy()
+        if stock_id:
+            df = df[df["stock_id"] == str(stock_id).strip()]
+        return df.sort_values("date") if "date" in df.columns else df, True
+
+    # fallback：讀本地 CSV
     df, ok = load_csv("chips_data.csv")
     if not ok or df.empty:
         return pd.DataFrame(), False
@@ -1245,7 +1376,7 @@ with st.sidebar:
     <div style="text-align:center;padding:10px 0 14px;">
         <div style="font-size:2rem;">📈</div>
         <div style="color:#00d4ff;font-size:.9rem;font-weight:700;letter-spacing:2px;">台股量化系統</div>
-        <div style="color:#7fb3d3;font-size:.66rem;margin-top:3px;">QUANT TRADING SYSTEM V5</div>
+        <div style="color:#7fb3d3;font-size:.66rem;margin-top:3px;">QUANT TRADING SYSTEM V6</div>
     </div>""", unsafe_allow_html=True)
 
     # ── 資料更新時間
@@ -1371,7 +1502,7 @@ st.markdown(f"""
      background:linear-gradient(90deg,#0f2027,#203a43,#2c5364);
      padding:18px 26px;margin-bottom:14px;">
     <h1 style="color:#e8f4fd;font-size:1.4rem;font-weight:700;margin:0;letter-spacing:1px;">
-        📊 台股全週期量化交易系統 V5
+        📊 台股全週期量化交易系統 V6
     </h1>
     <p style="color:#7fb3d3;margin:4px 0 0;font-size:.76rem;">
         架構：本機爬蟲 → GitHub CSV → Streamlit Cloud ｜
@@ -2888,28 +3019,52 @@ with tab3:
                                 _tx_net_t3 = int(float(_row_t3[_lc_t3].values[0])) -                                              int(float(_row_t3[_sc_t3].values[0]))
                     except:
                         pass
-                # 升級為雙軌聯鎖
-                _alert_lvl_t3, _tx_net_t3, _mtx_retail_t3 = get_dual_alert()
-                _danger_t3 = _alert_lvl_t3 == "red"
-                _yellow_t3 = _alert_lvl_t3 == "yellow"
+                # ── V6 三軌聯鎖斷路器
+                _risk_st_t3, _risk_i_t3 = get_system_risk_status()
+                _danger_t3  = _risk_st_t3 == "RED_ALERT"
+                _yellow_t3  = _risk_st_t3 == "YELLOW_ALERT"
+                _squeeze_t3 = _risk_st_t3 == "SHORT_SQUEEZE"
+                _tx_net_t3      = _risk_i_t3["tx_net"]
+                _mtx_retail_t3  = _risk_i_t3["mtx_retail"]
 
                 # 大盤危險時覆寫 SOP 訊息
-                if _danger_t3 or _yellow_t3:
-                    _t3_warn_col = "#e11d48" if _danger_t3 else "#fbbf24"
-                    _t3_warn_bg  = "rgba(244,63,94,0.1)" if _danger_t3 else "rgba(251,191,36,0.08)"
-                    _t3_level    = f"🔴 大台空單 {abs(_tx_net_t3):,}口+散戶多單 {_mtx_retail_t3:,}口" if _danger_t3 else f"🟡 大台空單 {abs(_tx_net_t3):,}口+散戶多單 {_mtx_retail_t3:,}口"
-                    if bias_ma20 > 10:
-                        _t3_sop = f"⚡ <b>【{_t3_level}・獲利落袋】</b>：本股月乖離 {bias_ma20:.1f}%，<b>縮緊停利至今日低點/EMA5，一破立刻獲利了結！</b>"
-                    elif bias_ma20 < -5:
-                        _t3_sop = f"🛑 <b>【{_t3_level}・斷尾求生】</b>：本股弱勢套牢 {bias_ma20:.1f}%，<b>尾盤無條件硬停損，絕不留下當祭品！</b>"
+                # ── 依風控狀態 + 乖離率輸出 SOP
+                if _danger_t3:
+                    if bias_ma20 < -5 or bias_ma20 <= 2:
+                        # 套牢或平盤 → 斷尾求生
+                        _t3_sop = (f"🛑 <b>【斷尾求生硬停損 SOP】</b>：大盤土石流將無差別拋售！"
+                                   f"本股月乖離 {bias_ma20:.1f}%，已陷入弱勢，"
+                                   f"<b>系統強制下達一票否決，請立刻尾盤無條件 100% 執行硬停損！</b>")
+                        _t3c, _t3bg = "#e11d48", "rgba(244,63,94,0.12)"
                     else:
-                        _t3_sop = f"⚠️ <b>【{_t3_level}・減碼防禦】</b>：本股月乖離 {bias_ma20:.1f}%，<b>建議尾盤減碼 50%，保留現金降低曝險！</b>"
+                        # 獲利中 → 縮緊停利
+                        _t3_sop = (f"⚡ <b>【獲利落袋 SOP】</b>：大盤土石流風險！"
+                                   f"本股月乖離 {bias_ma20:.1f}%，"
+                                   f"<b>立刻縮緊停利至今日盤中最低點，一破立刻 100% 獲利了結！</b>")
+                        _t3c, _t3bg = "#f43f5e", "rgba(244,63,94,0.08)"
                     st.markdown(
-                        f"<div style='background:{_t3_warn_bg};border:2px solid {_t3_warn_col};"
+                        f"<div style='background:{_t3bg};border:2px solid {_t3c};"
                         f"border-radius:10px;padding:12px 16px;'>"
-                        f"<span style='color:{_t3_warn_col};font-size:.9rem;'>{_t3_sop}</span></div>",
+                        f"<span style='color:{_t3c};font-size:.9rem;'>{_t3_sop}</span></div>",
                         unsafe_allow_html=True
                     )
+                elif _yellow_t3:
+                    if bias_ma20 > 5:
+                        _t3_sop = (f"⚠️ <b>【移動停利縮緊】</b>：大盤黃燈警戒！"
+                                   f"本股月乖離 {bias_ma20:.1f}%（獲利中），"
+                                   f"<b>立刻縮緊停利線至今日低點，鎖住浮盈！</b>")
+                    else:
+                        _t3_sop = (f"⚠️ <b>【防禦降載・減碼 SOP】</b>：大盤土石流蓄勢中！"
+                                   f"月乖離 {bias_ma20:.1f}%，<b>建議尾盤無腦平倉 50% 部位，降載資金！</b>")
+                    st.markdown(
+                        f"<div style='background:rgba(251,191,36,0.08);border:1px solid #fbbf24;"
+                        f"border-radius:10px;padding:12px 16px;'>"
+                        f"<span style='color:#fbbf24;font-size:.9rem;'>{_t3_sop}</span></div>",
+                        unsafe_allow_html=True
+                    )
+                elif _squeeze_t3:
+                    st.success(f"🔥 **【軋空特赦・安心續抱】** 台美散戶同步恐慌放空，主力即將軋空！"
+                               f"本股月乖離 {bias_ma20:.1f}%，遵循長線30週線或短線EMA5紀律控盤，安心持有。")
                 elif _lvl == "purple":
                     st.markdown(
                         f"<div style='background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(74,20,140,0.3));"
@@ -3541,23 +3696,29 @@ with tab4:
                 "總分/9": _total, "_score": _total,
             })
 
-        # ── 大小台雙軌聯鎖警戒
-        _alert_lvl, _tx_net, _mtx_retail = get_dual_alert()
-        _is_danger        = _alert_lvl == "red"
-        _is_yellow        = _alert_lvl == "yellow"
-        _is_short_squeeze = _mtx_retail <= -15000
+        # ── V6 三軌聯鎖風控斷路器
+        _risk_st, _risk_i = get_system_risk_status()
+        _is_danger        = _risk_st == "RED_ALERT"
+        _is_yellow        = _risk_st == "YELLOW_ALERT"
+        _is_short_squeeze = _risk_st == "SHORT_SQUEEZE"
+        _tx_net    = _risk_i["tx_net"]
+        _mtx_retail = _risk_i["mtx_retail"]
+        _pc_ratio  = _risk_i["pc_ratio"]
+        _days_evt  = _risk_i["days"]
+        _evt_name  = _risk_i["event"]
         if _is_danger:
-            st.error(f"🔴 **【最高防空警報・高度警戒】** 大台空單 {abs(_tx_net):,} 口 × 小台散戶多單 {_mtx_retail:,} 口！"
-                     f"法人全力壓制，散戶面臨集體總崩，**系統強制關閉所有買進權限！**")
+            st.error(f"🔴 **【高度警戒・強制禁買】** 大台空單 {abs(_tx_net):,}口 × 散戶多單 {_mtx_retail:,}口"
+                     f"{'　⚡ 總經核彈倒數'+str(_days_evt)+'天：'+_evt_name[:15] if _days_evt<=3 else ''}"
+                     f"　CBOE P/C {_pc_ratio:.2f}。**台美散戶瘋狂接刀，系統強制關閉所有買進權限！**")
         elif _is_yellow:
-            st.warning(f"🟡 **【環境風險升溫・常規警戒】** 大台空單 {abs(_tx_net):,} 口 × 小台散戶多單 {_mtx_retail:,} 口！"
-                       f"散戶接刀初現，**下方建倉資金強制砍半（僅能建立 1/6 底倉）！**")
+            st.warning(f"🟡 **【常規警戒・資金減半】** 大台空單 {abs(_tx_net):,}口 × 散戶多單 {_mtx_retail:,}口！"
+                       f"**系統強制限制進場資金砍半（僅能建立 1/6 底倉），控管風險邊界！**")
         elif _is_short_squeeze:
-            st.info(f"🔥 **【黃金軋空訊號】** 小台散戶放空 {abs(_mtx_retail):,} 口！"
-                    f"主力大機率發動軋空，短線動能充足，**全面放行甚至加碼！**")
+            st.info(f"🔥 **【黃金軋空・全力進擊】** 散戶放空 {abs(_mtx_retail):,}口 × CBOE P/C {_pc_ratio:.2f}（恐慌頂點）！"
+                    f"**台美散戶同步嚇破膽，解鎖軋空特赦！短線火箭全面放行甚至加碼！**")
         else:
-            st.success(f"🟢 **【大盤環境安全】** 大台 {_tx_net:+,} 口 × 小台散戶 {_mtx_retail:+,} 口，"
-                       f"籌碼結構安全，依正常 SOP 執行。")
+            st.success(f"🟢 **【全球環境安全】** 大台 {_tx_net:+,}口 × 散戶 {_mtx_retail:+,}口"
+                       f"　CBOE P/C {_pc_ratio:.2f}，台美籌碼結構正常，依正常 SOP 執行。")
 
         if _rank_rows:
             _rank_rows.sort(key=lambda x: (-x["_score"], x["股號"]))
@@ -3574,9 +3735,12 @@ with tab4:
                     elif _is_short_squeeze:
                         _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.12);border-left:5px solid #ff9900;"
                         _sop = f"🚀 <b>【黃金軋空・全力進擊】</b>：個股高達 <b>{_sc}分</b>，且散戶放空 {abs(_mtx_retail):,} 口！史詩級軋空點，建議尾盤無懸念建立 1/3~1/2 波段先鋒倉！"
+                    elif _is_short_squeeze:
+                        _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.12);border-left:5px solid #ff9900;"
+                        _sop = f"🔥 <b>【黃金軋空・全力進擊】</b>：個股高達 <b>{_sc}分</b>，台美散戶同步嚇破膽放空！市場具備強烈軋空基因，允許利用小股期進行非對稱動能加壓閃擊！"
                     else:
                         _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.08);border-left:5px solid #ff9900;"
-                        _sop = "👑 <b>【黃金特赦區 SOP】</b>：市場常態，個股安全基期已到且止跌！建議 <b>13:25 尾盤建立 1/3 基本底倉</b>，停損設 EMA5 下。"
+                        _sop = f"👑 <b>【黃金特赦區 SOP】</b>：大盤環境安全，個股拉回止跌！建議 <b>13:25 尾盤建立 1/3 常規基本底倉</b>，停損設 EMA5 下。"
                 elif _sc >= 5:
                     if _is_danger:
                         _rc = "#8892b0"; _bg = "background:rgba(255,255,255,0.01);border-left:5px solid #44475a;"
@@ -3614,20 +3778,27 @@ with tab4:
             st.markdown("".join(_cards), unsafe_allow_html=True)
 
         # ══════════════════════════════════════════════
-        # 🕵️ 潛伏期法人鎖碼雷達掃描
+        # 🕵️ 潛伏期法人鎖碼雷達掃描（快取1小時）
         # ══════════════════════════════════════════════
         st.markdown("#### 🕵️ 潛伏期法人暗中鎖碼雷達")
+
+        @st.cache_data(ttl=3600, show_spinner=False)
+        def _cached_accum_scan(reserve_ids_tuple):
+            alerts, watch = [], []
+            for sid_ac, name_ac in reserve_ids_tuple:
+                ac = scan_accumulation_phase(sid_ac)
+                if ac["alert"]:
+                    alerts.append((sid_ac, name_ac, ac))
+                elif ac["facts"]:
+                    watch.append((sid_ac, name_ac, ac))
+            return alerts, watch
+
+        _reserve_ids_tuple = tuple((r["id"], r.get("name", r["id"]))
+                                   for r in st.session_state.reserve_list)
         _accum_alerts = []
         _accum_watch  = []
         with st.spinner("掃描潛伏期籌碼密度中..."):
-            for item in st.session_state.reserve_list:
-                _sid_ac = item["id"]
-                _name_ac = item.get("name", _sid_ac)
-                _ac = scan_accumulation_phase(_sid_ac)
-                if _ac["alert"]:
-                    _accum_alerts.append((_sid_ac, _name_ac, _ac))
-                elif _ac["facts"]:
-                    _accum_watch.append((_sid_ac, _name_ac, _ac))
+            _accum_alerts, _accum_watch = _cached_accum_scan(_reserve_ids_tuple)
 
         # 合併所有標的，統一渲染
         # 排序：3/3 > 2/3 > 1/3 > 0/3，同分依股號
@@ -3697,17 +3868,22 @@ with tab4:
         st.markdown("---")
 
         # ══════════════════════════════════════════════
-        # 🚀 短線火箭雷達（儲備庫個股）
+        # 🚀 短線火箭雷達（儲備庫個股，快取1小時）
         # ══════════════════════════════════════════════
         st.markdown("#### 🚀 短線火箭雷達")
-        _rocket_results = []
-        for item in st.session_state.reserve_list:
-            _rsid  = item["id"]
-            _rname = item.get("name", _rsid)
-            _rm    = scan_short_term_momentum(_rsid)
-            _rm["sid"]  = _rsid
-            _rm["name"] = _rname
-            _rocket_results.append(_rm)
+
+        @st.cache_data(ttl=3600, show_spinner=False)
+        def _cached_rocket_scan(reserve_tuple):
+            results = []
+            for sid_r, name_r in reserve_tuple:
+                rm = scan_short_term_momentum(sid_r)
+                rm["sid"] = sid_r; rm["name"] = name_r
+                results.append(rm)
+            return results
+
+        _reserve_tuple_rk = tuple((r["id"], r.get("name", r["id"]))
+                                   for r in st.session_state.reserve_list)
+        _rocket_results = _cached_rocket_scan(_reserve_tuple_rk)
 
         # 全部合併，依觸發狀態+分數排序，統一色卡渲染
         _rocket_results.sort(key=lambda x: (x.get("trigger",False), x.get("score",0)), reverse=True)
@@ -3839,6 +4015,34 @@ with tab4:
 with tab5:
     st.markdown("<div class='sec-title'>📡 大盤預警 · 期貨引擎 ＋ 蒙格行為學 ＋ AI診斷</div>",
                 unsafe_allow_html=True)
+
+    # ── V6 三軌風控儀表板
+    _risk_status, _risk_info = get_system_risk_status()
+    _risk_cols = st.columns([1,1,1,1])
+    _risk_cols[0].metric("大台外資", f"{_risk_info['tx_net']:+,}口",
+                         delta="空單壓頂" if _risk_info['tx_net'] <= -30000 else "安全")
+    _risk_cols[1].metric("小台散戶", f"{_risk_info['mtx_retail']:+,}口",
+                         delta="接刀危險" if _risk_info['mtx_retail'] >= 8000 else "冷靜")
+    _risk_cols[2].metric("CBOE P/C", f"{_risk_info['pc_ratio']:.2f}",
+                         delta="美散戶過熱" if _risk_info['pc_ratio'] <= 0.65 else "正常")
+    _risk_cols[3].metric("最近核彈", f"{_risk_info['days']}天",
+                         delta=_risk_info['event'][:12] if _risk_info['days'] <= 7 else "安全")
+
+    if _risk_status == "RED_ALERT":
+        st.error(f"🔴 **【全球熔斷最高警戒】** 台美散戶同步過熱"
+                 f"{'＋總經核彈倒數'+str(_risk_info['days'])+'天！' if _risk_info['is_event'] else '！'}"
+                 f" 大台空單 {abs(_risk_info['tx_net']):,}口 × 小台散戶 {_risk_info['mtx_retail']:,}口"
+                 f"，**全面禁買，嚴防土石流！**")
+    elif _risk_status == "YELLOW_ALERT":
+        st.warning(f"🟡 **【常規警戒升溫】** 大台空單 {abs(_risk_info['tx_net']):,}口"
+                   f" × 小台散戶多單 {_risk_info['mtx_retail']:,}口，**建倉資金嚴格減半！**")
+    elif _risk_status == "SHORT_SQUEEZE":
+        st.info(f"🔥 **【黃金軋空特赦】** 小台散戶放空 {abs(_risk_info['mtx_retail']):,}口"
+                f" × CBOE P/C {_risk_info['pc_ratio']:.2f}（恐慌頂點），**短線火箭全面放行！**")
+    else:
+        st.success(f"🟢 **【全球環境安全】** 台美籌碼結構正常，依個股技術面執行 SOP。")
+
+    st.divider()
 
     # ── 智慧刷新：比對期貨資料日期是否為今日
     _today_tw = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
@@ -4438,12 +4642,12 @@ with tab6:
     else:
         st.success(f"🟢 **【大盤環境安全】** 大台 {_tx_net_t6:+,} 口 × 小台散戶 {_mtx_retail_t6:+,} 口，環境健康。")
 
-    _LONG_TERM = {"2330","2454","2317","2308","3017","6274","2301","3044","2383",
-                  "2345","2379","6285","1519","1503","2634","3661","6669"}
-    _SHORT_TERM = {"8033","3324","3653","3533","6271","2359","6188","3491","3289",
-                   "8299","3037","3481","2404","2327","3131","6187","6510","6515",
-                   "3455","6239","2059","2368","8358","2344","2357","3665","2313"}
-
+    _LONG_TERM = {"2330","2317","2454","2308","2357","3037","8299","3289","2301",
+                  "2313","2345","2383","3044","6274","6285","2634","3149","7828"}
+    _SHORT_TERM = {"3491","2359","6188","3661","3324","3017","3653","3533","6669",
+                   "3131","6187","6510","6515","3455","6239","2059","2368","6271",
+                   "3665","3481","2404","2327","2344","2379","8358","1519","1503",
+                   "8033","8027","8064"}
     # ── 智慧刷新 + 大盤聯鎖警示
     _today_tw6 = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
     _price_date = st.session_state.get("live_prices_date", "—")
@@ -4508,6 +4712,38 @@ with tab6:
                 f"<span style='color:#00e676;font-size:.85rem;'>✅ 個股報價已是今日（{_today_tw6}）最新</span>",
                 unsafe_allow_html=True
             )
+
+    # ── 國際總經核彈倒數日曆
+    with st.expander("🌐 國際總經核彈倒數計時器", expanded=False):
+        _days_evt, _evt_name = get_macro_countdown()
+        from datetime import datetime as _dt
+        _tz_tw = ZoneInfo("Asia/Taipei")
+        _today = _dt.now(_tz_tw).date()
+        _events = {
+            "🇺🇸 美國 5月 CPI/PPI 通膨數據":     _dt(2026, 6, 10, tzinfo=_tz_tw).date(),
+            "🇺🇸 聯準會 FOMC 利率決策（鮑爾）":   _dt(2026, 6, 18, tzinfo=_tz_tw).date(),
+            "🇺🇸 美國 6月 非農就業報告":          _dt(2026, 7,  3, tzinfo=_tz_tw).date(),
+            "🇹🇼 台積電 Q2 法說會（CoWoS產能）": _dt(2026, 7, 16, tzinfo=_tz_tw).date(),
+        }
+        _cal_rows = []
+        for _en, _ed in _events.items():
+            _dd = (_ed - _today).days
+            if _dd < 0:
+                _dc = "#546e7a"; _ds = "已過"
+            elif _dd <= 3:
+                _dc = "#f43f5e"; _ds = f"⚠️ {_dd}天後！"
+            elif _dd <= 7:
+                _dc = "#fbbf24"; _ds = f"🟡 {_dd}天後"
+            else:
+                _dc = "#8892b0"; _ds = f"{_dd}天後"
+            _cal_rows.append(
+                f"<div style='display:flex;justify-content:space-between;padding:4px 0;"
+                f"border-bottom:1px solid #1e3a5f;font-size:.84rem;'>"
+                f"<span style='color:#e8f4fd;'>{_en}</span>"
+                f"<span style='color:{_dc};font-weight:700;'>{_ed.strftime('%m/%d')} ({_ds})</span>"
+                f"</div>"
+            )
+        st.markdown("".join(_cal_rows), unsafe_allow_html=True)
 
     # ── AI 今日市場資金題材洞察
     def load_dynamic_themes():
@@ -4754,18 +4990,69 @@ with tab6:
             _is_short = sid in _SHORT_TERM
             _type_tag = "🏢長線" if _is_long else ("⚡短線" if _is_short else "📊觀察")
 
-            # ── 大盤聯鎖：短線且大盤危險且跌破EMA5 → 緊急平倉令
+            # ── V6 三軌聯鎖 × 長短線策略 × 即時 EMA5 → 戰術 SOP
             _ema5_break = not np.isnan(ema5) and close_now < ema5
-            if _danger_t6 and _is_short and _ema5_break:
-                st.markdown(
-                    f"<div style='background:rgba(244,63,94,0.15);border:2px solid #e11d48;"
-                    f"border-radius:8px;padding:8px 14px;margin-bottom:4px;'>"
-                    f"<span style='color:#f43f5e;font-size:.88rem;font-weight:700;'>"
-                    f"🛑 【盤中緊急平倉令】{sid} {name}：大盤空單壓頂且即時現價 {close_now:.1f}"
-                    f" 已跌破 EMA5（{ema5:.1f}），短線火箭熄火！請立即平倉落袋！"
-                    f"</span></div>",
-                    unsafe_allow_html=True
-                )
+            _risk_st_t6b, _risk_i_t6b = get_system_risk_status()
+
+            if _is_short:
+                # 短線特種兵：重視即時 EMA5 + 大盤聯鎖
+                if (_risk_st_t6b == "RED_ALERT") and _ema5_break:
+                    st.markdown(
+                        f"<div style='background:rgba(244,63,94,0.15);border:2px solid #e11d48;"
+                        f"border-radius:8px;padding:8px 14px;margin-bottom:4px;'>"
+                        f"<b style='color:#f43f5e;'>🛑 【盤中緊急平倉令！】</b>"
+                        f"<span style='color:#f43f5e;font-size:.87rem;'>"
+                        f"大盤三軌高度警戒+現價 {close_now:.1f} 跌破實時 EMA5（{ema5:.1f}）！"
+                        f"短線防禦崩塌，<b>請立即 100% 市價平倉，絕不留戀！</b>"
+                        f"</span></div>", unsafe_allow_html=True
+                    )
+                elif _risk_st_t6b == "RED_ALERT":
+                    st.markdown(
+                        f"<div style='background:rgba(251,191,36,0.08);border:1px solid #fbbf24;"
+                        f"border-radius:8px;padding:6px 14px;margin-bottom:4px;'>"
+                        f"<span style='color:#fbbf24;font-size:.87rem;'>"
+                        f"⚠️ 大盤高度警戒！現價 {close_now:.1f} 守住 EMA5（{ema5:.1f}），"
+                        f"<b>縮緊停利至今日低點，隨時準備平倉。</b>"
+                        f"</span></div>", unsafe_allow_html=True
+                    )
+                elif _ema5_break:
+                    st.markdown(
+                        f"<div style='background:rgba(251,191,36,0.06);border:1px solid #fbbf24;"
+                        f"border-radius:8px;padding:6px 14px;margin-bottom:4px;'>"
+                        f"<span style='color:#fbbf24;font-size:.87rem;'>"
+                        f"⚠️ 短線技術面轉弱：現價 {close_now:.1f} 跌破實時 EMA5（{ema5:.1f}），"
+                        f"<b>建議減碼 1/2 或執行停利。</b>"
+                        f"</span></div>", unsafe_allow_html=True
+                    )
+                elif _risk_st_t6b == "SHORT_SQUEEZE":
+                    st.markdown(
+                        f"<div style='background:rgba(255,153,0,0.06);border:1px solid #ff9900;"
+                        f"border-radius:8px;padding:6px 14px;margin-bottom:4px;'>"
+                        f"<span style='color:#ff9900;font-size:.87rem;'>"
+                        f"🔥 軋空特赦！現價 {close_now:.1f} 踩穩 EMA5（{ema5:.1f}），"
+                        f"<b>大戶全力點火，安心享受動能利潤！</b>"
+                        f"</span></div>", unsafe_allow_html=True
+                    )
+            elif _is_long:
+                # 長線常規軍：無視盤中震盪，看大戶和30週線
+                if _risk_st_t6b == "RED_ALERT" and bias_ma20 < -5:
+                    st.markdown(
+                        f"<div style='background:rgba(244,63,94,0.1);border:1px solid #f43f5e;"
+                        f"border-radius:8px;padding:6px 14px;margin-bottom:4px;'>"
+                        f"<span style='color:#f43f5e;font-size:.87rem;'>"
+                        f"🛑 長線：大盤高度警戒+弱勢套牢（乖離{bias_ma20:.1f}%），"
+                        f"<b>考慮執行尾盤停損！</b>"
+                        f"</span></div>", unsafe_allow_html=True
+                    )
+                else:
+                    st.markdown(
+                        f"<div style='background:rgba(74,222,128,0.05);border-left:3px solid #4ade80;"
+                        f"border-radius:4px;padding:4px 12px;margin-bottom:4px;'>"
+                        f"<span style='color:#86efac;font-size:.82rem;'>"
+                        f"🛡️ 長線核心：乖離{bias_ma20:.1f}%，無視盤中震盪，"
+                        f"遵循30週線趨勢與大戶鎖碼節奏，<b>嚴禁恐慌亂砍！</b>"
+                        f"</span></div>", unsafe_allow_html=True
+                    )
 
             # ── 長短線雙重 SOP 建議
             _is_above_ema5 = not np.isnan(ema5) and close_now >= ema5
@@ -5579,7 +5866,7 @@ with tab8:
     with bt_c1:
         bt_sid = st.text_input("股票代號", value="2330", key="bt_sid")
     with bt_c2:
-        bt_capital = st.number_input("初始資金（元）", value=100000, step=10000,
+        bt_capital = st.number_input("初始資金（元）", value=1000000, step=50000,
                                       min_value=10000, key="bt_capital")
     with bt_c3:
         bt_strategy = st.radio(
@@ -5680,12 +5967,19 @@ with tab8:
                     below_ma20   = df_bt["Close"] < df_bt["MA20"]
                     eps_positive = df_bt["eps_q"].fillna(0) > 0
 
+                    # V6 量縮放寬：今日或昨日量 < VMA5 * 0.7 即算籌碼沉澱
+                    _vma5_bt = df_bt["VMA5"].fillna(df_bt["Volume"].rolling(5).mean())
+                    vol_shrink = (
+                        (df_bt["Volume"] < _vma5_bt * 0.7) |
+                        (df_bt["Volume"].shift(1) < _vma5_bt * 0.7)
+                    )
+
                     # 策略2：技籌條件（放寬：任何大資金或放量跡象）
                     any_buy_chip = (
                         (df_bt["foreign"]    > 0) |
                         (df_bt["trust"]      > 0) |
                         (df_bt["margin_chg"] > 0) |
-                        (df_bt["Volume"]     > df_bt["VMA5"].fillna(0))
+                        (df_bt["Volume"]     > _vma5_bt)
                     )
 
                     # 有籌碼資料才用，否則退化為純技術
@@ -5732,6 +6026,16 @@ with tab8:
 
                     df_bt["position"] = position_arr
 
+                    # ── 除錯資訊
+                    _buy_count = int(raw_buy.sum())
+                    _pos_count = int((position_arr==1).sum())
+                    if _buy_count == 0:
+                        st.warning(f"⚠️ 策略無任何買進訊號（{strat_name}）。"
+                                   f"可能原因：籌碼資料不足或條件過嚴。"
+                                   f"嘗試切換策略維度或選擇其他股票。")
+                    else:
+                        st.caption(f"📊 買進訊號 {_buy_count} 天，持倉 {_pos_count} 天，交易 {trades} 次")
+
                     # ── 資金曲線
                     capital  = float(bt_capital)
                     cash     = capital
@@ -5744,10 +6048,12 @@ with tab8:
                         pos   = df_bt["position"].iloc[i]
                         prev  = df_bt["position"].iloc[i-1] if i > 0 else 0
 
-                        if pos == 1 and prev == 0:  # 買進（零股模式）
-                            qty = int(cash / price)  # 只要錢夠買1股就買
-                            if qty > 0:
-                                shares = qty
+                        if pos == 1 and prev == 0:  # 買進（零股精確模式）
+                            max_alloc = capital * 0.10  # 最大單一持倉 10%
+                            alloc = min(cash, max_alloc)
+                            exact_shares = alloc / price   # 零股精確股數
+                            if exact_shares > 0:
+                                shares = exact_shares
                                 cash  -= shares * price
                                 trades += 1
                         elif pos == 0 and prev == 1:  # 賣出
