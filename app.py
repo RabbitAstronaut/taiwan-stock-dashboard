@@ -1215,7 +1215,7 @@ def _ping_relay():
 
 _ping_relay()
 
-@st.cache_data(ttl=1800)
+@st.cache_data(ttl=300)
 def _load_relay_chips():
     """從 Render 中繼站讀取即時籌碼（快取30分鐘）"""
     try:
@@ -1379,9 +1379,14 @@ with st.sidebar:
         <div style="color:#7fb3d3;font-size:.66rem;margin-top:3px;">QUANT TRADING SYSTEM V6</div>
     </div>""", unsafe_allow_html=True)
 
-    # ── 資料更新時間
+    # ── 資料更新時間（優先用 Render API 最新日期）
     meta = load_json_meta()
-    upd  = meta.get("updated_at", "尚未更新")
+    df_relay_check = _load_relay_chips()
+    if not df_relay_check.empty and "date" in df_relay_check.columns:
+        latest = df_relay_check["date"].max()
+        upd = str(latest)[:10] + "（Render）"
+    else:
+        upd = meta.get("updated_at", "尚未更新")
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
@@ -1505,7 +1510,7 @@ st.markdown(f"""
         📊 台股全週期量化交易系統 V6
     </h1>
     <p style="color:#7fb3d3;margin:4px 0 0;font-size:.76rem;">
-        架構：本機爬蟲 → GitHub CSV → Streamlit Cloud ｜
+        架構：Render 中繼站 → Streamlit Cloud ｜
         資料更新：{upd} ｜
         監控清單：{len(st.session_state.watchlist)} 檔
     </p>
