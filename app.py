@@ -548,8 +548,12 @@ def get_tx_foreign_position():
         ld  = tx["date"].max()
         row = tx[(tx["date"]==ld) & tx[nm].astype(str).str.contains("外資", na=False)]
         if not row.empty:
-            return int(float(row[lc].values[0])) - int(float(row[sc].values[0]))
-    except: pass
+            lv = int(float(row[lc].values[0]))
+            sv = int(float(row[sc].values[0]))
+            st.session_state["tx_debug"] = f"日期={str(ld)[:10]} 多={lv} 空={sv} 淨={lv-sv}"
+            return lv - sv
+    except Exception as e:
+        st.session_state["tx_debug"] = f"ERROR:{e}"
     return 0
 
 def get_dual_alert():
@@ -1441,6 +1445,9 @@ with st.sidebar:
                 upd += f" TX外資多={lv}空={sv}"
         except:
             pass
+    tx_dbg = st.session_state.get("tx_debug", "")
+    if tx_dbg:
+        upd += f" | {tx_dbg}"
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
