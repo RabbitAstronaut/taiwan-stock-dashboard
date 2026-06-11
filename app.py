@@ -1426,6 +1426,21 @@ with st.sidebar:
     if not df_fut_check.empty and "date" in df_fut_check.columns:
         fut_latest = str(df_fut_check["date"].max())[:10]
         upd += f" | 期貨:{fut_latest}"
+        # TX 外資 debug
+        try:
+            nm = next((c for c in ["name","institutional_investors"] if c in df_fut_check.columns), None)
+            lc = next((c for c in df_fut_check.columns if "long_open_interest_balance" in c and "amount" not in c), None)
+            sc = next((c for c in df_fut_check.columns if "short_open_interest_balance" in c and "amount" not in c), None)
+            inst = df_fut_check[df_fut_check["source"]=="institutional"]
+            tx = inst[inst["contract"]=="TX"]
+            ld = tx["date"].max()
+            row = tx[(tx["date"]==ld) & tx[nm].astype(str).str.contains("外資", na=False)]
+            if not row.empty:
+                lv = row[lc].values[0]
+                sv = row[sc].values[0]
+                upd += f" TX外資多={lv}空={sv}"
+        except:
+            pass
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
