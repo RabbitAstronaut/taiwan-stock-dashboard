@@ -1297,6 +1297,10 @@ def _load_relay_futures():
             df = pd.DataFrame(r.json())
             if not df.empty:
                 df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                # 只接受最近 30 天內的資料，否則視為舊資料
+                cutoff = pd.Timestamp.now() - pd.Timedelta(days=30)
+                if df["date"].max() < cutoff:
+                    return pd.DataFrame()
                 for c in df.select_dtypes("object").columns:
                     df[c] = pd.to_numeric(df[c], errors="coerce").fillna(df[c])
                 return df
