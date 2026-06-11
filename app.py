@@ -1448,6 +1448,9 @@ with st.sidebar:
     tx_dbg = st.session_state.get("tx_debug", "")
     if tx_dbg:
         upd += f" | {tx_dbg}"
+    # 直接呼叫確認
+    _tx_test = get_tx_foreign_position()
+    upd += f" | TX直接={_tx_test}"
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
