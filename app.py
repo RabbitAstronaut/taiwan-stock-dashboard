@@ -1245,26 +1245,38 @@ def _load_relay_chips():
     return pd.DataFrame()
 
 def get_chips(stock_id=None):
-    # 優先讀 Render 即時資料
-    df_relay = _load_relay_chips()
-    if not df_relay.empty:
-        df = df_relay.copy()
-        if stock_id:
-            df = df[df["stock_id"] == str(stock_id).strip()]
-        return df.sort_values("date") if "date" in df.columns else df, True
+    # 讀 GitHub CSV 歷史資料
+    df_csv, ok_csv = load_csv("chips_data.csv")
+    if ok_csv and not df_csv.empty:
+        df_csv["stock_id"] = df_csv["stock_id"].astype(str).str.strip()
+        if "date" in df_csv.columns:
+            df_csv["date"] = pd.to_datetime(df_csv["date"], errors="coerce")
+        if "buy" in df_csv.columns:
+            df_csv = pd.DataFrame()  # 舊格式丟棄
+        else:
+            for c in ["net"]:
+                if c in df_csv.columns:
+                    df_csv[c] = pd.to_numeric(df_csv[c], errors="coerce")
+    else:
+        df_csv = pd.DataFrame()
 
-    # fallback：讀本地 CSV
-    df, ok = load_csv("chips_data.csv")
-    if not ok or df.empty:
+    # 讀 Render 即時資料（今天）
+    df_relay = _load_relay_chips()
+
+    # 合併：Render 今天 + GitHub 歷史
+    if not df_relay.empty and not df_csv.empty:
+        today = df_relay["date"].max()
+        df_hist = df_csv[df_csv["date"] < today] if "date" in df_csv.columns else df_csv
+        df = pd.concat([df_hist, df_relay], ignore_index=True)
+    elif not df_relay.empty:
+        df = df_relay.copy()
+    elif not df_csv.empty:
+        df = df_csv.copy()
+    else:
         return pd.DataFrame(), False
-    df["stock_id"] = df["stock_id"].astype(str).str.strip()
+
     if stock_id:
         df = df[df["stock_id"] == str(stock_id).strip()]
-    if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    for c in ["buy","sell","net","MarginPurchaseTodayBalance"]:
-        if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
     return df.sort_values("date") if "date" in df.columns else df, True
 
 def get_financials(stock_id=None):
