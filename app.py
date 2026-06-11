@@ -996,7 +996,7 @@ def badge(ok: bool, text: str) -> str:
 # ══════════════════════════════════════════════════════════════
 # ▌ 資料讀取（帶快取）
 # ══════════════════════════════════════════════════════════════
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_csv(filename: str) -> tuple[pd.DataFrame, bool]:
     """從 GitHub raw CSV 讀取，失敗時嘗試本地 data/ 目錄"""
     import os
@@ -1287,7 +1287,7 @@ def get_price_basic(stock_id=None):
         df = df[df["stock_id"] == str(stock_id).strip()]
     return df, True
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)
 def _load_relay_futures():
     """從 Render 中繼站讀取即時期貨資料（快取5分鐘）"""
     try:
