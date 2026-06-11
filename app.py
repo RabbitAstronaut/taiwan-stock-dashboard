@@ -1421,6 +1421,11 @@ with st.sidebar:
     else:
         relay_dbg = st.session_state.get("relay_debug", "未呼叫")
         upd = meta.get("updated_at", "尚未更新") + f" ⚠️{relay_dbg}"
+    # futures debug
+    df_fut_check, _ = get_futures()
+    if not df_fut_check.empty and "date" in df_fut_check.columns:
+        fut_latest = str(df_fut_check["date"].max())[:10]
+        upd += f" | 期貨:{fut_latest}"
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
