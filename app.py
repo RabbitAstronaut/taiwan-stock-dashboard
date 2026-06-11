@@ -311,9 +311,11 @@ def scan_accumulation_phase(sid):
                     inst_5d  /= 1000
                     inst_15d /= 1000
                 # 連續買超天數（位置倒數）
+                inst_streak_start = ""
                 for i in range(n-1, max(n-21,-1), -1):
                     if daily["net"].iloc[i] > 0:
                         inst_streak += 1
+                        inst_streak_start = str(daily["date"].iloc[i])[:10]
                     else:
                         break
         inst_buying = inst_5d > 0 and inst_streak >= 3
@@ -343,6 +345,7 @@ def scan_accumulation_phase(sid):
             "inst_5d":     int(inst_5d),
             "inst_15d":    int(inst_15d),
             "inst_streak": inst_streak,
+            "inst_streak_start": inst_streak_start if 'inst_streak_start' in dir() else "",
             "big_pct":     round(big_pct, 1),
             "is_in_box":   is_in_box,
             "inst_buying": inst_buying,
@@ -3929,7 +3932,7 @@ with tab4:
                     f"{_ico} <b>{_sid_ac} {_name_ac}</b>｜"
                     f"箱體 {_f.get('box_amp','—')}%｜"
                     f"大戶 <b>{_f.get('big_pct','—')}%</b>｜"
-                    f"投信連買 <u>{_f.get('inst_streak',0)} 天</u>｜"
+                    f"投信連買 <u>{_f.get('inst_streak',0)} 天</u>（起:{_f.get('inst_streak_start','')}）｜"
                     f"近5日 <span style='color:{_c5};font-weight:700;'>{_s5}張</span>｜"
                     f"15日 <span style='color:{_c15};font-weight:700;'>{_s15}張</span>｜"
                     f"<span style='background:rgba(255,255,255,0.08);padding:1px 6px;"
