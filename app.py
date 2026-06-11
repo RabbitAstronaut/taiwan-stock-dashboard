@@ -1217,21 +1217,27 @@ _ping_relay()
 
 @st.cache_data(ttl=300)
 def _load_relay_chips():
-    """從 Render 中繼站讀取即時籌碼（快取30分鐘）"""
+    """從 Render 中繼站讀取即時籌碼（快取5分鐘）"""
     try:
         import requests as _req
         r = _req.get(f"{RELAY_URL}/api/chips", timeout=10, verify=False)
+        st.session_state["relay_debug"] = f"status={r.status_code} len={len(r.content)}"
         if r.status_code == 200:
             df = pd.DataFrame(r.json())
             if not df.empty:
+                # 舊格式有 buy 欄位，不相容，直接跳過
+                if "buy" in df.columns:
+                    st.session_state["relay_debug"] = "舊格式，等今日更新"
+                    return pd.DataFrame()
                 df["stock_id"] = df["stock_id"].astype(str).str.strip()
                 df["date"] = pd.to_datetime(df["date"], errors="coerce")
                 df["net"] = pd.to_numeric(df["net"], errors="coerce")
                 # 單位轉換：股→張
                 df["net"] = df["net"] / 1000
+                st.session_state["relay_debug"] += f" rows={len(df)} max_date={df['date'].max()}"
                 return df
-    except:
-        pass
+    except Exception as e:
+        st.session_state["relay_debug"] = f"ERROR: {e}"
     return pd.DataFrame()
 
 def get_chips(stock_id=None):
@@ -1281,7 +1287,30 @@ def get_price_basic(stock_id=None):
         df = df[df["stock_id"] == str(stock_id).strip()]
     return df, True
 
+@st.cache_data(ttl=300)
+def _load_relay_futures():
+    """從 Render 中繼站讀取即時期貨資料（快取5分鐘）"""
+    try:
+        import requests as _req
+        r = _req.get(f"{RELAY_URL}/api/futures", timeout=10, verify=False)
+        if r.status_code == 200:
+            df = pd.DataFrame(r.json())
+            if not df.empty:
+                df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                for c in df.select_dtypes("object").columns:
+                    df[c] = pd.to_numeric(df[c], errors="coerce").fillna(df[c])
+                return df
+    except:
+        pass
+    return pd.DataFrame()
+
 def get_futures():
+    # 優先讀 Render 即時資料
+    df_relay = _load_relay_futures()
+    if not df_relay.empty:
+        return df_relay.sort_values("date") if "date" in df_relay.columns else df_relay, True
+
+    # fallback：讀 GitHub CSV
     df, ok = load_csv("futures_data.csv")
     if not ok or df.empty:
         return pd.DataFrame(), False
@@ -1379,14 +1408,15 @@ with st.sidebar:
         <div style="color:#7fb3d3;font-size:.66rem;margin-top:3px;">QUANT TRADING SYSTEM V6</div>
     </div>""", unsafe_allow_html=True)
 
-    # ── 資料更新時間（優先用 Render API 最新日期）
+    # ── 資料更新時間
     meta = load_json_meta()
     df_relay_check = _load_relay_chips()
     if not df_relay_check.empty and "date" in df_relay_check.columns:
         latest = df_relay_check["date"].max()
         upd = str(latest)[:10] + "（Render）"
     else:
-        upd = meta.get("updated_at", "尚未更新")
+        relay_dbg = st.session_state.get("relay_debug", "未呼叫")
+        upd = meta.get("updated_at", "尚未更新") + f" ⚠️{relay_dbg}"
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
@@ -1510,7 +1540,7 @@ st.markdown(f"""
         📊 台股全週期量化交易系統 V6
     </h1>
     <p style="color:#7fb3d3;margin:4px 0 0;font-size:.76rem;">
-        架構：Render 中繼站 → Streamlit Cloud ｜
+        架構：本機爬蟲 → GitHub CSV → Streamlit Cloud ｜
         資料更新：{upd} ｜
         監控清單：{len(st.session_state.watchlist)} 檔
     </p>
