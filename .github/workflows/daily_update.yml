@@ -119,6 +119,21 @@ jobs:
             echo "ℹ️ generate_dynamic_themes.py 不存在，跳過"
           fi
 
+      # ── Step 5.6：每月 1 號更新總經核彈事件日曆
+      - name: 📅 Update macro events calendar
+        run: |
+          if [ -f "update_macro_events.py" ]; then
+            DAY=$(TZ=Asia/Taipei date +'%d')
+            if [ "$DAY" = "01" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "📅 更新總經事件日曆（月初或手動觸發）..."
+              python update_macro_events.py
+            else
+              echo "ℹ️ 非月初（今日 ${DAY} 號），跳過總經事件更新"
+            fi
+          else
+            echo "ℹ️ update_macro_events.py 不存在，跳過"
+          fi
+
       # ── Step 6：設定 Git 使用者
       - name: ⚙️ Configure Git
         run: |
