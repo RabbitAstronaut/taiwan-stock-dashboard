@@ -1291,26 +1291,10 @@ def get_price_basic(stock_id=None):
         df = df[df["stock_id"] == str(stock_id).strip()]
     return df, True
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def _load_relay_futures():
-    """從 Render 中繼站讀取即時期貨資料（快取5分鐘）"""
-    try:
-        import requests as _req
-        r = _req.get(f"{RELAY_URL}/api/futures", timeout=10, verify=False)
-        if r.status_code == 200:
-            df = pd.DataFrame(r.json())
-            if not df.empty:
-                df["date"] = pd.to_datetime(df["date"], errors="coerce")
-                # 只接受最近 7 天內的資料，否則視為舊資料
-                cutoff = pd.Timestamp.now() - pd.Timedelta(days=7)
-                if df["date"].max() < cutoff:
-                    return pd.DataFrame()
-                for c in df.select_dtypes("object").columns:
-                    df[c] = pd.to_numeric(df[c], errors="coerce").fillna(df[c])
-                return df
-    except:
-        pass
-    return pd.DataFrame()
+    """從 Render 中繼站讀取即時期貨資料（暫時停用，等 index 修正後啟用）"""
+    return pd.DataFrame()  # 暫時停用，使用 GitHub CSV
 
 def get_futures():
     # 優先讀 Render 即時資料
