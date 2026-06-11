@@ -1340,8 +1340,24 @@ def get_price_basic(stock_id=None):
 
 @st.cache_data(ttl=300)
 def _load_relay_futures():
-    """從 Cloudflare KV 讀取即時期貨資料（暫時停用，使用 GitHub CSV）"""
-    return pd.DataFrame()  # 等 futures index 修正後啟用
+    """從 Cloudflare KV 讀取即時期貨資料（快取5分鐘）"""
+    try:
+        import requests as _req
+        r = _req.get(f"{CF_KV_URL}/get?key=futures_data", timeout=10)
+        if r.status_code == 200:
+            df = pd.DataFrame(r.json())
+            if not df.empty:
+                df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                # 只接受最近 7 天內的資料
+                cutoff = pd.Timestamp.now() - pd.Timedelta(days=7)
+                if df["date"].max() < cutoff:
+                    return pd.DataFrame()
+                for c in df.select_dtypes("object").columns:
+                    df[c] = pd.to_numeric(df[c], errors="coerce").fillna(df[c])
+                return df
+    except:
+        pass
+    return pd.DataFrame()
 
 def get_futures():
     # 優先讀 Render 即時資料
