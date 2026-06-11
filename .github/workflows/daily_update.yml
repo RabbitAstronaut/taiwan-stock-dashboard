@@ -73,7 +73,7 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests pandas yfinance tqdm google-genai
+          pip install requests pandas yfinance tqdm google-genai feedparser
 
       # ── Step 4：建立 data/ 目錄（首次執行時可能不存在）
       - name: 📁 Ensure data directories exist
@@ -119,19 +119,16 @@ jobs:
             echo "ℹ️ generate_dynamic_themes.py 不存在，跳過"
           fi
 
-      # ── Step 5.6：每月 1 號更新總經核彈事件日曆
-      - name: 📅 Update macro events calendar
+      # ── Step 5.6：執行蒙格情緒分析（7日滑動視窗）
+      - name: 🧠 Run generate_munger_sentiment.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          if [ -f "update_macro_events.py" ]; then
-            DAY=$(TZ=Asia/Taipei date +'%d')
-            if [ "$DAY" = "01" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-              echo "📅 更新總經事件日曆（月初或手動觸發）..."
-              python update_macro_events.py
-            else
-              echo "ℹ️ 非月初（今日 ${DAY} 號），跳過總經事件更新"
-            fi
+          if [ -f "generate_munger_sentiment.py" ]; then
+            echo "🧠 執行蒙格情緒分析..."
+            python generate_munger_sentiment.py || echo "⚠️ 蒙格分析失敗，保留舊有結果"
           else
-            echo "ℹ️ update_macro_events.py 不存在，跳過"
+            echo "ℹ️ generate_munger_sentiment.py 不存在，跳過"
           fi
 
       # ── Step 6：設定 Git 使用者
