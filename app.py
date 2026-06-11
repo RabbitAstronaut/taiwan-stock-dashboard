@@ -473,24 +473,51 @@ def get_cboe_pc_ratio():
 # ══════════════════════════════════════════════════════════════
 def get_macro_countdown():
     """
-    回傳 (days, event_name) 距離最近一場總經核彈的倒數天數
+    回傳 (days, event_name) 距離最近一場總經核彈的倒數天數。
+    優先讀 data/macro_events.json，備援讀 GitHub raw，
+    最終備援使用硬編碼事件表。
     """
-    from datetime import datetime as _dt
+    import json as _json, os as _os
+    from datetime import datetime as _dt, date as _date
     tz_tw = ZoneInfo("Asia/Taipei")
     today = _dt.now(tz_tw).date()
-    events = {
-        "🇺🇸 美國 5月 CPI/PPI 通膨數據":       _dt(2026, 6, 10, tzinfo=tz_tw).date(),
-        "🇺🇸 聯準會 FOMC 利率決策（鮑爾）":     _dt(2026, 6, 18, tzinfo=tz_tw).date(),
-        "🇺🇸 美國 6月 非農就業報告":            _dt(2026, 7,  3, tzinfo=tz_tw).date(),
-        "🇹🇼 台積電 Q2 法說會（CoWoS產能）":   _dt(2026, 7, 16, tzinfo=tz_tw).date(),
-    }
+
+    # 嘗試讀本地 JSON
+    events = []
+    _local = _os.path.join("data", "macro_events.json")
+    if _os.path.exists(_local):
+        try:
+            with open(_local, "r", encoding="utf-8") as f:
+                events = _json.load(f).get("events", [])
+        except Exception:
+            pass
+    # 備援：讀 GitHub raw
+    if not events:
+        try:
+            import requests as _req
+            _r = _req.get(f"{GITHUB_RAW}/macro_events.json", timeout=5)
+            if _r.status_code == 200:
+                events = _r.json().get("events", [])
+        except Exception:
+            pass
+    # 最終備援：硬編碼
+    if not events:
+        events = [
+            {"date": "2026-06-18", "event": "聯準會 FOMC 利率決策"},
+            {"date": "2026-07-17", "event": "台積電 Q2 法說會"},
+        ]
+    # 找最近的未來事件
     nearest_days = 999
     nearest_name = "無近期事件"
-    for name, date in events.items():
-        delta = (date - today).days
-        if 0 <= delta < nearest_days:
-            nearest_days = delta
-            nearest_name = name
+    for ev in events:
+        try:
+            ev_date = _date.fromisoformat(ev["date"])
+            delta = (ev_date - today).days
+            if 0 <= delta < nearest_days:
+                nearest_days = delta
+                nearest_name = ev.get("event", "未知事件")
+        except Exception:
+            continue
     return nearest_days, nearest_name
 
 # ══════════════════════════════════════════════════════════════
@@ -4795,37 +4822,70 @@ with tab6:
                 unsafe_allow_html=True
             )
 
-    # ── 國際總經核彈倒數日曆
+    # ── 國際總經核彈倒數日曆（動態版，自動讀 macro_events.json）
     with st.expander("🌐 國際總經核彈倒數計時器", expanded=False):
-        _days_evt, _evt_name = get_macro_countdown()
-        from datetime import datetime as _dt
-        _tz_tw = ZoneInfo("Asia/Taipei")
-        _today = _dt.now(_tz_tw).date()
-        _events = {
-            "🇺🇸 美國 5月 CPI/PPI 通膨數據":     _dt(2026, 6, 10, tzinfo=_tz_tw).date(),
-            "🇺🇸 聯準會 FOMC 利率決策（鮑爾）":   _dt(2026, 6, 18, tzinfo=_tz_tw).date(),
-            "🇺🇸 美國 6月 非農就業報告":          _dt(2026, 7,  3, tzinfo=_tz_tw).date(),
-            "🇹🇼 台積電 Q2 法說會（CoWoS產能）": _dt(2026, 7, 16, tzinfo=_tz_tw).date(),
-        }
-        _cal_rows = []
-        for _en, _ed in _events.items():
-            _dd = (_ed - _today).days
-            if _dd < 0:
-                _dc = "#546e7a"; _ds = "已過"
-            elif _dd <= 3:
-                _dc = "#f43f5e"; _ds = f"⚠️ {_dd}天後！"
-            elif _dd <= 7:
-                _dc = "#fbbf24"; _ds = f"🟡 {_dd}天後"
-            else:
-                _dc = "#8892b0"; _ds = f"{_dd}天後"
-            _cal_rows.append(
-                f"<div style='display:flex;justify-content:space-between;padding:4px 0;"
-                f"border-bottom:1px solid #1e3a5f;font-size:.84rem;'>"
-                f"<span style='color:#e8f4fd;'>{_en}</span>"
-                f"<span style='color:{_dc};font-weight:700;'>{_ed.strftime('%m/%d')} ({_ds})</span>"
-                f"</div>"
+        from datetime import date as _date
+        _today = datetime.now(ZoneInfo("Asia/Taipei")).date()
+
+        @st.cache_data(ttl=3600, show_spinner=False)
+        def _load_macro_events():
+            """讀取 macro_events.json，過濾過期事件，回傳未來事件列表"""
+            import json as _json, os as _os
+            events = []
+            # 優先讀本地
+            _local = _os.path.join("data", "macro_events.json")
+            if _os.path.exists(_local):
+                try:
+                    with open(_local, "r", encoding="utf-8") as f:
+                        events = _json.load(f).get("events", [])
+                except Exception:
+                    pass
+            # 備援：讀 GitHub raw
+            if not events:
+                try:
+                    import requests as _req
+                    _r = _req.get(f"{GITHUB_RAW}/macro_events.json", timeout=8)
+                    if _r.status_code == 200:
+                        events = _r.json().get("events", [])
+                except Exception:
+                    pass
+            # 只保留今日（含）以後的事件
+            _today_str = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
+            return sorted(
+                [e for e in events if isinstance(e.get("date"), str) and e["date"] >= _today_str],
+                key=lambda x: x["date"]
             )
-        st.markdown("".join(_cal_rows), unsafe_allow_html=True)
+
+        _events = _load_macro_events()
+        if not _events:
+            st.caption("⚡ 近期無重大總經事件（請執行 update_macro_events.py 更新）")
+        else:
+            _cal_rows = []
+            for _ev in _events:
+                try:
+                    _ed   = _date.fromisoformat(_ev["date"])
+                    _dd   = (_ed - _today).days
+                    _name = _ev.get("event", "")
+                    _ctry = _ev.get("country", "🌐")
+                    _stars = "⭐" * min(_ev.get("level", 2), 3)
+                    if _dd == 0:
+                        _dc = "#ff3333"; _ds = "🔴 今天！"
+                    elif _dd <= 3:
+                        _dc = "#ff6b35"; _ds = f"🟠 {_dd}天後！"
+                    elif _dd <= 7:
+                        _dc = "#fbbf24"; _ds = f"🟡 {_dd}天後"
+                    else:
+                        _dc = "#8892b0"; _ds = f"{_dd}天後"
+                    _cal_rows.append(
+                        f"<div style='display:flex;justify-content:space-between;padding:5px 0;"
+                        f"border-bottom:1px solid #1e3a5f;font-size:.84rem;'>"
+                        f"<span style='color:#e8f4fd;'>{_ctry} {_name} <span style='color:#556;font-size:.72rem;'>{_stars}</span></span>"
+                        f"<span style='color:{_dc};font-weight:700;'>{_ed.strftime('%m/%d')} ({_ds})</span>"
+                        f"</div>"
+                    )
+                except Exception:
+                    continue
+            st.markdown("".join(_cal_rows), unsafe_allow_html=True)
 
     # ── AI 今日市場資金題材洞察
     def load_dynamic_themes():

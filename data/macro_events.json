@@ -1,0 +1,59 @@
+{
+  "updated_at": "2026-06-11",
+  "events": [
+    {
+      "date": "2026-06-17",
+      "event": "美國 2026/06 CPI 通膨數據",
+      "country": "🇺🇸",
+      "level": 3
+    },
+    {
+      "date": "2026-06-18",
+      "event": "聯準會 FOMC 利率決議",
+      "country": "🇺🇸",
+      "level": 3
+    },
+    {
+      "date": "2026-07-15",
+      "event": "美國 2026/07 CPI 通膨數據",
+      "country": "🇺🇸",
+      "level": 3
+    },
+    {
+      "date": "2026-07-17",
+      "event": "台積電 Q2 法說會",
+      "country": "🇹🇼",
+      "level": 3
+    },
+    {
+      "date": "2026-07-30",
+      "event": "聯準會 FOMC 利率決議",
+      "country": "🇺🇸",
+      "level": 3
+    },
+    {
+      "date": "2026-09-17",
+      "event": "聯準會 FOMC 利率決議",
+      "country": "🇺🇸",
+      "level": 3
+    },
+    {
+      "date": "2026-10-16",
+      "event": "台積電 Q3 法說會",
+      "country": "🇹🇼",
+      "level": 3
+    },
+    {
+      "date": "2026-11-05",
+      "event": "聯準會 FOMC 利率決議",
+      "country": "🇺🇸",
+      "level": 3
+    },
+    {
+      "date": "2026-12-10",
+      "event": "聯準會 FOMC 利率決議",
+      "country": "🇺🇸",
+      "level": 3
+    }
+  ]
+}
