@@ -199,6 +199,16 @@ def scan_short_term_momentum(sid):
                 _combined = functools.reduce(lambda a, b: a.add(b, fill_value=0), _daily_nets)
                 if len(_combined) >= 3:
                     inst_net3 = float(_combined.iloc[-3:].sum())
+                    # 記錄近3日明細（日期+張數）
+                    _last3 = _combined.iloc[-3:]
+                    inst_net3_detail = [
+                        (str(_last3.index[i])[:10], round(float(_last3.iloc[i])))
+                        for i in range(len(_last3))
+                    ]
+                else:
+                    inst_net3_detail = []
+            else:
+                inst_net3_detail = []
         # 單位自適應：絕對值 > 50000 推測為股，除以1000轉張；否則已是張
         if abs(inst_net3) > 50000:
             inst_net3 /= 1000
@@ -235,6 +245,7 @@ def scan_short_term_momentum(sid):
 
         result["facts"] = {
             "inst_net3":          round(inst_net3, 0),
+            "inst_net3_detail":   inst_net3_detail if 'inst_net3_detail' in dir() else [],
             "margin_bal_now":     round(margin_bal_now, 0),
             "margin_change_pct":  round((margin_bal_now - margin_bal_3d) / margin_bal_3d * 100, 1)
                                   if margin_bal_3d > 0 else 0.0,
@@ -4032,11 +4043,21 @@ with tab4:
                 _ic   = "#ff3333" if _inst >= 0 else "#00cc44"
                 _is   = f"+{int(_inst):,}" if _inst >= 0 else f"{int(_inst):,}"
                 _label = f"觸發！得分{_sc}/3" if _trg else f"{_sc}/3 條件成立"
+                # 近3日明細
+                _detail = _f.get("inst_net3_detail", [])
+                if _detail:
+                    _detail_str = " ".join([
+                        f"<span style='color:#888;font-size:.72rem;'>{d[0][5:]}:{'+' if d[1]>=0 else ''}{d[1]:,}</span>"
+                        for d in _detail
+                    ])
+                else:
+                    _detail_str = ""
                 _rows_rk4.append(
                     f"<div style='font-size:.84rem;margin-bottom:8px;padding:6px 12px;"
                     f"border-radius:4px;{_bg}color:{_col};'>"
                     f"{_ico} <b>{_r['sid']} {_r['name']}</b>｜"
-                    f"法人3日 <span style='color:{_ic};font-weight:700;'>{_is}張</span>｜"
+                    f"法人3日 <span style='color:{_ic};font-weight:700;'>{_is}張</span>"
+                    f" {_detail_str}｜"
                     f"融資變化 {_f.get('margin_change_pct',0):+.1f}%｜"
                     f"資券比 {_f.get('margin_short_ratio',0):.1f}%｜"
                     f"<span style='background:rgba(255,255,255,0.08);padding:1px 6px;"
