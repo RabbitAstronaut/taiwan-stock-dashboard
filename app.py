@@ -1452,6 +1452,9 @@ with st.sidebar:
     # 直接呼叫確認
     _tx_test = get_tx_foreign_position()
     upd += f" | TX直接={_tx_test}"
+    # chips debug
+    _df_c, _ok_c = get_chips()
+    upd += f" | chips筆數={len(_df_c) if _ok_c else 0} 日期={_df_c['date'].max() if _ok_c and not _df_c.empty else 'N/A'}"
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
