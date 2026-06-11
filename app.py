@@ -1222,24 +1222,24 @@ def _ping_relay():
 
 _ping_relay()
 
+CF_KV_URL = "https://taiwan-stock-kv.rex64-lee.workers.dev"
+
 @st.cache_data(ttl=300)
 def _load_relay_chips():
-    """從 Render 中繼站讀取即時籌碼（快取5分鐘）"""
+    """從 Cloudflare KV 讀取即時籌碼（快取5分鐘）"""
     try:
         import requests as _req
-        r = _req.get(f"{RELAY_URL}/api/chips", timeout=10, verify=False)
+        r = _req.get(f"{CF_KV_URL}/get?key=chips_data", timeout=10)
         st.session_state["relay_debug"] = f"status={r.status_code} len={len(r.content)}"
         if r.status_code == 200:
             df = pd.DataFrame(r.json())
             if not df.empty:
-                # 舊格式有 buy 欄位，不相容，直接跳過
                 if "buy" in df.columns:
                     st.session_state["relay_debug"] = "舊格式，等今日更新"
                     return pd.DataFrame()
                 df["stock_id"] = df["stock_id"].astype(str).str.strip()
                 df["date"] = pd.to_datetime(df["date"], errors="coerce")
                 df["net"] = pd.to_numeric(df["net"], errors="coerce")
-                # 單位轉換：股→張
                 df["net"] = df["net"] / 1000
                 st.session_state["relay_debug"] += f" rows={len(df)} max_date={df['date'].max()}"
                 return df
@@ -1313,8 +1313,8 @@ def get_price_basic(stock_id=None):
 
 @st.cache_data(ttl=300)
 def _load_relay_futures():
-    """從 Render 中繼站讀取即時期貨資料（暫時停用，等 index 修正後啟用）"""
-    return pd.DataFrame()  # 暫時停用，使用 GitHub CSV
+    """從 Cloudflare KV 讀取即時期貨資料（暫時停用，使用 GitHub CSV）"""
+    return pd.DataFrame()  # 等 futures index 修正後啟用
 
 def get_futures():
     # 優先讀 Render 即時資料
