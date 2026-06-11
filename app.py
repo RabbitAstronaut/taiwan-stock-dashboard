@@ -1260,6 +1260,11 @@ def get_chips(stock_id=None):
     else:
         df_csv = pd.DataFrame()
 
+    # 歷史 CSV 的 net 是股單位，需除以 1000 轉張
+    if not df_csv.empty and "net" in df_csv.columns:
+        if df_csv["net"].abs().max() > 50000:  # 判斷是股單位
+            df_csv["net"] = df_csv["net"] / 1000
+
     # 讀 Render 即時資料（今天）
     df_relay = _load_relay_chips()
 
