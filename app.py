@@ -229,6 +229,22 @@ def scan_short_term_momentum(sid):
                 if len(mg_vals) >= 3:
                     margin_bal_now = float(mg_vals.iloc[-1])
                     margin_bal_3d  = float(mg_vals.iloc[-3])
+                if len(mg_vals) >= 5:
+                    margin_bal_5d  = float(mg_vals.iloc[-5])
+                else:
+                    margin_bal_5d  = 0.0
+                # 近3日融資餘額明細（日期+餘額）
+                _mg_with_date = margin_source[["date", mg_col]].copy() if "date" in margin_source.columns else margin_source[[mg_col]].copy()
+                _mg_with_date[mg_col] = pd.to_numeric(_mg_with_date[mg_col], errors="coerce")
+                _mg_with_date = _mg_with_date.dropna().tail(5)
+                margin_detail = [
+                    (str(row["date"])[:10] if "date" in _mg_with_date.columns else "",
+                     int(row[mg_col]))
+                    for _, row in _mg_with_date.iterrows()
+                ]
+            else:
+                margin_bal_5d  = 0.0
+                margin_detail  = []
             if sh_col:
                 sh_vals = pd.to_numeric(margin_source[sh_col], errors="coerce").dropna()
                 if len(sh_vals) >= 1:
@@ -247,6 +263,11 @@ def scan_short_term_momentum(sid):
             "inst_net3":          round(inst_net3, 0),
             "inst_net3_detail":   inst_net3_detail if 'inst_net3_detail' in dir() else [],
             "margin_bal_now":     round(margin_bal_now, 0),
+            "margin_detail":      margin_detail if 'margin_detail' in dir() else [],
+            "margin_change_3d":   round((margin_bal_now - margin_bal_3d) / margin_bal_3d * 100, 1)
+                                  if margin_bal_3d > 0 else 0.0,
+            "margin_change_5d":   round((margin_bal_now - margin_bal_5d) / margin_bal_5d * 100, 1)
+                                  if 'margin_bal_5d' in dir() and margin_bal_5d > 0 else 0.0,
             "margin_change_pct":  round((margin_bal_now - margin_bal_3d) / margin_bal_3d * 100, 1)
                                   if margin_bal_3d > 0 else 0.0,
             "margin_short_ratio": round(margin_short_ratio, 1),
@@ -3742,6 +3763,11 @@ with tab4:
             vol_rv    = float(lt_rv.get("Volume", 0))
             vma5_rv   = float(lt_rv.get("VMA5",  float("nan")))
             open_rv   = float(lt_rv.get("Open",  close_rv))
+            # K線最新日期
+            try:
+                kline_date_rv = str(df_rv.index[-1])[:10]
+            except:
+                kline_date_rv = ""
 
             # 乖離率
             bias_rv = (close_rv - sma20_rv) / sma20_rv * 100 if not np.isnan(sma20_rv) and sma20_rv > 0 else float("nan")
@@ -3768,7 +3794,7 @@ with tab4:
                 waiting.append((sid_rv, name_rv, note_rv, close_rv, bias_rv,
                                 f"{conds_met}/3 條件成立",
                                 cond1, cond2, cond3,
-                                vol_ratio_rv, ema5_rv, sma20_rv))
+                                vol_ratio_rv, ema5_rv, sma20_rv, kline_date_rv))
 
         # ══════════════════════════════════════════════
         # 📊 精兵回頭草總表排名
@@ -4043,22 +4069,29 @@ with tab4:
                 _ic   = "#ff3333" if _inst >= 0 else "#00cc44"
                 _is   = f"+{int(_inst):,}" if _inst >= 0 else f"{int(_inst):,}"
                 _label = f"觸發！得分{_sc}/3" if _trg else f"{_sc}/3 條件成立"
-                # 近3日明細
+                # 法人最新日期
                 _detail = _f.get("inst_net3_detail", [])
-                if _detail:
-                    _detail_str = " ".join([
-                        f"<span style='color:#888;font-size:.72rem;'>{d[0][5:]}:{'+' if d[1]>=0 else ''}{d[1]:,}</span>"
-                        for d in _detail
-                    ])
-                else:
-                    _detail_str = ""
+                _last_date = _detail[-1][0][5:] if _detail else ""  # 只取最新日期 MM/DD
+                _detail_str = f"<span style='color:#888;font-size:.72rem;'>({_last_date})</span>" if _last_date else ""
+                # 融資近3日明細
+                _md = _f.get("margin_detail", [])
+                _m3 = _f.get("margin_change_3d", 0)
+                _m5 = _f.get("margin_change_5d", 0)
+                _m3c = "#00cc44" if _m3 <= 0 else "#ff3333"
+                _m5c = "#00cc44" if _m5 <= 0 else "#ff3333"
+                _mlast = _md[-1][0][5:] if _md else ""
+                _margin_str = (
+                    f"融資 <span style='color:{_m3c};'>3d:{_m3:+.1f}%</span>"
+                    f"/<span style='color:{_m5c};'>5d:{_m5:+.1f}%</span>"
+                    + (f"<span style='color:#888;font-size:.72rem;'>({_mlast})</span>" if _mlast else "")
+                )
                 _rows_rk4.append(
                     f"<div style='font-size:.84rem;margin-bottom:8px;padding:6px 12px;"
                     f"border-radius:4px;{_bg}color:{_col};'>"
                     f"{_ico} <b>{_r['sid']} {_r['name']}</b>｜"
                     f"法人3日 <span style='color:{_ic};font-weight:700;'>{_is}張</span>"
                     f" {_detail_str}｜"
-                    f"融資變化 {_f.get('margin_change_pct',0):+.1f}%｜"
+                    f"{_margin_str}｜"
                     f"資券比 {_f.get('margin_short_ratio',0):.1f}%｜"
                     f"<span style='background:rgba(255,255,255,0.08);padding:1px 6px;"
                     f"border-radius:3px;font-size:.78rem;'>{_label}</span>"
@@ -4098,6 +4131,7 @@ with tab4:
             _vr = _w[9] if len(_w) > 9 else None
             _e5 = _w[10] if len(_w) > 10 else None
             _s20= _w[11] if len(_w) > 11 else None
+            _kd = _w[12] if len(_w) > 12 else ""
 
             conds_n = int(status.split("/")[0]) if "/" in status else 0
             if conds_n == 2:
@@ -4120,12 +4154,13 @@ with tab4:
 
             _close_str = f"{close_rv:.1f}元｜" if close_rv else "—｜"
             _bias_str  = f"乖離{bias_rv:+.1f}%｜" if close_rv and not np.isnan(bias_rv) else ""
+            _kd_str    = f"<span style='color:#888;font-size:.72rem;'>K線:{_kd}</span>｜" if _kd else ""
 
             _wait_rows.append(
                 f"<div style='font-size:.83rem;margin-bottom:8px;padding:6px 12px;"
                 f"border-radius:4px;{_bg}color:{_col};'>"
                 f"{_ico} <b>{sid_rv} {name_rv}</b>｜"
-                f"{_close_str}{_bias_str}"
+                f"{_close_str}{_bias_str}{_kd_str}"
                 f"{_c1_txt} {_c2_txt} {_c3_txt}"
                 f"{'｜'+_vr_txt if _vr_txt else ''}{'｜'+_e5_txt if _e5_txt else ''}"
                 f"{_note_txt}"
