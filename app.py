@@ -1455,6 +1455,12 @@ with st.sidebar:
     # chips debug
     _df_c, _ok_c = get_chips()
     upd += f" | chips筆數={len(_df_c) if _ok_c else 0} 日期={_df_c['date'].max() if _ok_c and not _df_c.empty else 'N/A'}"
+    # 2308 debug
+    if _ok_c and not _df_c.empty:
+        _2308 = _df_c[_df_c['stock_id'].astype(str)=='2308']
+        _nm = _2308['name'].unique()[:3] if 'name' in _2308.columns else []
+        _net_max = _2308['net'].abs().max() if 'net' in _2308.columns else 0
+        upd += f" | 2308筆={len(_2308)} name={list(_nm)} net_max={_net_max:.0f}"
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
