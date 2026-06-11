@@ -3861,7 +3861,7 @@ with tab4:
         # ══════════════════════════════════════════════
         st.markdown("#### 🕵️ 潛伏期法人暗中鎖碼雷達")
 
-        @st.cache_data(ttl=3600, show_spinner=False)
+        @st.cache_data(ttl=300, show_spinner=False)
         def _cached_accum_scan(reserve_ids_tuple):
             alerts, watch = [], []
             for sid_ac, name_ac in reserve_ids_tuple:
@@ -3951,7 +3951,7 @@ with tab4:
         # ══════════════════════════════════════════════
         st.markdown("#### 🚀 短線火箭雷達")
 
-        @st.cache_data(ttl=3600, show_spinner=False)
+        @st.cache_data(ttl=300, show_spinner=False)
         def _cached_rocket_scan(reserve_tuple):
             results = []
             for sid_r, name_r in reserve_tuple:
