@@ -4192,28 +4192,50 @@ with tab5:
     # ── V6 三軌風控儀表板
     _risk_status, _risk_info = get_system_risk_status()
     _vix = get_vix()
-    _risk_cols = st.columns([1,1,1,1,1])
+    # CPI 距今天數（從 macro_events 取最近的 CPI 事件）
+    _cpi_days = None
+    _cpi_date_str = "—"
+    try:
+        from datetime import date as _date
+        import json as _json, os as _os
+        _today_d = datetime.now(ZoneInfo("Asia/Taipei")).date()
+        _mpath = _os.path.join("data", "macro_events.json")
+        _mevents = []
+        if _os.path.exists(_mpath):
+            with open(_mpath, "r", encoding="utf-8") as _f:
+                _mevents = _json.load(_f).get("events", [])
+        for _ev in sorted(_mevents, key=lambda x: x["date"]):
+            if "CPI" in _ev.get("event", "") and _ev["date"] >= str(_today_d):
+                _cpi_days = (_date.fromisoformat(_ev["date"]) - _today_d).days
+                _cpi_date_str = _ev["date"][5:]  # MM-DD
+                break
+    except:
+        pass
+
+    # 6 格顯示（字縮小用 CSS）
+    st.markdown("""<style>
+    [data-testid="stMetric"] { padding: 4px 6px !important; }
+    [data-testid="stMetricLabel"] p { font-size: 0.72rem !important; }
+    [data-testid="stMetricValue"] { font-size: 1.1rem !important; }
+    [data-testid="stMetricDelta"] { font-size: 0.68rem !important; }
+    </style>""", unsafe_allow_html=True)
+
+    _risk_cols = st.columns([1,1,1,1,1,1])
     _risk_cols[0].metric("大台外資", f"{_risk_info['tx_net']:+,}口",
                          delta="空單壓頂" if _risk_info['tx_net'] <= -30000 else "安全")
     _risk_cols[1].metric("小台散戶", f"{_risk_info['mtx_retail']:+,}口",
                          delta="接刀危險" if _risk_info['mtx_retail'] >= 8000 else "冷靜")
     _risk_cols[2].metric("CBOE P/C", f"{_risk_info['pc_ratio']:.2f}",
                          delta="美散戶過熱" if _risk_info['pc_ratio'] <= 0.65 else "正常")
-    # VIX 恐慌指數
     if _vix is not None:
-        if _vix > 30:
-            _vix_delta = "極度恐慌"
-        elif _vix > 20:
-            _vix_delta = "市場緊張"
-        elif _vix > 15:
-            _vix_delta = "偏高警戒"
-        else:
-            _vix_delta = "平靜"
-        _risk_cols[3].metric("VIX 恐慌指數", f"{_vix:.1f}", delta=_vix_delta)
+        _vix_delta = "極度恐慌" if _vix > 30 else "市場緊張" if _vix > 20 else "偏高警戒" if _vix > 15 else "平靜"
+        _risk_cols[3].metric("VIX", f"{_vix:.1f}", delta=_vix_delta)
     else:
-        _risk_cols[3].metric("VIX 恐慌指數", "—", delta="載入中")
+        _risk_cols[3].metric("VIX", "—", delta="載入中")
     _risk_cols[4].metric("最近核彈", f"{_risk_info['days']}天",
-                         delta=_risk_info['event'][:12] if _risk_info['days'] <= 7 else "安全")
+                         delta=_risk_info['event'][:10] if _risk_info['days'] <= 7 else "安全")
+    _risk_cols[5].metric("CPI 距今", f"{_cpi_days}天" if _cpi_days is not None else "—",
+                         delta=_cpi_date_str)
 
     if _risk_status == "RED_ALERT":
         st.error(f"🔴 **【全球熔斷最高警戒】** 台美散戶同步過熱"
