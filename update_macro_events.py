@@ -203,24 +203,57 @@ def main():
         print(f"  {ev['date']} {ev['country']} {ev['event']}")
 
     os.makedirs("data", exist_ok=True)
-    # 嘗試從 FinMind 抓最新 CPI 年增率
+    # 抓最新 CPI 年增率（多來源 fallback）
     latest_cpi = None
+    cpi_month  = None
+
+    # 來源1：Alpha Vantage（免費，無需 token，直接抓 CPI 年增率）
     try:
-        r = requests.get("https://api.finmindtrade.com/api/v4/data",
-                         params={"dataset":"USEconomicIndex","data_id":"CPIAUCSL",
-                                 "start_date": str(today - timedelta(days=60))},
-                         timeout=10)
+        r = requests.get(
+            "https://www.alphavantage.co/query",
+            params={"function": "CPI", "interval": "monthly", "apikey": "demo"},
+            timeout=10
+        )
         if r.status_code == 200:
             rows = r.json().get("data", [])
+            # rows 按日期降序，第一筆就是最新
             if rows:
-                latest_cpi = round(float(rows[-1].get("value", 0)), 1)
-                print(f"[macro] CPI 年增率：{latest_cpi}%")
+                latest_cpi = round(float(rows[0].get("value", 0)), 1)
+                cpi_month  = rows[0].get("date", "")[:7]
+                print(f"[macro] CPI（Alpha Vantage）：{latest_cpi}% ({cpi_month})")
     except Exception as e:
-        print(f"[macro] CPI 抓取失敗（靜默）：{e}")
+        print(f"[macro] Alpha Vantage CPI 失敗：{e}")
+
+    # 來源2：FinMind fallback
+    if latest_cpi is None:
+        try:
+            r = requests.get(
+                "https://api.finmindtrade.com/api/v4/data",
+                params={"dataset": "USEconomicIndex", "data_id": "CPIAUCSL",
+                        "start_date": str(today - timedelta(days=90))},
+                timeout=10
+            )
+            if r.status_code == 200:
+                rows = r.json().get("data", [])
+                # 找最新的年增率：(當月值 - 去年同月值) / 去年同月值 × 100
+                if len(rows) >= 13:
+                    rows_sorted = sorted(rows, key=lambda x: x["date"])
+                    _latest = float(rows_sorted[-1]["value"])
+                    _year_ago = float(rows_sorted[-13]["value"])
+                    latest_cpi = round((_latest - _year_ago) / _year_ago * 100, 1)
+                    cpi_month  = rows_sorted[-1]["date"][:7]
+                    print(f"[macro] CPI（FinMind 計算）：{latest_cpi}% ({cpi_month})")
+        except Exception as e:
+            print(f"[macro] FinMind CPI 失敗：{e}")
+
+    if latest_cpi:
+        print(f"[macro] ✅ 最新 CPI 年增率：{latest_cpi}% ({cpi_month})")
+    else:
+        print(f"[macro] ⚠️ CPI 抓取失敗，保留舊值")
 
     with open("data/macro_events.json", "w", encoding="utf-8") as f:
         json.dump({"updated_at": str(today), "events": events,
-                   "latest_cpi": latest_cpi}, f, ensure_ascii=False, indent=2)
+                   "latest_cpi": latest_cpi, "cpi_month": cpi_month}, f, ensure_ascii=False, indent=2)
     print("[macro] 已寫入 data/macro_events.json")
 
 

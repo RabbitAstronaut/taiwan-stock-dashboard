@@ -574,9 +574,11 @@ def get_macro_indicators():
             _cpi_val = _meta.get("latest_cpi")
             if _cpi_val:
                 result["cpi"] = _cpi_val
-        # 備援固定值（美國 2026/04 CPI 年增率約 2.3%，每月 Actions 更新）
+        # 備援固定值（每月 Actions 更新，無法抓時顯示最後已知值）
         if result["cpi"] is None:
-            result["cpi"] = 2.3
+            result["cpi"] = 4.2  # 美國 5月 CPI 4.2%（2026-06-11 公布）
+        # 同時讀 cpi_month
+        result["cpi_month"] = _meta.get("cpi_month", "")
     except: pass
 
     return result
@@ -4342,11 +4344,13 @@ with tab5:
 
     # ── 欄1：CPI 年增率
     _cpi = _macro_ind.get("cpi")
+    _cpi_month = _macro_ind.get("cpi_month", "")
+    _cpi_label = f"CPI {_cpi_month[2:] if _cpi_month else '年增率'}"
     if _cpi is not None:
-        if _cpi > 3.5:   _cpi_s, _cpi_h = "🔴", "通膨復燃"
+        if _cpi > 3.5:    _cpi_s, _cpi_h = "🔴", "通膨復燃"
         elif _cpi <= 3.0: _cpi_s, _cpi_h = "🟢", "穩定降溫"
         else:             _cpi_s, _cpi_h = "⚪", "觀察中"
-        _r2[0].markdown(_metric_html("CPI 年增率", f"{_cpi:.1f}%", _cpi_s, _cpi_h), unsafe_allow_html=True)
+        _r2[0].markdown(_metric_html(_cpi_label, f"{_cpi:.1f}%", _cpi_s, _cpi_h), unsafe_allow_html=True)
     else:
         _r2[0].markdown(_metric_html("CPI 年增率", "—", "⚪", "待更新"), unsafe_allow_html=True)
 

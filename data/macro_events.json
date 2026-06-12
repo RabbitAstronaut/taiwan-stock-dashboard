@@ -73,5 +73,8 @@
       "country": "🇺🇸",
       "level": 3
     }
-  ]
+  ],
+  "latest_cpi": 4.2,
+  "cpi_month": "2026-05",
+  "cpi_note": "美國 5月 CPI 年增率 4.2%（2026-06-11 公布）"
 }
