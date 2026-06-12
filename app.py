@@ -610,6 +610,8 @@ def get_tx_foreign_position():
         ld  = tx["date"].max()
         row = tx[(tx["date"]==ld) & tx[nm].astype(str).str.contains("外資", na=False)]
         if not row.empty:
+            lv = int(float(row[lc].values[0]))
+            sv = int(float(row[sc].values[0]))
             return lv - sv
     except: pass
     return 0
