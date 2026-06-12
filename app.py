@@ -610,12 +610,8 @@ def get_tx_foreign_position():
         ld  = tx["date"].max()
         row = tx[(tx["date"]==ld) & tx[nm].astype(str).str.contains("外資", na=False)]
         if not row.empty:
-            lv = int(float(row[lc].values[0]))
-            sv = int(float(row[sc].values[0]))
-            st.session_state["tx_debug"] = f"日期={str(ld)[:10]} 多={lv} 空={sv} 淨={lv-sv}"
             return lv - sv
-    except Exception as e:
-        st.session_state["tx_debug"] = f"ERROR:{e}"
+    except: pass
     return 0
 
 def get_dual_alert():
@@ -1220,6 +1216,7 @@ def should_auto_refresh():
 
 def refresh_all_live_prices():
     """抓取所有監控標的即時報價"""
+    import time as _time
     all_wl = st.session_state.get("watchlist", []) + st.session_state.get("watchlist_scan", [])
     seen = set()
     for w in all_wl:
@@ -1230,6 +1227,7 @@ def refresh_all_live_prices():
         data = fetch_live_price(sid)
         if data:
             st.session_state.live_prices[sid] = data
+        _time.sleep(0.3)  # 避免 yfinance 限速
     st.session_state.last_auto_refresh = datetime.now(ZoneInfo("Asia/Taipei"))
 
 def df_to_html(df, height=380, font_size=".82rem"):
@@ -1502,43 +1500,12 @@ with st.sidebar:
         latest = df_relay_check["date"].max()
         upd = str(latest)[:10] + "（Render）"
     else:
-        relay_dbg = st.session_state.get("relay_debug", "未呼叫")
-        upd = meta.get("updated_at", "尚未更新") + f" ⚠️{relay_dbg}"
-    # futures debug
+        upd = meta.get("updated_at", "尚未更新")
+    # 期貨日期
     df_fut_check, _ = get_futures()
     if not df_fut_check.empty and "date" in df_fut_check.columns:
         fut_latest = str(df_fut_check["date"].max())[:10]
         upd += f" | 期貨:{fut_latest}"
-        # TX 外資 debug
-        try:
-            nm = next((c for c in ["name","institutional_investors"] if c in df_fut_check.columns), None)
-            lc = next((c for c in df_fut_check.columns if "long_open_interest_balance" in c and "amount" not in c), None)
-            sc = next((c for c in df_fut_check.columns if "short_open_interest_balance" in c and "amount" not in c), None)
-            inst = df_fut_check[df_fut_check["source"]=="institutional"]
-            tx = inst[inst["contract"]=="TX"]
-            ld = tx["date"].max()
-            row = tx[(tx["date"]==ld) & tx[nm].astype(str).str.contains("外資", na=False)]
-            if not row.empty:
-                lv = row[lc].values[0]
-                sv = row[sc].values[0]
-                upd += f" TX外資多={lv}空={sv}"
-        except:
-            pass
-    tx_dbg = st.session_state.get("tx_debug", "")
-    if tx_dbg:
-        upd += f" | {tx_dbg}"
-    # 直接呼叫確認
-    _tx_test = get_tx_foreign_position()
-    upd += f" | TX直接={_tx_test}"
-    # chips debug
-    _df_c, _ok_c = get_chips()
-    upd += f" | chips筆數={len(_df_c) if _ok_c else 0} 日期={_df_c['date'].max() if _ok_c and not _df_c.empty else 'N/A'}"
-    # 2308 debug
-    if _ok_c and not _df_c.empty:
-        _2308 = _df_c[_df_c['stock_id'].astype(str)=='2308']
-        _nm = _2308['name'].unique()[:3] if 'name' in _2308.columns else []
-        _net_max = _2308['net'].abs().max() if 'net' in _2308.columns else 0
-        upd += f" | 2308筆={len(_2308)} name={list(_nm)} net_max={_net_max:.0f}"
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
@@ -2620,7 +2587,7 @@ with tab3:
     with live_c2:
         last_t = st.session_state.get("last_auto_refresh")
         if last_t:
-            st.caption(f"最後更新：{last_t.strftime('%H:%M:%S')}")
+            st.caption(f"最後更新：{last_t.strftime('%m/%d %H:%M:%S')}")
         else:
             st.caption("尚未更新")
     with live_c3:
@@ -4904,7 +4871,6 @@ with tab6:
             """讀取 macro_events.json，過濾過期事件，回傳未來事件列表"""
             import json as _json, os as _os
             events = []
-            # 優先讀本地
             _local = _os.path.join("data", "macro_events.json")
             if _os.path.exists(_local):
                 try:
@@ -4912,7 +4878,6 @@ with tab6:
                         events = _json.load(f).get("events", [])
                 except Exception:
                     pass
-            # 備援：讀 GitHub raw
             if not events:
                 try:
                     import requests as _req
@@ -4921,7 +4886,6 @@ with tab6:
                         events = _r.json().get("events", [])
                 except Exception:
                     pass
-            # 只保留今日（含）以後的事件
             _today_str = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
             return sorted(
                 [e for e in events if isinstance(e.get("date"), str) and e["date"] >= _today_str],
@@ -4932,14 +4896,13 @@ with tab6:
         if not _events:
             st.caption("⚡ 近期無重大總經事件（請執行 update_macro_events.py 更新）")
         else:
-            _cal_rows = []
-            for _ev in _events:
+            def _render_event_row(ev):
                 try:
-                    _ed   = _date.fromisoformat(_ev["date"])
+                    _ed   = _date.fromisoformat(ev["date"])
                     _dd   = (_ed - _today).days
-                    _name = _ev.get("event", "")
-                    _ctry = _ev.get("country", "🌐")
-                    _stars = "⭐" * min(_ev.get("level", 2), 3)
+                    _name = ev.get("event", "")
+                    _ctry = ev.get("country", "🌐")
+                    _stars = "⭐" * min(ev.get("level", 2), 3)
                     if _dd == 0:
                         _dc = "#ff3333"; _ds = "🔴 今天！"
                     elif _dd <= 3:
@@ -4948,7 +4911,7 @@ with tab6:
                         _dc = "#fbbf24"; _ds = f"🟡 {_dd}天後"
                     else:
                         _dc = "#8892b0"; _ds = f"{_dd}天後"
-                    _cal_rows.append(
+                    return (
                         f"<div style='display:flex;justify-content:space-between;padding:5px 0;"
                         f"border-bottom:1px solid #1e3a5f;font-size:.84rem;'>"
                         f"<span style='color:#e8f4fd;'>{_ctry} {_name} <span style='color:#556;font-size:.72rem;'>{_stars}</span></span>"
@@ -4956,8 +4919,17 @@ with tab6:
                         f"</div>"
                     )
                 except Exception:
-                    continue
-            st.markdown("".join(_cal_rows), unsafe_allow_html=True)
+                    return ""
+
+            # 預設顯示前 2 條
+            _top2 = [_render_event_row(e) for e in _events[:2]]
+            st.markdown("".join(_top2), unsafe_allow_html=True)
+
+            # 其餘收合在 expander 裡
+            if len(_events) > 2:
+                with st.expander(f"＋ 查看其餘 {len(_events)-2} 個事件", expanded=False):
+                    _rest = [_render_event_row(e) for e in _events[2:]]
+                    st.markdown("".join(_rest), unsafe_allow_html=True)
 
     # ── AI 今日市場資金題材洞察
     def load_dynamic_themes():
@@ -5568,10 +5540,22 @@ with tab2:
 # ──────────────────────────────────────────────────────────────
 with tab7:
     st.markdown("<div class='sec-title'>💰 ETF 存股現金流管家</div>", unsafe_allow_html=True)
+    # ETF 配息資料更新日期
+    try:
+        _etf_df, _etf_ok = load_csv("etf_dividend_data.csv")
+        if _etf_ok and not _etf_df.empty:
+            _etf_date_col = next((c for c in ["ex_dividend_date","ExDividendDate","date"] if c in _etf_df.columns), None)
+            if _etf_date_col:
+                _etf_latest = pd.to_datetime(_etf_df[_etf_date_col], errors="coerce").max()
+                _etf_date_str = str(_etf_latest)[:10] if pd.notna(_etf_latest) else "未知"
+                st.caption(f"📅 配息資料截至：{_etf_date_str}")
+    except Exception:
+        pass
     st.markdown("<div class='infobox'>在下方輸入持有張數，系統即時試算投入本金、預估年化殖利率與未來 12 個月現金流。</div>", unsafe_allow_html=True)
 
-    @st.cache_data(ttl=1800)
-    def fetch_etf_price(stock_id: str) -> float:
+    @st.cache_data(ttl=300)
+    def fetch_etf_price(stock_id: str) -> tuple:
+        """回傳 (現值, 更新時間字串)"""
         try:
             import yfinance as yf
             # ETF 代號補零到4碼（如 50 → 0050）
@@ -5580,10 +5564,12 @@ with tab7:
                 tk = yf.Ticker(sid + suffix)
                 hist = tk.history(period="5d")
                 if not hist.empty:
-                    return round(float(hist["Close"].iloc[-1]), 2)
+                    price = round(float(hist["Close"].iloc[-1]), 2)
+                    update_time = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d %H:%M")
+                    return price, update_time
         except Exception:
             pass
-        return 0.0
+        return 0.0, ""
 
     @st.cache_data(ttl=3600, show_spinner="載入 ETF 配息資料...")
     def build_etf_menu() -> pd.DataFrame:
@@ -5631,15 +5617,20 @@ with tab7:
     st.markdown(f"### 📋 ETF 清單　共 {len(df_menu)} 檔　輸入張數後自動試算")
     st.caption("最新配息/股=最近一次除息　年化配息/股=近1年合計　配息月份=歷史除息月份")
 
-    # 批次抓取所有 ETF 股價（快取1小時）
-    @st.cache_data(ttl=600)
+    # 批次抓取所有 ETF 股價（快取5分鐘）
+    @st.cache_data(ttl=300)
     def get_all_etf_prices(sids: tuple) -> dict:
         result = {}
         for sid in sids:
-            result[sid] = fetch_etf_price(sid)
+            val = fetch_etf_price(sid)
+            result[sid] = val[0] if isinstance(val, tuple) else val
         return result
 
     price_map = get_all_etf_prices(tuple(df_menu["代號"].tolist()))
+
+    # 顯示最後更新時間
+    _etf_last_update = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d %H:%M")
+    st.caption(f"⚡ 現值最後更新：{_etf_last_update}（每5分鐘自動刷新）")
 
     # ── 匯出 CSV 按鈕（直接下載，不需額外套件）
     import io as _io
@@ -5728,7 +5719,8 @@ with tab7:
     total_cost = 0.0
     with st.spinner("抓取最新股價..."):
         for sid in portfolio:
-            price = fetch_etf_price(sid)
+            _pval = fetch_etf_price(sid)
+            price = _pval[0] if isinstance(_pval, tuple) else _pval
             total_cost += price * portfolio[sid] * 1000
 
     today_dt = datetime.now()
