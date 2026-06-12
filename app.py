@@ -537,11 +537,13 @@ def get_macro_indicators():
             result["dubai"] = round(float(cl["Close"].iloc[-1]) - 2.0, 1)
     except: pass
 
-    # ── 美國 10 年期公債殖利率（^TNX，單位是 % × 10，需除以 10）
+    # ── 美國 10 年期公債殖利率（^TNX，Yahoo 回傳值已是 % 單位，例如 4.45）
     try:
         tnx = _yf.Ticker("^TNX").history(period="2d")
         if not tnx.empty:
-            result["tnx"] = round(float(tnx["Close"].iloc[-1]) / 10, 2)
+            _raw = float(tnx["Close"].iloc[-1])
+            # Yahoo ^TNX 回傳值：若 < 2 表示是小數格式需 × 100，否則直接用
+            result["tnx"] = round(_raw if _raw > 2 else _raw * 100, 2)
     except: pass
 
     # ── 大盤月乖離：從本地 price_basic.csv 取加權指數
@@ -555,21 +557,26 @@ def get_macro_indicators():
             result["bias"] = round((_last - _ma20) / _ma20 * 100, 2)
     except: pass
 
-    # ── SCFI / BDI（用 Yahoo Finance 的 替代代號）
+    # ── BDI 波羅的海乾散裝指數（Yahoo 無直接代號，用 BDRY ETF 近似或備援固定值）
     try:
-        bdi = _yf.Ticker("^BDI").history(period="2d")
+        bdi = _yf.Ticker("BDRY").history(period="2d")
         if not bdi.empty:
-            result["bdi"] = int(bdi["Close"].iloc[-1])
+            result["bdi"] = int(bdi["Close"].iloc[-1] * 100)  # BDRY ETF 轉換係數
     except: pass
 
-    # ── CPI（固定用最新已知值，每月更新一次，Actions 跑時從 FinMind 更新）
+    # ── CPI：讀本地 macro_events.json 的 latest_cpi，無值則用固定備援
     try:
         import json as _json, os as _os
         _cpi_path = _os.path.join("data", "macro_events.json")
         if _os.path.exists(_cpi_path):
             with open(_cpi_path, "r", encoding="utf-8") as _f:
                 _meta = _json.load(_f)
-            result["cpi"] = _meta.get("latest_cpi", None)
+            _cpi_val = _meta.get("latest_cpi")
+            if _cpi_val:
+                result["cpi"] = _cpi_val
+        # 備援固定值（美國 2026/04 CPI 年增率約 2.3%，每月 Actions 更新）
+        if result["cpi"] is None:
+            result["cpi"] = 2.3
     except: pass
 
     return result
@@ -4377,10 +4384,10 @@ with tab5:
     # ── 欄5：航運指數（SCFI / BDI）
     _bdi  = _macro_ind.get("bdi")
     _ship_val = f"— / {_bdi:,}" if _bdi else "— / —"
-    if _bdi and _bdi > 2000:  _ship_s, _ship_h = "🔴", "通膨隱憂"
+    if _bdi and _bdi > 2000:   _ship_s, _ship_h = "🔴", "通膨隱憂"
     elif _bdi and _bdi < 1000: _ship_s, _ship_h = "🟢", "資金歸建電子"
-    else:                      _ship_s, _ship_h = "⚪", "盤整中"
-    _r2[4].markdown(_metric_html("航運 SCFI/BDI", _ship_val, _ship_s, _ship_h), unsafe_allow_html=True)
+    else:                       _ship_s, _ship_h = "⚪", "盤整中"
+    _r2[4].markdown(_metric_html("航運 S/BDI", _ship_val, _ship_s, _ship_h), unsafe_allow_html=True)
 
     st.markdown("<div style='margin:4px 0;'></div>", unsafe_allow_html=True)
 
