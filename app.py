@@ -1382,8 +1382,13 @@ def _load_relay_futures():
                 cutoff = pd.Timestamp.now() - pd.Timedelta(days=7)
                 if df["date"].max() < cutoff:
                     return pd.DataFrame()
-                for c in df.select_dtypes("object").columns:
-                    df[c] = pd.to_numeric(df[c], errors="coerce").fillna(df[c])
+                # 只轉換數值欄位，保留文字欄位（contract、institutional_investors）
+                num_cols = ["long_deal_volume","long_deal_amount","short_deal_volume","short_deal_amount",
+                            "long_open_interest_balance_volume","long_open_interest_balance_amount",
+                            "short_open_interest_balance_volume","short_open_interest_balance_amount"]
+                for c in num_cols:
+                    if c in df.columns:
+                        df[c] = pd.to_numeric(df[c], errors="coerce")
                 return df
     except:
         pass
