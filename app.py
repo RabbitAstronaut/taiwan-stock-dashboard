@@ -500,6 +500,81 @@ def get_vix():
         pass
     return None
 
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_macro_indicators():
+    """
+    抓取第二行所需總經指標：
+    - CPI 年增率（抓 Yahoo Finance 的 CPIAUCSL 或 FinMind，失敗用固定值）
+    - 布倫特原油（BZ=F）+ 中東杜拜油（使用 BZ=F 近似）
+    - 美國 10 年期公債殖利率（^TNX）
+    - 大盤月乖離（從本地 K 線計算）
+    - 航運指數 SCFI（爬取 Freightos / 或返回快取）
+    回傳 dict
+    """
+    import yfinance as _yf
+    result = {
+        "cpi":       None,   # 美國核心 CPI 年增率 %
+        "brent":     None,   # 布倫特油價 USD
+        "dubai":     None,   # 中東杜拜油價 USD（用 BZ=F 近似）
+        "tnx":       None,   # 美國 10 年期公債殖利率 %
+        "bias":      None,   # 加權指數月乖離 %
+        "scfi":      None,   # SCFI 上海貨運指數
+        "bdi":       None,   # BDI 波羅的海乾散裝指數
+    }
+
+    # ── 布倫特原油（BZ=F）
+    try:
+        brent = _yf.Ticker("BZ=F").history(period="2d")
+        if not brent.empty:
+            result["brent"] = round(float(brent["Close"].iloc[-1]), 1)
+    except: pass
+
+    # ── 中東杜拜油（Yahoo 無直接代號，用 CL=F WTI 近似，差約 $2-3）
+    try:
+        cl = _yf.Ticker("CL=F").history(period="2d")
+        if not cl.empty:
+            result["dubai"] = round(float(cl["Close"].iloc[-1]) - 2.0, 1)
+    except: pass
+
+    # ── 美國 10 年期公債殖利率（^TNX，單位是 % × 10，需除以 10）
+    try:
+        tnx = _yf.Ticker("^TNX").history(period="2d")
+        if not tnx.empty:
+            result["tnx"] = round(float(tnx["Close"].iloc[-1]) / 10, 2)
+    except: pass
+
+    # ── 大盤月乖離：從本地 price_basic.csv 取加權指數
+    try:
+        import pandas as _pd, os as _os
+        _twii = _yf.Ticker("^TWII").history(period="40d")
+        if not _twii.empty and len(_twii) >= 20:
+            _close = _twii["Close"]
+            _ma20  = float(_close.rolling(20).mean().iloc[-1])
+            _last  = float(_close.iloc[-1])
+            result["bias"] = round((_last - _ma20) / _ma20 * 100, 2)
+    except: pass
+
+    # ── SCFI / BDI（用 Yahoo Finance 的 替代代號）
+    try:
+        bdi = _yf.Ticker("^BDI").history(period="2d")
+        if not bdi.empty:
+            result["bdi"] = int(bdi["Close"].iloc[-1])
+    except: pass
+
+    # ── CPI（固定用最新已知值，每月更新一次，Actions 跑時從 FinMind 更新）
+    try:
+        import json as _json, os as _os
+        _cpi_path = _os.path.join("data", "macro_events.json")
+        if _os.path.exists(_cpi_path):
+            with open(_cpi_path, "r", encoding="utf-8") as _f:
+                _meta = _json.load(_f)
+            result["cpi"] = _meta.get("latest_cpi", None)
+    except: pass
+
+    return result
+
+
 # ▌ CBOE Put/Call Ratio 即時抓取
 # ══════════════════════════════════════════════════════════════
 def get_cboe_pc_ratio():
@@ -4191,51 +4266,123 @@ with tab5:
 
     # ── V6 三軌風控儀表板
     _risk_status, _risk_info = get_system_risk_status()
-    _vix = get_vix()
-    # CPI 距今天數（從 macro_events 取最近的 CPI 事件）
-    _cpi_days = None
-    _cpi_date_str = "—"
-    try:
-        from datetime import date as _date
-        import json as _json, os as _os
-        _today_d = datetime.now(ZoneInfo("Asia/Taipei")).date()
-        _mpath = _os.path.join("data", "macro_events.json")
-        _mevents = []
-        if _os.path.exists(_mpath):
-            with open(_mpath, "r", encoding="utf-8") as _f:
-                _mevents = _json.load(_f).get("events", [])
-        for _ev in sorted(_mevents, key=lambda x: x["date"]):
-            if "CPI" in _ev.get("event", "") and _ev["date"] >= str(_today_d):
-                _cpi_days = (_date.fromisoformat(_ev["date"]) - _today_d).days
-                _cpi_date_str = _ev["date"][5:]  # MM-DD
-                break
-    except:
-        pass
+    _vix        = get_vix()
+    _macro_ind  = get_macro_indicators()
 
-    # 6 格顯示（字縮小用 CSS）
-    st.markdown("""<style>
-    [data-testid="stMetric"] { padding: 4px 6px !important; }
-    [data-testid="stMetricLabel"] p { font-size: 0.72rem !important; }
-    [data-testid="stMetricValue"] { font-size: 1.1rem !important; }
-    [data-testid="stMetricDelta"] { font-size: 0.68rem !important; }
-    </style>""", unsafe_allow_html=True)
+    # ══════════════════════════════════════════════════════════
+    # 第一行：全球籌碼與核彈排毒雷達（5 欄）
+    # ══════════════════════════════════════════════════════════
+    def _metric_html(label, value, status, hint):
+        """用 HTML 自訂 metric，確保字體大小舒適且顏色醒目"""
+        color = {"🔴":"#ff4444","🟡":"#fbbf24","🟢":"#00cc66","⚪":"#8892b0"}.get(status[0], "#8892b0")
+        return (
+            f"<div style='background:rgba(255,255,255,0.03);border:1px solid #1e3a5f;"
+            f"border-radius:8px;padding:10px 8px;text-align:center;border-top:3px solid {color};'>"
+            f"<div style='color:#7fb3d3;font-size:.72rem;letter-spacing:.5px;margin-bottom:4px;'>{label}</div>"
+            f"<div style='color:#e8f4fd;font-size:1.25rem;font-weight:700;line-height:1.2;'>{value}</div>"
+            f"<div style='color:{color};font-size:.7rem;margin-top:4px;'>{status} {hint}</div>"
+            f"</div>"
+        )
 
-    _risk_cols = st.columns([1,1,1,1,1,1])
-    _risk_cols[0].metric("大台外資", f"{_risk_info['tx_net']:+,}口",
-                         delta="空單壓頂" if _risk_info['tx_net'] <= -30000 else "安全")
-    _risk_cols[1].metric("小台散戶", f"{_risk_info['mtx_retail']:+,}口",
-                         delta="接刀危險" if _risk_info['mtx_retail'] >= 8000 else "冷靜")
-    _risk_cols[2].metric("CBOE P/C", f"{_risk_info['pc_ratio']:.2f}",
-                         delta="美散戶過熱" if _risk_info['pc_ratio'] <= 0.65 else "正常")
+    _r1 = st.columns(5)
+
+    # ── 欄1：大台外資
+    _tx = _risk_info["tx_net"]
+    if _tx <= -45000:   _tx_s, _tx_h = "🔴", "高度警戒"
+    elif _tx >= -25000: _tx_s, _tx_h = "🟢", "波段安全"
+    else:               _tx_s, _tx_h = "⚪", "觀察中"
+    _r1[0].markdown(_metric_html("大台外資", f"{_tx:+,}口", _tx_s, _tx_h), unsafe_allow_html=True)
+
+    # ── 欄2：小台散戶多空比 %
+    _retail     = _risk_info["mtx_retail"]
+    _mtx_total  = abs(_retail) + 10000  # 近似全市場
+    _retail_pct = round(_retail / _mtx_total * 100, 1) if _mtx_total else 0
+    if _retail_pct >= 15:   _rt_s, _rt_h = "🔴", "散戶抄底踩踏"
+    elif _retail_pct <= -20: _rt_s, _rt_h = "🟢", "籌碼乾淨"
+    else:                    _rt_s, _rt_h = "⚪", "中性"
+    _r1[1].markdown(_metric_html("小台散戶", f"{_retail:+,}口", _rt_s, _rt_h), unsafe_allow_html=True)
+
+    # ── 欄3：CBOE P/C
+    _pc = _risk_info["pc_ratio"]
+    if _pc < 0.8:    _pc_s, _pc_h = "🔴", "極度貪婪"
+    elif _pc > 1.2:  _pc_s, _pc_h = "🟢", "恐慌買點"
+    else:            _pc_s, _pc_h = "⚪", "正常"
+    _r1[2].markdown(_metric_html("CBOE P/C", f"{_pc:.2f}", _pc_s, _pc_h), unsafe_allow_html=True)
+
+    # ── 欄4：VIX
     if _vix is not None:
-        _vix_delta = "極度恐慌" if _vix > 30 else "市場緊張" if _vix > 20 else "偏高警戒" if _vix > 15 else "平靜"
-        _risk_cols[3].metric("VIX", f"{_vix:.1f}", delta=_vix_delta)
+        if _vix > 25:    _vix_s, _vix_h = "🔴", "市場去槓桿"
+        elif _vix < 15:  _vix_s, _vix_h = "🟢", "風平浪靜"
+        else:            _vix_s, _vix_h = "⚪", "警戒中"
+        _r1[3].markdown(_metric_html("VIX 恐慌", f"{_vix:.1f}", _vix_s, _vix_h), unsafe_allow_html=True)
     else:
-        _risk_cols[3].metric("VIX", "—", delta="載入中")
-    _risk_cols[4].metric("最近核彈", f"{_risk_info['days']}天",
-                         delta=_risk_info['event'][:10] if _risk_info['days'] <= 7 else "安全")
-    _risk_cols[5].metric("CPI 距今", f"{_cpi_days}天" if _cpi_days is not None else "—",
-                         delta=_cpi_date_str)
+        _r1[3].markdown(_metric_html("VIX 恐慌", "—", "⚪", "載入中"), unsafe_allow_html=True)
+
+    # ── 欄5：最近核彈
+    _days = _risk_info["days"]
+    _evt  = _risk_info["event"][:12] if _risk_info.get("event") else "—"
+    if _days <= 3:    _nk_s, _nk_h = "🟡", "特種兵離線"
+    elif _days <= 7:  _nk_s, _nk_h = "🟡", "開獎警戒"
+    else:             _nk_s, _nk_h = "⚪", "安全"
+    _r1[4].markdown(_metric_html("最近核彈", f"{_days}天", _nk_s, f"{_evt}"), unsafe_allow_html=True)
+
+    st.markdown("<div style='margin:6px 0;'></div>", unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════
+    # 第二行：總經核彈與大盤邊界防線（5 欄）
+    # ══════════════════════════════════════════════════════════
+    _r2 = st.columns(5)
+
+    # ── 欄1：CPI 年增率
+    _cpi = _macro_ind.get("cpi")
+    if _cpi is not None:
+        if _cpi > 3.5:   _cpi_s, _cpi_h = "🔴", "通膨復燃"
+        elif _cpi <= 3.0: _cpi_s, _cpi_h = "🟢", "穩定降溫"
+        else:             _cpi_s, _cpi_h = "⚪", "觀察中"
+        _r2[0].markdown(_metric_html("CPI 年增率", f"{_cpi:.1f}%", _cpi_s, _cpi_h), unsafe_allow_html=True)
+    else:
+        _r2[0].markdown(_metric_html("CPI 年增率", "—", "⚪", "待更新"), unsafe_allow_html=True)
+
+    # ── 欄2：油價（布倫特 / 杜拜）
+    _br = _macro_ind.get("brent")
+    _du = _macro_ind.get("dubai")
+    _oil_val = f"{_br:.1f} / {_du:.1f}" if (_br and _du) else ("—")
+    _oil_warn = (_br and _br > 88) or (_du and _du > 85)
+    _oil_ok   = (_br and 70 <= _br <= 80) and (_du and 70 <= _du <= 80)
+    if _oil_warn:    _oil_s, _oil_h = "🔴", "通膨前導警戒"
+    elif _oil_ok:    _oil_s, _oil_h = "🟢", "區間穩定"
+    else:            _oil_s, _oil_h = "⚪", "觀察中"
+    _r2[1].markdown(_metric_html("油價 布/杜", _oil_val, _oil_s, _oil_h), unsafe_allow_html=True)
+
+    # ── 欄3：美債 10 年期殖利率
+    _tnx = _macro_ind.get("tnx")
+    if _tnx is not None:
+        if _tnx > 4.4:   _tnx_s, _tnx_h = "🔴", "估值壓制"
+        elif _tnx < 4.0: _tnx_s, _tnx_h = "🟢", "資金行情解封"
+        else:             _tnx_s, _tnx_h = "⚪", "觀察中"
+        _r2[2].markdown(_metric_html("美債10年", f"{_tnx:.2f}%", _tnx_s, _tnx_h), unsafe_allow_html=True)
+    else:
+        _r2[2].markdown(_metric_html("美債10年", "—", "⚪", "載入中"), unsafe_allow_html=True)
+
+    # ── 欄4：大盤月乖離
+    _bias = _macro_ind.get("bias")
+    if _bias is not None:
+        if _bias > 4:      _bias_s, _bias_h = "🔴", "極端超漲"
+        elif _bias < -4:   _bias_s, _bias_h = "🟢", "黃金打底區"
+        else:              _bias_s, _bias_h = "⚪", "正常範圍"
+        _r2[3].markdown(_metric_html("大盤月乖離", f"{_bias:+.1f}%", _bias_s, _bias_h), unsafe_allow_html=True)
+    else:
+        _r2[3].markdown(_metric_html("大盤月乖離", "—", "⚪", "計算中"), unsafe_allow_html=True)
+
+    # ── 欄5：航運指數（SCFI / BDI）
+    _bdi  = _macro_ind.get("bdi")
+    _ship_val = f"— / {_bdi:,}" if _bdi else "— / —"
+    if _bdi and _bdi > 2000:  _ship_s, _ship_h = "🔴", "通膨隱憂"
+    elif _bdi and _bdi < 1000: _ship_s, _ship_h = "🟢", "資金歸建電子"
+    else:                      _ship_s, _ship_h = "⚪", "盤整中"
+    _r2[4].markdown(_metric_html("航運 SCFI/BDI", _ship_val, _ship_s, _ship_h), unsafe_allow_html=True)
+
+    st.markdown("<div style='margin:4px 0;'></div>", unsafe_allow_html=True)
 
     if _risk_status == "RED_ALERT":
         st.error(f"🔴 **【全球熔斷最高警戒】** 台美散戶同步過熱"

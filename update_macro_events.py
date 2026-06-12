@@ -203,8 +203,24 @@ def main():
         print(f"  {ev['date']} {ev['country']} {ev['event']}")
 
     os.makedirs("data", exist_ok=True)
+    # 嘗試從 FinMind 抓最新 CPI 年增率
+    latest_cpi = None
+    try:
+        r = requests.get("https://api.finmindtrade.com/api/v4/data",
+                         params={"dataset":"USEconomicIndex","data_id":"CPIAUCSL",
+                                 "start_date": str(today - timedelta(days=60))},
+                         timeout=10)
+        if r.status_code == 200:
+            rows = r.json().get("data", [])
+            if rows:
+                latest_cpi = round(float(rows[-1].get("value", 0)), 1)
+                print(f"[macro] CPI 年增率：{latest_cpi}%")
+    except Exception as e:
+        print(f"[macro] CPI 抓取失敗（靜默）：{e}")
+
     with open("data/macro_events.json", "w", encoding="utf-8") as f:
-        json.dump({"updated_at": str(today), "events": events}, f, ensure_ascii=False, indent=2)
+        json.dump({"updated_at": str(today), "events": events,
+                   "latest_cpi": latest_cpi}, f, ensure_ascii=False, indent=2)
     print("[macro] 已寫入 data/macro_events.json")
 
 
