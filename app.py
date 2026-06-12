@@ -482,6 +482,24 @@ def refresh_reserve_metabolism():
     return removed, kept
 
 # ══════════════════════════════════════════════════════════════
+# ▌ VIX 恐慌指數即時抓取
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=300, show_spinner=False)
+def get_vix():
+    """
+    從 Yahoo Finance 抓取 VIX 恐慌指數（^VIX）
+    < 15：平靜；15~20：偏高警戒；20~30：市場緊張；> 30：極度恐慌
+    """
+    try:
+        import yfinance as _yf
+        t = _yf.Ticker("^VIX")
+        hist = t.history(period="1d", interval="1d")
+        if not hist.empty:
+            return round(float(hist["Close"].iloc[-1]), 2)
+    except:
+        pass
+    return None
+
 # ▌ CBOE Put/Call Ratio 即時抓取
 # ══════════════════════════════════════════════════════════════
 def get_cboe_pc_ratio():
@@ -4173,14 +4191,28 @@ with tab5:
 
     # ── V6 三軌風控儀表板
     _risk_status, _risk_info = get_system_risk_status()
-    _risk_cols = st.columns([1,1,1,1])
+    _vix = get_vix()
+    _risk_cols = st.columns([1,1,1,1,1])
     _risk_cols[0].metric("大台外資", f"{_risk_info['tx_net']:+,}口",
                          delta="空單壓頂" if _risk_info['tx_net'] <= -30000 else "安全")
     _risk_cols[1].metric("小台散戶", f"{_risk_info['mtx_retail']:+,}口",
                          delta="接刀危險" if _risk_info['mtx_retail'] >= 8000 else "冷靜")
     _risk_cols[2].metric("CBOE P/C", f"{_risk_info['pc_ratio']:.2f}",
                          delta="美散戶過熱" if _risk_info['pc_ratio'] <= 0.65 else "正常")
-    _risk_cols[3].metric("最近核彈", f"{_risk_info['days']}天",
+    # VIX 恐慌指數
+    if _vix is not None:
+        if _vix > 30:
+            _vix_delta = "極度恐慌"
+        elif _vix > 20:
+            _vix_delta = "市場緊張"
+        elif _vix > 15:
+            _vix_delta = "偏高警戒"
+        else:
+            _vix_delta = "平靜"
+        _risk_cols[3].metric("VIX 恐慌指數", f"{_vix:.1f}", delta=_vix_delta)
+    else:
+        _risk_cols[3].metric("VIX 恐慌指數", "—", delta="載入中")
+    _risk_cols[4].metric("最近核彈", f"{_risk_info['days']}天",
                          delta=_risk_info['event'][:12] if _risk_info['days'] <= 7 else "安全")
 
     if _risk_status == "RED_ALERT":
