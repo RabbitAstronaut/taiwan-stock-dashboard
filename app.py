@@ -4116,6 +4116,13 @@ with tab4:
         )
         if not _all_accum:
             st.caption("⏳ 目前儲備庫無標的觸發潛伏期鎖碼警報。")
+            # debug
+            st.caption(f"DEBUG: alerts={len(_accum_alerts)} watch={len(_accum_watch)}")
+        else:
+            # debug
+            _dbg_2330 = next((x for x in _all_accum if x[0]=='2330'), None)
+            if _dbg_2330:
+                st.caption(f"DEBUG 2330 facts: {_dbg_2330[2]['facts']}")
         else:
             _rows_html = []
             for _sid_ac, _name_ac, _ac in _all_accum:
