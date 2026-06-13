@@ -1662,6 +1662,13 @@ with st.sidebar:
     if not df_fut_check.empty and "date" in df_fut_check.columns:
         fut_latest = str(df_fut_check["date"].max())[:10]
         upd += f" | 期貨:{fut_latest}"
+    # chips debug
+    _df_c_dbg, _ok_c_dbg = get_chips()
+    if _ok_c_dbg:
+        upd += f" | chips:{len(_df_c_dbg)}筆/{str(_df_c_dbg['date'].max())[:10] if 'date' in _df_c_dbg.columns else '?'}"
+        # 2330 debug
+        _2330 = _df_c_dbg[_df_c_dbg['stock_id'].astype(str)=='2330']
+        upd += f" 2330:{len(_2330)}筆"
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
