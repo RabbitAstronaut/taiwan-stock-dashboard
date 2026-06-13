@@ -334,6 +334,9 @@ def scan_accumulation_phase(sid):
                 daily = trust.groupby("date")["net"].sum().reset_index().sort_values("date")
                 daily["net"] = pd.to_numeric(daily["net"], errors="coerce").fillna(0)
                 n = len(daily)
+                # debug
+                if sid == '2330':
+                    st.session_state['_dbg_daily'] = daily.tail(5).to_dict('records')
                 if n >= 5:
                     inst_5d  = float(daily["net"].iloc[max(0,n-5):].sum())
                 if n >= 1:
@@ -1662,6 +1665,10 @@ with st.sidebar:
     if not df_fut_check.empty and "date" in df_fut_check.columns:
         fut_latest = str(df_fut_check["date"].max())[:10]
         upd += f" | 期貨:{fut_latest}"
+    # daily debug
+    _daily_dbg = st.session_state.get('_dbg_daily', [])
+    if _daily_dbg:
+        upd += f" | daily:{[(str(r['date'])[:10], round(r['net'],0)) for r in _daily_dbg]}"
 
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
