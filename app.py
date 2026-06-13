@@ -1674,6 +1674,9 @@ with st.sidebar:
     try:
         _ac_dbg = scan_accumulation_phase('2330')
         upd += f" | scan_5d:{_ac_dbg['facts'].get('inst_5d','-')}"
+        # reserve_list debug
+        _rsv = st.session_state.get('reserve_list', [])
+        upd += f" rsv:{[r.get('id') for r in _rsv[:3]]}"
     except Exception as _e:
         upd += f" | scan_err:{_e}"
     st.markdown(
