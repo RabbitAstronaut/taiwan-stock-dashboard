@@ -4123,7 +4123,6 @@ with tab4:
             _dbg_2330 = next((x for x in _all_accum if x[0]=='2330'), None)
             if _dbg_2330:
                 st.caption(f"DEBUG 2330 facts: {_dbg_2330[2]['facts']}")
-        else:
             _rows_html = []
             for _sid_ac, _name_ac, _ac in _all_accum:
                 _f     = _ac["facts"]
