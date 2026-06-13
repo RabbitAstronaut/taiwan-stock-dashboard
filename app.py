@@ -1665,10 +1665,17 @@ with st.sidebar:
     if not df_fut_check.empty and "date" in df_fut_check.columns:
         fut_latest = str(df_fut_check["date"].max())[:10]
         upd += f" | 期貨:{fut_latest}"
-    # daily debug
-    _daily_dbg = st.session_state.get('_dbg_daily', [])
-    if _daily_dbg:
-        upd += f" | daily:{[(str(r['date'])[:10], round(r['net'],0)) for r in _daily_dbg]}"
+    # 2330 daily debug
+    try:
+        _df_c2, _ok2 = get_chips('2330')
+        if _ok2 and not _df_c2.empty:
+            _trust2 = _df_c2[_df_c2['name'].astype(str).str.contains('Investment_Trust', na=False)].copy()
+            _trust2['net'] = pd.to_numeric(_trust2['net'], errors='coerce').fillna(0)
+            _daily2 = _trust2.groupby('date')['net'].sum().reset_index().sort_values('date')
+            _last3 = [(str(r['date'])[:10], round(r['net'],0)) for _, r in _daily2.tail(3).iterrows()]
+            upd += f" | 2330daily:{_last3}"
+    except Exception as _e:
+        upd += f" | daily_err:{_e}"
 
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
