@@ -1479,11 +1479,11 @@ def get_chips(stock_id=None):
     # 讀 Render 即時資料（今天）
     df_relay = _load_relay_chips()
 
-    # 合併：Render 今天 + GitHub 歷史
+    # 合併：Render 今天 + GitHub 歷史（按 date+stock_id+name 去重，保留最新）
     if not df_relay.empty and not df_csv.empty:
-        today = df_relay["date"].max()
-        df_hist = df_csv[df_csv["date"] < today] if "date" in df_csv.columns else df_csv
-        df = pd.concat([df_hist, df_relay], ignore_index=True)
+        df = pd.concat([df_csv, df_relay], ignore_index=True)
+        # 去重：同一天同一股票同一法人，保留最後一筆（Render 的資料優先）
+        df = df.drop_duplicates(subset=["date","stock_id","name"], keep="last")
     elif not df_relay.empty:
         df = df_relay.copy()
     elif not df_csv.empty:
@@ -1662,25 +1662,7 @@ with st.sidebar:
     if not df_fut_check.empty and "date" in df_fut_check.columns:
         fut_latest = str(df_fut_check["date"].max())[:10]
         upd += f" | 期貨:{fut_latest}"
-    # chips debug
-    _df_c_dbg, _ok_c_dbg = get_chips()
-    if _ok_c_dbg:
-        upd += f" | chips:{len(_df_c_dbg)}筆/{str(_df_c_dbg['date'].max())[:10] if 'date' in _df_c_dbg.columns else '?'}"
-        _2330 = _df_c_dbg[_df_c_dbg['stock_id'].astype(str)=='2330']
-        _trust = _2330[_2330['name'].astype(str).str.contains('Investment_Trust', na=False)] if 'name' in _2330.columns else pd.DataFrame()
-        _net_max = _trust['net'].abs().max() if not _trust.empty and 'net' in _trust.columns else 0
-        upd += f" 2330:{len(_2330)}筆 投信:{len(_trust)}筆 net_max:{_net_max:.0f}"
-    # scan debug
-    try:
-        _ac_dbg = scan_accumulation_phase('2330')
-        upd += f" | scan_5d:{_ac_dbg['facts'].get('inst_5d','-')}"
-        _rsv = st.session_state.get('reserve_list', [])
-        upd += f" rsv:{[r.get('id') for r in _rsv[:3]]}"
-        _dbg_facts = st.session_state.get('_dbg_2330_scan', {})
-        if _dbg_facts:
-            upd += f" cached_5d:{_dbg_facts.get('inst_5d','-')}"
-    except Exception as _e:
-        upd += f" | scan_err:{_e}"
+
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
@@ -4092,9 +4074,7 @@ with tab4:
             alerts, watch = [], []
             for sid_ac, name_ac in reserve_ids_tuple:
                 ac = scan_accumulation_phase(sid_ac)
-                # debug：把第一筆的 inst_5d 存到 session_state
-                if sid_ac == '2330':
-                    st.session_state['_dbg_2330_scan'] = ac.get('facts', {})
+
                 if ac["alert"]:
                     alerts.append((sid_ac, name_ac, ac))
                 elif ac["facts"]:
@@ -4116,13 +4096,9 @@ with tab4:
         )
         if not _all_accum:
             st.caption("⏳ 目前儲備庫無標的觸發潛伏期鎖碼警報。")
-            # debug
-            st.caption(f"DEBUG: alerts={len(_accum_alerts)} watch={len(_accum_watch)}")
+
         else:
-            # debug
-            _dbg_2330 = next((x for x in _all_accum if x[0]=='2330'), None)
-            if _dbg_2330:
-                st.caption(f"DEBUG 2330 facts: {_dbg_2330[2]['facts']}")
+
             _rows_html = []
             for _sid_ac, _name_ac, _ac in _all_accum:
                 _f     = _ac["facts"]
