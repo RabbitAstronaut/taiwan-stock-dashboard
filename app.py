@@ -1666,11 +1666,16 @@ with st.sidebar:
     _df_c_dbg, _ok_c_dbg = get_chips()
     if _ok_c_dbg:
         upd += f" | chips:{len(_df_c_dbg)}筆/{str(_df_c_dbg['date'].max())[:10] if 'date' in _df_c_dbg.columns else '?'}"
-        # 2330 debug
         _2330 = _df_c_dbg[_df_c_dbg['stock_id'].astype(str)=='2330']
         _trust = _2330[_2330['name'].astype(str).str.contains('Investment_Trust', na=False)] if 'name' in _2330.columns else pd.DataFrame()
         _net_max = _trust['net'].abs().max() if not _trust.empty and 'net' in _trust.columns else 0
         upd += f" 2330:{len(_2330)}筆 投信:{len(_trust)}筆 net_max:{_net_max:.0f}"
+    # scan debug
+    try:
+        _ac_dbg = scan_accumulation_phase('2330')
+        upd += f" | scan_5d:{_ac_dbg['facts'].get('inst_5d','-')}"
+    except Exception as _e:
+        upd += f" | scan_err:{_e}"
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
