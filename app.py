@@ -3914,7 +3914,7 @@ with tab4:
                 "現價": f"{close_rv:.1f}" if close_rv else "—",
                 "乖離%": f"{bias_rv:+.1f}" if close_rv and not np.isnan(bias_rv) else "—",
                 "量縮": f"✅{_s1}",  "乖離≤5%": f"✅{_s2}", "收紅EMA5": f"✅{_s3}",
-                "總分/9": _total, "_score": _total,
+                "總分/9": _total, "_score": _total, "K線日期": kline_date_rv,
             })
         # waiting
         for _w in waiting:
@@ -3932,6 +3932,7 @@ with tab4:
                 "乖離≤5%": f"✅{_s2}" if _c2 else f"❌{_s2}",
                 "收紅EMA5": f"✅{_s3}" if _c3 else f"❌{_s3}",
                 "總分/9": _total, "_score": _total,
+                "K線日期": _w[12] if len(_w) > 12 else "",
             })
 
         # ── V6 三軌聯鎖風控斷路器
@@ -4006,7 +4007,8 @@ with tab4:
                     f"<b>{_r['股號']} {_r['名稱']}</b>｜"
                     f"總分 <span style='font-size:1.1rem;font-weight:700;'>{_sc}/9</span>｜"
                     f"現價 {_r['現價']}｜乖離 {_r['乖離%']}｜"
-                    f"量縮 {_r['量縮']}｜乖離≤5% {_r['乖離≤5%']}｜收紅EMA5 {_r['收紅EMA5']}"
+                    f"量縮 {_r['量縮']}｜乖離≤5% {_r['乖離≤5%']}｜收紅EMA5 {_r['收紅EMA5']}｜"
+                    f"<span style='color:#7fb3d3;font-size:.78rem;'>K線:{_r.get('K線日期','—')}</span>"
                     f"</div>"
                     f"<div style='margin-top:5px;padding:4px 10px;background:rgba(0,0,0,0.25);"
                     f"border-radius:4px;font-size:.8rem;color:#ffffff;"
