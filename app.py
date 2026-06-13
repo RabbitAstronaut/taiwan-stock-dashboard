@@ -1674,9 +1674,11 @@ with st.sidebar:
     try:
         _ac_dbg = scan_accumulation_phase('2330')
         upd += f" | scan_5d:{_ac_dbg['facts'].get('inst_5d','-')}"
-        # reserve_list debug
         _rsv = st.session_state.get('reserve_list', [])
         upd += f" rsv:{[r.get('id') for r in _rsv[:3]]}"
+        _dbg_facts = st.session_state.get('_dbg_2330_scan', {})
+        if _dbg_facts:
+            upd += f" cached_5d:{_dbg_facts.get('inst_5d','-')}"
     except Exception as _e:
         upd += f" | scan_err:{_e}"
     st.markdown(
@@ -4090,6 +4092,9 @@ with tab4:
             alerts, watch = [], []
             for sid_ac, name_ac in reserve_ids_tuple:
                 ac = scan_accumulation_phase(sid_ac)
+                # debug：把第一筆的 inst_5d 存到 session_state
+                if sid_ac == '2330':
+                    st.session_state['_dbg_2330_scan'] = ac.get('facts', {})
                 if ac["alert"]:
                     alerts.append((sid_ac, name_ac, ac))
                 elif ac["facts"]:
