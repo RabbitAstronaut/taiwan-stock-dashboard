@@ -1199,7 +1199,7 @@ def load_json_meta() -> dict:
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_price_csv(stock_id: str) -> tuple[pd.DataFrame, bool]:
-    """讀取個股 K 線 CSV：優先本地，備援 GitHub raw"""
+    """讀取個股 K 線 CSV：優先本地→GitHub→yfinance 即時抓取"""
     import os
 
     def _parse(df):
@@ -1219,7 +1219,10 @@ def load_price_csv(stock_id: str) -> tuple[pd.DataFrame, bool]:
         try:
             df = _parse(pd.read_csv(local))
             if len(df) >= 10:
-                return df, True
+                # 檢查是否太舊（超過 5 天沒更新），若太舊繼續往下 fallback
+                latest = df.index[-1]
+                if (pd.Timestamp.now() - latest).days <= 5:
+                    return df, True
         except:
             pass
 
@@ -1228,10 +1231,52 @@ def load_price_csv(stock_id: str) -> tuple[pd.DataFrame, bool]:
     try:
         df = _parse(pd.read_csv(url))
         if len(df) >= 10:
-            return df, True
+            latest = df.index[-1]
+            if (pd.Timestamp.now() - latest).days <= 5:
+                return df, True
     except:
         pass
 
+    # 最終備援：yfinance 即時抓取（新加入股票或 CSV 過舊時使用）
+    # 結果存入 session_state 快取，避免重複抓取
+    cache_key = f"_yf_price_{stock_id}"
+    if cache_key in st.session_state:
+        cached = st.session_state[cache_key]
+        if cached is not None and len(cached) >= 10:
+            return cached, True
+
+    try:
+        import yfinance as _yf
+        # 判斷上市(.TW)或上櫃(.TWO)：先讀 stock_list.csv
+        suffix = ".TW"
+        try:
+            _sl_df, _sl_ok = load_csv("stock_list.csv")
+            if _sl_ok and not _sl_df.empty:
+                _sl_df["stock_id"] = _sl_df["stock_id"].astype(str)
+                _row = _sl_df[_sl_df["stock_id"] == str(stock_id)]
+                if not _row.empty and _row.iloc[0].get("type") == "tpex":
+                    suffix = ".TWO"
+        except:
+            pass
+
+        ticker = f"{stock_id}{suffix}"
+        hist = _yf.Ticker(ticker).history(period="365d")
+        if hist.empty and suffix == ".TW":
+            # 嘗試 .TWO
+            hist = _yf.Ticker(f"{stock_id}.TWO").history(period="365d")
+        if not hist.empty:
+            hist.index = pd.to_datetime(hist.index.tz_localize(None) if hist.index.tz is not None else hist.index)
+            for c in ["Open","High","Low","Close","Volume"]:
+                if c in hist.columns:
+                    hist[c] = pd.to_numeric(hist[c], errors="coerce")
+            hist = hist.dropna(subset=["Close"])
+            if len(hist) >= 10:
+                st.session_state[cache_key] = hist
+                return hist, True
+    except:
+        pass
+
+    st.session_state[cache_key] = None
     return pd.DataFrame(), False
 
 # ── 衍生載入函式
