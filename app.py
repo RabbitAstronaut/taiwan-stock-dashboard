@@ -345,10 +345,15 @@ def scan_accumulation_phase(sid):
                 if abs(inst_5d) > 50000:
                     inst_5d  /= 1000
                     inst_15d /= 1000
-                # 連續買超天數（位置倒數）
+                # 連續買超天數（位置倒數，超過 8 天空洞視為中斷）
                 inst_streak_start = ""
                 for i in range(n-1, max(n-21,-1), -1):
                     if daily["net"].iloc[i] > 0:
+                        # 檢查與前一筆的日期間隔
+                        if i < n-1:
+                            days_gap = (daily["date"].iloc[i+1] - daily["date"].iloc[i]).days
+                            if days_gap > 8:  # 超過 8 天空洞（排除週末後約 5 個交易日）
+                                break
                         inst_streak += 1
                         inst_streak_start = str(daily["date"].iloc[i])[:10]
                     else:
@@ -1495,6 +1500,24 @@ def get_chips(stock_id=None):
         df = df_csv.copy()
     else:
         return pd.DataFrame(), False
+
+    # ── 整合融資資料（margin.csv）
+    df_margin, ok_margin = load_csv("margin.csv")
+    if ok_margin and not df_margin.empty:
+        df_margin["stock_id"] = df_margin["stock_id"].astype(str).str.strip()
+        if "date" in df_margin.columns:
+            df_margin["date"] = pd.to_datetime(df_margin["date"], errors="coerce")
+        df_margin["source"] = "margin"
+        df_margin["name"]   = "margin"
+        df_margin["net"]    = pd.to_numeric(
+            df_margin.get("MarginPurchaseTodayBalance", pd.Series()), errors="coerce"
+        )
+        _mg_keep = [c for c in ["date","stock_id","name","net","source",
+                                 "MarginPurchaseTodayBalance","MarginPurchaseYesterdayBalance",
+                                 "ShortSaleTodayBalance","ShortSaleYesterdayBalance"]
+                    if c in df_margin.columns]
+        df_margin = df_margin[_mg_keep].dropna(subset=["net"])
+        df = pd.concat([df, df_margin], ignore_index=True)
 
     if stock_id:
         df = df[df["stock_id"] == str(stock_id).strip()]
