@@ -1460,12 +1460,14 @@ def get_chips(stock_id=None):
         df_csv["stock_id"] = df_csv["stock_id"].astype(str).str.strip()
         if "date" in df_csv.columns:
             df_csv["date"] = pd.to_datetime(df_csv["date"], errors="coerce")
-        if "buy" in df_csv.columns:
-            df_csv = pd.DataFrame()  # 舊格式丟棄
-        else:
-            for c in ["net"]:
-                if c in df_csv.columns:
-                    df_csv[c] = pd.to_numeric(df_csv[c], errors="coerce")
+        # 統一只保留需要的欄位（相容新舊格式）
+        _keep = [c for c in ["date","stock_id","name","net","source"] if c in df_csv.columns]
+        df_csv = df_csv[_keep].copy()
+        if "net" in df_csv.columns:
+            df_csv["net"] = pd.to_numeric(df_csv["net"], errors="coerce")
+        if "source" not in df_csv.columns:
+            df_csv["source"] = "institutional"
+        df_csv = df_csv.dropna(subset=["name","net"])
     else:
         df_csv = pd.DataFrame()
 
@@ -4067,7 +4069,7 @@ with tab4:
         # ══════════════════════════════════════════════
         st.markdown("#### 🕵️ 潛伏期法人暗中鎖碼雷達")
 
-        @st.cache_data(ttl=300, show_spinner=False)
+        @st.cache_data(ttl=60, show_spinner=False)
         def _cached_accum_scan(reserve_ids_tuple):
             alerts, watch = [], []
             for sid_ac, name_ac in reserve_ids_tuple:
@@ -4157,7 +4159,7 @@ with tab4:
         # ══════════════════════════════════════════════
         st.markdown("#### 🚀 短線火箭雷達")
 
-        @st.cache_data(ttl=300, show_spinner=False)
+        @st.cache_data(ttl=60, show_spinner=False)
         def _cached_rocket_scan(reserve_tuple):
             results = []
             for sid_r, name_r in reserve_tuple:
