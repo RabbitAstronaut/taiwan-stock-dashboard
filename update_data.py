@@ -809,6 +809,26 @@ def main():
         # 預設：使用 SECTOR_STOCKS 定義的清單（295 檔）
         stock_ids = ALL_STOCKS
 
+    # ── 額外合併 watchlist.json 的 manual + reserve 股票
+    # 確保戰備庫和監控清單的股票 K線也會被更新
+    wl_path = Path(data_dir) / "watchlist.json"
+    if wl_path.exists():
+        try:
+            wl = json.loads(wl_path.read_text(encoding="utf-8"))
+            extra = []
+            for item in wl.get("manual", []):
+                extra.append(str(item.get("id", "")))
+            for item in wl.get("reserve", []):
+                extra.append(str(item.get("id", "")))
+            extra = [s for s in extra if s.isdigit() and len(s) == 4]
+            before = len(stock_ids)
+            stock_ids = list(dict.fromkeys(stock_ids + extra))
+            added = len(stock_ids) - before
+            if added > 0:
+                log.info(f"watchlist 補充：{added} 檔（manual+reserve）→ 共 {len(stock_ids)} 檔")
+        except Exception as e:
+            log.warning(f"watchlist.json 讀取失敗：{e}")
+
     log.info(f"股票池 : {len(stock_ids)} 檔")
 
     def _should(module):
