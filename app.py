@@ -1484,7 +1484,9 @@ def get_chips(stock_id=None):
 
     # 合併：Render 今天 + GitHub 歷史（按 date+stock_id+name 去重，保留最新）
     if not df_relay.empty and not df_csv.empty:
-        df = pd.concat([df_csv, df_relay], ignore_index=True)
+        # 過濾 net=0 的無意義資料（避免影響連買計算）
+        df_relay_clean = df_relay[df_relay["net"].abs() > 0] if "net" in df_relay.columns else df_relay
+        df = pd.concat([df_csv, df_relay_clean], ignore_index=True)
         # 去重：同一天同一股票同一法人，保留最後一筆（Render 的資料優先）
         df = df.drop_duplicates(subset=["date","stock_id","name"], keep="last")
     elif not df_relay.empty:
