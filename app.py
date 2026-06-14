@@ -1787,6 +1787,9 @@ with st.sidebar:
             if 'contract' in _df_fut_dbg.columns:
                 _tx_r = _df_fut_dbg[_df_fut_dbg['contract']=='TX']
                 upd += f" tx_rows:{len(_tx_r)}"
+                if not _tx_r.empty:
+                    for _, _trow in _tx_r.iterrows():
+                        upd += f" [src:{_trow.get('source')} close:{_trow.get('close')} settle:{_trow.get('settlement_price')}]"
     except Exception as _e:
         upd += f" | discount_err:{_e}"
     # 2330 daily debug
