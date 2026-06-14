@@ -1769,6 +1769,12 @@ with st.sidebar:
     if not df_fut_check.empty and "date" in df_fut_check.columns:
         fut_latest = str(df_fut_check["date"].max())[:10]
         upd += f" | 期貨:{fut_latest}"
+    # 逆價差 debug
+    try:
+        _disc_dbg = get_tx_discount()
+        upd += f" | discount:{_disc_dbg}"
+    except Exception as _e:
+        upd += f" | discount_err:{_e}"
     # 2330 daily debug
     try:
         _df_c2, _ok2 = get_chips('2330')
