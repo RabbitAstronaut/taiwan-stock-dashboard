@@ -1773,6 +1773,20 @@ with st.sidebar:
     try:
         _disc_dbg = get_tx_discount()
         upd += f" | discount:{_disc_dbg}"
+        # 細分檢查
+        import yfinance as _yf_dbg
+        _id = _yf_dbg.Ticker("^TWII").history(period="1d", interval="1m")
+        _dd = _yf_dbg.Ticker("^TWII").history(period="2d", interval="1d")
+        upd += f" twii_1m:{len(_id)} twii_daily:{len(_dd)}"
+        if not _dd.empty:
+            upd += f" twii_close:{_dd['Close'].iloc[-1]:.0f}"
+        # futures contract 欄位檢查
+        _df_fut_dbg, _ok_fut_dbg = get_futures()
+        if _ok_fut_dbg and not _df_fut_dbg.empty:
+            upd += f" fut_cols:{[c for c in _df_fut_dbg.columns if 'price' in c.lower() or 'close' in c.lower()]}"
+            if 'contract' in _df_fut_dbg.columns:
+                _tx_r = _df_fut_dbg[_df_fut_dbg['contract']=='TX']
+                upd += f" tx_rows:{len(_tx_r)}"
     except Exception as _e:
         upd += f" | discount_err:{_e}"
     # 2330 daily debug
