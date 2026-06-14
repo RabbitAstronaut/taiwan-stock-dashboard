@@ -1790,6 +1790,18 @@ with st.sidebar:
                 if not _tx_r.empty:
                     for _, _trow in _tx_r.iterrows():
                         upd += f" [src:{_trow.get('source')} close:{_trow.get('close')} settle:{_trow.get('settlement_price')}]"
+        # TAIFEX API debug
+        try:
+            import requests as _req_dbg
+            _rt = _req_dbg.post(
+                "https://mis.taifex.com.tw/futures/api/getQuoteListData",
+                json={"SymbolID": ["TXFL0"]},
+                headers={"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"},
+                timeout=5, verify=False
+            )
+            upd += f" | taifex_status:{_rt.status_code} body:{_rt.text[:150]}"
+        except Exception as _te:
+            upd += f" | taifex_err:{_te}"
     except Exception as _e:
         upd += f" | discount_err:{_e}"
     # 2330 daily debug
