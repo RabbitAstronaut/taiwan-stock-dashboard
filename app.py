@@ -514,24 +514,28 @@ def get_vix():
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_us_ppi():
     """
-    從 FRED（美國聖路易聯邦準備銀行）取得 PPIACO（生產者物價指數）
-    使用免金鑰的公開 CSV 圖表端點，每日快取一次（PPI 為月頻資料）。
-    回傳：PPI 年增率（%），失敗則回傳備援值 6.5（2026年5月公布值）。
+    從 FRED（美國聖路易聯邦準備銀行）取得 PPIACO（生產者物價指數）年增率。
+    使用免金鑰的公開 CSV 端點，並加上 units=pc1 參數，直接取得 FRED
+    官方計算的「Percent Change from Year Ago」，避免自行用月份位移計算
+    時因資料缺月而對錯期、算出失真數值。每日快取一次（PPI為月頻資料）。
+
+    回傳：PPI 年增率（%），失敗或數值超出合理範圍時回傳備援值 6.5。
     """
     try:
         import requests as _req, io as _io
-        url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=PPIACO"
+        url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=PPIACO&units=pc1"
         r = _req.get(url, timeout=10)
         if r.status_code == 200:
             df = pd.read_csv(_io.StringIO(r.text))
             df.columns = ["date", "value"]
             df["value"] = pd.to_numeric(df["value"], errors="coerce")
             df = df.dropna(subset=["value"]).sort_values("date")
-            if len(df) >= 13:
-                latest   = float(df["value"].iloc[-1])
-                year_ago = float(df["value"].iloc[-13])
-                if year_ago:
-                    return round((latest - year_ago) / year_ago * 100, 1)
+            if not df.empty:
+                latest = round(float(df["value"].iloc[-1]), 1)
+                # 合理範圍檢查：PPI年增率正常落在 -10% ~ +20% 之間，
+                # 超出此範圍視為資料異常，改用備援值
+                if -10 <= latest <= 20:
+                    return latest
     except:
         pass
     # 備援固定值：2026年5月美國 PPI 年增率約 6.5%（嚴重衝破安全線）
