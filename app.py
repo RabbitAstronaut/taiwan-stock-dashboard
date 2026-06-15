@@ -4618,15 +4618,17 @@ with tab5:
     # ══════════════════════════════════════════════════════════
     # 第一行：全球籌碼與核彈排毒雷達（5 欄）
     # ══════════════════════════════════════════════════════════
-    def _metric_html(label, value, status, hint):
-        """用 HTML 自訂 metric，確保字體大小舒適且顏色醒目"""
+    def _metric_html(label, value, status, hint, ref=""):
+        """用 HTML 自訂 metric，確保字體大小舒適且顏色醒目；ref為標準參考值，灰色小字顯示"""
         color = {"🔴":"#ff4444","🟡":"#fbbf24","🟢":"#00cc66","⚪":"#8892b0"}.get(status[0], "#8892b0")
+        _ref_line = f"<div style='color:#4a6280;font-size:.62rem;margin-top:2px;'>標準：{ref}</div>" if ref else ""
         return (
             f"<div style='background:rgba(255,255,255,0.03);border:1px solid #1e3a5f;"
             f"border-radius:8px;padding:10px 8px;text-align:center;border-top:3px solid {color};'>"
             f"<div style='color:#7fb3d3;font-size:.72rem;letter-spacing:.5px;margin-bottom:4px;'>{label}</div>"
             f"<div style='color:#e8f4fd;font-size:1.25rem;font-weight:700;line-height:1.2;'>{value}</div>"
             f"<div style='color:{color};font-size:.7rem;margin-top:4px;'>{status} {hint}</div>"
+            f"{_ref_line}"
             f"</div>"
         )
 
@@ -4650,7 +4652,8 @@ with tab5:
 
     _tx_delta_line = f"轉倉:{_daily_chg:+,}口／累計:{_cum_rollover:+,}口"
     _r1[0].markdown(
-        _metric_html("大台外資", f"{_tx:+,}口", _tx_s, f"{_tx_h}｜{_tx_delta_line}"),
+        _metric_html("大台外資", f"{_tx:+,}口", _tx_s, f"{_tx_h}｜{_tx_delta_line}",
+                     ref="-25,000~-45,000口安全區；≦-45,000口或5日結轉≦-70,000口為毀滅警戒"),
         unsafe_allow_html=True
     )
 
@@ -4661,23 +4664,27 @@ with tab5:
     if _retail_pct >= 15:   _rt_s, _rt_h = "🔴", "散戶抄底踩踏"
     elif _retail_pct <= -20: _rt_s, _rt_h = "🟢", "籌碼乾淨"
     else:                    _rt_s, _rt_h = "⚪", "中性"
-    _r1[1].markdown(_metric_html("小台散戶", f"{_retail:+,}口", _rt_s, _rt_h), unsafe_allow_html=True)
+    _r1[1].markdown(_metric_html("小台散戶", f"{_retail:+,}口", _rt_s, _rt_h,
+                     ref="多空比 -20%~+15% 為中性區間"), unsafe_allow_html=True)
 
     # ── 欄3：CBOE P/C
     _pc = _risk_info["pc_ratio"]
     if _pc < 0.8:    _pc_s, _pc_h = "🔴", "極度貪婪"
     elif _pc > 1.2:  _pc_s, _pc_h = "🟢", "恐慌買點"
     else:            _pc_s, _pc_h = "⚪", "正常"
-    _r1[2].markdown(_metric_html("CBOE P/C", f"{_pc:.2f}", _pc_s, _pc_h), unsafe_allow_html=True)
+    _r1[2].markdown(_metric_html("CBOE P/C", f"{_pc:.2f}", _pc_s, _pc_h,
+                     ref="0.8~1.2 常態；<0.8 過熱／>1.2 恐慌"), unsafe_allow_html=True)
 
     # ── 欄4：VIX
     if _vix is not None:
         if _vix > 25:    _vix_s, _vix_h = "🔴", "市場去槓桿"
         elif _vix < 15:  _vix_s, _vix_h = "🟢", "風平浪靜"
         else:            _vix_s, _vix_h = "⚪", "警戒中"
-        _r1[3].markdown(_metric_html("VIX 恐慌", f"{_vix:.1f}", _vix_s, _vix_h), unsafe_allow_html=True)
+        _r1[3].markdown(_metric_html("VIX 恐慌", f"{_vix:.1f}", _vix_s, _vix_h,
+                         ref="<15 平靜；15~25 觀察；>25 去槓桿"), unsafe_allow_html=True)
     else:
-        _r1[3].markdown(_metric_html("VIX 恐慌", "—", "⚪", "載入中"), unsafe_allow_html=True)
+        _r1[3].markdown(_metric_html("VIX 恐慌", "—", "⚪", "載入中",
+                         ref="<15 平靜；15~25 觀察；>25 去槓桿"), unsafe_allow_html=True)
 
     # ── 欄5：最近核彈
     _days = _risk_info["days"]
@@ -4685,7 +4692,8 @@ with tab5:
     if _days <= 3:    _nk_s, _nk_h = "🟡", "特種兵離線"
     elif _days <= 7:  _nk_s, _nk_h = "🟡", "開獎警戒"
     else:             _nk_s, _nk_h = "⚪", "安全"
-    _r1[4].markdown(_metric_html("最近核彈", f"{_days}天", _nk_s, f"{_evt}"), unsafe_allow_html=True)
+    _r1[4].markdown(_metric_html("最近核彈", f"{_days}天", _nk_s, f"{_evt}",
+                     ref=">7天安全；≤7天開獎警戒；≤3天特種兵離線"), unsafe_allow_html=True)
 
     # ── 欄6：全場均線排列結構（全市場站上季線SMA60比例 × 大盤距高點背離偵測）
     _breadth   = get_market_breadth_sma60()
@@ -4701,9 +4709,11 @@ with tab5:
             _bd_s, _bd_h = "🟢", "多頭排列健康"
         else:
             _bd_s, _bd_h = "⚪", "結構中性"
-        _r1[5].markdown(_metric_html("全場均線結構", f"{_breadth:.1f}%站季線", _bd_s, _bd_h), unsafe_allow_html=True)
+        _r1[5].markdown(_metric_html("全場均線結構", f"{_breadth:.1f}%站季線", _bd_s, _bd_h,
+                         ref="35%~60% 中性；≥60% 健康；<35%且大盤距高<5% 為背離警戒"), unsafe_allow_html=True)
     else:
-        _r1[5].markdown(_metric_html("全場均線結構", "—", "⚪", "計算中"), unsafe_allow_html=True)
+        _r1[5].markdown(_metric_html("全場均線結構", "—", "⚪", "計算中",
+                         ref="35%~60% 中性；≥60% 健康；<35%且大盤距高<5% 為背離警戒"), unsafe_allow_html=True)
 
     st.markdown("<div style='margin:6px 0;'></div>", unsafe_allow_html=True)
 
@@ -4731,7 +4741,8 @@ with tab5:
         _cpi_s, _cpi_h = "🟢", "穩定降溫"
     else:
         _cpi_s, _cpi_h = "⚪", "觀察中"
-    _r2[0].markdown(_metric_html(_cpi_label, _infl_val, _cpi_s, _cpi_h), unsafe_allow_html=True)
+    _r2[0].markdown(_metric_html(_cpi_label, _infl_val, _cpi_s, _cpi_h,
+                     ref="CPI≤3.0% 降溫／>3.5% 復燃；PPI≥5.5% 死鎖紅燈"), unsafe_allow_html=True)
 
     # ── 欄2：油價（布倫特 / 杜拜）
     _br = _macro_ind.get("brent")
@@ -4742,7 +4753,8 @@ with tab5:
     if _oil_warn:    _oil_s, _oil_h = "🔴", "通膨前導警戒"
     elif _oil_ok:    _oil_s, _oil_h = "🟢", "區間穩定"
     else:            _oil_s, _oil_h = "⚪", "觀察中"
-    _r2[1].markdown(_metric_html("油價 布/杜", _oil_val, _oil_s, _oil_h), unsafe_allow_html=True)
+    _r2[1].markdown(_metric_html("油價 布/杜", _oil_val, _oil_s, _oil_h,
+                     ref="70~80美元 穩定區；布>88或杜>85 通膨警戒"), unsafe_allow_html=True)
 
     # ── 欄3：美債 10 年期殖利率
     _tnx = _macro_ind.get("tnx")
@@ -4750,9 +4762,11 @@ with tab5:
         if _tnx > 4.4:   _tnx_s, _tnx_h = "🔴", "估值壓制"
         elif _tnx < 4.0: _tnx_s, _tnx_h = "🟢", "資金行情解封"
         else:             _tnx_s, _tnx_h = "⚪", "觀察中"
-        _r2[2].markdown(_metric_html("美債10年", f"{_tnx:.2f}%", _tnx_s, _tnx_h), unsafe_allow_html=True)
+        _r2[2].markdown(_metric_html("美債10年", f"{_tnx:.2f}%", _tnx_s, _tnx_h,
+                         ref="<4.0% 資金解封；4.0%~4.4% 觀察；>4.4% 估值壓制"), unsafe_allow_html=True)
     else:
-        _r2[2].markdown(_metric_html("美債10年", "—", "⚪", "載入中"), unsafe_allow_html=True)
+        _r2[2].markdown(_metric_html("美債10年", "—", "⚪", "載入中",
+                         ref="<4.0% 資金解封；4.0%~4.4% 觀察；>4.4% 估值壓制"), unsafe_allow_html=True)
 
     # ── 欄4：大盤月乖離
     _bias = _macro_ind.get("bias")
@@ -4760,17 +4774,22 @@ with tab5:
         if _bias > 4:      _bias_s, _bias_h = "🔴", "極端超漲"
         elif _bias < -4:   _bias_s, _bias_h = "🟢", "黃金打底區"
         else:              _bias_s, _bias_h = "⚪", "正常範圍"
-        _r2[3].markdown(_metric_html("大盤月乖離", f"{_bias:+.1f}%", _bias_s, _bias_h), unsafe_allow_html=True)
+        _r2[3].markdown(_metric_html("大盤月乖離", f"{_bias:+.1f}%", _bias_s, _bias_h,
+                         ref="-4%~+4% 正常；>+4% 超漲；<-4% 打底區"), unsafe_allow_html=True)
     else:
-        _r2[3].markdown(_metric_html("大盤月乖離", "—", "⚪", "計算中"), unsafe_allow_html=True)
+        _r2[3].markdown(_metric_html("大盤月乖離", "—", "⚪", "計算中",
+                         ref="-4%~+4% 正常；>+4% 超漲；<-4% 打底區"), unsafe_allow_html=True)
 
-    # ── 欄5：航運指數（SCFI / BDI）
+    # ── 欄5：航運指數（BDI 波羅的海乾散裝指數，以 BDRY ETF×100 近似）
+    #    說明：SCFI（上海貨櫃運價指數）無公開免費即時來源，故不顯示，
+    #    避免「— / 數字」造成誤導；僅以 BDI 作為航運景氣代理指標。
     _bdi  = _macro_ind.get("bdi")
-    _ship_val = f"— / {_bdi:,}" if _bdi else "— / —"
+    _ship_val = f"{_bdi:,}" if _bdi else "—"
     if _bdi and _bdi > 2000:   _ship_s, _ship_h = "🔴", "通膨隱憂"
     elif _bdi and _bdi < 1000: _ship_s, _ship_h = "🟢", "資金歸建電子"
     else:                       _ship_s, _ship_h = "⚪", "盤整中"
-    _r2[4].markdown(_metric_html("航運 S/BDI", _ship_val, _ship_s, _ship_h), unsafe_allow_html=True)
+    _r2[4].markdown(_metric_html("航運 BDI", _ship_val, _ship_s, _ship_h,
+                     ref="<1000 資金歸建電子；1000~2000 盤整；>2000 通膨隱憂"), unsafe_allow_html=True)
 
     # ── 欄6：個股利多不漲排毒器（掃描戰略儲備庫，統計觸發數量）
     #    交叉比對：新聞熱度（炒作高位） × K線結構（收黑/長上影線） × 外資籌碼（淨賣超）
@@ -4808,7 +4827,8 @@ with tab5:
         _trap_val = f"0/{_trap_total}檔觸發"
 
     _r2[5].markdown(
-        _metric_html("利多不漲排毒", _trap_val, _trap_s, _trap_h),
+        _metric_html("利多不漲排毒", _trap_val, _trap_s, _trap_h,
+                     ref="0檔觸發為正常；任一檔同時符合「炒作熱度高+收黑/長上影+外資賣超」即觸發"),
         unsafe_allow_html=True
     )
 
