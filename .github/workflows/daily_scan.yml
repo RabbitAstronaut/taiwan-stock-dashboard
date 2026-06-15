@@ -1,0 +1,41 @@
+name: 利多不漲排毒掃描
+
+on:
+  schedule:
+    # 台灣時間 17:00 = UTC 09:00；週一到週五 (cron的星期以UTC計算，恰好對齊)
+    - cron: "0 9 * * 1-5"
+  workflow_dispatch:  # 允許手動觸發測試
+
+jobs:
+  daily-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pandas yfinance requests
+
+      - name: Run daily_scan.py
+        run: python daily_scan.py
+
+      - name: Configure Git
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and push if changed
+        if: always()
+        run: |
+          git add data/triggered_alerts.json || true
+          git diff --cached --quiet || git commit -m "auto: 利多不漲排毒掃描 $(date +'%Y-%m-%d')"
+          git push || true

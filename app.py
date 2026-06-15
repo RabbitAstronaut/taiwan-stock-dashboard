@@ -693,82 +693,51 @@ def get_twii_high_proximity():
         return None
 
 
-# ▌ 個股「利多不漲」排毒器：新聞熱度 × K線結構 × 法人籌碼交叉比對
+# ▌ 「利多不漲」排毒雷達 — 前端輕量讀取模組
 # ══════════════════════════════════════════════════════════════
-@st.cache_data(ttl=1800, show_spinner=False)
-def get_news_heat_score(stock_name: str):
+# 重大架構調整：原本在前端即時爬新聞、算K線、算籌碼的重邏輯，
+# 已全部移至獨立後端腳本 daily_scan.py（每日盤後17:00執行一次），
+# 結果寫入 data/triggered_alerts.json。
+# 前端在這裡只做「讀取今日是否有觸發紀錄」的輕量操作，
+# 不再對外發送任何爬蟲/yfinance請求，徹底解決前端記憶體與延遲問題。
+@st.cache_data(ttl=300, show_spinner=False)
+def get_triggered_alerts_today():
     """
-    爬取鉅亨網新聞搜尋頁，以多頭關鍵字出現次數做為「新聞熱度分數」。
-    這是簡化版的文字探勘（關鍵字計數），用於捕捉「市場炒作熱度」的
-    相對高低，並非嚴謹的情緒分析模型。
+    讀取 data/triggered_alerts.json，回傳「今日」的觸發紀錄清單。
 
-    回傳：熱度分數（整數），爬取失敗時回傳 0
+    讀取順序：本地檔案 → GitHub raw 備援。
+    檔案不存在或格式錯誤時，視為「無觸發」回傳空列表（不報錯）。
+
+    回傳：list[dict]，每筆包含 stock_id, name, news_score,
+          shadow_pct, foreign_net, bad_candle 等欄位。
     """
-    _keywords = ["AI", "大漲", "目標價", "上修", "買超", "利多", "強勢", "噴出", "法人", "推升", "創高", "熱潮"]
-    score = 0
-    try:
-        import requests as _req
-        url = f"https://www.cnyes.com/search/news?q={stock_name}"
-        r = _req.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
-        if r.status_code == 200:
-            text = r.text
-            for kw in _keywords:
-                score += text.count(kw)
-    except:
-        pass
-    return score
+    import json as _json, os as _os
+    from datetime import datetime as _dt
+    today_str = _dt.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
 
+    data = None
+    # 1) 本地檔案
+    _local = _os.path.join("data", "triggered_alerts.json")
+    if _os.path.exists(_local):
+        try:
+            with open(_local, "r", encoding="utf-8") as f:
+                data = _json.load(f)
+        except Exception:
+            data = None
+    # 2) GitHub raw 備援
+    if data is None:
+        try:
+            _r = requests.get(f"{GITHUB_RAW}/triggered_alerts.json", timeout=5)
+            if _r.status_code == 200:
+                data = _r.json()
+        except Exception:
+            data = None
 
-def scan_bullish_no_rise_trap(stock_id: str, stock_name: str,
-                               news_score_threshold: int = 15,
-                               shadow_pct_threshold: float = 1.5):
-    """
-    『利多不漲：大戶高位出貨陷阱』交叉比對邏輯。
+    if not data:
+        return []
 
-    三項條件同時成立才會觸發紅燈：
-      1. 新聞熱度分數 > news_score_threshold（市場處於高位炒作狀態）
-      2. 當日K線收黑，或上影線比例 ≥ shadow_pct_threshold%（價格無法續攻）
-      3. 當日外資（三大法人之一）為淨賣超（籌碼面實質出貨）
-
-    回傳 dict：
-      {"trigger": bool, "news_score": int, "bad_candle": bool,
-       "foreign_net": float, "shadow_pct": float}
-    任一資料缺失時 trigger 會是 False，並盡量回填可取得的欄位供前端顯示。
-    """
-    result = {"trigger": False, "news_score": 0, "bad_candle": False,
-              "foreign_net": 0.0, "shadow_pct": 0.0}
-    try:
-        # 1) 新聞熱度
-        result["news_score"] = get_news_heat_score(stock_name)
-
-        # 2) K線結構：收黑 或 長上影線
-        df_p, ok_p = load_price_csv(stock_id)
-        if ok_p and not df_p.empty:
-            lt = df_p.iloc[-1]
-            _open, _close, _high = float(lt["Open"]), float(lt["Close"]), float(lt["High"])
-            is_red_candle = _close < _open
-            shadow_pct = (_high - max(_close, _open)) / _close * 100 if _close > 0 else 0
-            result["shadow_pct"] = round(shadow_pct, 2)
-            result["bad_candle"] = bool(is_red_candle or shadow_pct >= shadow_pct_threshold)
-
-        # 3) 法人籌碼：外資當日淨賣超
-        df_c, ok_c = get_chips(stock_id)
-        if ok_c and not df_c.empty and "name" in df_c.columns:
-            foreign = df_c[df_c["name"].astype(str).str.contains("Foreign_Investor", na=False)]
-            if not foreign.empty:
-                _last = foreign.sort_values("date").iloc[-1]
-                result["foreign_net"] = float(pd.to_numeric(_last.get("net", 0), errors="coerce") or 0)
-
-        # 三項條件同時成立 → 觸發
-        result["trigger"] = (
-            result["news_score"] > news_score_threshold
-            and result["bad_candle"]
-            and result["foreign_net"] < 0
-        )
-    except:
-        pass
-    return result
-
+    alerts = data.get("alerts", [])
+    return [a for a in alerts if a.get("date") == today_str]
 
 # ▌ CBOE Put/Call Ratio 即時抓取
 # ══════════════════════════════════════════════════════════════
@@ -4791,44 +4760,21 @@ with tab5:
     _r2[4].markdown(_metric_html("航運 BDI", _ship_val, _ship_s, _ship_h,
                      ref="<1000 資金歸建電子；1000~2000 盤整；>2000 通膨隱憂"), unsafe_allow_html=True)
 
-    # ── 欄6：個股利多不漲排毒器（掃描戰略儲備庫，統計觸發數量）
-    #    交叉比對：新聞熱度（炒作高位） × K線結構（收黑/長上影線） × 外資籌碼（淨賣超）
-    @st.cache_data(ttl=1800, show_spinner=False)
-    def _scan_reserve_trap(reserve_tuple, max_scan=20):
-        """
-        掃描儲備庫前 max_scan 檔，統計觸發「利多不漲」的數量。
-        包一層30分鐘快取：避免每次頁面互動都重新打新聞請求與重算K線，
-        是降低記憶體與網路負載的關鍵。
-        """
-        hits, total = [], 0
-        for sid_t, name_t in reserve_tuple[:max_scan]:
-            if not sid_t:
-                continue
-            t = scan_bullish_no_rise_trap(sid_t, name_t)
-            total += 1
-            if t["trigger"]:
-                hits.append((sid_t, name_t))
-        return hits, total
+    # ── 欄6：利多不漲排毒（後端 daily_scan.py 每日17:00盤後掃描，前端僅讀結果）
+    _alerts_today = get_triggered_alerts_today()
 
-    _reserve_for_trap = st.session_state.get("reserve_list", [])
-    _reserve_tuple = tuple((r.get("id",""), r.get("name", r.get("id",""))) for r in _reserve_for_trap)
-    _trap_hits, _trap_total = _scan_reserve_trap(_reserve_tuple)
-
-    if _trap_total == 0:
-        _trap_s, _trap_h = "⚪", "儲備庫無標的"
-        _trap_val = "—"
-    elif _trap_hits:
-        _names = "、".join(n for _, n in _trap_hits[:3])
-        _more  = f" 等{len(_trap_hits)}檔" if len(_trap_hits) > 3 else ""
+    if _alerts_today:
+        _names = "、".join(a.get("name", a.get("stock_id","?")) for a in _alerts_today[:3])
+        _more  = f" 等{len(_alerts_today)}檔" if len(_alerts_today) > 3 else ""
         _trap_s, _trap_h = "🔴", "利多不漲:大戶高位出貨陷阱"
-        _trap_val = f"{len(_trap_hits)}/{_trap_total}檔觸發：{_names}{_more}"
+        _trap_val = f"🚨 {len(_alerts_today)}檔觸發：{_names}{_more}"
     else:
-        _trap_s, _trap_h = "⚪", "正常監控中"
-        _trap_val = f"0/{_trap_total}檔觸發"
+        _trap_s, _trap_h = "🟢", "戰備軍無毒・安全"
+        _trap_val = "0檔觸發"
 
     _r2[5].markdown(
         _metric_html("利多不漲排毒", _trap_val, _trap_s, _trap_h,
-                     ref="0檔觸發為正常；任一檔同時符合「炒作熱度高+收黑/長上影+外資賣超」即觸發"),
+                     ref="每日17:00盤後自動掃描戰備清單；0檔=安全，>0檔=大戶高位出貨警報"),
         unsafe_allow_html=True
     )
 
