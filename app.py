@@ -624,15 +624,15 @@ def get_macro_indicators():
 # ▌ 全市場站上季線(SMA60)比例 ＋ 大盤距歷史高點百分比
 # ══════════════════════════════════════════════════════════════
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_market_breadth_sma60(sample_size: int = 150):
+def get_market_breadth_sma60(sample_size: int = 40):
     """
     計算台股監控池中，當前站上季線（SMA60）的個股家數比例。
 
     效能說明：
-    考量 Streamlit Cloud 對外讀取 GitHub raw CSV 的網路成本，本函式從
-    `stock_list.csv` 取出股票池後，採樣前 sample_size 檔（預設150檔，
-    涵蓋大型權值股與主流產業，具市場代表性）逐一讀取其 K 線計算 SMA60，
-    結果快取1小時，避免每次重整都重新計算全市場。
+    Streamlit Cloud 記憶體有限，逐檔讀取 K 線 CSV 成本高，故大幅縮減
+    採樣數（預設40檔，取監控池前段大型權值股具市場代表性）作為全市場
+    多空結構的近似指標，結果快取1小時。讀取後立即只保留收盤價序列，
+    不持有整份 DataFrame，降低記憶體佔用。
 
     回傳：站上季線家數比例（%），資料不足時回傳 None
     """
@@ -659,6 +659,7 @@ def get_market_breadth_sma60(sample_size: int = 150):
             if closes.iloc[-1] > sma60:
                 above += 1
             total += 1
+            del df_p, closes  # 立即釋放，避免逐檔累積記憶體
 
         if total == 0:
             return None
@@ -1688,7 +1689,14 @@ def _load_relay_chips():
         st.session_state["relay_debug"] = f"ERROR: {e}"
     return pd.DataFrame()
 
-def get_chips(stock_id=None):
+@st.cache_data(ttl=300, show_spinner=False)
+def _get_chips_merged_all():
+    """
+    取得「全市場合併後」的籌碼+融資資料（GitHub歷史 + Render即時 + margin.csv）。
+    這是 get_chips() 內部最耗資源的合併/去重步驟，加上5分鐘快取後，
+    無論呼叫 get_chips(stock_id) 多少次（例如掃描整個儲備庫），
+    這個合併運算只會在快取過期後執行一次，大幅降低記憶體與CPU開銷。
+    """
     # 讀 GitHub CSV 歷史資料
     df_csv, ok_csv = load_csv("chips_data.csv")
     if ok_csv and not df_csv.empty:
@@ -1726,7 +1734,7 @@ def get_chips(stock_id=None):
     elif not df_csv.empty:
         df = df_csv.copy()
     else:
-        return pd.DataFrame(), False
+        return pd.DataFrame()
 
     # ── 整合融資資料（margin.csv）
     df_margin, ok_margin = load_csv("margin.csv")
@@ -1746,9 +1754,17 @@ def get_chips(stock_id=None):
         df_margin = df_margin[_mg_keep].dropna(subset=["net"])
         df = pd.concat([df, df_margin], ignore_index=True)
 
+    return df.sort_values("date") if "date" in df.columns else df
+
+
+def get_chips(stock_id=None):
+    """從快取的全市場合併結果中，依股票代號篩選（輕量操作）"""
+    df = _get_chips_merged_all()
+    if df.empty:
+        return pd.DataFrame(), False
     if stock_id:
         df = df[df["stock_id"] == str(stock_id).strip()]
-    return df.sort_values("date") if "date" in df.columns else df, True
+    return df, True
 
 def get_financials(stock_id=None):
     df, ok = load_csv("financial_data.csv")
@@ -4752,26 +4768,34 @@ with tab5:
     else:                       _ship_s, _ship_h = "⚪", "盤整中"
     _r2[4].markdown(_metric_html("航運 S/BDI", _ship_val, _ship_s, _ship_h), unsafe_allow_html=True)
 
-    # ── 欄6：個股利多不漲排毒器（掃描整個戰略儲備庫，統計觸發數量）
+    # ── 欄6：個股利多不漲排毒器（掃描戰略儲備庫，統計觸發數量）
     #    交叉比對：新聞熱度（炒作高位） × K線結構（收黑/長上影線） × 外資籌碼（淨賣超）
+    @st.cache_data(ttl=1800, show_spinner=False)
+    def _scan_reserve_trap(reserve_tuple, max_scan=20):
+        """
+        掃描儲備庫前 max_scan 檔，統計觸發「利多不漲」的數量。
+        包一層30分鐘快取：避免每次頁面互動都重新打新聞請求與重算K線，
+        是降低記憶體與網路負載的關鍵。
+        """
+        hits, total = [], 0
+        for sid_t, name_t in reserve_tuple[:max_scan]:
+            if not sid_t:
+                continue
+            t = scan_bullish_no_rise_trap(sid_t, name_t)
+            total += 1
+            if t["trigger"]:
+                hits.append((sid_t, name_t))
+        return hits, total
+
     _reserve_for_trap = st.session_state.get("reserve_list", [])
-    _trap_hits  = []  # 觸發的標的清單
-    _trap_total = 0   # 實際完成掃描的檔數
-    for _rv in _reserve_for_trap:
-        _sid_t  = _rv.get("id", "")
-        _name_t = _rv.get("name", _sid_t)
-        if not _sid_t:
-            continue
-        _t = scan_bullish_no_rise_trap(_sid_t, _name_t)
-        _trap_total += 1
-        if _t["trigger"]:
-            _trap_hits.append((_sid_t, _name_t, _t))
+    _reserve_tuple = tuple((r.get("id",""), r.get("name", r.get("id",""))) for r in _reserve_for_trap)
+    _trap_hits, _trap_total = _scan_reserve_trap(_reserve_tuple)
 
     if _trap_total == 0:
         _trap_s, _trap_h = "⚪", "儲備庫無標的"
         _trap_val = "—"
     elif _trap_hits:
-        _names = "、".join(n for _, n, _ in _trap_hits[:3])
+        _names = "、".join(n for _, n in _trap_hits[:3])
         _more  = f" 等{len(_trap_hits)}檔" if len(_trap_hits) > 3 else ""
         _trap_s, _trap_h = "🔴", "利多不漲:大戶高位出貨陷阱"
         _trap_val = f"{len(_trap_hits)}/{_trap_total}檔觸發：{_names}{_more}"
