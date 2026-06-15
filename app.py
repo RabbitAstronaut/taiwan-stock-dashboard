@@ -4621,7 +4621,7 @@ with tab5:
     def _metric_html(label, value, status, hint, ref=""):
         """用 HTML 自訂 metric，確保字體大小舒適且顏色醒目；ref為標準參考值，灰色小字顯示"""
         color = {"🔴":"#ff4444","🟡":"#fbbf24","🟢":"#00cc66","⚪":"#8892b0"}.get(status[0], "#8892b0")
-        _ref_line = f"<div style='color:#4a6280;font-size:.62rem;margin-top:2px;'>標準：{ref}</div>" if ref else ""
+        _ref_line = f"<div style='color:#9fb8d4;font-size:.78rem;margin-top:4px;'>標準：{ref}</div>" if ref else ""
         return (
             f"<div style='background:rgba(255,255,255,0.03);border:1px solid #1e3a5f;"
             f"border-radius:8px;padding:10px 8px;text-align:center;border-top:3px solid {color};'>"
