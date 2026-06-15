@@ -509,6 +509,35 @@ def get_vix():
     return None
 
 
+# ▌ 美國 PPI（生產者物價指數）年增率 — FRED 免金鑰 CSV 端點
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_us_ppi():
+    """
+    從 FRED（美國聖路易聯邦準備銀行）取得 PPIACO（生產者物價指數）
+    使用免金鑰的公開 CSV 圖表端點，每日快取一次（PPI 為月頻資料）。
+    回傳：PPI 年增率（%），失敗則回傳備援值 6.5（2026年5月公布值）。
+    """
+    try:
+        import requests as _req, io as _io
+        url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=PPIACO"
+        r = _req.get(url, timeout=10)
+        if r.status_code == 200:
+            df = pd.read_csv(_io.StringIO(r.text))
+            df.columns = ["date", "value"]
+            df["value"] = pd.to_numeric(df["value"], errors="coerce")
+            df = df.dropna(subset=["value"]).sort_values("date")
+            if len(df) >= 13:
+                latest   = float(df["value"].iloc[-1])
+                year_ago = float(df["value"].iloc[-13])
+                if year_ago:
+                    return round((latest - year_ago) / year_ago * 100, 1)
+    except:
+        pass
+    # 備援固定值：2026年5月美國 PPI 年增率約 6.5%（嚴重衝破安全線）
+    return 6.5
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_macro_indicators():
     """
@@ -589,6 +618,150 @@ def get_macro_indicators():
         result["cpi_month"] = _meta.get("cpi_month", "")
     except: pass
 
+    return result
+
+
+# ▌ 全市場站上季線(SMA60)比例 ＋ 大盤距歷史高點百分比
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_market_breadth_sma60(sample_size: int = 150):
+    """
+    計算台股監控池中，當前站上季線（SMA60）的個股家數比例。
+
+    效能說明：
+    考量 Streamlit Cloud 對外讀取 GitHub raw CSV 的網路成本，本函式從
+    `stock_list.csv` 取出股票池後，採樣前 sample_size 檔（預設150檔，
+    涵蓋大型權值股與主流產業，具市場代表性）逐一讀取其 K 線計算 SMA60，
+    結果快取1小時，避免每次重整都重新計算全市場。
+
+    回傳：站上季線家數比例（%），資料不足時回傳 None
+    """
+    try:
+        df_sl, ok_sl = load_csv("stock_list.csv")
+        if not ok_sl or df_sl.empty or "stock_id" not in df_sl.columns:
+            return None
+        ids = df_sl["stock_id"].dropna().astype(str).unique().tolist()
+        ids = [s for s in ids if s.isdigit() and len(s) == 4]
+        ids = ids[:sample_size]
+
+        above, total = 0, 0
+        for sid in ids:
+            df_p, ok_p = load_csv(f"prices/{sid}.csv")
+            if not ok_p or df_p.empty:
+                continue
+            close_col = next((c for c in df_p.columns if c.lower() == "close"), None)
+            if not close_col:
+                continue
+            closes = pd.to_numeric(df_p[close_col], errors="coerce").dropna()
+            if len(closes) < 60:
+                continue
+            sma60 = closes.tail(60).mean()
+            if closes.iloc[-1] > sma60:
+                above += 1
+            total += 1
+
+        if total == 0:
+            return None
+        return round(above / total * 100, 1)
+    except:
+        return None
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_twii_high_proximity():
+    """
+    計算加權指數目前收盤價與最近一年內歷史最高點的距離百分比。
+    回傳：距高點百分比（正值，0 = 創新高，5 = 距高點5%）
+    資料不足時回傳 None
+    """
+    try:
+        import yfinance as _yf
+        hist = _yf.Ticker("^TWII").history(period="1y")
+        if hist.empty:
+            return None
+        high = float(hist["Close"].max())
+        last = float(hist["Close"].iloc[-1])
+        if high <= 0:
+            return None
+        return round((high - last) / high * 100, 2)
+    except:
+        return None
+
+
+# ▌ 個股「利多不漲」排毒器：新聞熱度 × K線結構 × 法人籌碼交叉比對
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=1800, show_spinner=False)
+def get_news_heat_score(stock_name: str):
+    """
+    爬取鉅亨網新聞搜尋頁，以多頭關鍵字出現次數做為「新聞熱度分數」。
+    這是簡化版的文字探勘（關鍵字計數），用於捕捉「市場炒作熱度」的
+    相對高低，並非嚴謹的情緒分析模型。
+
+    回傳：熱度分數（整數），爬取失敗時回傳 0
+    """
+    _keywords = ["AI", "大漲", "目標價", "上修", "買超", "利多", "強勢", "噴出", "法人", "推升", "創高", "熱潮"]
+    score = 0
+    try:
+        import requests as _req
+        url = f"https://www.cnyes.com/search/news?q={stock_name}"
+        r = _req.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
+        if r.status_code == 200:
+            text = r.text
+            for kw in _keywords:
+                score += text.count(kw)
+    except:
+        pass
+    return score
+
+
+def scan_bullish_no_rise_trap(stock_id: str, stock_name: str,
+                               news_score_threshold: int = 15,
+                               shadow_pct_threshold: float = 1.5):
+    """
+    『利多不漲：大戶高位出貨陷阱』交叉比對邏輯。
+
+    三項條件同時成立才會觸發紅燈：
+      1. 新聞熱度分數 > news_score_threshold（市場處於高位炒作狀態）
+      2. 當日K線收黑，或上影線比例 ≥ shadow_pct_threshold%（價格無法續攻）
+      3. 當日外資（三大法人之一）為淨賣超（籌碼面實質出貨）
+
+    回傳 dict：
+      {"trigger": bool, "news_score": int, "bad_candle": bool,
+       "foreign_net": float, "shadow_pct": float}
+    任一資料缺失時 trigger 會是 False，並盡量回填可取得的欄位供前端顯示。
+    """
+    result = {"trigger": False, "news_score": 0, "bad_candle": False,
+              "foreign_net": 0.0, "shadow_pct": 0.0}
+    try:
+        # 1) 新聞熱度
+        result["news_score"] = get_news_heat_score(stock_name)
+
+        # 2) K線結構：收黑 或 長上影線
+        df_p, ok_p = load_price_csv(stock_id)
+        if ok_p and not df_p.empty:
+            lt = df_p.iloc[-1]
+            _open, _close, _high = float(lt["Open"]), float(lt["Close"]), float(lt["High"])
+            is_red_candle = _close < _open
+            shadow_pct = (_high - max(_close, _open)) / _close * 100 if _close > 0 else 0
+            result["shadow_pct"] = round(shadow_pct, 2)
+            result["bad_candle"] = bool(is_red_candle or shadow_pct >= shadow_pct_threshold)
+
+        # 3) 法人籌碼：外資當日淨賣超
+        df_c, ok_c = get_chips(stock_id)
+        if ok_c and not df_c.empty and "name" in df_c.columns:
+            foreign = df_c[df_c["name"].astype(str).str.contains("Foreign_Investor", na=False)]
+            if not foreign.empty:
+                _last = foreign.sort_values("date").iloc[-1]
+                result["foreign_net"] = float(pd.to_numeric(_last.get("net", 0), errors="coerce") or 0)
+
+        # 三項條件同時成立 → 觸發
+        result["trigger"] = (
+            result["news_score"] > news_score_threshold
+            and result["bad_candle"]
+            and result["foreign_net"] < 0
+        )
+    except:
+        pass
     return result
 
 
@@ -726,84 +899,59 @@ def get_tx_foreign_position():
     except: pass
     return 0
 
-# ▌ 台指期近月逆價差／正價差即時監控
+# ▌ 外資台指期「結轉（轉倉）」追蹤
 # ══════════════════════════════════════════════════════════════
-@st.cache_data(ttl=60, show_spinner=False)
-def get_tx_discount():
+@st.cache_data(ttl=300, show_spinner=False)
+def get_tx_rollover_info():
     """
-    計算台指期近月「逆價差／正價差」（盤中即時版）
-    逆價差 = 台指期近月即時價格 - 加權指數現貨即時價格
-    回傳 dict: {"discount": float, "tx_price": float, "twii_price": float, "is_live": bool}
-    若資料不足則回傳 None
+    追蹤外資台指期淨未平倉口數的『結轉（轉倉）』變化。
+
+    資料源限制說明：
+    futures_data 僅提供當沖近月合約之三大法人淨未平倉彙總，並無區分
+    「近月合約」與「次月合約」的個別倉位，故無法直接取得真正的
+    逐筆轉倉明細。本函式以「外資淨未平倉口數的日對日變化」以及
+    「近5個交易日累計變化」作為次月結轉空單堆積之代理觀察指標：
+      - daily_change：今日相較昨日的淨未平倉變化（負值＝增加空單/減少多單）
+      - cum_rollover：近5日累計變化（持續為負＝空單結轉堆積中）
+
+    回傳 dict：{"daily_change": int, "cum_rollover": int}
+    資料不足時回傳 {"daily_change": 0, "cum_rollover": 0}
     """
-    is_live = False
-
-    # ── 1. 加權指數現貨：優先抓盤中 1 分鐘線（盤中即時）
-    twii_price = None
     try:
-        import yfinance as _yf
-        _intraday = _yf.Ticker("^TWII").history(period="1d", interval="1m")
-        if not _intraday.empty:
-            twii_price = float(_intraday["Close"].dropna().iloc[-1])
-            is_live = True
+        df_fut, ok_fut = get_futures()
+        if not ok_fut or df_fut.empty:
+            return {"daily_change": 0, "cum_rollover": 0}
+
+        nm = next((c for c in ["name","institutional_investors"] if c in df_fut.columns), None)
+        lc = next((c for c in df_fut.columns if "long_open_interest_balance" in c and "amount" not in c), None)
+        sc = next((c for c in df_fut.columns if "short_open_interest_balance" in c and "amount" not in c), None)
+        if not nm or not lc or not sc:
+            return {"daily_change": 0, "cum_rollover": 0}
+
+        inst = df_fut[df_fut["source"]=="institutional"] if "source" in df_fut.columns else df_fut
+        tx   = inst[inst["contract"]=="TX"] if "contract" in inst.columns else pd.DataFrame()
+        foreign = tx[tx[nm].astype(str).str.contains("外資", na=False)].copy()
+        if foreign.empty:
+            return {"daily_change": 0, "cum_rollover": 0}
+
+        foreign["net"] = (pd.to_numeric(foreign[lc], errors="coerce")
+                          - pd.to_numeric(foreign[sc], errors="coerce"))
+        foreign["date"] = pd.to_datetime(foreign["date"], errors="coerce")
+        daily = (foreign.dropna(subset=["date","net"])
+                        .groupby("date")["net"].last()
+                        .reset_index()
+                        .sort_values("date"))
+        if len(daily) < 2:
+            return {"daily_change": 0, "cum_rollover": 0}
+
+        daily["chg"] = daily["net"].diff()
+        _last_chg = daily["chg"].iloc[-1]
+        daily_change = int(_last_chg) if not pd.isna(_last_chg) else 0
+        # 近5日累計變化（持續為負 = 外資空單持續結轉堆積）
+        cum_rollover = int(daily["chg"].tail(5).sum(skipna=True))
+        return {"daily_change": daily_change, "cum_rollover": cum_rollover}
     except:
-        pass
-    # 備援：抓不到盤中分鐘線（非交易時段）→ 用日線最新收盤
-    if twii_price is None:
-        try:
-            import yfinance as _yf
-            _daily = _yf.Ticker("^TWII").history(period="2d", interval="1d")
-            if not _daily.empty:
-                twii_price = float(_daily["Close"].iloc[-1])
-        except:
-            pass
-
-    # ── 2. 台指期近月：優先抓 TAIFEX 盤中即時行情 API
-    tx_price = None
-    try:
-        import requests as _req
-        _r = _req.post(
-            "https://mis.taifex.com.tw/futures/api/getQuoteListData",
-            json={"SymbolID": ["TXFL0"]},  # TXFL0 = 台指期近月連續代碼
-            headers={"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"},
-            timeout=5, verify=False
-        )
-        _d = _r.json()
-        _list = _d.get("RtData", {}).get("QuoteList", [])
-        if _list:
-            _px = _list[0].get("CLastPrice") or _list[0].get("DispPrice")
-            if _px:
-                tx_price = float(str(_px).replace(",", ""))
-                is_live = is_live and True
-    except:
-        pass
-
-    # 備援：抓不到即時行情 → 用 futures_data 裡的最新結算/收盤價（非即時）
-    if tx_price is None:
-        try:
-            df_fut, ok_fut = get_futures()
-            if ok_fut and not df_fut.empty and "contract" in df_fut.columns:
-                tx_rows = df_fut[df_fut["contract"] == "TX"]
-                if "source" in tx_rows.columns:
-                    _price_rows = tx_rows[tx_rows["source"] != "institutional"]
-                else:
-                    _price_rows = tx_rows
-                for _col in ["settlement_price", "close"]:
-                    if _col in _price_rows.columns:
-                        _vals = pd.to_numeric(_price_rows[_col], errors="coerce").dropna()
-                        if not _vals.empty:
-                            tx_price = float(_vals.iloc[-1])
-                            break
-            is_live = False
-        except:
-            pass
-
-    if tx_price is None or twii_price is None:
-        return None
-
-    discount = round(tx_price - twii_price, 1)
-    return {"discount": discount, "tx_price": tx_price, "twii_price": twii_price, "is_live": is_live}
-
+        return {"daily_change": 0, "cum_rollover": 0}
 
 def get_dual_alert():
     """
@@ -1769,41 +1917,6 @@ with st.sidebar:
     if not df_fut_check.empty and "date" in df_fut_check.columns:
         fut_latest = str(df_fut_check["date"].max())[:10]
         upd += f" | 期貨:{fut_latest}"
-    # 逆價差 debug
-    try:
-        _disc_dbg = get_tx_discount()
-        upd += f" | discount:{_disc_dbg}"
-        # 細分檢查
-        import yfinance as _yf_dbg
-        _id = _yf_dbg.Ticker("^TWII").history(period="1d", interval="1m")
-        _dd = _yf_dbg.Ticker("^TWII").history(period="2d", interval="1d")
-        upd += f" twii_1m:{len(_id)} twii_daily:{len(_dd)}"
-        if not _dd.empty:
-            upd += f" twii_close:{_dd['Close'].iloc[-1]:.0f}"
-        # futures contract 欄位檢查
-        _df_fut_dbg, _ok_fut_dbg = get_futures()
-        if _ok_fut_dbg and not _df_fut_dbg.empty:
-            upd += f" fut_cols:{[c for c in _df_fut_dbg.columns if 'price' in c.lower() or 'close' in c.lower()]}"
-            if 'contract' in _df_fut_dbg.columns:
-                _tx_r = _df_fut_dbg[_df_fut_dbg['contract']=='TX']
-                upd += f" tx_rows:{len(_tx_r)}"
-                if not _tx_r.empty:
-                    for _, _trow in _tx_r.iterrows():
-                        upd += f" [src:{_trow.get('source')} close:{_trow.get('close')} settle:{_trow.get('settlement_price')}]"
-        # TAIFEX API debug
-        try:
-            import requests as _req_dbg
-            _rt = _req_dbg.post(
-                "https://mis.taifex.com.tw/futures/api/getQuoteListData",
-                json={"SymbolID": ["TXFL0"]},
-                headers={"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"},
-                timeout=5, verify=False
-            )
-            upd += f" | taifex_status:{_rt.status_code} body:{_rt.text[:150]}"
-        except Exception as _te:
-            upd += f" | taifex_err:{_te}"
-    except Exception as _e:
-        upd += f" | discount_err:{_e}"
     # 2330 daily debug
     try:
         _df_c2, _ok2 = get_chips('2330')
@@ -4497,42 +4610,27 @@ with tab5:
             f"</div>"
         )
 
-    _r1 = st.columns(5)
+    _r1 = st.columns(6)
 
-    # ── 欄1：大台外資 ＋ 期貨逆價差（Discount）即時風控
+    # ── 欄1：大台外資（外資台指期淨未平倉 ＋ 結轉/轉倉追蹤）
     _tx = _risk_info["tx_net"]
-    # 預設：依大台外資淨未平倉口數判斷燈號
-    if _tx <= -45000:   _tx_s, _tx_h = "🔴", "高度警戒"
-    elif _tx >= -25000: _tx_s, _tx_h = "🟢", "波段安全"
-    else:               _tx_s, _tx_h = "⚪", "觀察中"
+    _rollover     = get_tx_rollover_info()
+    _daily_chg    = _rollover.get("daily_change", 0)
+    _cum_rollover = _rollover.get("cum_rollover", 0)
 
-    # ── 逆價差（Discount）= 台指期近月價格 - 加權指數現貨價格
-    _tx_disc_info = get_tx_discount()
-    _tx_disc_line = ""
-    if _tx_disc_info is not None:
-        _disc = _tx_disc_info["discount"]
-        _live_tag = "🟢即時" if _tx_disc_info.get("is_live") else "延遲"
-        _tx_disc_line = f"｜價差:{_disc:+.0f}點({_live_tag})"
+    # 🚨 剛性風控：外資空單 ≥45,000口 或 近5日結轉空單累計突破 -70,000口
+    #    → 無條件觸發【毀滅警戒：空單死鎖/全速清空現貨】極端紅燈
+    if _tx <= -45000 or _cum_rollover <= -70000:
+        _tx_s, _tx_h = "🔴", "毀滅警戒:空單死鎖/全速清空現貨"
+    elif _tx >= -25000:
+        _tx_s, _tx_h = "🟢", "波段安全"
+    else:
+        # 回補至 -45,000 口以下（即未達紅燈門檻）維持黃燈觀察
+        _tx_s, _tx_h = "🟡", "回補觀察中"
 
-        # 🚨 剛性亮燈風控：逆價差優先權最高，可覆蓋大台外資原本燈號
-        if _disc <= -200:
-            # 逆價差 ≤ -200 點：現貨極度恐慌，全系統子彈死鎖
-            _tx_s, _tx_h = "🔴", f"極端逆價差:現貨危險（{_disc:+.0f}點）"
-        elif -200 < _disc <= -150:
-            # 過渡區：逆價差擴大中，提高警覺
-            _tx_s, _tx_h = "🟡", f"逆價差擴大中（{_disc:+.0f}點）"
-        elif -150 < _disc <= -50:
-            # 常態合理避險區間
-            _tx_s, _tx_h = "⚪", f"常態避險（{_disc:+.0f}點）"
-        elif -50 < _disc <= 30:
-            # 過渡區：價差收斂，留意轉正
-            _tx_s, _tx_h = "🟡", f"價差收斂中（{_disc:+.0f}點）"
-        else:
-            # 🟢 正價差 > +30 點：空頭棄守、軋空動能啟動
-            _tx_s, _tx_h = "🟢", f"正價差:空頭棄守（{_disc:+.0f}點）"
-
+    _tx_delta_line = f"轉倉:{_daily_chg:+,}口／累計:{_cum_rollover:+,}口"
     _r1[0].markdown(
-        _metric_html("大台外資", f"{_tx:+,}口{_tx_disc_line}", _tx_s, _tx_h),
+        _metric_html("大台外資", f"{_tx:+,}口", _tx_s, f"{_tx_h}｜{_tx_delta_line}"),
         unsafe_allow_html=True
     )
 
@@ -4569,24 +4667,51 @@ with tab5:
     else:             _nk_s, _nk_h = "⚪", "安全"
     _r1[4].markdown(_metric_html("最近核彈", f"{_days}天", _nk_s, f"{_evt}"), unsafe_allow_html=True)
 
+    # ── 欄6：全場均線排列結構（全市場站上季線SMA60比例 × 大盤距高點背離偵測）
+    _breadth   = get_market_breadth_sma60()
+    _high_prox = get_twii_high_proximity()
+    if _breadth is not None:
+        # 🚨 結構極致背離：站上季線比例 <35% 但大盤仍在歷史高檔5%以內
+        #    → 個股集體下陷，主力可能正在大盤指數上拉假象出貨
+        if _breadth < 35 and _high_prox is not None and _high_prox <= 5:
+            _bd_s, _bd_h = "🔴", f"結構極致背離:個股集體下陷・嚴禁滿倉（距高{_high_prox:.1f}%）"
+        elif _breadth < 35:
+            _bd_s, _bd_h = "🟡", "站上季線家數偏低"
+        elif _breadth >= 60:
+            _bd_s, _bd_h = "🟢", "多頭排列健康"
+        else:
+            _bd_s, _bd_h = "⚪", "結構中性"
+        _r1[5].markdown(_metric_html("全場均線結構", f"{_breadth:.1f}%站季線", _bd_s, _bd_h), unsafe_allow_html=True)
+    else:
+        _r1[5].markdown(_metric_html("全場均線結構", "—", "⚪", "計算中"), unsafe_allow_html=True)
+
     st.markdown("<div style='margin:6px 0;'></div>", unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════════
     # 第二行：總經核彈與大盤邊界防線（5 欄）
     # ══════════════════════════════════════════════════════════
-    _r2 = st.columns(5)
+    _r2 = st.columns(6)
 
-    # ── 欄1：CPI 年增率
+    # ── 欄1：通膨雙指標（CPI / PPI 年增率）
     _cpi = _macro_ind.get("cpi")
+    _ppi = get_us_ppi()
     _cpi_month = _macro_ind.get("cpi_month", "")
-    _cpi_label = f"CPI {_cpi_month[2:] if _cpi_month else '年增率'}"
-    if _cpi is not None:
-        if _cpi > 3.5:    _cpi_s, _cpi_h = "🔴", "通膨復燃"
-        elif _cpi <= 3.0: _cpi_s, _cpi_h = "🟢", "穩定降溫"
-        else:             _cpi_s, _cpi_h = "⚪", "觀察中"
-        _r2[0].markdown(_metric_html(_cpi_label, f"{_cpi:.1f}%", _cpi_s, _cpi_h), unsafe_allow_html=True)
+    _cpi_label = f"CPI/PPI {_cpi_month[2:]}" if _cpi_month else "CPI / PPI 年增率"
+
+    _cpi_str = f"{_cpi:.1f}%" if _cpi is not None else "—"
+    _ppi_str = f"{_ppi:.1f}%" if _ppi is not None else "—"
+    _infl_val = f"{_cpi_str} / {_ppi_str}"
+
+    # 🚨 PPI ≥5.5% 為最高優先風控：通膨復燃壓制估值（PPI領先反映成本端壓力）
+    if _ppi is not None and _ppi >= 5.5:
+        _cpi_s, _cpi_h = "🔴", f"通膨復燃:壓制估值（PPI {_ppi:.1f}%）"
+    elif _cpi is not None and _cpi > 3.5:
+        _cpi_s, _cpi_h = "🔴", "通膨復燃"
+    elif _cpi is not None and _cpi <= 3.0:
+        _cpi_s, _cpi_h = "🟢", "穩定降溫"
     else:
-        _r2[0].markdown(_metric_html("CPI 年增率", "—", "⚪", "待更新"), unsafe_allow_html=True)
+        _cpi_s, _cpi_h = "⚪", "觀察中"
+    _r2[0].markdown(_metric_html(_cpi_label, _infl_val, _cpi_s, _cpi_h), unsafe_allow_html=True)
 
     # ── 欄2：油價（布倫特 / 杜拜）
     _br = _macro_ind.get("brent")
@@ -4626,6 +4751,38 @@ with tab5:
     elif _bdi and _bdi < 1000: _ship_s, _ship_h = "🟢", "資金歸建電子"
     else:                       _ship_s, _ship_h = "⚪", "盤整中"
     _r2[4].markdown(_metric_html("航運 S/BDI", _ship_val, _ship_s, _ship_h), unsafe_allow_html=True)
+
+    # ── 欄6：個股利多不漲排毒器（掃描整個戰略儲備庫，統計觸發數量）
+    #    交叉比對：新聞熱度（炒作高位） × K線結構（收黑/長上影線） × 外資籌碼（淨賣超）
+    _reserve_for_trap = st.session_state.get("reserve_list", [])
+    _trap_hits  = []  # 觸發的標的清單
+    _trap_total = 0   # 實際完成掃描的檔數
+    for _rv in _reserve_for_trap:
+        _sid_t  = _rv.get("id", "")
+        _name_t = _rv.get("name", _sid_t)
+        if not _sid_t:
+            continue
+        _t = scan_bullish_no_rise_trap(_sid_t, _name_t)
+        _trap_total += 1
+        if _t["trigger"]:
+            _trap_hits.append((_sid_t, _name_t, _t))
+
+    if _trap_total == 0:
+        _trap_s, _trap_h = "⚪", "儲備庫無標的"
+        _trap_val = "—"
+    elif _trap_hits:
+        _names = "、".join(n for _, n, _ in _trap_hits[:3])
+        _more  = f" 等{len(_trap_hits)}檔" if len(_trap_hits) > 3 else ""
+        _trap_s, _trap_h = "🔴", "利多不漲:大戶高位出貨陷阱"
+        _trap_val = f"{len(_trap_hits)}/{_trap_total}檔觸發：{_names}{_more}"
+    else:
+        _trap_s, _trap_h = "⚪", "正常監控中"
+        _trap_val = f"0/{_trap_total}檔觸發"
+
+    _r2[5].markdown(
+        _metric_html("利多不漲排毒", _trap_val, _trap_s, _trap_h),
+        unsafe_allow_html=True
+    )
 
     st.markdown("<div style='margin:4px 0;'></div>", unsafe_allow_html=True)
 
