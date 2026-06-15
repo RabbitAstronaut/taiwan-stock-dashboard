@@ -726,85 +726,6 @@ def get_tx_foreign_position():
     except: pass
     return 0
 
-# ▌ 台指期近月逆價差／正價差即時監控
-# ══════════════════════════════════════════════════════════════
-@st.cache_data(ttl=60, show_spinner=False)
-def get_tx_discount():
-    """
-    計算台指期近月「逆價差／正價差」（盤中即時版）
-    逆價差 = 台指期近月即時價格 - 加權指數現貨即時價格
-    回傳 dict: {"discount": float, "tx_price": float, "twii_price": float, "is_live": bool}
-    若資料不足則回傳 None
-    """
-    is_live = False
-
-    # ── 1. 加權指數現貨：優先抓盤中 1 分鐘線（盤中即時）
-    twii_price = None
-    try:
-        import yfinance as _yf
-        _intraday = _yf.Ticker("^TWII").history(period="1d", interval="1m")
-        if not _intraday.empty:
-            twii_price = float(_intraday["Close"].dropna().iloc[-1])
-            is_live = True
-    except:
-        pass
-    # 備援：抓不到盤中分鐘線（非交易時段）→ 用日線最新收盤
-    if twii_price is None:
-        try:
-            import yfinance as _yf
-            _daily = _yf.Ticker("^TWII").history(period="2d", interval="1d")
-            if not _daily.empty:
-                twii_price = float(_daily["Close"].iloc[-1])
-        except:
-            pass
-
-    # ── 2. 台指期近月：優先抓 TAIFEX 盤中即時行情 API
-    tx_price = None
-    try:
-        import requests as _req
-        _r = _req.post(
-            "https://mis.taifex.com.tw/futures/api/getQuoteListData",
-            json={"SymbolID": ["TXFL0"]},  # TXFL0 = 台指期近月連續代碼
-            headers={"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"},
-            timeout=5, verify=False
-        )
-        _d = _r.json()
-        _list = _d.get("RtData", {}).get("QuoteList", [])
-        if _list:
-            _px = _list[0].get("CLastPrice") or _list[0].get("DispPrice")
-            if _px:
-                tx_price = float(str(_px).replace(",", ""))
-                is_live = is_live and True
-    except:
-        pass
-
-    # 備援：抓不到即時行情 → 用 futures_data 裡的最新結算/收盤價（非即時）
-    if tx_price is None:
-        try:
-            df_fut, ok_fut = get_futures()
-            if ok_fut and not df_fut.empty and "contract" in df_fut.columns:
-                tx_rows = df_fut[df_fut["contract"] == "TX"]
-                if "source" in tx_rows.columns:
-                    _price_rows = tx_rows[tx_rows["source"] != "institutional"]
-                else:
-                    _price_rows = tx_rows
-                for _col in ["settlement_price", "close"]:
-                    if _col in _price_rows.columns:
-                        _vals = pd.to_numeric(_price_rows[_col], errors="coerce").dropna()
-                        if not _vals.empty:
-                            tx_price = float(_vals.iloc[-1])
-                            break
-            is_live = False
-        except:
-            pass
-
-    if tx_price is None or twii_price is None:
-        return None
-
-    discount = round(tx_price - twii_price, 1)
-    return {"discount": discount, "tx_price": tx_price, "twii_price": twii_price, "is_live": is_live}
-
-
 def get_dual_alert():
     """
     大小台雙軌聯鎖警戒判定
@@ -1769,41 +1690,6 @@ with st.sidebar:
     if not df_fut_check.empty and "date" in df_fut_check.columns:
         fut_latest = str(df_fut_check["date"].max())[:10]
         upd += f" | 期貨:{fut_latest}"
-    # 逆價差 debug
-    try:
-        _disc_dbg = get_tx_discount()
-        upd += f" | discount:{_disc_dbg}"
-        # 細分檢查
-        import yfinance as _yf_dbg
-        _id = _yf_dbg.Ticker("^TWII").history(period="1d", interval="1m")
-        _dd = _yf_dbg.Ticker("^TWII").history(period="2d", interval="1d")
-        upd += f" twii_1m:{len(_id)} twii_daily:{len(_dd)}"
-        if not _dd.empty:
-            upd += f" twii_close:{_dd['Close'].iloc[-1]:.0f}"
-        # futures contract 欄位檢查
-        _df_fut_dbg, _ok_fut_dbg = get_futures()
-        if _ok_fut_dbg and not _df_fut_dbg.empty:
-            upd += f" fut_cols:{[c for c in _df_fut_dbg.columns if 'price' in c.lower() or 'close' in c.lower()]}"
-            if 'contract' in _df_fut_dbg.columns:
-                _tx_r = _df_fut_dbg[_df_fut_dbg['contract']=='TX']
-                upd += f" tx_rows:{len(_tx_r)}"
-                if not _tx_r.empty:
-                    for _, _trow in _tx_r.iterrows():
-                        upd += f" [src:{_trow.get('source')} close:{_trow.get('close')} settle:{_trow.get('settlement_price')}]"
-        # TAIFEX API debug
-        try:
-            import requests as _req_dbg
-            _rt = _req_dbg.post(
-                "https://mis.taifex.com.tw/futures/api/getQuoteListData",
-                json={"SymbolID": ["TXFL0"]},
-                headers={"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"},
-                timeout=5, verify=False
-            )
-            upd += f" | taifex_status:{_rt.status_code} body:{_rt.text[:150]}"
-        except Exception as _te:
-            upd += f" | taifex_err:{_te}"
-    except Exception as _e:
-        upd += f" | discount_err:{_e}"
     # 2330 daily debug
     try:
         _df_c2, _ok2 = get_chips('2330')
@@ -4499,42 +4385,12 @@ with tab5:
 
     _r1 = st.columns(5)
 
-    # ── 欄1：大台外資 ＋ 期貨逆價差（Discount）即時風控
+    # ── 欄1：大台外資
     _tx = _risk_info["tx_net"]
-    # 預設：依大台外資淨未平倉口數判斷燈號
     if _tx <= -45000:   _tx_s, _tx_h = "🔴", "高度警戒"
     elif _tx >= -25000: _tx_s, _tx_h = "🟢", "波段安全"
     else:               _tx_s, _tx_h = "⚪", "觀察中"
-
-    # ── 逆價差（Discount）= 台指期近月價格 - 加權指數現貨價格
-    _tx_disc_info = get_tx_discount()
-    _tx_disc_line = ""
-    if _tx_disc_info is not None:
-        _disc = _tx_disc_info["discount"]
-        _live_tag = "🟢即時" if _tx_disc_info.get("is_live") else "延遲"
-        _tx_disc_line = f"｜價差:{_disc:+.0f}點({_live_tag})"
-
-        # 🚨 剛性亮燈風控：逆價差優先權最高，可覆蓋大台外資原本燈號
-        if _disc <= -200:
-            # 逆價差 ≤ -200 點：現貨極度恐慌，全系統子彈死鎖
-            _tx_s, _tx_h = "🔴", f"極端逆價差:現貨危險（{_disc:+.0f}點）"
-        elif -200 < _disc <= -150:
-            # 過渡區：逆價差擴大中，提高警覺
-            _tx_s, _tx_h = "🟡", f"逆價差擴大中（{_disc:+.0f}點）"
-        elif -150 < _disc <= -50:
-            # 常態合理避險區間
-            _tx_s, _tx_h = "⚪", f"常態避險（{_disc:+.0f}點）"
-        elif -50 < _disc <= 30:
-            # 過渡區：價差收斂，留意轉正
-            _tx_s, _tx_h = "🟡", f"價差收斂中（{_disc:+.0f}點）"
-        else:
-            # 🟢 正價差 > +30 點：空頭棄守、軋空動能啟動
-            _tx_s, _tx_h = "🟢", f"正價差:空頭棄守（{_disc:+.0f}點）"
-
-    _r1[0].markdown(
-        _metric_html("大台外資", f"{_tx:+,}口{_tx_disc_line}", _tx_s, _tx_h),
-        unsafe_allow_html=True
-    )
+    _r1[0].markdown(_metric_html("大台外資", f"{_tx:+,}口", _tx_s, _tx_h), unsafe_allow_html=True)
 
     # ── 欄2：小台散戶多空比 %
     _retail     = _risk_info["mtx_retail"]
