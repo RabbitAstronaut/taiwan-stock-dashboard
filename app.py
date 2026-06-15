@@ -79,6 +79,88 @@ def save_watchlist_to_github(manual_list, scan_list, etf_shares=None, reserve=No
     except Exception:
         return False
 
+
+# ══════════════════════════════════════════════════════════════
+# ▌ 利多不漲排毒｜戰備庫設定檔（watch_list.json）讀寫
+# ══════════════════════════════════════════════════════════════
+WATCH_LIST_MAX_TOTAL = 20  # 防呆：my_army + sector_leaders 總數上限
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_watch_list():
+    """
+    讀取 data/watch_list.json，回傳 dict {"my_army":[...], "sector_leaders":[...]}。
+    讀取順序：本地檔案 → GitHub raw 備援。失敗時回傳空清單結構（不報錯）。
+    """
+    import json as _json, os as _os
+    # 1) 本地檔案
+    _local = _os.path.join("data", "watch_list.json")
+    if _os.path.exists(_local):
+        try:
+            with open(_local, "r", encoding="utf-8") as f:
+                wl = _json.load(f)
+            return {
+                "my_army": [str(s) for s in wl.get("my_army", [])],
+                "sector_leaders": [str(s) for s in wl.get("sector_leaders", [])],
+            }
+        except Exception:
+            pass
+    # 2) GitHub raw 備援
+    try:
+        r = requests.get(f"{GITHUB_RAW}/watch_list.json", timeout=5)
+        if r.status_code == 200:
+            wl = r.json()
+            return {
+                "my_army": [str(s) for s in wl.get("my_army", [])],
+                "sector_leaders": [str(s) for s in wl.get("sector_leaders", [])],
+            }
+    except Exception:
+        pass
+    return {"my_army": [], "sector_leaders": []}
+
+
+def save_watch_list_to_github(my_army: list, sector_leaders: list) -> bool:
+    """
+    將戰備庫名單【實時覆寫】回 data/watch_list.json（透過 GitHub Contents API）。
+
+    這是「💾 鎖定新風向」按鈕的核心：寫入成功後，無論網頁重整、
+    瀏覽器斷線重連，或傍晚17:00 daily_scan.py 排程掃描，讀到的
+    都會是這份最新名單，確保調整100%剛性物理固定。
+
+    需要 GITHUB_TOKEN（st.secrets["GH_TOKEN"] 或環境變數 GH_TOKEN）。
+    成功回傳 True，失敗（含無 token）回傳 False。
+    """
+    if not GITHUB_TOKEN:
+        return False
+    import base64, json as _json
+    payload = _json.dumps(
+        {"my_army": my_army, "sector_leaders": sector_leaders},
+        ensure_ascii=False, indent=2
+    )
+    api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/data/watch_list.json"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+    sha = None
+    try:
+        r = requests.get(api_url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            sha = r.json().get("sha")
+    except Exception:
+        pass
+    body = {"message": "update watch_list (利多不漲排毒戰備庫)",
+            "content": base64.b64encode(payload.encode()).decode()}
+    if sha:
+        body["sha"] = sha
+    try:
+        r = requests.put(api_url, headers=headers, json=body, timeout=15)
+        if r.status_code in (200, 201):
+            # 寫入成功後立即清除快取，確保畫面與檔案同步
+            load_watch_list.clear()
+            return True
+        return False
+    except Exception:
+        return False
+
+
 # ══════════════════════════════════════════════════════════════
 # ▌ 風控卡閘核心函式（實時/回溯雙模隔離）
 # ══════════════════════════════════════════════════════════════
@@ -693,30 +775,18 @@ def get_twii_high_proximity():
         return None
 
 
-# ▌ 「利多不漲」排毒雷達 — 前端輕量讀取模組
+# ▌ 「利多不漲」排毒雷達 ＋ 龍頭股風向 — 前端輕量讀取模組
 # ══════════════════════════════════════════════════════════════
 # 重大架構調整：原本在前端即時爬新聞、算K線、算籌碼的重邏輯，
 # 已全部移至獨立後端腳本 daily_scan.py（每日盤後17:00執行一次），
 # 結果寫入 data/triggered_alerts.json。
-# 前端在這裡只做「讀取今日是否有觸發紀錄」的輕量操作，
+# 前端在這裡只做「讀取最新結果」的輕量操作，
 # 不再對外發送任何爬蟲/yfinance請求，徹底解決前端記憶體與延遲問題。
 @st.cache_data(ttl=300, show_spinner=False)
-def get_triggered_alerts_today():
-    """
-    讀取 data/triggered_alerts.json，回傳「今日」的觸發紀錄清單。
-
-    讀取順序：本地檔案 → GitHub raw 備援。
-    檔案不存在或格式錯誤時，視為「無觸發」回傳空列表（不報錯）。
-
-    回傳：list[dict]，每筆包含 stock_id, name, news_score,
-          shadow_pct, foreign_net, bad_candle 等欄位。
-    """
+def _load_triggered_alerts_data():
+    """讀取 data/triggered_alerts.json 完整內容（本地→GitHub raw備援）。失敗回傳空結構。"""
     import json as _json, os as _os
-    from datetime import datetime as _dt
-    today_str = _dt.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
-
     data = None
-    # 1) 本地檔案
     _local = _os.path.join("data", "triggered_alerts.json")
     if _os.path.exists(_local):
         try:
@@ -724,7 +794,6 @@ def get_triggered_alerts_today():
                 data = _json.load(f)
         except Exception:
             data = None
-    # 2) GitHub raw 備援
     if data is None:
         try:
             _r = requests.get(f"{GITHUB_RAW}/triggered_alerts.json", timeout=5)
@@ -732,12 +801,33 @@ def get_triggered_alerts_today():
                 data = _r.json()
         except Exception:
             data = None
-
     if not data:
-        return []
+        return {"alerts": [], "sector_breadth": {}}
+    data.setdefault("alerts", [])
+    data.setdefault("sector_breadth", {})
+    return data
 
-    alerts = data.get("alerts", [])
+
+def get_triggered_alerts_today():
+    """
+    回傳「今日」的利多不漲觸發紀錄清單（list[dict]）。
+    每筆包含 stock_id, name, news_score, shadow_pct, foreign_net, open, close 等欄位。
+    無觸發或檔案不存在時回傳空列表（不報錯）。
+    """
+    from datetime import datetime as _dt
+    today_str = _dt.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
+    alerts = _load_triggered_alerts_data().get("alerts", [])
     return [a for a in alerts if a.get("date") == today_str]
+
+
+def get_sector_breadth():
+    """
+    回傳 daily_scan.py 最新一次計算的「龍頭股風向」統計：
+    {"date":..,"above_sma20":int,"above_sma60":int,"total":int,"details":[...]}
+    無資料時回傳空 dict（前端需自行判斷顯示「—」）。
+    """
+    return _load_triggered_alerts_data().get("sector_breadth", {})
+
 
 # ▌ CBOE Put/Call Ratio 即時抓取
 # ══════════════════════════════════════════════════════════════
@@ -1906,18 +1996,6 @@ with st.sidebar:
     if not df_fut_check.empty and "date" in df_fut_check.columns:
         fut_latest = str(df_fut_check["date"].max())[:10]
         upd += f" | 期貨:{fut_latest}"
-    # 2330 daily debug
-    try:
-        _df_c2, _ok2 = get_chips('2330')
-        if _ok2 and not _df_c2.empty:
-            _trust2 = _df_c2[_df_c2['name'].astype(str).str.contains('Investment_Trust', na=False)].copy()
-            _trust2['net'] = pd.to_numeric(_trust2['net'], errors='coerce').fillna(0)
-            _daily2 = _trust2.groupby('date')['net'].sum().reset_index().sort_values('date')
-            _last3 = [(str(r['date'])[:10], round(r['net'],0)) for _, r in _daily2.tail(3).iterrows()]
-            upd += f" | 2330daily:{_last3}"
-    except Exception as _e:
-        upd += f" | daily_err:{_e}"
-
     st.markdown(
         f"<div class='infobox'>📅 資料更新：<b style='color:#00d4ff;'>{upd}</b></div>",
         unsafe_allow_html=True,
@@ -2029,6 +2107,78 @@ with st.sidebar:
         f"● GitHub CSV → Streamlit Cloud</div></div>",
         unsafe_allow_html=True,
     )
+
+    # ══════════════════════════════════════════════════════════
+    # ▌ 利多不漲排毒｜戰備庫動態調校（watch_list.json）
+    # ══════════════════════════════════════════════════════════
+    # 設計說明：
+    #   - my_army：自己的持股/觀察個股；sector_leaders：12檔大金剛龍頭股
+    #   - multiselect 的候選池 = 目前名單 ∪ 戰略儲備庫(reserve_list)，
+    #     確保「增減」雙向都能操作（加入儲備庫裡的股票、或移除現有股票）
+    #   - 防呆：my_army + sector_leaders 總數上限 20 檔
+    #   - 點擊「💾 鎖定新風向」才會【實時覆寫】回 data/watch_list.json
+    #     （透過 GitHub Contents API），網頁重整/排程掃描皆讀此最新版本
+    st.markdown("---")
+    st.markdown(
+        "<div style='color:#ffab40;font-size:.74rem;letter-spacing:1px;"
+        "text-transform:uppercase;margin-bottom:6px;'>🧪 利多不漲排毒・戰備庫</div>",
+        unsafe_allow_html=True,
+    )
+
+    _wl = load_watch_list()
+    _wl_my_army  = _wl.get("my_army", [])
+    _wl_sectors  = _wl.get("sector_leaders", [])
+
+    # 建立 id → name 對照表：戰略儲備庫 + 目前名單（找不到名稱就用代號本身）
+    _id2name = {}
+    for _r in st.session_state.get("reserve_list", []):
+        _id2name[str(_r.get("id"))] = _r.get("name", _r.get("id"))
+    for _sid in _wl_my_army + _wl_sectors:
+        _id2name.setdefault(str(_sid), str(_sid))
+
+    def _fmt(sid):
+        return f"{sid} {_id2name.get(str(sid), sid)}"
+
+    # 候選池：目前兩份名單 ∪ 戰略儲備庫，去重後依代號排序
+    _candidate_ids = sorted(set(_wl_my_army) | set(_wl_sectors) | set(_id2name.keys()))
+    _candidate_opts = [_fmt(s) for s in _candidate_ids]
+
+    _sel_my_army = st.multiselect(
+        "🪖 我的軍隊 my_army",
+        options=_candidate_opts,
+        default=[_fmt(s) for s in _wl_my_army if s in _candidate_ids],
+        key="wl_my_army",
+        help="自己的持股／重點觀察個股，套用「利多不漲」三項觸發判定",
+    )
+    _sel_sectors = st.multiselect(
+        "🏆 龍頭大金剛 sector_leaders",
+        options=_candidate_opts,
+        default=[_fmt(s) for s in _wl_sectors if s in _candidate_ids],
+        key="wl_sector_leaders",
+        help="12檔權值龍頭股，統計站上月線(SMA20)/季線(SMA60)家數作為風向標",
+    )
+
+    _new_my_army  = [s.split(" ")[0] for s in _sel_my_army]
+    _new_sectors  = [s.split(" ")[0] for s in _sel_sectors]
+    _wl_total     = len(_new_my_army) + len(_new_sectors)
+
+    if _wl_total > WATCH_LIST_MAX_TOTAL:
+        st.warning(f"⚠️ 目前合計 {_wl_total} 檔，超過上限 {WATCH_LIST_MAX_TOTAL} 檔！"
+                    f"請先移除多餘標的才能鎖定。")
+    else:
+        st.caption(f"目前合計 {_wl_total}/{WATCH_LIST_MAX_TOTAL} 檔")
+
+    # ── 💾 鋼鐵實時覆寫固定按鈕
+    if st.button("💾 鎖定新風向（實時覆寫戰備庫）", width='stretch',
+                  disabled=(_wl_total > WATCH_LIST_MAX_TOTAL or _wl_total == 0)):
+        _ok_save = save_watch_list_to_github(_new_my_army, _new_sectors)
+        if _ok_save:
+            st.success(f"✅ 已鎖定！my_army {len(_new_my_army)}檔、"
+                       f"sector_leaders {len(_new_sectors)}檔，"
+                       f"已實時覆寫 watch_list.json")
+        else:
+            st.error("❌ 覆寫失敗：請確認 GH_TOKEN 已設定（st.secrets 或環境變數），"
+                     "或稍後重試。")
 
 # ══════════════════════════════════════════════════════════════
 # ▌ HEADER
@@ -4762,6 +4912,7 @@ with tab5:
 
     # ── 欄6：利多不漲排毒（後端 daily_scan.py 每日17:00盤後掃描，前端僅讀結果）
     _alerts_today = get_triggered_alerts_today()
+    _breadth       = get_sector_breadth()
 
     if _alerts_today:
         _names = "、".join(a.get("name", a.get("stock_id","?")) for a in _alerts_today[:3])
@@ -4771,6 +4922,10 @@ with tab5:
     else:
         _trap_s, _trap_h = "🟢", "戰備軍無毒・安全"
         _trap_val = "0檔觸發"
+
+    # 龍頭股動向（12檔大金剛站上月線比例），動態併入hint小字
+    if _breadth and _breadth.get("total"):
+        _trap_h += f"｜龍頭站月線 {_breadth.get('above_sma20',0)}/{_breadth['total']}檔"
 
     _r2[5].markdown(
         _metric_html("利多不漲排毒", _trap_val, _trap_s, _trap_h,
