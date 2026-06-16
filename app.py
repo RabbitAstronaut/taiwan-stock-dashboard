@@ -2186,6 +2186,13 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
 #   - 四大行業行列 multiselect 支援全台股代號自由輸入（accept_new_options）
 #   - 調整後點擊「💾 鎖定新風向」才會覆寫 watch_list.json（本地+GitHub）
 #   - 覆寫成功後 daily_scan.py 下午17:00排程自動讀取最新名單
+# ── 每次載入都清除四個板塊的 session_state key，
+#    確保 multiselect 的 default 永遠來自 watch_list.json 最新值，
+#    而不是被舊的 session 值覆蓋（這是預設值重疊 bug 的根本原因）
+for _wl_sk in ["wl_ai_semi", "wl_ai_infra", "wl_next_gen", "wl_shipping_fin"]:
+    if _wl_sk in st.session_state:
+        del st.session_state[_wl_sk]
+
 with st.expander("👑 全域類股龍頭監控天網（動態微調分列矩陣）", expanded=True):
 
     # 讀取現有設定（本地JSON → GitHub備援 → 預設值）
