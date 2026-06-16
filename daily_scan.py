@@ -103,22 +103,48 @@ log = logging.getLogger("daily_scan")
 # ══════════════════════════════════════════════════════════════
 def load_watch_list():
     """
-    讀取 data/watch_list.json，回傳 (my_army, sector_leaders)，
-    兩者皆為 [stock_id, ...] 字串清單。檔案不存在或解析失敗時
-    回傳空清單（腳本仍會正常結束，不寫入任何紀錄）。
+    讀取 data/watch_list.json，回傳四大板塊合併後的完整個股代號清單（去重）。
+    同時回傳各板塊原始 dict，供龍頭風向統計使用。
+
+    回傳：
+        all_ids      : list[str]  — 全部標的代號（去重）
+        sectors_dict : dict       — {板塊key: [stock_id,...]} 原始四板塊結構
     """
-    try:
-        if os.path.exists(WATCH_LIST_JSON):
+    defaults = {
+        "ai_semi":      ["2330", "2454", "2317", "2357"],
+        "ai_infra":     ["2345", "2308", "3017", "8299"],
+        "next_gen":     ["3491", "2359", "1519", "3037"],
+        "shipping_fin": ["2603", "2610", "2002", "1101", "2891"],
+    }
+
+    sectors_dict = {}
+    if os.path.exists(WATCH_LIST_JSON):
+        try:
             with open(WATCH_LIST_JSON, "r", encoding="utf-8") as f:
                 wl = json.load(f)
-            my_army = [str(s).strip() for s in wl.get("my_army", []) if str(s).strip()]
-            sector_leaders = [str(s).strip() for s in wl.get("sector_leaders", []) if str(s).strip()]
-            log.info(f"讀取 {WATCH_LIST_JSON}：my_army={len(my_army)}檔, sector_leaders={len(sector_leaders)}檔")
-            return my_army, sector_leaders
-    except Exception as e:
-        log.warning(f"讀取 {WATCH_LIST_JSON} 失敗：{e}")
-    log.warning("⚠️ watch_list.json 不存在或為空，本次掃描將不會產生任何紀錄")
-    return [], []
+            for key, default in defaults.items():
+                raw = wl.get(key)
+                sectors_dict[key] = [str(s).strip() for s in (raw if raw else default)]
+            log.info(f"讀取 {WATCH_LIST_JSON}：" +
+                     "、".join(f"{k}={len(v)}檔" for k, v in sectors_dict.items()))
+        except Exception as e:
+            log.warning(f"讀取 {WATCH_LIST_JSON} 失敗，使用預設值：{e}")
+            sectors_dict = {k: list(v) for k, v in defaults.items()}
+    else:
+        log.warning(f"⚠️ {WATCH_LIST_JSON} 不存在，使用預設值")
+        sectors_dict = {k: list(v) for k, v in defaults.items()}
+
+    # 全部板塊合併去重（保留順序）
+    seen = set()
+    all_ids = []
+    for ids in sectors_dict.values():
+        for sid in ids:
+            if sid not in seen:
+                seen.add(sid)
+                all_ids.append(sid)
+
+    return all_ids, sectors_dict
+
 
 
 # ══════════════════════════════════════════════════════════════
@@ -381,12 +407,16 @@ def main():
     log.info(f"利多不漲排毒掃描 v2 — {today_str}")
     log.info("=" * 60)
 
-    my_army, sector_leaders = load_watch_list()
-    if not my_army and not sector_leaders:
+    all_ids, sectors_dict = load_watch_list()
+    if not all_ids:
         log.info("watch_list.json 無有效標的，結束本次掃描（不寫入任何檔案）")
         return
 
-    # 取得個股中文名稱（從 stock_list.csv，找不到就用代號當名稱）
+    log.info(f"總掃描標的：{len(all_ids)} 檔")
+    for _k, _v in sectors_dict.items():
+        log.info(f"  [{_k}] {len(_v)} 檔：{', '.join(_v)}")
+
+    # 取得個股中文名稱（從 stock_list.csv，找不到就用代號本身）
     name_map = {}
     try:
         if os.path.exists(STOCK_LIST_CSV):
@@ -397,9 +427,6 @@ def main():
     except Exception as e:
         log.warning(f"讀取 stock_list.csv 名稱對照失敗：{e}")
 
-    all_ids = list(dict.fromkeys(my_army + sector_leaders))
-    log.info(f"總掃描標的：{len(all_ids)} 檔（my_army={len(my_army)}, sector_leaders={len(sector_leaders)}）")
-
     chips_map = load_chips_for_targets(all_ids)
 
     # ── 逐檔抓K線（含SMA20/60），同時供「利多不漲」與「龍頭風向」共用
@@ -408,7 +435,7 @@ def main():
         kline_map[sid] = fetch_kline_with_sma(sid)
         gc.collect()  # 每檔抓完立即回收，降低長時間執行的記憶體佔用
 
-    # ── 1) my_army + sector_leaders 全部跑「利多不漲」三項判定
+    # ── 1) 全部標的跑「利多不漲」三項判定
     hits = []
     for sid in all_ids:
         name = name_map.get(sid, sid)
@@ -424,35 +451,40 @@ def main():
         finally:
             gc.collect()
 
-    # ── 2) sector_leaders 龍頭動態風向：站上 SMA20 / SMA60 家數比例
-    breadth_details = []
-    above20, above60, valid_total = 0, 0, 0
-    for sid in sector_leaders:
-        k = kline_map.get(sid)
-        if not k:
-            continue
-        a20, a60 = k.get("above_sma20"), k.get("above_sma60")
-        if a20 is None and a60 is None:
-            continue
-        valid_total += 1
-        if a20:
-            above20 += 1
-        if a60:
-            above60 += 1
-        breadth_details.append({
-            "stock_id": sid, "name": name_map.get(sid, sid),
-            "above_sma20": bool(a20), "above_sma60": bool(a60),
-        })
+    # ── 2) 四大板塊龍頭動態風向：分板塊統計站上 SMA20 / SMA60 家數比例
+    breadth_by_sector = {}
+    above20_total, above60_total, valid_total = 0, 0, 0
+    for sector_key, sector_ids in sectors_dict.items():
+        s_above20, s_above60, s_valid, s_details = 0, 0, 0, []
+        for sid in sector_ids:
+            k = kline_map.get(sid)
+            if not k:
+                continue
+            a20, a60 = k.get("above_sma20"), k.get("above_sma60")
+            if a20 is None and a60 is None:
+                continue
+            s_valid += 1
+            if a20: s_above20 += 1
+            if a60: s_above60 += 1
+            s_details.append({"stock_id": sid, "name": name_map.get(sid, sid),
+                               "above_sma20": bool(a20), "above_sma60": bool(a60)})
+        breadth_by_sector[sector_key] = {
+            "above_sma20": s_above20, "above_sma60": s_above60,
+            "total": s_valid, "details": s_details,
+        }
+        above20_total += s_above20
+        above60_total += s_above60
+        valid_total   += s_valid
+        log.info(f"  [{sector_key}] 站月線 {s_above20}/{s_valid}  站季線 {s_above60}/{s_valid}")
 
     sector_breadth = {
         "date": today_str,
-        "above_sma20": above20,
-        "above_sma60": above60,
+        "above_sma20": above20_total,
+        "above_sma60": above60_total,
         "total": valid_total,
-        "details": breadth_details,
+        "by_sector": breadth_by_sector,
     }
-    log.info(f"龍頭風向：站月線(SMA20) {above20}/{valid_total}　"
-             f"站季線(SMA60) {above60}/{valid_total}")
+    log.info(f"龍頭總風向：站月線 {above20_total}/{valid_total}  站季線 {above60_total}/{valid_total}")
 
     # ── 3) 寫入結果（alerts 視情況追加；sector_breadth 每次覆寫）
     if hits:
