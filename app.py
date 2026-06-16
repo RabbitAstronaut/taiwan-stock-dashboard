@@ -3524,11 +3524,9 @@ with tab3:
             ])
             st.dataframe(
                 _df_pf_show.style
-                    .applymap(
-                        lambda v: "color:#00cc66" if isinstance(v,(int,float)) and v>0
-                        else "color:#ff4444" if isinstance(v,(int,float)) and v<0 else "",
-                        subset=["未實現損益","ROI%"]
-                    )
+                    .map(lambda v: "color:#00cc66" if isinstance(v, (int,float)) and v>0
+                              else "color:#ff4444" if isinstance(v, (int,float)) and v<0 else "",
+                              subset=["未實現損益","ROI%"])
                     .format({"含費成本":"{:,.0f}","扣稅實收":"{:,.0f}",
                              "未實現損益":"{:,.0f}","ROI%":"{:+.2f}%"}),
                 use_container_width=True, hide_index=True
@@ -3552,7 +3550,7 @@ with tab3:
                            "realized_pnl":"實現損益","roi_pct":"ROI%"}
             _df_trd = _df_trd[_col_order].rename(columns=_col_rename)
             st.dataframe(
-                _df_trd.style.applymap(
+                _df_trd.style.map(
                     lambda v: "color:#00cc66" if isinstance(v,(int,float)) and v>0
                     else "color:#ff4444" if isinstance(v,(int,float)) and v<0 else "",
                     subset=[c for c in ["實現損益","ROI%"] if c in _df_trd.columns]
