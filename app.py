@@ -5305,26 +5305,6 @@ with tab5:
     retail_net     = mtx_inst_total * (-1)
     retail_ratio   = retail_net / mtx_oi * 100
 
-    # ── KPI 顯示
-    st.markdown("<br>", unsafe_allow_html=True)
-    pk1, pk2, pk3, pk4 = st.columns(4)
-    mcard(pk1, "大台外資淨額", f"{tx_foreign:+,}",
-          "down" if tx_foreign < -40000 else "up" if tx_foreign > 0 else "")
-    mcard(pk2, "小台三法人合計", f"{mtx_inst_total:+,}",
-          "down" if mtx_inst_total < 0 else "up")
-    mcard(pk3, "散戶淨多（導火線）", f"{retail_net:+,}",
-          "down" if retail_net > 0 else "up")
-    # 散戶多空比四色警戒
-    if retail_ratio > 20:
-        _rr_status = "down"   # 紅
-    elif retail_ratio > 10:
-        _rr_status = "warn"   # 橘
-    elif retail_ratio < -10:
-        _rr_status = "up"     # 綠
-    else:
-        _rr_status = ""       # 白
-    mcard(pk4, "散戶多空比", f"{retail_ratio:+.1f}%", _rr_status)
-
     # ── 期貨預警引擎紅綠燈
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<div class='sec-title'>🚦 期貨預警引擎</div>", unsafe_allow_html=True)
