@@ -2293,18 +2293,26 @@ with st.expander("👑 全域類股龍頭監控天網（動態微調分列矩陣
         f"每行上限 {WATCH_LIST_MAX_PER_ROW} 檔"
     )
 
-    # ── 龍頭多空定錨（讀 daily_scan.py 盤後計算的 sector_breadth）
-    # 與「利多不漲排毒卡片」完全解耦，各顯示各的
+    # ── 龍頭多空定錨（分板塊顯示，不用無意義的合計數字）
     _sb = get_sector_breadth()
-    if _sb and _sb.get("total"):
+    if _sb and _sb.get("by_sector"):
+        _by = _sb["by_sector"]
+        _sb_icons = {"ai_semi":"🟢 AI半導體","ai_infra":"🔵 AI建設","next_gen":"🟡 次世代","shipping_fin":"🔴 傳產金融"}
+        _parts = []
+        for _k, _icon in _sb_icons.items():
+            _s = _by.get(_k, {})
+            if _s.get("total"):
+                _a20, _tot = _s.get("above_sma20",0), _s["total"]
+                _color = "🔴" if _a20/_tot < 0.35 else "🟡" if _a20/_tot < 0.6 else "🟢"
+                _parts.append(f"{_icon} {_a20}/{_tot}{_color}")
+        st.caption(
+            f"📊 類股龍頭站月線(SMA20)：{'　'.join(_parts)}　｜　{_sb.get('date','—')}"
+        )
+    elif _sb and _sb.get("total"):
+        # 舊格式備援（無 by_sector）
         _sb_above = _sb.get("above_sma20", 0)
         _sb_total = _sb["total"]
-        _sb_ratio = _sb_above / _sb_total if _sb_total else 0
-        _sb_struct = "背離警戒" if _sb_ratio < 0.35 else "中性" if _sb_ratio < 0.6 else "健康多頭"
-        st.caption(
-            f"📊 類股龍頭多空定錨：當前有 **{_sb_above} / {_sb_total}** 檔個股站上月線(SMA20)，"
-            f"市場結構評估：**{_sb_struct}**　｜　資料日期：{_sb.get('date','—')}"
-        )
+        st.caption(f"📊 類股龍頭多空定錨：{_sb_above}/{_sb_total} 站月線　｜　{_sb.get('date','—')}")
     else:
         st.caption("📊 類股龍頭多空定錨：等待每日 17:00 盤後排程計算（daily_scan.py）")
 
