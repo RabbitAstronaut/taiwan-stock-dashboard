@@ -3519,30 +3519,29 @@ with tab3:
         if _pf_rows:
             _rows_html = ""
             for _r in _pf_rows:
-                _pnl_color = "#00cc66" if _r["未實現損益"] > 0 else "#ff4444" if _r["未實現損益"] < 0 else "#e8f4fd"
+                # 台灣習慣：獲利🔴紅色，虧損🟢綠色
+                _pnl_color = "#ff4444" if _r["未實現損益"] > 0 else "#00cc66" if _r["未實現損益"] < 0 else "#e8f4fd"
                 _rows_html += (
-                    f"<tr>"
-                    f"<td>{_r['代號']}</td><td>{_r['買入日期']}</td>"
-                    f"<td>{_r['現價']:,.2f}</td><td>{_r['買入均價']:,.4f}</td>"
-                    f"<td>{_r['持股數']:,}</td><td>{_r['含費成本']:,.0f}</td>"
-                    f"<td>{_r['扣稅實收']:,.0f}</td>"
-                    f"<td style='color:{_pnl_color};font-weight:600;'>{_r['未實現損益']:+,.0f}</td>"
-                    f"<td style='color:{_pnl_color};font-weight:600;'>{_r['ROI%']:+.2f}%</td>"
+                    f"<tr style='border-bottom:1px solid #1e3a5f;'>"
+                    f"<td style='padding:8px;'>{_r['代號']}</td>"
+                    f"<td style='padding:8px;'>{_r['買入日期']}</td>"
+                    f"<td style='padding:8px;text-align:right;'>{_r['現價']:,.2f}</td>"
+                    f"<td style='padding:8px;text-align:right;'>{_r['買入均價']:,.4f}</td>"
+                    f"<td style='padding:8px;text-align:right;'>{_r['持股數']:,}</td>"
+                    f"<td style='padding:8px;text-align:right;'>{_r['含費成本']:,.0f}</td>"
+                    f"<td style='padding:8px;text-align:right;'>{_r['扣稅實收']:,.0f}</td>"
+                    f"<td style='padding:8px;text-align:right;color:{_pnl_color};font-weight:600;'>{_r['未實現損益']:+,.0f}</td>"
+                    f"<td style='padding:8px;text-align:right;color:{_pnl_color};font-weight:600;'>{_r['ROI%']:+.2f}%</td>"
                     f"</tr>"
                 )
+            _headers = ["代號","買入日期","現價","含費均價","持股數","含費成本","扣稅實收","未實現損益","ROI%"]
+            _head_html = "".join(
+                f"<th style='padding:8px;text-align:{'left' if i<2 else 'right'};border-bottom:1px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;white-space:nowrap;'>{h}</th>"
+                for i, h in enumerate(_headers)
+            )
             st.markdown(
                 f"<table style='width:100%;border-collapse:collapse;font-size:.85rem;color:#e8f4fd;'>"
-                f"<thead><tr style='background:#0f2027;color:#7fb3d3;font-size:.78rem;letter-spacing:.5px;'>"
-                f"<th style='padding:8px;text-align:left;border-bottom:1px solid #1e3a5f;'>代號</th>"
-                f"<th style='padding:8px;text-align:left;border-bottom:1px solid #1e3a5f;'>買入日期</th>"
-                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>現價</th>"
-                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>含費均價</th>"
-                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>持股數</th>"
-                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>含費成本</th>"
-                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>扣稅實收</th>"
-                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>未實現損益</th>"
-                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>ROI%</th>"
-                f"</tr></thead>"
+                f"<thead><tr style='background:#0f2027;'>{_head_html}</tr></thead>"
                 f"<tbody style='background:rgba(255,255,255,0.02);'>{_rows_html}</tbody>"
                 f"</table>",
                 unsafe_allow_html=True
@@ -3566,7 +3565,7 @@ with tab3:
             _trd_keys    = [k for k in _col_map if k in _df_trd.columns]
             _trd_rows_html = ""
             for _t in reversed(_trd):  # 最新在上
-                _action_color = "#00cc66" if _t.get("action") == "買入" else "#ff4444"
+                _action_color = "#ff4444" if _t.get("action") == "買入" else "#00cc66"
                 _pnl = _t.get("realized_pnl")
                 _roi = _t.get("roi_pct")
                 _row = ""
@@ -3576,7 +3575,8 @@ with tab3:
                     if _k == "action":
                         _style = f"color:{_action_color};font-weight:600;"
                     elif _k in ("realized_pnl","roi_pct") and isinstance(_v, (int,float)):
-                        _style = "color:#00cc66;font-weight:600;" if _v > 0 else "color:#ff4444;font-weight:600;" if _v < 0 else ""
+                        # 台灣習慣：獲利紅色，虧損綠色
+                        _style = "color:#ff4444;font-weight:600;" if _v > 0 else "color:#00cc66;font-weight:600;" if _v < 0 else ""
                     if isinstance(_v, float):
                         _v = f"{_v:,.2f}" if _k in ("price","roi_pct") else f"{_v:,.0f}"
                     elif isinstance(_v, int):
@@ -3633,7 +3633,8 @@ with tab3:
     _tab_buy, _tab_sell, _tab_manage = st.tabs(["🟢 買入登記", "🔴 賣出登記", "⚙️ 帳戶管理"])
 
     with _tab_buy:
-        with st.form("buy_form"):
+        _buy_form_key = f"buy_form_{st.session_state.get('buy_count', 0)}"
+        with st.form(_buy_form_key):
             st.markdown("**📌 新增買入紀錄**")
             _bc1, _bc2, _bc3 = st.columns(3)
             with _bc1:
@@ -3717,6 +3718,7 @@ with tab3:
                         })
                         save_trades(_trd_now)
                         st.success(f"✅ 買入 {_sid_key} {_b_qty}股 @ {_b_bp}，含費成本 ${_b_cost_final:,.0f}，現金已扣除")
+                        st.session_state["buy_count"] = st.session_state.get("buy_count", 0) + 1
                         st.rerun()
 
     with _tab_sell:
@@ -3724,7 +3726,8 @@ with tab3:
         if not _pf_sell:
             st.info("目前無持倉可賣出")
         else:
-            with st.form("sell_form"):
+            _sell_form_key = f"sell_form_{st.session_state.get('sell_count', 0)}"
+            with st.form(_sell_form_key):
                 st.markdown("**📌 登記賣出紀錄**")
                 _sc1, _sc2, _sc3 = st.columns(3)
                 with _sc1:
@@ -3811,6 +3814,7 @@ with tab3:
                             f"{_emoji} 賣出 {_s_sid} {_s_qty}股 @ {_s_price}，"
                             f"實現損益 ${_s_profit_fin:,.0f}（{_s_roi_fin:+.2f}%），現金已回補"
                         )
+                        st.session_state["sell_count"] = st.session_state.get("sell_count", 0) + 1
                         st.rerun()
 
     with _tab_manage:
