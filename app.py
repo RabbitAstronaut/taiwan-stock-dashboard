@@ -81,23 +81,68 @@ def save_watchlist_to_github(manual_list, scan_list, etf_shares=None, reserve=No
 
 
 # ══════════════════════════════════════════════════════════════
+<<<<<<< HEAD
 # ▌ 利多不漲排毒｜戰備庫設定檔（watch_list.json）讀寫
 # ══════════════════════════════════════════════════════════════
 WATCH_LIST_MAX_TOTAL = 20  # 防呆：my_army + sector_leaders 總數上限
+=======
+# ▌ 利多不漲排毒｜四大行業板塊戰備庫（watch_list.json）讀寫
+# ══════════════════════════════════════════════════════════════
+# JSON 結構：
+# {
+#   "ai_semi":       ["2330","2454","2317","2357"],  # 🟢 AI與半導體核心
+#   "ai_infra":      ["2345","2308","3017","8299"],  # 🔵 AI剛需基礎建設
+#   "next_gen":      ["3491","2359","1519","3037"],  # 🟡 次世代戰略兵器
+#   "shipping_fin":  ["2603","2610","2002","1101","2891"]  # 🔴 航運傳產金融
+# }
+
+# 四大板塊預設值（首次載入或 JSON 不存在時使用）
+WATCH_LIST_DEFAULTS = {
+    "ai_semi":      ["2330", "2454", "2317", "2357"],
+    "ai_infra":     ["2345", "2308", "3017", "8299"],
+    "next_gen":     ["3491", "2359", "1519", "3037"],
+    "shipping_fin": ["2603", "2610", "2002", "1101", "2891"],
+}
+WATCH_LIST_SECTORS = {
+    "ai_semi":      "🟢 AI 與半導體核心",
+    "ai_infra":     "🔵 AI 剛需基礎建設",
+    "next_gen":     "🟡 次世代戰略兵器",
+    "shipping_fin": "🔴 航運傳產與大型金融",
+}
+WATCH_LIST_MAX_PER_ROW = 10  # 每行最多10檔（合計上限40檔）
+>>>>>>> 8e3f083 (全域類股龍頭監控天網：四大行業板塊置頂+全台股自由輸入+鎖定按鈕)
 
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_watch_list():
     """
+<<<<<<< HEAD
     讀取 data/watch_list.json，回傳 dict {"my_army":[...], "sector_leaders":[...]}。
     讀取順序：本地檔案 → GitHub raw 備援。失敗時回傳空清單結構（不報錯）。
     """
     import json as _json, os as _os
+=======
+    讀取 data/watch_list.json，回傳四大板塊 dict。
+    讀取順序：本地檔案 → GitHub raw 備援 → 預設值。
+    確保任何情況下都能回傳合法結構，不報錯。
+    """
+    import json as _json, os as _os
+
+    def _normalize(wl_raw):
+        """統一格式，填補缺失板塊為預設值"""
+        result = {}
+        for key, default in WATCH_LIST_DEFAULTS.items():
+            val = wl_raw.get(key) or wl_raw.get("sector_leaders", [])
+            result[key] = [str(s).strip() for s in (val if val else default)]
+        return result
+
+>>>>>>> 8e3f083 (全域類股龍頭監控天網：四大行業板塊置頂+全台股自由輸入+鎖定按鈕)
     # 1) 本地檔案
     _local = _os.path.join("data", "watch_list.json")
     if _os.path.exists(_local):
         try:
             with open(_local, "r", encoding="utf-8") as f:
+<<<<<<< HEAD
                 wl = _json.load(f)
             return {
                 "my_army": [str(s) for s in wl.get("my_army", [])],
@@ -105,10 +150,17 @@ def load_watch_list():
             }
         except Exception:
             pass
+=======
+                return _normalize(_json.load(f))
+        except Exception:
+            pass
+
+>>>>>>> 8e3f083 (全域類股龍頭監控天網：四大行業板塊置頂+全台股自由輸入+鎖定按鈕)
     # 2) GitHub raw 備援
     try:
         r = requests.get(f"{GITHUB_RAW}/watch_list.json", timeout=5)
         if r.status_code == 200:
+<<<<<<< HEAD
             wl = r.json()
             return {
                 "my_army": [str(s) for s in wl.get("my_army", [])],
@@ -137,6 +189,44 @@ def save_watch_list_to_github(my_army: list, sector_leaders: list) -> bool:
         {"my_army": my_army, "sector_leaders": sector_leaders},
         ensure_ascii=False, indent=2
     )
+=======
+            return _normalize(r.json())
+    except Exception:
+        pass
+
+    # 3) 預設值（首次部署或 JSON 尚未建立）
+    return dict(WATCH_LIST_DEFAULTS)
+
+
+def save_watch_list_to_github(sectors: dict) -> bool:
+    """
+    將四大板塊名單【實時覆寫】回 data/watch_list.json。
+
+    同時寫入本地副本（供 daily_scan.py 讀取），並透過
+    GitHub Contents API 推送至遠端（供 Streamlit Cloud 讀取）。
+    寫入成功後立即清除快取，確保下次讀取拿到最新版本。
+
+    sectors 格式：{"ai_semi":[...],"ai_infra":[...],"next_gen":[...],"shipping_fin":[...]}
+    成功回傳 True，失敗回傳 False（含無 token 的情況）。
+    """
+    import json as _json, os as _os, base64
+
+    payload_str = _json.dumps(sectors, ensure_ascii=False, indent=2)
+
+    # 1) 寫入本地檔案（供 daily_scan.py 直接讀取，不依賴 GitHub API）
+    try:
+        _os.makedirs("data", exist_ok=True)
+        with open(_os.path.join("data", "watch_list.json"), "w", encoding="utf-8") as f:
+            f.write(payload_str)
+    except Exception:
+        pass
+
+    # 2) 推送至 GitHub（供 Streamlit Cloud 備援讀取）
+    if not GITHUB_TOKEN:
+        load_watch_list.clear()
+        return True  # 本地已寫入即視為成功（無 token 時只能寫本地）
+
+>>>>>>> 8e3f083 (全域類股龍頭監控天網：四大行業板塊置頂+全台股自由輸入+鎖定按鈕)
     api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/data/watch_list.json"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
     sha = None
@@ -146,18 +236,31 @@ def save_watch_list_to_github(my_army: list, sector_leaders: list) -> bool:
             sha = r.json().get("sha")
     except Exception:
         pass
+<<<<<<< HEAD
     body = {"message": "update watch_list (利多不漲排毒戰備庫)",
             "content": base64.b64encode(payload.encode()).decode()}
+=======
+    body = {"message": "update watch_list（四大行業龍頭板塊）",
+            "content": base64.b64encode(payload_str.encode()).decode()}
+>>>>>>> 8e3f083 (全域類股龍頭監控天網：四大行業板塊置頂+全台股自由輸入+鎖定按鈕)
     if sha:
         body["sha"] = sha
     try:
         r = requests.put(api_url, headers=headers, json=body, timeout=15)
+<<<<<<< HEAD
         if r.status_code in (200, 201):
             # 寫入成功後立即清除快取，確保畫面與檔案同步
             load_watch_list.clear()
             return True
         return False
     except Exception:
+=======
+        ok = r.status_code in (200, 201)
+        load_watch_list.clear()
+        return ok
+    except Exception:
+        load_watch_list.clear()
+>>>>>>> 8e3f083 (全域類股龍頭監控天網：四大行業板塊置頂+全台股自由輸入+鎖定按鈕)
         return False
 
 
@@ -2214,6 +2317,97 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "💰 ETF存股現金流",
     "🧪 策略回測實驗室",
 ])
+
+# ══════════════════════════════════════════════════════════════
+# ▌ 全域類股龍頭監控天網（置頂 Expander，tabs 上方）
+# ══════════════════════════════════════════════════════════════
+# 設計說明：
+#   - 此區塊位於所有 Tab 之上，無論切換到哪個 Tab 都看得到
+#   - 四大行業行列 multiselect 支援全台股代號自由輸入（accept_new_options）
+#   - 調整後點擊「💾 鎖定新風向」才會覆寫 watch_list.json（本地+GitHub）
+#   - 覆寫成功後 daily_scan.py 下午17:00排程自動讀取最新名單
+with st.expander("👑 全域類股龍頭監控天網（動態微調分列矩陣）", expanded=True):
+
+    # 讀取現有設定
+    _wl_data = load_watch_list()
+
+    # 建立 id→name 輔助顯示（stock_list.csv + 戰略儲備庫，找不到就用代號本身）
+    _wl_id2name = {}
+    try:
+        _sl_df, _sl_ok = load_csv("stock_list.csv")
+        if _sl_ok and not _sl_df.empty and "stock_id" in _sl_df.columns:
+            _sl_df["stock_id"] = _sl_df["stock_id"].astype(str).str.strip()
+            for _, _slr in _sl_df.drop_duplicates("stock_id").iterrows():
+                _wl_id2name[_slr["stock_id"]] = _slr.get("stock_name", _slr["stock_id"])
+    except Exception:
+        pass
+    for _rv in st.session_state.get("reserve_list", []):
+        _wl_id2name[str(_rv.get("id", ""))] = _rv.get("name", _rv.get("id", ""))
+
+    def _wl_label(sid: str) -> str:
+        """顯示格式：代號＋名稱（如 2330 台積電）；沒有名稱就只顯示代號。"""
+        name = _wl_id2name.get(str(sid), "")
+        return f"{sid} {name}".strip() if name and name != sid else sid
+
+    def _wl_parse(labels: list) -> list:
+        """把 multiselect 回傳的 label 列表，只取出代號部分。"""
+        return [str(lb).split(" ")[0].strip() for lb in labels if lb]
+
+    # ── 四大行業行列定義（顏色、key、label、預設值）
+    _rows_def = [
+        ("ai_semi",      "🟢 AI 與半導體核心",      "wl_ai_semi"),
+        ("ai_infra",     "🔵 AI 剛需基礎建設",      "wl_ai_infra"),
+        ("next_gen",     "🟡 次世代戰略兵器",        "wl_next_gen"),
+        ("shipping_fin", "🔴 航運傳產與大型金融",    "wl_shipping_fin"),
+    ]
+
+    _wl_new_sectors = {}
+    for _key, _label, _st_key in _rows_def:
+        _cur_ids = _wl_data.get(_key, WATCH_LIST_DEFAULTS.get(_key, []))
+        # 每行預設值 label（帶名稱）
+        _cur_labels = [_wl_label(s) for s in _cur_ids]
+        _sel = st.multiselect(
+            _label,
+            options=_cur_labels,   # 已有的標的作為候選（可手動輸入任何台股代號）
+            default=_cur_labels,
+            key=_st_key,
+            help="可直接在欄位輸入任意台股代號（如 3711）新增；下方鎖定才生效",
+            accept_new_options=True,  # 開通全台股代號自由輸入
+        )
+        _wl_new_sectors[_key] = _wl_parse(_sel)
+
+    # ── 統計總檔數
+    _wl_grand_total = sum(len(v) for v in _wl_new_sectors.values())
+    st.caption(f"目前四大板塊共計 **{_wl_grand_total}** 檔｜每行最多 {WATCH_LIST_MAX_PER_ROW} 檔，合計上限 40 檔")
+
+    # ── 💾 置頂鋼鐵藍色鎖定按鈕（正中央置放）
+    _wl_col_l, _wl_col_c, _wl_col_r = st.columns([1, 2, 1])
+    with _wl_col_c:
+        _wl_over_limit = any(len(v) > WATCH_LIST_MAX_PER_ROW for v in _wl_new_sectors.values())
+        if st.button(
+            "💾 鎖定新風向（實時覆寫龍頭戰備庫）",
+            use_container_width=True,
+            disabled=_wl_over_limit,
+            key="wl_save_btn",
+            type="primary",
+        ):
+            _ok_save = save_watch_list_to_github(_wl_new_sectors)
+            if _ok_save:
+                st.success(
+                    "👑 報告指揮官：行業分列防線已物理死鎖，"
+                    f"下午17:00離線排程已同步移防！"
+                    f"（共 {_wl_grand_total} 檔）"
+                )
+            else:
+                st.warning(
+                    "⚠️ 本地已寫入，但 GitHub 推送失敗。"
+                    "請確認 GH_TOKEN 已設定（st.secrets[\"GH_TOKEN\"]），"
+                    "或稍後重試。本次排程掃描仍會讀取本地已儲存版本。"
+                )
+        if _wl_over_limit:
+            st.error(f"⛔ 某行超過 {WATCH_LIST_MAX_PER_ROW} 檔上限，請先移除多餘標的！")
+
+
 
 # ──────────────────────────────────────────────────────────────
 # ▌ TAB 1：選股掃描儀（階層式篩選＋評分）
