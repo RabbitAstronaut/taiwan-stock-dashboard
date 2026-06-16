@@ -2293,11 +2293,26 @@ with st.expander("👑 全域類股龍頭監控天網（動態微調分列矩陣
         f"每行上限 {WATCH_LIST_MAX_PER_ROW} 檔"
     )
 
+    # ── 龍頭多空定錨（讀 daily_scan.py 盤後計算的 sector_breadth）
+    # 與「利多不漲排毒卡片」完全解耦，各顯示各的
+    _sb = get_sector_breadth()
+    if _sb and _sb.get("total"):
+        _sb_above = _sb.get("above_sma20", 0)
+        _sb_total = _sb["total"]
+        _sb_ratio = _sb_above / _sb_total if _sb_total else 0
+        _sb_struct = "背離警戒" if _sb_ratio < 0.35 else "中性" if _sb_ratio < 0.6 else "健康多頭"
+        st.caption(
+            f"📊 類股龍頭多空定錨：當前有 **{_sb_above} / {_sb_total}** 檔個股站上月線(SMA20)，"
+            f"市場結構評估：**{_sb_struct}**　｜　資料日期：{_sb.get('date','—')}"
+        )
+    else:
+        st.caption("📊 類股龍頭多空定錨：等待每日 17:00 盤後排程計算（daily_scan.py）")
+
     # 💾 置頂鋼鐵藍色鎖定按鈕（正中央置放）
     _wl_col_l, _wl_col_c, _wl_col_r = st.columns([1, 2, 1])
     with _wl_col_c:
         if st.button(
-            "💾 鎖定新風向（實時覆寫龍頭戰備庫）",
+            "💾 鎖定新風向（實時覆寫大類股監控名單）",
             use_container_width=True,
             disabled=_wl_over_limit,
             key="wl_save_btn",
@@ -2306,8 +2321,7 @@ with st.expander("👑 全域類股龍頭監控天網（動態微調分列矩陣
             _ok_save = save_watch_list_to_github(_wl_new_sectors)
             if _ok_save:
                 st.success(
-                    "👑 報告指揮官：行業分列防線已物理死鎖，"
-                    f"下午17:00離線排程已同步移防！（共 {_wl_grand_total} 檔）"
+                    "👑 報告指揮官：17檔大類股防線已物理死鎖，全域雷達已同步移防！"
                 )
             else:
                 st.warning(
@@ -5015,25 +5029,22 @@ with tab5:
                      ref="<1000 資金歸建電子；1000~2000 盤整；>2000 通膨隱憂"), unsafe_allow_html=True)
 
     # ── 欄6：利多不漲排毒（後端 daily_scan.py 每日17:00盤後掃描，前端僅讀結果）
+    # 此卡片【只顯示】是否有個股符合「炒作熱度高＋收黑/長上影線＋外資大倒貨」
+    # 龍頭多空定錨已移至頂端天網區塊獨立顯示，兩者完全解耦
     _alerts_today = get_triggered_alerts_today()
-    _breadth       = get_sector_breadth()
 
     if _alerts_today:
         _names = "、".join(a.get("name", a.get("stock_id","?")) for a in _alerts_today[:3])
         _more  = f" 等{len(_alerts_today)}檔" if len(_alerts_today) > 3 else ""
-        _trap_s, _trap_h = "🔴", "利多不漲:大戶高位出貨陷阱"
-        _trap_val = f"🚨 {len(_alerts_today)}檔觸發：{_names}{_more}"
+        _trap_s, _trap_h = "🔴", f"🚨 {len(_alerts_today)}檔出貨：{_names}{_more}"
+        _trap_val = f"{len(_alerts_today)}檔觸發"
     else:
-        _trap_s, _trap_h = "🟢", "戰備軍無毒・安全"
-        _trap_val = "0檔觸發"
-
-    # 龍頭股動向（12檔大金剛站上月線比例），動態併入hint小字
-    if _breadth and _breadth.get("total"):
-        _trap_h += f"｜龍頭站月線 {_breadth.get('above_sma20',0)}/{_breadth['total']}檔"
+        _trap_s, _trap_h = "🟢", "全域安全"
+        _trap_val = "戰備軍無毒"
 
     _r2[5].markdown(
         _metric_html("利多不漲排毒", _trap_val, _trap_s, _trap_h,
-                     ref="每日17:00盤後自動掃描戰備清單；0檔=安全，>0檔=大戶高位出貨警報"),
+                     ref="每日17:00盤後自動掃描龍頭清單；0檔=安全，>0檔=炒作出貨陷阱"),
         unsafe_allow_html=True
     )
 
