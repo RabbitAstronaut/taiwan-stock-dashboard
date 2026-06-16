@@ -3550,12 +3550,7 @@ with tab3:
                            "realized_pnl":"實現損益","roi_pct":"ROI%"}
             _df_trd = _df_trd[_col_order].rename(columns=_col_rename)
             st.dataframe(
-                _df_trd.style.map(
-                    lambda v: "color:#00cc66" if isinstance(v,(int,float)) and v>0
-                    else "color:#ff4444" if isinstance(v,(int,float)) and v<0 else "",
-                    subset=[c for c in ["實現損益","ROI%"] if c in _df_trd.columns]
-                ).format({c: "{:,.0f}" for c in ["手續費","證交稅","成交金額","實現損益"]
-                          if c in _df_trd.columns}),
+                _df_trd,
                 use_container_width=True, hide_index=True
             )
             # 統計
