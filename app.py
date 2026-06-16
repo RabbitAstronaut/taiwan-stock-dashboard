@@ -3536,83 +3536,143 @@ with tab3:
                 )
             _headers = ["代號","買入日期","現價","含費均價","持股數","含費成本","扣稅實收","未實現損益","ROI%"]
             _head_html = "".join(
-                f"<th style='padding:8px;text-align:{'left' if i<2 else 'right'};border-bottom:1px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;white-space:nowrap;'>{h}</th>"
+                f"<th style='padding:8px;text-align:{'left' if i<2 else 'right'};"
+                f"border-bottom:2px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;"
+                f"white-space:nowrap;position:sticky;top:0;background:#0f2027;z-index:1;'>{h}</th>"
                 for i, h in enumerate(_headers)
             )
+            _pf_table_h = 40 + 12 * 34  # header + 12列
             st.markdown(
+                f"<div style='overflow-y:auto;max-height:{_pf_table_h}px;border:1px solid #1e3a5f;border-radius:6px;'>"
                 f"<table style='width:100%;border-collapse:collapse;font-size:.85rem;color:#e8f4fd;'>"
                 f"<thead><tr style='background:#0f2027;'>{_head_html}</tr></thead>"
                 f"<tbody style='background:rgba(255,255,255,0.02);'>{_rows_html}</tbody>"
-                f"</table>",
+                f"</table></div>",
                 unsafe_allow_html=True
             )
         else:
             st.caption("目前無持倉")
 
         # ════════════════════════════════════════════════════
-        # ▌ 歷史交易紀錄
+        # ════════════════════════════════════════════════════
+        # ▌ 歷史交易紀錄（篩選 + 固定高度 + 匯出Excel）
         # ════════════════════════════════════════════════════
         st.markdown("---")
         st.markdown("#### 📜 歷史交易紀錄")
         if _trd:
-            _df_trd = pd.DataFrame(_trd)
+            # ── 篩選控制列
+            _f1, _f2, _f3, _f4 = st.columns([2, 2, 2, 1])
+            _all_sids = sorted(set(t.get("stock_id","") for t in _trd if t.get("stock_id")))
+            with _f1:
+                _filter_sids = st.multiselect("篩選股票代號", options=_all_sids,
+                                               default=[], key="trd_filter_sid",
+                                               placeholder="全部")
+            with _f2:
+                _filter_date_start = st.date_input("起始日期", value=None,
+                                                    key="trd_date_start")
+            with _f3:
+                _filter_date_end   = st.date_input("結束日期", value=None,
+                                                    key="trd_date_end")
+            with _f4:
+                _filter_action = st.selectbox("動作", ["全部","買入","賣出"],
+                                               key="trd_filter_action")
+
+            # ── 套用篩選
+            _trd_filtered = _trd[:]
+            if _filter_sids:
+                _trd_filtered = [t for t in _trd_filtered if t.get("stock_id") in _filter_sids]
+            if _filter_date_start:
+                _trd_filtered = [t for t in _trd_filtered if str(t.get("date","")) >= str(_filter_date_start)]
+            if _filter_date_end:
+                _trd_filtered = [t for t in _trd_filtered if str(t.get("date","")) <= str(_filter_date_end)]
+            if _filter_action != "全部":
+                _trd_filtered = [t for t in _trd_filtered if t.get("action") == _filter_action]
+
+            # ── 建立 HTML 表格（固定高度，超過顯示捲軸）
             _col_map = {"date":"日期","action":"動作","stock_id":"代號",
                         "price":"成交價","qty":"股數","fee":"手續費",
                         "tax":"證交稅","amount":"成交金額","hold_cost":"持有成本",
                         "realized_pnl":"實現損益","roi_pct":"ROI%"}
-            # 建立 HTML 表格
-            _trd_headers = [v for k,v in _col_map.items() if k in _df_trd.columns]
-            _trd_keys    = [k for k in _col_map if k in _df_trd.columns]
+            _df_trd_base = pd.DataFrame(_trd_filtered) if _trd_filtered else pd.DataFrame()
+            _trd_keys    = [k for k in _col_map if not _df_trd_base.empty and k in _df_trd_base.columns]
+            _trd_headers = [_col_map[k] for k in _trd_keys]
+
             _trd_rows_html = ""
-            for _t in reversed(_trd):  # 最新在上
+            for _t in reversed(_trd_filtered):
                 _action_color = "#ff4444" if _t.get("action") == "買入" else "#00cc66"
-                _pnl = _t.get("realized_pnl")
-                _roi = _t.get("roi_pct")
                 _row = ""
                 for _k in _trd_keys:
-                    _v = _t.get(_k, "—")
+                    _v    = _t.get(_k)
+                    _disp = "—" if _v is None else _v
                     _style = ""
                     if _k == "action":
                         _style = f"color:{_action_color};font-weight:600;"
                     elif _k in ("realized_pnl","roi_pct") and isinstance(_v, (int,float)):
-                        # 台灣習慣：獲利紅色，虧損綠色
                         _style = "color:#ff4444;font-weight:600;" if _v > 0 else "color:#00cc66;font-weight:600;" if _v < 0 else ""
-                    if isinstance(_v, float):
-                        _v = f"{_v:,.2f}" if _k in ("price","roi_pct") else f"{_v:,.0f}"
-                    elif isinstance(_v, int):
-                        _v = f"{_v:,}"
-                    elif _v is None:
-                        _v = "—"
-                    _align = "right" if _k not in ("date","action","stock_id") else "left"
-                    _row += f"<td style='padding:7px 8px;text-align:{_align};{_style}'>{_v}</td>"
-                _trd_rows_html += f"<tr style='border-bottom:1px solid #1e3a5f;'>{_row}</tr>"
+                    if isinstance(_disp, float):
+                        _disp = f"{_disp:+.2f}" if _k == "roi_pct" else f"{_disp:,.2f}" if _k == "price" else f"{_disp:,.0f}"
+                    elif isinstance(_disp, int):
+                        _disp = f"{_disp:,}"
+                    _align = "left" if _k in ("date","action","stock_id") else "right"
+                    _row += f"<td style='padding:7px 8px;text-align:{_align};white-space:nowrap;{_style}'>{_disp}</td>"
+                _bg = "background:rgba(255,255,255,0.04);" if _trd_filtered.index(_t) % 2 == 0 else ""
+                _trd_rows_html += f"<tr style='border-bottom:1px solid #1a2f44;{_bg}'>{_row}</tr>"
 
             _trd_head = "".join(
-                f"<th style='padding:8px;text-align:left;border-bottom:1px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;'>{h}</th>"
+                f"<th style='padding:8px;text-align:{'left' if h in ('日期','動作','代號') else 'right'};"
+                f"border-bottom:2px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;"
+                f"white-space:nowrap;position:sticky;top:0;background:#0f2027;z-index:1;'>{h}</th>"
                 for h in _trd_headers
             )
+            # 固定高度容器（約12列，每列32px = 384px + header 40px）
+            _ROW_H = 32
+            _HEADER_H = 40
+            _VISIBLE_ROWS = 12
+            _table_h = _HEADER_H + _VISIBLE_ROWS * _ROW_H
             st.markdown(
+                f"<div style='overflow-y:auto;max-height:{_table_h}px;border:1px solid #1e3a5f;border-radius:6px;'>"
                 f"<table style='width:100%;border-collapse:collapse;font-size:.83rem;color:#e8f4fd;'>"
-                f"<thead><tr style='background:#0f2027;'>{_trd_head}</tr></thead>"
-                f"<tbody style='background:rgba(255,255,255,0.02);'>{_trd_rows_html}</tbody>"
-                f"</table>",
+                f"<thead><tr>{_trd_head}</tr></thead>"
+                f"<tbody>{_trd_rows_html}</tbody>"
+                f"</table></div>",
                 unsafe_allow_html=True
             )
-            # 統計
+            st.caption(f"共 {len(_trd_filtered)} 筆（篩選後）")
+
+            # ── 匯出 Excel
+            try:
+                import io as _io
+                _df_export = pd.DataFrame(_trd_filtered).rename(columns=_col_map)
+                _export_cols = [v for v in _col_map.values() if v in _df_export.columns]
+                _df_export   = _df_export[_export_cols]
+                _buf = _io.BytesIO()
+                with pd.ExcelWriter(_buf, engine="xlsxwriter") as _writer:
+                    _df_export.to_excel(_writer, sheet_name="交易紀錄", index=False)
+                _buf.seek(0)
+                st.download_button(
+                    "📥 匯出 Excel",
+                    data=_buf,
+                    file_name=f"trades_{datetime.now(ZoneInfo('Asia/Taipei')).strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="export_trades_excel"
+                )
+            except Exception as _xe:
+                st.caption(f"匯出功能需安裝 xlsxwriter：pip install xlsxwriter（{_xe}）")
+
+            # ── 統計
             _real_trades = [t for t in _trd if t.get("action") == "賣出"]
             if _real_trades:
-                _sum_pnl = sum(t.get("realized_pnl", 0) for t in _real_trades)
-                _avg_roi = sum(t.get("roi_pct", 0) for t in _real_trades) / len(_real_trades)
-                # 本月統計
+                _sum_pnl = sum(t.get("realized_pnl", 0) or 0 for t in _real_trades)
+                _avg_roi = sum(t.get("roi_pct", 0) or 0 for t in _real_trades) / len(_real_trades)
                 from datetime import datetime as _dt2
                 _this_month = _dt2.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m")
                 _month_trades = [t for t in _real_trades if str(t.get("date","")).startswith(_this_month)]
-                _month_pnl = sum(t.get("realized_pnl", 0) for t in _month_trades)
+                _month_pnl = sum(t.get("realized_pnl", 0) or 0 for t in _month_trades)
                 st.caption(
                     f"累計已實現損益：**${_sum_pnl:,.0f}**　｜　"
                     f"平均ROI：**{_avg_roi:+.2f}%**　｜　共 {len(_real_trades)} 筆賣出"
                 )
-                _month_color = "#00cc66" if _month_pnl >= 0 else "#ff4444"
+                _month_color = "#ff4444" if _month_pnl >= 0 else "#00cc66"
                 st.markdown(
                     f"<div style='padding:8px 0;font-size:.9rem;'>"
                     f"📈 <b>本月（{_this_month}）累計已實現純利潤（已扣稅費）：</b>"
