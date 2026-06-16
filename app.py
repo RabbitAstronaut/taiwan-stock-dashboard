@@ -3517,19 +3517,35 @@ with tab3:
         st.markdown("---")
         st.markdown("#### 📋 當前持倉明細（含摩擦成本）")
         if _pf_rows:
-            _df_pf_show = pd.DataFrame([
-                {k: r[k] for k in ["代號","買入日期","現價","買入均價","持股數",
-                                    "含費成本","扣稅實收","未實現損益","ROI%"]}
-                for r in _pf_rows
-            ])
-            st.dataframe(
-                _df_pf_show.style
-                    .map(lambda v: "color:#00cc66" if isinstance(v, (int,float)) and v>0
-                              else "color:#ff4444" if isinstance(v, (int,float)) and v<0 else "",
-                              subset=["未實現損益","ROI%"])
-                    .format({"含費成本":"{:,.0f}","扣稅實收":"{:,.0f}",
-                             "未實現損益":"{:,.0f}","ROI%":"{:+.2f}%"}),
-                use_container_width=True, hide_index=True
+            _rows_html = ""
+            for _r in _pf_rows:
+                _pnl_color = "#00cc66" if _r["未實現損益"] > 0 else "#ff4444" if _r["未實現損益"] < 0 else "#e8f4fd"
+                _rows_html += (
+                    f"<tr>"
+                    f"<td>{_r['代號']}</td><td>{_r['買入日期']}</td>"
+                    f"<td>{_r['現價']:,.2f}</td><td>{_r['買入均價']:,.4f}</td>"
+                    f"<td>{_r['持股數']:,}</td><td>{_r['含費成本']:,.0f}</td>"
+                    f"<td>{_r['扣稅實收']:,.0f}</td>"
+                    f"<td style='color:{_pnl_color};font-weight:600;'>{_r['未實現損益']:+,.0f}</td>"
+                    f"<td style='color:{_pnl_color};font-weight:600;'>{_r['ROI%']:+.2f}%</td>"
+                    f"</tr>"
+                )
+            st.markdown(
+                f"<table style='width:100%;border-collapse:collapse;font-size:.85rem;color:#e8f4fd;'>"
+                f"<thead><tr style='background:#0f2027;color:#7fb3d3;font-size:.78rem;letter-spacing:.5px;'>"
+                f"<th style='padding:8px;text-align:left;border-bottom:1px solid #1e3a5f;'>代號</th>"
+                f"<th style='padding:8px;text-align:left;border-bottom:1px solid #1e3a5f;'>買入日期</th>"
+                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>現價</th>"
+                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>含費均價</th>"
+                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>持股數</th>"
+                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>含費成本</th>"
+                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>扣稅實收</th>"
+                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>未實現損益</th>"
+                f"<th style='padding:8px;text-align:right;border-bottom:1px solid #1e3a5f;'>ROI%</th>"
+                f"</tr></thead>"
+                f"<tbody style='background:rgba(255,255,255,0.02);'>{_rows_html}</tbody>"
+                f"</table>",
+                unsafe_allow_html=True
             )
         else:
             st.caption("目前無持倉")
@@ -3541,17 +3557,46 @@ with tab3:
         st.markdown("#### 📜 歷史交易紀錄")
         if _trd:
             _df_trd = pd.DataFrame(_trd)
-            _col_order = [c for c in ["date","action","stock_id","price","qty",
-                                       "fee","tax","amount","realized_pnl","roi_pct"]
-                          if c in _df_trd.columns]
-            _col_rename = {"date":"日期","action":"動作","stock_id":"代號",
-                           "price":"成交價","qty":"股數","fee":"手續費",
-                           "tax":"證交稅","amount":"成交金額",
-                           "realized_pnl":"實現損益","roi_pct":"ROI%"}
-            _df_trd = _df_trd[_col_order].rename(columns=_col_rename)
-            st.dataframe(
-                _df_trd,
-                use_container_width=True, hide_index=True
+            _col_map = {"date":"日期","action":"動作","stock_id":"代號",
+                        "price":"成交價","qty":"股數","fee":"手續費",
+                        "tax":"證交稅","amount":"成交金額","hold_cost":"持有成本",
+                        "realized_pnl":"實現損益","roi_pct":"ROI%"}
+            # 建立 HTML 表格
+            _trd_headers = [v for k,v in _col_map.items() if k in _df_trd.columns]
+            _trd_keys    = [k for k in _col_map if k in _df_trd.columns]
+            _trd_rows_html = ""
+            for _t in reversed(_trd):  # 最新在上
+                _action_color = "#00cc66" if _t.get("action") == "買入" else "#ff4444"
+                _pnl = _t.get("realized_pnl")
+                _roi = _t.get("roi_pct")
+                _row = ""
+                for _k in _trd_keys:
+                    _v = _t.get(_k, "—")
+                    _style = ""
+                    if _k == "action":
+                        _style = f"color:{_action_color};font-weight:600;"
+                    elif _k in ("realized_pnl","roi_pct") and isinstance(_v, (int,float)):
+                        _style = "color:#00cc66;font-weight:600;" if _v > 0 else "color:#ff4444;font-weight:600;" if _v < 0 else ""
+                    if isinstance(_v, float):
+                        _v = f"{_v:,.2f}" if _k in ("price","roi_pct") else f"{_v:,.0f}"
+                    elif isinstance(_v, int):
+                        _v = f"{_v:,}"
+                    elif _v is None:
+                        _v = "—"
+                    _align = "right" if _k not in ("date","action","stock_id") else "left"
+                    _row += f"<td style='padding:7px 8px;text-align:{_align};{_style}'>{_v}</td>"
+                _trd_rows_html += f"<tr style='border-bottom:1px solid #1e3a5f;'>{_row}</tr>"
+
+            _trd_head = "".join(
+                f"<th style='padding:8px;text-align:left;border-bottom:1px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;'>{h}</th>"
+                for h in _trd_headers
+            )
+            st.markdown(
+                f"<table style='width:100%;border-collapse:collapse;font-size:.83rem;color:#e8f4fd;'>"
+                f"<thead><tr style='background:#0f2027;'>{_trd_head}</tr></thead>"
+                f"<tbody style='background:rgba(255,255,255,0.02);'>{_trd_rows_html}</tbody>"
+                f"</table>",
+                unsafe_allow_html=True
             )
             # 統計
             _real_trades = [t for t in _trd if t.get("action") == "賣出"]
