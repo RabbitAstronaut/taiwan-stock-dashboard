@@ -3962,204 +3962,208 @@ with tab3:
     _tab_buy, _tab_sell, _tab_manage = st.tabs(["🟢 買入登記", "🔴 賣出登記", "⚙️ 帳戶管理"])
 
     with _tab_buy:
-        _buy_form_key = f"buy_form_{st.session_state.get('buy_count', 0)}"
-        with st.form(_buy_form_key):
-            st.markdown("**📌 新增買入紀錄**")
-            _bc1, _bc2, _bc3 = st.columns(3)
-            with _bc1:
-                _b_sid  = st.text_input("股票代號", placeholder="如 2330")
-                # 即時顯示股票名稱
-                if _b_sid.strip() and _b_sid.strip().isdigit():
-                    _b_name = get_name(_b_sid.strip())
-                    if _b_name:
-                        st.caption(f"📌 {_b_name}")
-                _b_date = st.date_input("買入日期",
-                                         value=datetime.now(ZoneInfo("Asia/Taipei")).date())
-                _b_bp   = st.number_input("買入均價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="請輸入均價")
-            with _bc2:
-                _b_qty  = st.number_input("買入股數", min_value=0, value=None, step=1000, placeholder="請輸入股數")
-                _b_sl   = st.number_input("自訂停損價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="選填")
-                _b_sp   = st.number_input("自訂停利價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="選填")
-            with _bc3:
-                if (_b_bp or 0) > 0 and (_b_qty or 0) > 0:
-                    _b_cost    = calc_buy_cost(_b_bp, _b_qty)
-                    _b_fee     = _calc_fee(_b_bp, _b_qty)
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.info(
-                        "📊 **預估摩擦成本**\n\n"
-                        f"買入金額：${_b_bp*_b_qty:,.0f}\n\n"
-                        f"手續費（6折）：${_b_fee:,.0f}\n\n"
-                        f"**含費總成本：${_b_cost:,.0f}**"
+        st.markdown("**📌 新增買入紀錄**")
+        _bc1, _bc2, _bc3 = st.columns(3)
+        with _bc1:
+            _b_sid  = st.text_input("股票代號", placeholder="如 2330", key="buy_sid")
+            # 即時顯示股票名稱
+            if _b_sid.strip() and _b_sid.strip().isdigit():
+                _b_name = get_name(_b_sid.strip())
+                if _b_name:
+                    st.caption(f"📌 {_b_name}")
+            _b_date = st.date_input("買入日期",
+                                     value=datetime.now(ZoneInfo("Asia/Taipei")).date(),
+                                     key="buy_date")
+            _b_bp   = st.number_input("買入均價", min_value=0.0, value=None, step=0.5,
+                                       format="%.2f", placeholder="請輸入均價", key="buy_bp")
+        with _bc2:
+            _b_qty  = st.number_input("買入股數", min_value=0, value=None, step=1000,
+                                       placeholder="請輸入股數", key="buy_qty")
+            _b_sl   = st.number_input("自訂停損價", min_value=0.0, value=None, step=0.5,
+                                       format="%.2f", placeholder="選填", key="buy_sl")
+            _b_sp   = st.number_input("自訂停利價", min_value=0.0, value=None, step=0.5,
+                                       format="%.2f", placeholder="選填", key="buy_sp")
+        with _bc3:
+            if (_b_bp or 0) > 0 and (_b_qty or 0) > 0:
+                _b_cost = calc_buy_cost(_b_bp, _b_qty)
+                _b_fee  = _calc_fee(_b_bp, _b_qty)
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.info(
+                    "📊 **預估摩擦成本**\n\n"
+                    f"買入金額：${_b_bp*_b_qty:,.0f}\n\n"
+                    f"手續費（6折）：${_b_fee:,.0f}\n\n"
+                    f"**含費總成本：${_b_cost:,.0f}**"
+                )
+
+        if st.button("💾 確認買入登記", type="primary", key="buy_submit"):
+            _b_bp_v  = _b_bp  or 0.0
+            _b_qty_v = _b_qty or 0
+            _b_sl_v  = _b_sl  or 0.0
+            _b_sp_v  = _b_sp  or 0.0
+            if not _b_sid.strip() or _b_bp_v <= 0 or _b_qty_v <= 0:
+                st.error("請填寫完整：股票代號、買入均價、買入股數")
+            elif not _b_sid.strip().isdigit() or len(_b_sid.strip()) not in (4, 5, 6):
+                st.error(f"⚠️ 股票代號格式錯誤：「{_b_sid.strip()}」應為 4~6 位數字（如 2330、00878）")
+            else:
+                # 防呆：確認 CSV 資料庫是否存有此股票
+                _sid_check = _b_sid.strip()
+                _df_chk, _ok_chk = load_price_csv(_sid_check)
+                if not _ok_chk or _df_chk.empty:
+                    st.error(
+                        f"⚠️ 找不到股票 **{_sid_check}** 的價格資料！\n\n"
+                        f"請確認：① 代號是否正確（台股上市4碼、上櫃5碼）"
+                        f"　② 是否已執行 update_data.py 更新 CSV"
                     )
-
-            _b_submit = st.form_submit_button("💾 確認買入登記", type="primary")
-            if _b_submit:
-                _b_bp_v  = _b_bp  or 0.0
-                _b_qty_v = _b_qty or 0
-                _b_sl_v  = _b_sl  or 0.0
-                _b_sp_v  = _b_sp  or 0.0
-                if not _b_sid.strip() or _b_bp_v <= 0 or _b_qty_v <= 0:
-                    st.error("請填寫完整：股票代號、買入均價、買入股數")
-                elif not _b_sid.strip().isdigit() or len(_b_sid.strip()) not in (4, 5, 6):
-                    st.error(f"⚠️ 股票代號格式錯誤：「{_b_sid.strip()}」應為 4~6 位數字（如 2330、00878）")
                 else:
-                    # 防呆：確認 CSV 資料庫是否存有此股票
-                    _sid_check = _b_sid.strip()
-                    _df_chk, _ok_chk = load_price_csv(_sid_check)
-                    if not _ok_chk or _df_chk.empty:
-                        st.error(
-                            f"⚠️ 找不到股票 **{_sid_check}** 的價格資料！\n\n"
-                            f"請確認：① 代號是否正確（台股上市4碼、上櫃5碼）"
-                            f"　② 是否已執行 update_data.py 更新 CSV"
-                        )
+                    _b_cost_final = calc_buy_cost(_b_bp_v, _b_qty_v)
+                    _acct_now = load_account()
+                    if _acct_now.get("initial_capital", 0) > 0 and _acct_now.get("cash", 0) < _b_cost_final:
+                        st.error(f"⚠️ 可用現金 ${_acct_now['cash']:,.0f} 不足以支付 ${_b_cost_final:,.0f}")
                     else:
-                        _b_cost_final = calc_buy_cost(_b_bp_v, _b_qty_v)
-                        _acct_now = load_account()
-                        if _acct_now.get("initial_capital", 0) > 0 and _acct_now.get("cash", 0) < _b_cost_final:
-                            st.error(f"⚠️ 可用現金 ${_acct_now['cash']:,.0f} 不足以支付 ${_b_cost_final:,.0f}")
+                        # 更新持倉
+                        _pf_now = load_portfolio()
+                        _sid_key = _b_sid.strip()
+                        if _sid_key in _pf_now:
+                            # ── 加碼：移動加權平均法（WAC），含手續費的真實成本
+                            _old = _pf_now[_sid_key]
+                            _old_qty = _old["qty"]
+                            _old_avg = _old["buy_price"]
+                            _old_total_cost = _old_avg * _old_qty
+                            _new_total_cost = calc_buy_cost(_b_bp_v, int(_b_qty_v))
+                            _new_qty        = _old_qty + int(_b_qty_v)
+                            _new_avg_price  = (_old_total_cost + _new_total_cost) / _new_qty
+                            _pf_now[_sid_key]["buy_price"] = round(_new_avg_price, 4)
+                            _pf_now[_sid_key]["qty"] = _new_qty
+                            if _b_sl_v > 0: _pf_now[_sid_key]["stop_loss"] = _b_sl_v
+                            if _b_sp_v > 0: _pf_now[_sid_key]["stop_profit"] = _b_sp_v
                         else:
-                            # 更新持倉
-                            _pf_now = load_portfolio()
-                            _sid_key = _b_sid.strip()
-                            if _sid_key in _pf_now:
-                                # ── 加碼：移動加權平均法（WAC），含手續費的真實成本
-                                _old = _pf_now[_sid_key]
-                                _old_qty = _old["qty"]
-                                _old_avg = _old["buy_price"]
-                                _old_total_cost = _old_avg * _old_qty
-                                _new_total_cost = calc_buy_cost(_b_bp_v, int(_b_qty_v))
-                                _new_qty        = _old_qty + int(_b_qty_v)
-                                _new_avg_price  = (_old_total_cost + _new_total_cost) / _new_qty
-                                _pf_now[_sid_key]["buy_price"] = round(_new_avg_price, 4)
-                                _pf_now[_sid_key]["qty"] = _new_qty
-                                if _b_sl_v > 0: _pf_now[_sid_key]["stop_loss"] = _b_sl_v
-                                if _b_sp_v > 0: _pf_now[_sid_key]["stop_profit"] = _b_sp_v
-                            else:
-                                # 首次買入：含費均價 = 含費總成本 / 股數
-                                _first_total = calc_buy_cost(_b_bp_v, int(_b_qty_v))
-                                _first_avg   = _first_total / int(_b_qty_v)
-                                _pf_now[_sid_key] = {
-                                    "buy_price":   round(_first_avg, 4),
-                                    "qty":         int(_b_qty_v),
-                                    "stop_loss":   _b_sl_v,
-                                    "stop_profit": _b_sp_v,
-                                    "buy_date":    str(_b_date),
-                                }
-                            save_portfolio(_pf_now)
+                            # 首次買入：含費均價 = 含費總成本 / 股數
+                            _first_total = calc_buy_cost(_b_bp_v, int(_b_qty_v))
+                            _first_avg   = _first_total / int(_b_qty_v)
+                            _pf_now[_sid_key] = {
+                                "buy_price":   round(_first_avg, 4),
+                                "qty":         int(_b_qty_v),
+                                "stop_loss":   _b_sl_v,
+                                "stop_profit": _b_sp_v,
+                                "buy_date":    str(_b_date),
+                            }
+                        save_portfolio(_pf_now)
 
-                            # 更新現金
-                            _acct_now["cash"] = _acct_now.get("cash", 0) - _b_cost_final
-                            save_account(_acct_now)
+                        # 更新現金
+                        _acct_now["cash"] = _acct_now.get("cash", 0) - _b_cost_final
+                        save_account(_acct_now)
 
-                            # 寫入交易紀錄
-                            _trd_now = load_trades()
-                            _trd_now.append({
-                                "date": str(_b_date), "action": "買入",
-                                "stock_id": _sid_key,
-                                "price": _b_bp_v, "qty": int(_b_qty_v),
-                                "fee": round(_calc_fee(_b_bp_v, _b_qty_v), 0),
-                                "tax": 0, "amount": round(_b_bp_v * _b_qty_v, 0),
-                                "realized_pnl": None, "roi_pct": None,
-                            })
-                            save_trades(_trd_now)
-                            st.success(f"✅ 買入 {_sid_key} {int(_b_qty_v)}股 @ {_b_bp_v}，含費成本 ${_b_cost_final:,.0f}，現金已扣除")
-                            st.session_state["buy_count"] = st.session_state.get("buy_count", 0) + 1
-                            st.rerun()
+                        # 寫入交易紀錄
+                        _trd_now = load_trades()
+                        _trd_now.append({
+                            "date": str(_b_date), "action": "買入",
+                            "stock_id": _sid_key,
+                            "price": _b_bp_v, "qty": int(_b_qty_v),
+                            "fee": round(_calc_fee(_b_bp_v, _b_qty_v), 0),
+                            "tax": 0, "amount": round(_b_bp_v * _b_qty_v, 0),
+                            "realized_pnl": None, "roi_pct": None,
+                        })
+                        save_trades(_trd_now)
+                        st.success(f"✅ 買入 {_sid_key} {int(_b_qty_v)}股 @ {_b_bp_v}，含費成本 ${_b_cost_final:,.0f}，現金已扣除")
+                        # 清空輸入欄位
+                        for _k in ["buy_sid","buy_bp","buy_qty","buy_sl","buy_sp"]:
+                            if _k in st.session_state:
+                                del st.session_state[_k]
+                        st.rerun()
 
     with _tab_sell:
         _pf_sell = load_portfolio()
         if not _pf_sell:
             st.info("目前無持倉可賣出")
         else:
-            _sell_form_key = f"sell_form_{st.session_state.get('sell_count', 0)}"
-            with st.form(_sell_form_key):
-                st.markdown("**📌 登記賣出紀錄**")
-                _sc1, _sc2, _sc3 = st.columns(3)
-                with _sc1:
-                    _s_sid  = st.selectbox("選擇賣出標的", list(_pf_sell.keys()))
-                    # 即時顯示股票名稱
-                    _s_name = get_name(_s_sid)
-                    if _s_name:
-                        st.caption(f"📌 {_s_name}")
+            st.markdown("**📌 登記賣出紀錄**")
+            _sc1, _sc2, _sc3 = st.columns(3)
+            with _sc1:
+                _s_sid  = st.selectbox("選擇賣出標的", list(_pf_sell.keys()), key="sell_sid")
+                # 即時顯示股票名稱
+                _s_name = get_name(_s_sid)
+                if _s_name:
+                    st.caption(f"📌 {_s_name}")
                     _s_date = st.date_input("賣出日期",
-                                             value=datetime.now(ZoneInfo("Asia/Taipei")).date())
-                with _sc2:
-                    _s_max_qty = int(_pf_sell.get(_s_sid, {}).get("qty", 0))
-                    _s_qty  = st.number_input(f"賣出股數（持有 {_s_max_qty} 股）",
-                                               min_value=0, max_value=_s_max_qty, value=None, step=1000, placeholder="請輸入股數")
-                    _s_price = st.number_input("賣出均價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="請輸入均價")
-                with _sc3:
-                    if (_s_price or 0) > 0 and (_s_qty or 0) > 0:
-                        _s_bp      = float(_pf_sell[_s_sid]["buy_price"])
-                        _s_inflow  = calc_net_inflow(_s_price, _s_qty)
-                        _s_profit, _s_roi = calc_net_profit(_s_bp, _s_price, _s_qty)
-                        _s_fee     = _calc_fee(_s_price, _s_qty)
-                        _s_tax     = _s_price * _s_qty * TAX_RATE
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        _pnl_color = "#00cc66" if _s_profit >= 0 else "#ff4444"
-                        st.markdown(
-                            f"<div style='background:rgba(0,0,0,0.3);border-radius:8px;padding:10px;'>"
-                            f"手續費：${_s_fee:,.0f}<br>"
-                            f"證交稅：${_s_tax:,.0f}<br>"
-                            f"實收金額：${_s_inflow:,.0f}<br>"
-                            f"<b style='color:{_pnl_color};'>實現損益：${_s_profit:,.0f} ({_s_roi:+.2f}%)</b>"
-                            f"</div>",
-                            unsafe_allow_html=True
-                        )
+                                             value=datetime.now(ZoneInfo("Asia/Taipei")).date(),
+                                             key="sell_date")
+            with _sc2:
+                _s_max_qty = int(_pf_sell.get(_s_sid, {}).get("qty", 0))
+                _s_qty  = st.number_input(f"賣出股數（持有 {_s_max_qty} 股）",
+                                           min_value=0, max_value=_s_max_qty, value=None,
+                                           step=1000, placeholder="請輸入股數", key="sell_qty")
+                _s_price = st.number_input("賣出均價", min_value=0.0, value=None, step=0.5,
+                                           format="%.2f", placeholder="請輸入均價", key="sell_price")
+            with _sc3:
+                if (_s_price or 0) > 0 and (_s_qty or 0) > 0:
+                    _s_bp      = float(_pf_sell[_s_sid]["buy_price"])
+                    _s_inflow  = calc_net_inflow(_s_price, _s_qty)
+                    _s_profit, _s_roi = calc_net_profit(_s_bp, _s_price, _s_qty)
+                    _s_fee     = _calc_fee(_s_price, _s_qty)
+                    _s_tax     = _s_price * _s_qty * TAX_RATE
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    _pnl_color = "#00cc66" if _s_profit >= 0 else "#ff4444"
+                    st.markdown(
+                        f"<div style='background:rgba(0,0,0,0.3);border-radius:8px;padding:10px;'>"
+                        f"手續費：${_s_fee:,.0f}<br>"
+                        f"證交稅：${_s_tax:,.0f}<br>"
+                        f"實收金額：${_s_inflow:,.0f}<br>"
+                        f"<b style='color:{_pnl_color};'>實現損益：${_s_profit:,.0f} ({_s_roi:+.2f}%)</b>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
 
-                _s_submit = st.form_submit_button("💸 確認賣出登記", type="primary")
-                if _s_submit:
-                    _s_price_v = _s_price or 0.0
-                    _s_qty_v   = _s_qty   or 0
-                    if _s_price_v <= 0 or _s_qty_v <= 0:
-                        st.error("請填寫賣出均價與股數")
-                    elif _s_qty_v > _s_max_qty:
-                        st.error(f"賣出股數 {_s_qty_v} 超過持有股數 {_s_max_qty}")
+            if st.button("💸 確認賣出登記", type="primary", key="sell_submit"):
+                _s_price_v = _s_price or 0.0
+                _s_qty_v   = _s_qty   or 0
+                if _s_price_v <= 0 or _s_qty_v <= 0:
+                    st.error("請填寫賣出均價與股數")
+                elif _s_qty_v > _s_max_qty:
+                    st.error(f"賣出股數 {_s_qty_v} 超過持有股數 {_s_max_qty}")
+                else:
+                    _s_avg_cost   = float(_pf_sell[_s_sid]["buy_price"])
+                    _s_hold_cost  = _s_avg_cost * _s_qty_v
+                    _s_fee_fin    = _calc_fee(_s_price_v, _s_qty_v)
+                    _s_tax_fin    = _s_price_v * _s_qty_v * TAX_RATE
+                    _s_inflow_fin = _s_price_v * _s_qty_v - _s_fee_fin - _s_tax_fin
+                    _s_profit_fin = _s_inflow_fin - _s_hold_cost
+                    _s_roi_fin    = (_s_profit_fin / _s_hold_cost * 100) if _s_hold_cost > 0 else 0.0
+
+                    # 更新持倉：完全出清→pop刪除，部分賣出→只扣股數
+                    _pf_now2 = load_portfolio()
+                    _remain  = _pf_now2[_s_sid]["qty"] - _s_qty_v
+                    if _remain <= 0:
+                        _pf_now2.pop(_s_sid, None)
                     else:
-                        _s_avg_cost   = float(_pf_sell[_s_sid]["buy_price"])
-                        _s_hold_cost  = _s_avg_cost * _s_qty_v
-                        _s_fee_fin    = _calc_fee(_s_price_v, _s_qty_v)
-                        _s_tax_fin    = _s_price_v * _s_qty_v * TAX_RATE
-                        _s_inflow_fin = _s_price_v * _s_qty_v - _s_fee_fin - _s_tax_fin
-                        _s_profit_fin = _s_inflow_fin - _s_hold_cost
-                        _s_roi_fin    = (_s_profit_fin / _s_hold_cost * 100) if _s_hold_cost > 0 else 0.0
+                        _pf_now2[_s_sid]["qty"] = _remain
+                    save_portfolio(_pf_now2)
 
-                        # 更新持倉：完全出清→pop刪除，部分賣出→只扣股數
-                        _pf_now2 = load_portfolio()
-                        _remain  = _pf_now2[_s_sid]["qty"] - _s_qty_v
-                        if _remain <= 0:
-                            _pf_now2.pop(_s_sid, None)
-                        else:
-                            _pf_now2[_s_sid]["qty"] = _remain
-                        save_portfolio(_pf_now2)
+                    # 更新現金與已實現損益
+                    _acct_now2 = load_account()
+                    _acct_now2["cash"] = _acct_now2.get("cash", 0) + _s_inflow_fin
+                    _acct_now2["realized_pnl"] = _acct_now2.get("realized_pnl", 0) + _s_profit_fin
+                    save_account(_acct_now2)
 
-                        # 更新現金與已實現損益
-                        _acct_now2 = load_account()
-                        _acct_now2["cash"] = _acct_now2.get("cash", 0) + _s_inflow_fin
-                        _acct_now2["realized_pnl"] = _acct_now2.get("realized_pnl", 0) + _s_profit_fin
-                        save_account(_acct_now2)
-
-                        # 寫入交易紀錄
-                        _trd_now2 = load_trades()
-                        _trd_now2.append({
-                            "date": str(_s_date), "action": "賣出",
-                            "stock_id": _s_sid,
-                            "price": _s_price_v, "qty": int(_s_qty_v),
-                            "fee": round(_s_fee_fin, 0),
-                            "tax": round(_s_tax_fin, 0),
-                            "amount": round(_s_price_v * _s_qty_v, 0),
-                            "hold_cost": round(_s_hold_cost, 0),
-                            "realized_pnl": round(_s_profit_fin, 0),
-                            "roi_pct": round(_s_roi_fin, 2),
-                        })
-                        save_trades(_trd_now2)
-                        _emoji = "🎉" if _s_profit_fin >= 0 else "📉"
-                        st.success(
-                            f"{_emoji} 賣出 {_s_sid} {int(_s_qty_v)}股 @ {_s_price_v}，"
-                            f"實現損益 ${_s_profit_fin:,.0f}（{_s_roi_fin:+.2f}%），現金已回補"
-                        )
-                        st.session_state["sell_count"] = st.session_state.get("sell_count", 0) + 1
-                        st.rerun()
+                    # 寫入交易紀錄
+                    _trd_now2 = load_trades()
+                    _trd_now2.append({
+                        "date": str(_s_date), "action": "賣出",
+                        "stock_id": _s_sid,
+                        "price": _s_price_v, "qty": int(_s_qty_v),
+                        "fee": round(_s_fee_fin, 0),
+                        "tax": round(_s_tax_fin, 0),
+                        "amount": round(_s_price_v * _s_qty_v, 0),
+                        "hold_cost": round(_s_hold_cost, 0),
+                        "realized_pnl": round(_s_profit_fin, 0),
+                        "roi_pct": round(_s_roi_fin, 2),
+                    })
+                    save_trades(_trd_now2)
+                    _emoji = "🎉" if _s_profit_fin >= 0 else "📉"
+                    st.success(
+                        f"{_emoji} 賣出 {_s_sid} {int(_s_qty_v)}股 @ {_s_price_v}，"
+                        f"實現損益 ${_s_profit_fin:,.0f}（{_s_roi_fin:+.2f}%），現金已回補"
+                    )
+                    st.rerun()
 
     with _tab_manage:
         st.markdown("**⚙️ 帳戶管理**")
