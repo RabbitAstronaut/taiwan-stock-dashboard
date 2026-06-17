@@ -6007,14 +6007,16 @@ with tab5:
     with pi1:
         st.markdown("<span style='color:#ff9800;font-size:.78rem;font-weight:600;'>大台指（TX）</span>",
                     unsafe_allow_html=True)
+        _fut_date_key = chips.get("data_date", "unknown")
         tx_foreign  = st.number_input("外資未平倉淨額（口）",
-                                       value=int(chips["tx_foreign"] or -52000), step=500)
+                                       value=int(chips["tx_foreign"] or -52000), step=500,
+                                       key=f"tx_foreign_{_fut_date_key}")
     with pi2:
         st.markdown("<span style='color:#00d4ff;font-size:.78rem;font-weight:600;'>小台（MTX）法人</span>",
                     unsafe_allow_html=True)
-        mtx_dealer  = st.number_input("自營商淨額（口）", value=int(chips["mtx_dealer"]  if chips["mtx_dealer"]  is not None else -8500),  step=100)
-        mtx_trust   = st.number_input("投信淨額（口）",   value=int(chips["mtx_trust"]   if chips["mtx_trust"]   is not None else -3200),  step=100)
-        mtx_foreign = st.number_input("外資淨額（口）",   value=int(chips["mtx_foreign"] if chips["mtx_foreign"] is not None else -18300), step=100)
+        mtx_dealer  = st.number_input("自營商淨額（口）", value=int(chips["mtx_dealer"]  if chips["mtx_dealer"]  is not None else -8500),  step=100, key=f"mtx_dealer_{_fut_date_key}")
+        mtx_trust   = st.number_input("投信淨額（口）",   value=int(chips["mtx_trust"]   if chips["mtx_trust"]   is not None else -3200),  step=100, key=f"mtx_trust_{_fut_date_key}")
+        mtx_foreign = st.number_input("外資淨額（口）",   value=int(chips["mtx_foreign"] if chips["mtx_foreign"] is not None else -18300), step=100, key=f"mtx_foreign_{_fut_date_key}")
     with pi3:
         st.markdown("<span style='color:#e040fb;font-size:.78rem;font-weight:600;'>小台市場</span>",
                     unsafe_allow_html=True)
