@@ -3909,7 +3909,7 @@ with tab3:
             except Exception:
                 pass
     with live_c4:
-        if st.button("🔄 立即更新", key="manual_refresh"):
+        if st.button("🔄 立即更新", key="manual_refresh_t3a"):
             with st.spinner("更新中..."):
                 refresh_all_live_prices()
             st.toast("✅ 即時資料已更新", icon="✅")
@@ -3920,14 +3920,6 @@ with tab3:
         refresh_all_live_prices()
         st.rerun()
 
-    # ▌ 以下：原有持股監控（即時防守＋籌碼＋基本面）
-    # ════════════════════════════════════════════════════════
-        # ▌ 以下：原有持股監控（即時防守＋籌碼＋基本面）
-    # ════════════════════════════════════════════════════════
-    st.markdown("<div class='sec-title'>🚨 持股監控 · 即時防守 ＋ 籌碼 ＋ 基本面</div>",
-                unsafe_allow_html=True)
-
-    # ── 即時更新控制列
     live_c1, live_c2, live_c3, live_c4 = st.columns([2, 2, 2, 2])
     with live_c1:
         trading = is_trading_time()
