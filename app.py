@@ -3748,7 +3748,7 @@ with tab3:
                 _b_sl   = st.number_input("自訂停損價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="選填")
                 _b_sp   = st.number_input("自訂停利價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="選填")
             with _bc3:
-                if _b_bp > 0 and _b_qty > 0:
+                if (_b_bp or 0) > 0 and (_b_qty or 0) > 0:
                     _b_cost    = calc_buy_cost(_b_bp, _b_qty)
                     _b_fee     = _calc_fee(_b_bp, _b_qty)
                     st.markdown("<br>", unsafe_allow_html=True)
