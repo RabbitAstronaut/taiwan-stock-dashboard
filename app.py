@@ -6860,7 +6860,211 @@ with tab6:
 # ▌ TAB 2：台股新大陸大數據雷達
 # ──────────────────────────────────────────────────────────────
 with tab2:
-    st.info("大數據雷達暫時停用中（測試用）")
+    st.markdown("<div class='sec-title'>📡 台股新大陸大數據雷達</div>",
+                unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>自動掃描全台股，透過三大量化雷達抓出自選清單以外的黑馬主流。"
+        "資料來源：日線 CSV + 籌碼 CSV。</div>",
+        unsafe_allow_html=True
+    )
+
+    @st.cache_data(ttl=1800, show_spinner="大數據雷達掃描中...")
+    def run_radar():
+        """掃描全台股三大雷達，回傳結果 DataFrame"""
+        # 載入基礎資料
+        df_si, ok_si   = get_stock_info()
+        df_ch, ok_ch   = get_chips()
+        df_fin, ok_fin = get_financials()
+        df_sh, ok_sh   = get_shareholder()
+
+        if not ok_si or df_si.empty:
+            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+        df_si["stock_id"] = df_si["stock_id"].astype(str).str.strip()
+
+        # 整理籌碼
+        foreign_net = pd.Series(dtype=float)
+        trust_net   = pd.Series(dtype=float)
+        if ok_ch and not df_ch.empty:
+            df_ch["stock_id"] = df_ch["stock_id"].astype(str).str.strip()
+            df_ch["net"] = pd.to_numeric(df_ch.get("net", 0), errors="coerce").fillna(0)
+            if "name" in df_ch.columns and "date" in df_ch.columns:
+                df_ch["date"] = pd.to_datetime(df_ch["date"], errors="coerce")
+                latest_date = df_ch["date"].max()
+                df_latest = df_ch[df_ch["date"] == latest_date]
+                f_df = df_latest[df_latest["name"].astype(str).str.contains("Foreign_Investor", na=False)]
+                t_df = df_latest[df_latest["name"].astype(str).str.contains("Investment_Trust", na=False)]
+                foreign_net = f_df.groupby("stock_id")["net"].sum() / 1000  # 換算張數
+                trust_net   = t_df.groupby("stock_id")["net"].sum() / 1000
+
+        # 整理大戶持股
+        big_pct = pd.Series(dtype=float)
+        if ok_sh and not df_sh.empty:
+            df_sh["stock_id"] = df_sh["stock_id"].astype(str).str.strip()
+            if "HoldingSharesLevel" in df_sh.columns and "percent" in df_sh.columns:
+                df_sh["percent"] = pd.to_numeric(df_sh["percent"], errors="coerce")
+                df_sh["date"] = pd.to_datetime(df_sh.get("date"), errors="coerce")
+                latest_sh = df_sh["date"].max()
+                df_sh_l = df_sh[df_sh["date"] == latest_sh]
+                df_sh_l = df_sh_l[~df_sh_l["HoldingSharesLevel"].astype(str).str.contains("total|差異", na=False)]
+                big_kw = ["400,001","600,001","800,001","1,000,001","more than"]
+                is_big = df_sh_l["HoldingSharesLevel"].astype(str).str.contains("|".join(big_kw), na=False)
+                big_pct = df_sh_l[is_big].groupby("stock_id")["percent"].sum()
+
+        # 整理EPS YoY
+        eps_yoy = pd.Series(dtype=float)
+        if ok_fin and not df_fin.empty:
+            df_fin["stock_id"] = df_fin["stock_id"].astype(str).str.strip()
+            df_fin["date"] = pd.to_datetime(df_fin.get("date"), errors="coerce")
+            df_fin["value"] = pd.to_numeric(df_fin.get("value"), errors="coerce")
+            eps_df = df_fin[df_fin.get("type","") == "EPS"] if "type" in df_fin.columns else pd.DataFrame()
+            if not eps_df.empty:
+                for sid, grp in eps_df.groupby("stock_id"):
+                    grp = grp.sort_values("date")
+                    if len(grp) >= 5:
+                        latest = grp.iloc[-1]["value"]
+                        yoy    = grp.iloc[-5]["value"]
+                        if yoy and yoy != 0:
+                            eps_yoy[sid] = (latest - yoy) / abs(yoy) * 100
+
+        # 掃描所有股票
+        radar1, radar2, radar3 = [], [], []
+        all_sids = df_si["stock_id"].tolist()
+
+        for sid in all_sids:
+            df_p, ok_p = load_price_csv(sid)
+            if not ok_p or df_p.empty or len(df_p) < 20:
+                continue
+
+            df_p = add_indicators(df_p)
+            lt   = df_p.iloc[-1]
+            close  = float(lt["Close"])
+            ema5   = float(lt.get("EMA5",   float("nan")))
+            sma20  = float(lt.get("MA20",   float("nan")))
+            vol    = float(lt.get("Volume", 0))
+            vma5   = float(lt.get("VMA5",   float("nan")))
+
+            if any(np.isnan(v) for v in [ema5, sma20]):
+                continue
+
+            name = sid
+            name_row = df_si[df_si["stock_id"] == sid]
+            if not name_row.empty:
+                name = str(name_row["stock_name"].iloc[0])
+
+            f_net = float(foreign_net.get(sid, 0))
+            t_net = float(trust_net.get(sid, 0))
+
+            # ── 雷達1：土洋認養
+            if (f_net > 1500 and t_net > 800 and
+                close > ema5 and ema5 > sma20):
+                radar1.append({
+                    "代號": sid, "名稱": name,
+                    "現價": round(close, 1),
+                    "外資買超(張)": int(f_net),
+                    "投信買超(張)": int(t_net),
+                    "EMA5": round(ema5, 1),
+                    "SMA20": round(sma20, 1),
+                    "AI戰略評語": "🟢 內外資共振，趨勢向上，可積極布局" if close > sma20 * 1.02 else "🟡 剛啟動，觀察量能確認"
+                })
+
+            # ── 雷達2：黃金窒息量
+            if (not np.isnan(vma5) and vma5 > 0 and
+                vol <= vma5 * 0.45 and close >= ema5):
+                # 檢查5日內是否有漲幅>7%長紅K
+                recent5 = df_p.tail(6)
+                has_long_red = False
+                for i in range(1, len(recent5)):
+                    prev_c = float(recent5.iloc[i-1]["Close"])
+                    curr_c = float(recent5.iloc[i]["Close"])
+                    if prev_c > 0 and (curr_c - prev_c) / prev_c > 0.07:
+                        has_long_red = True
+                        break
+                if has_long_red:
+                    radar2.append({
+                        "代號": sid, "名稱": name,
+                        "現價": round(close, 1),
+                        "量比(vol/VMA5)": round(vol/vma5, 2),
+                        "EMA5": round(ema5, 1),
+                        "投信買超(張)": int(t_net),
+                        "AI戰略評語": "🔥 主力鎖倉惜售，噴發前兆，等量縮突破" if close >= sma20 else "🟡 守EMA5，等月線確認"
+                    })
+
+            # ── 雷達3：大戶硬漢
+            bp = float(big_pct.get(sid, 0))
+            ey = float(eps_yoy.get(sid, float("nan")))
+            if (not np.isnan(ey) and ey > 50 and
+                bp > 70 and close > sma20):
+                radar3.append({
+                    "代號": sid, "名稱": name,
+                    "現價": round(close, 1),
+                    "EPS YoY%": round(ey, 1),
+                    "千張大戶持股%": round(bp, 1),
+                    "投信買超(張)": int(t_net),
+                    "AI戰略評語": "💎 基本面硬核+股權集中，長線黑馬首選" if bp > 80 else "🟢 大戶穩健持有，基本面支撐強"
+                })
+
+        return (pd.DataFrame(radar1) if radar1 else pd.DataFrame(),
+                pd.DataFrame(radar2) if radar2 else pd.DataFrame(),
+                pd.DataFrame(radar3) if radar3 else pd.DataFrame())
+
+    # 執行掃描（按鈕觸發，不自動執行避免記憶體爆掉）
+    if st.button("🔍 啟動大數據雷達掃描", type="primary", key="radar_scan"):
+        with st.spinner("大數據雷達掃描中，請稍候..."):
+            df_r1, df_r2, df_r3 = run_radar()
+        st.session_state["radar_r1"] = df_r1
+        st.session_state["radar_r2"] = df_r2
+        st.session_state["radar_r3"] = df_r3
+
+    df_r1 = st.session_state.get("radar_r1", pd.DataFrame())
+    df_r2 = st.session_state.get("radar_r2", pd.DataFrame())
+    df_r3 = st.session_state.get("radar_r3", pd.DataFrame())
+
+
+    # 頂部 metric
+    m1, m2, m3 = st.columns(3)
+    m1.metric("🌊 土洋認養雷達", f"{len(df_r1)} 檔", delta="內外資共振")
+    m2.metric("⚡ 黃金窒息量雷達", f"{len(df_r2)} 檔", delta="主力鎖倉惜售")
+    m3.metric("💎 大戶硬漢雷達", f"{len(df_r3)} 檔", delta="基本面硬核")
+
+    st.markdown("---")
+
+    # 整合顯示
+    for title, df_r, color in [
+        ("🌊 土洋認養雷達（內外資共振起漲股）", df_r1, "#00d4ff"),
+        ("⚡ 黃金窒息量雷達（主力鎖倉噴發前兆）", df_r2, "#ffeb3b"),
+        ("💎 大戶硬漢雷達（基本面黑馬長線首選）", df_r3, "#00e676"),
+    ]:
+        st.markdown(
+            f"<div style='border-left:4px solid {color};padding:4px 12px;margin:12px 0;'>"
+            f"<b style='color:{color};'>{title}</b></div>",
+            unsafe_allow_html=True
+        )
+        if df_r.empty:
+            st.info("今日無符合條件的個股")
+        else:
+            st.markdown(df_to_html(df_r, height=300), unsafe_allow_html=True)
+            # 加入監控按鈕
+            add_radar = st.multiselect(
+                "加入監控清單",
+                [f"{r['代號']} {r['名稱']}" for _, r in df_r.iterrows()],
+                key=f"radar_add_{title[:3]}"
+            )
+            if st.button("⭐ 加入監控", key=f"radar_btn_{title[:3]}"):
+                added = 0
+                for item in add_radar:
+                    code = item.split()[0]
+                    name = " ".join(item.split()[1:])
+                    if not any(w["id"]==code for w in st.session_state.watchlist_scan):
+                        st.session_state.watchlist_scan.append({"id":code,"name":name})
+                        added += 1
+                if added > 0:
+                    save_watchlist_to_github(st.session_state.watchlist,
+                                             st.session_state.watchlist_scan,
+                                             {k:v for k,v in st.session_state.etf_shares.items() if v>0},
+                                             reserve=st.session_state.get("reserve_list", []))
+                    st.toast(f"✅ 已加入 {added} 檔到掃描監控清單")
+
 # ▌ TAB 7：ETF 存股現金流管家
 # ──────────────────────────────────────────────────────────────
 with tab7:
