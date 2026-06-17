@@ -1,34 +1,12 @@
-# ══════════════════════════════════════════════════════════════
-# daily_update.yml
-# ── 台股量化系統 V4 GitHub Actions 自動排程
-# ══════════════════════════════════════════════════════════════
-#
-# 功能：
-#   每日台灣時間 21:00（UTC 13:00）自動執行資料更新
-#   抓取 FinMind API 最新資料，commit 回 main 分支
-#
-# 設定步驟：
-#   1. 將此檔案放至 .github/workflows/daily_update.yml
-#   2. 在 GitHub repo Settings > Secrets > Actions 新增：
-#      - FINMIND_TOKEN：你的 FinMind API Token（免費版可省略）
-#   3. 啟用 GitHub Actions（預設已啟用）
-#
-# 手動觸發：
-#   GitHub repo 頁面 > Actions > daily_update > Run workflow
-# ══════════════════════════════════════════════════════════════
-
-name: 每日台股資料更新
+name: 每日資料更新
 
 on:
-  # ── 定時排程（UTC 13:00 = 台灣時間 21:00）
   schedule:
-    - cron: "0 11 * * 1-5"   # 週一到週五（台灣時間 19:00）
-
-  # ── 允許手動從 GitHub UI 觸發
+    - cron: "0 11 * * 1-5"
   workflow_dispatch:
     inputs:
       module:
-        description: "只更新指定模組（留空=全量）"
+        description: "只跑指定模組（空=全部）"
         required: false
         default: ""
         type: choice
@@ -40,139 +18,106 @@ on:
           - shareholder
           - prices
       force:
-        description: "強制重新下載（忽略今日已下載判斷）"
+        description: "強制重抓（忽略快取）"
         required: false
         default: false
         type: boolean
 
 jobs:
   update-data:
-    name: 抓取台股資料並推送 CSV
+    name: 更新資料並推送CSV
     runs-on: ubuntu-latest
-    timeout-minutes: 90       # 最長執行 90 分鐘
+    timeout-minutes: 90
 
     permissions:
-      contents: write          # 允許 git push
+      contents: write
 
     steps:
-      # ── Step 1：取出 repo
-      - name: ✅ Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── Step 2：設定 Python
-      - name: 🐍 Set up Python 3.11
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
-      # ── Step 3：安裝依賴
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests pandas yfinance tqdm google-genai feedparser
 
-      # ── Step 4：建立 data/ 目錄（首次執行時可能不存在）
-      - name: 📁 Ensure data directories exist
+      - name: Ensure data directories exist
         run: |
           mkdir -p data/prices
 
-      # ── Step 5：執行資料爬蟲
-      - name: 🔄 Run update_data.py
+      - name: Run update_data.py
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
         run: |
-          # 組合參數
           ARGS="--no-push"
-
-          # 若有指定模組
           if [ -n "${{ github.event.inputs.module }}" ]; then
             ARGS="$ARGS --only ${{ github.event.inputs.module }}"
-            echo "📌 只更新模組：${{ github.event.inputs.module }}"
+            echo "只跑模組: ${{ github.event.inputs.module }}"
           else
-            # 自動排程：排除財報（每季手動更新，避免超時）
             ARGS="$ARGS --skip financials"
-            echo "ℹ️  自動排程：跳過財報模組"
+            echo "全模組更新，跳過 financials"
           fi
-
-          # 若強制重新下載
           if [ "${{ github.event.inputs.force }}" = "true" ]; then
             ARGS="$ARGS --force"
-            echo "⚡ 強制重新下載"
+            echo "強制重抓模式"
           fi
-
-          echo "執行指令：python update_data.py $ARGS"
+          echo "執行: python update_data.py $ARGS"
           python update_data.py $ARGS
 
-      # ── Step 5.5：執行 AI 題材分析（Gemini 2.5 Flash）
-      - name: 🤖 Run generate_dynamic_themes.py
+      - name: Run generate_dynamic_themes.py
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           if [ -f "generate_dynamic_themes.py" ]; then
-            echo "🤖 執行 AI 題材分析..."
-            python generate_dynamic_themes.py || echo "⚠️ Gemini 分析失敗，保留舊有題材"
-          else
-            echo "ℹ️ generate_dynamic_themes.py 不存在，跳過"
+            echo "執行 AI 題材分析..."
+            python generate_dynamic_themes.py || echo "Gemini 失敗，跳過"
           fi
 
-      # ── Step 5.6：執行蒙格情緒分析（7日滑動視窗）
-      - name: 🧠 Run generate_munger_sentiment.py
+      - name: Run generate_munger_sentiment.py
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           if [ -f "generate_munger_sentiment.py" ]; then
-            echo "🧠 執行蒙格情緒分析..."
-            python generate_munger_sentiment.py || echo "⚠️ 蒙格分析失敗，保留舊有結果"
-          else
-            echo "ℹ️ generate_munger_sentiment.py 不存在，跳過"
+            echo "執行蒙格情緒分析..."
+            python generate_munger_sentiment.py || echo "失敗，跳過"
           fi
 
-      # ── Step 6：設定 Git 使用者
-      - name: ⚙️ Configure Git
+      - name: Configure Git
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      # ── Step 7：Commit & Push（若有新資料）
-      - name: 📤 Commit and push changes
+      - name: Commit and push changes
         run: |
           git add data/
-
-          # 檢查是否有變更
           if git diff --staged --quiet; then
-            echo "ℹ️  無新資料，跳過 commit"
+            echo "無變更，不 commit"
           else
             CHANGED=$(git diff --staged --name-only | wc -l)
             DATE=$(date +'%Y-%m-%d')
             git commit -m "chore: auto update ${DATE} (${CHANGED} files)"
+            # pull rebase 避免與遠端衝突
+            git pull --rebase origin main
             git push origin main
-            echo "✅ 推送 ${CHANGED} 個檔案"
+            echo "已推送 ${CHANGED} 個檔案"
           fi
 
-      # ── Step 8：顯示摘要
-      - name: 📊 Summary
+      - name: Summary
         if: always()
         run: |
-          echo "## 資料更新摘要" >> $GITHUB_STEP_SUMMARY
-          echo "- 執行時間：$(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "- 台灣時間：$(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
-
+          echo "## 更新完成" >> $GITHUB_STEP_SUMMARY
+          echo "- 執行時間: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- 台灣時間: $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
           if [ -f data/last_update.json ]; then
-            echo "- 更新記錄：" >> $GITHUB_STEP_SUMMARY
+            echo "- 更新記錄:" >> $GITHUB_STEP_SUMMARY
             cat data/last_update.json >> $GITHUB_STEP_SUMMARY
           fi
-
-          # 顯示各 CSV 大小
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| 檔案 | 大小 |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
-          for f in data/*.csv data/*.json; do
-            if [ -f "$f" ]; then
-              SIZE=$(du -sh "$f" | cut -f1)
-              echo "| $f | $SIZE |" >> $GITHUB_STEP_SUMMARY
-            fi
-          done
