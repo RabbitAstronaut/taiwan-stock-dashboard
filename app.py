@@ -3482,76 +3482,139 @@ with tab3:
                    delta_color="normal")
 
         # ════════════════════════════════════════════════════
-        # ▌ 停損/停利動態預警
+        # ▌ 優先級最高：停損/停利動態熔斷預警（逐檔掃描）
         # ════════════════════════════════════════════════════
         for _r in _pf_rows:
+            # 停損熔斷：現價 <= 自訂停損價 → 紅框強制警告
             if _r["_sl"] > 0 and _r["_cp"] <= _r["_sl"]:
                 st.error(
-                    f"🚨 停損熔斷預警：【{_r['代號']}】現價 {_r['現價']} "
-                    f"已跌破自訂防線 {_r['_sl']}，請強制執行風控指令！"
+                    f"🚨 停損熔斷預警：持股【{_r['代號']}】現價 {_r['現價']:,.2f} "
+                    f"已物理性跌破自訂防線 {_r['_sl']:,.2f}，"
+                    f"請強制執行風控出清指令！"
                 )
+            # 停利達標：現價 >= 自訂停利價 → 綠框優雅提示
             if _r["_sp"] > 0 and _r["_cp"] >= _r["_sp"]:
                 st.success(
-                    f"🎯 停利觸發：【{_r['代號']}】現價 {_r['現價']} "
-                    f"已到達停利防線 {_r['_sp']}，評估是否執行獲利了結！"
+                    f"🎯 達標提款預警：持股【{_r['代號']}】現價 {_r['現價']:,.2f} "
+                    f"已觸及自訂目標價 {_r['_sp']:,.2f}，"
+                    f"請優雅分批落袋，鎖定利潤！"
                 )
 
-        # 決策提示箱
-        _sb_now    = get_sector_breadth()
-        _sb_above  = _sb_now.get("above_sma20", 0)
-        _sb_total_ = _sb_now.get("total", 17)
-        _mkt_weak  = (_sb_above / _sb_total_ < 0.5) if _sb_total_ else False
-        _any_loss  = any(_r["未實現損益"] < 0 for _r in _pf_rows)
-
-        if _mkt_weak and _any_loss:
-            st.info(
-                "💡 **總指揮官決策觀點**\n\n"
-                f"龍頭站月線僅 {_sb_above}/{_sb_total_} 檔，市場結構偏弱。"
-                f"當前持股微虧屬非理性壓盤，現貨 0 槓桿肉身抗震。"
-                f"靜待結構修復後的反彈機會！"
-            )
-
         # ════════════════════════════════════════════════════
-        # ▌ 當前持倉明細
+        # ▌ 當前持倉明細（含摩擦成本）— 只顯示，不提供刪除
+        #   新增/刪除完全由下方買入/賣出登記聯動控制
         # ════════════════════════════════════════════════════
         st.markdown("---")
         st.markdown("#### 📋 當前持倉明細（含摩擦成本）")
+
         if _pf_rows:
             _rows_html = ""
-            for _r in _pf_rows:
-                # 台灣習慣：獲利🔴紅色，虧損🟢綠色
-                _pnl_color = "#ff4444" if _r["未實現損益"] > 0 else "#00cc66" if _r["未實現損益"] < 0 else "#e8f4fd"
+            for _ri_pf, _r in enumerate(_pf_rows):
+                # 台灣習慣：獲利紅、虧損綠
+                _pnl_color = (
+                    "#ff4444" if _r["未實現損益"] > 0
+                    else "#00cc66" if _r["未實現損益"] < 0
+                    else "#e8f4fd"
+                )
+                _bg_pf = "background:rgba(255,255,255,0.03);" if _ri_pf % 2 == 0 else ""
                 _rows_html += (
-                    f"<tr style='border-bottom:1px solid #1e3a5f;'>"
-                    f"<td style='padding:8px;'>{_r['代號']}</td>"
-                    f"<td style='padding:8px;'>{_r['買入日期']}</td>"
-                    f"<td style='padding:8px;text-align:right;'>{_r['現價']:,.2f}</td>"
-                    f"<td style='padding:8px;text-align:right;'>{_r['買入均價']:,.4f}</td>"
-                    f"<td style='padding:8px;text-align:right;'>{_r['持股數']:,}</td>"
-                    f"<td style='padding:8px;text-align:right;'>{_r['含費成本']:,.0f}</td>"
-                    f"<td style='padding:8px;text-align:right;'>{_r['扣稅實收']:,.0f}</td>"
-                    f"<td style='padding:8px;text-align:right;color:{_pnl_color};font-weight:600;'>{_r['未實現損益']:+,.0f}</td>"
-                    f"<td style='padding:8px;text-align:right;color:{_pnl_color};font-weight:600;'>{_r['ROI%']:+.2f}%</td>"
+                    f"<tr style='border-bottom:1px solid #1e3a5f;{_bg_pf}'>"
+                    f"<td style='padding:8px 10px;'>{_r['代號']}</td>"
+                    f"<td style='padding:8px 10px;'>{_r['買入日期']}</td>"
+                    f"<td style='padding:8px 10px;text-align:right;'>{_r['現價']:,.2f}</td>"
+                    f"<td style='padding:8px 10px;text-align:right;'>{_r['買入均價']:,.4f}</td>"
+                    f"<td style='padding:8px 10px;text-align:right;'>{_r['持股數']:,}</td>"
+                    f"<td style='padding:8px 10px;text-align:right;'>{_r['含費成本']:,.0f}</td>"
+                    f"<td style='padding:8px 10px;text-align:right;'>{_r['扣稅實收']:,.0f}</td>"
+                    f"<td style='padding:8px 10px;text-align:right;"
+                    f"color:{_pnl_color};font-weight:600;'>{_r['未實現損益']:+,.0f}</td>"
+                    f"<td style='padding:8px 10px;text-align:right;"
+                    f"color:{_pnl_color};font-weight:600;'>{_r['ROI%']:+.2f}%</td>"
                     f"</tr>"
                 )
-            _headers = ["代號","買入日期","現價","含費均價","持股數","含費成本","扣稅實收","未實現損益","ROI%"]
-            _head_html = "".join(
-                f"<th style='padding:8px;text-align:{'left' if i<2 else 'right'};"
+            _pf_headers = ["代號","買入日期","現價","含費均價","持股數","含費成本","扣稅實收","未實現損益","ROI%"]
+            _pf_head_html = "".join(
+                f"<th style='padding:8px 10px;text-align:{'left' if i<2 else 'right'};"
                 f"border-bottom:2px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;"
                 f"white-space:nowrap;position:sticky;top:0;background:#0f2027;z-index:1;'>{h}</th>"
-                for i, h in enumerate(_headers)
+                for i, h in enumerate(_pf_headers)
             )
-            _pf_table_h = 40 + 12 * 34  # header + 12列
             st.markdown(
-                f"<div style='overflow-y:auto;max-height:{_pf_table_h}px;border:1px solid #1e3a5f;border-radius:6px;'>"
+                f"<div style='overflow-y:auto;max-height:{40 + min(len(_pf_rows),12)*36}px;"
+                f"border:1px solid #1e3a5f;border-radius:6px;'>"
                 f"<table style='width:100%;border-collapse:collapse;font-size:.85rem;color:#e8f4fd;'>"
-                f"<thead><tr style='background:#0f2027;'>{_head_html}</tr></thead>"
-                f"<tbody style='background:rgba(255,255,255,0.02);'>{_rows_html}</tbody>"
+                f"<thead><tr style='background:#0f2027;'>{_pf_head_html}</tr></thead>"
+                f"<tbody>{_rows_html}</tbody>"
                 f"</table></div>",
                 unsafe_allow_html=True
             )
         else:
-            st.caption("目前無持倉")
+            st.caption("目前無持倉（透過下方買入登記新增）")
+
+        # ════════════════════════════════════════════════════
+        # ▌ 🦅 總指揮官持股動態防線與決策智庫
+        #   基於買入價格的自適應情境分析，每筆持股獨立解耦輸出
+        # ════════════════════════════════════════════════════
+        if _pf_rows:
+            st.markdown("---")
+            st.markdown("### 🦅 總指揮官持股動態防線與決策智庫")
+
+            for _r in _pf_rows:
+                _sid_r  = _r["代號"]
+                _cp_r   = _r["_cp"]       # 當前現價
+                _bp_r   = _r["買入均價"]   # 含費均價（WAC）
+                _sl_r   = _r["_sl"]        # 自訂停損價
+                _sp_r   = _r["_sp"]        # 自訂停利價
+                _roi_r  = _r["ROI%"]
+                _pnl_r  = _r["未實現損益"]
+
+                # ── 嘗試取得布林通道上緣（BBand UB）
+                _bb_ub = None
+                try:
+                    _df_bb, _ok_bb = load_price_csv(_sid_r)
+                    if _ok_bb and not _df_bb.empty and len(_df_bb) >= 20:
+                        _df_bb = add_indicators(_df_bb)
+                        if "BB_upper" in _df_bb.columns:
+                            _bb_ub = float(_df_bb["BB_upper"].iloc[-1])
+                except Exception:
+                    pass
+
+                # ── 情境判斷（優先序：停損 > 停利 > 微虧 > 獲利）
+                if _sl_r > 0 and _cp_r <= _sl_r:
+                    # 已由上方熔斷預警處理，決策智庫跳過此檔
+                    continue
+                elif _sp_r > 0 and _cp_r >= _sp_r:
+                    # 已由上方停利預警處理，決策智庫跳過此檔
+                    continue
+                elif _cp_r < _bp_r:
+                    # ── 情境 A：微虧洗盤期（現價 < 買入均價，但未跌破停損）
+                    _loss_pct = abs(_roi_r)
+                    st.info(
+                        f"💡 **【{_sid_r}】決策提示｜情境A：微虧洗盤期**\n\n"
+                        f"當前股價 **{_cp_r:,.2f}** 低於買入均價 **{_bp_r:,.4f}**"
+                        f"（浮虧 {_loss_pct:.2f}%），但並未跌破自訂防線"
+                        f"{'（停損 ' + f'{_sl_r:,.2f}）' if _sl_r > 0 else '（尚未設定停損）'}。\n\n"
+                        f"此處屬於外資期指結算日的『非理性跳空洗盤陷阱』，"
+                        f"常規軍處於底部低基期安全區，**0 槓桿純現貨雷打不動**，"
+                        f"嚴禁在非理性低位割肉，肉身扛過去，靜待大戶換股東風！"
+                    )
+                elif _cp_r >= _bp_r:
+                    # ── 情境 B：獲利沿軌噴射期（現價 > 買入均價，未到停利點）
+                    _bb_hint = (
+                        f"布林上緣目標價 **{_bb_ub:,.2f}**"
+                        if _bb_ub and _cp_r < _bb_ub
+                        else "持續觀察前高天花板"
+                    )
+                    _sp_hint = (
+                        f"、自訂停利 **{_sp_r:,.2f}**" if _sp_r > 0 else ""
+                    )
+                    st.info(
+                        f"🔥 **【{_sid_r}】決策提示｜情境B：獲利沿軌噴射期**\n\n"
+                        f"股價 **{_cp_r:,.2f}** 已成功脫離買入成本區 **{_bp_r:,.4f}**"
+                        f"，當前浮盈 **+{_roi_r:.2f}%**（+{_pnl_r:,.0f} 元）。\n\n"
+                        f"目前多頭結構強勢回歸，請**穩坐釣魚台、優雅續抱**，"
+                        f"靜待股價撞擊 {_bb_hint}{_sp_hint} 時的終極限價提款信號！"
+                    )
 
         # ════════════════════════════════════════════════════
         # ════════════════════════════════════════════════════
