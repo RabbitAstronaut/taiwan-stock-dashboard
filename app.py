@@ -255,7 +255,7 @@ def _save_json_cloud(gh_path: str, local_path: str, data, msg: str) -> bool:
 
 
 # ── portfolio.json ─────────────────────────────────────────
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=0, show_spinner=False)
 def load_portfolio() -> dict:
     """
     讀取持倉：優先 GitHub API → 本機備援。
@@ -275,7 +275,7 @@ def save_portfolio(portfolio: dict) -> bool:
 
 
 # ── trades.json ────────────────────────────────────────────
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=0, show_spinner=False)
 def load_trades() -> list:
     """
     讀取交易紀錄：優先 GitHub API → 本機備援。
@@ -293,7 +293,7 @@ def save_trades(trades: list) -> bool:
 
 
 # ── account.json ───────────────────────────────────────────
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=0, show_spinner=False)
 def load_account() -> dict:
     """
     讀取帳戶：優先 GitHub API → 本機備援。
@@ -1640,6 +1640,84 @@ header[data-testid="stHeader"]{visibility:hidden!important;}
     background:#1e3a5f!important;
     color:#00d4ff!important;
     border-color:#00d4ff!important;
+}
+
+/* ══ Date Picker 黑底深色主題 ══ */
+/* 日期輸入框本體 */
+[data-baseweb="input"]>div,
+[data-baseweb="base-input"]{
+    background:#0a0f1a!important;
+    color:#ffffff!important;
+    border:1px solid #2a5080!important;
+}
+[data-baseweb="input"] input{
+    background:#0a0f1a!important;
+    color:#ffffff!important;
+}
+/* 日期選擇彈出視窗整體 */
+[data-baseweb="calendar"],
+[data-baseweb="datepicker"],
+[data-baseweb="popover"][role="dialog"],
+div[role="dialog"]{
+    background:#0a0f1a!important;
+    border:1px solid #1e3a5f!important;
+    color:#e8f4fd!important;
+}
+/* 日曆頭部（年月導航） */
+[data-baseweb="calendar"] [data-testid="stDateInput"] *,
+[data-baseweb="calendar"] button,
+[data-baseweb="calendar"] div{
+    background:#0a0f1a!important;
+    color:#e8f4fd!important;
+}
+/* 每個日期格子 */
+[data-baseweb="calendar"] [role="gridcell"] button,
+[data-baseweb="calendar"] [role="gridcell"]{
+    background:#0a0f1a!important;
+    color:#e8f4fd!important;
+    border-radius:4px!important;
+}
+/* hover 日期格子 */
+[data-baseweb="calendar"] [role="gridcell"] button:hover{
+    background:#1e3a5f!important;
+    color:#00d4ff!important;
+}
+/* 今日高亮 */
+[data-baseweb="calendar"] [aria-current="date"] button{
+    border:1px solid #00d4ff!important;
+    color:#00d4ff!important;
+}
+/* 已選中日期 */
+[data-baseweb="calendar"] [aria-selected="true"] button,
+[data-baseweb="calendar"] button[aria-selected="true"]{
+    background:#1e3a5f!important;
+    color:#00d4ff!important;
+    font-weight:700!important;
+}
+/* 月份/年份文字 */
+[data-baseweb="calendar"] [data-testid="calendarHeader"],
+[data-baseweb="calendar"] h5,
+[data-baseweb="calendar"] [role="heading"]{
+    color:#7fb3d3!important;
+    background:#0a0f1a!important;
+}
+/* 星期標題列 */
+[data-baseweb="calendar"] [role="columnheader"]{
+    color:#7fb3d3!important;
+    background:#0a0f1a!important;
+}
+/* 前後月份灰色日期 */
+[data-baseweb="calendar"] [aria-disabled="true"] button{
+    color:#3a5a80!important;
+}
+/* 導航箭頭按鈕 */
+[data-baseweb="calendar"] button[aria-label*="前"],
+[data-baseweb="calendar"] button[aria-label*="後"],
+[data-baseweb="calendar"] button[aria-label*="previous"],
+[data-baseweb="calendar"] button[aria-label*="next"]{
+    background:#0f2027!important;
+    color:#7fb3d3!important;
+    border:1px solid #1e3a5f!important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -3875,11 +3953,11 @@ with tab3:
                 _b_sid  = st.text_input("股票代號", placeholder="如 2330")
                 _b_date = st.date_input("買入日期",
                                          value=datetime.now(ZoneInfo("Asia/Taipei")).date())
-                _b_bp   = st.number_input("買入均價", min_value=0.0, step=0.5, format="%.2f")
+                _b_bp   = st.number_input("買入均價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="請輸入均價")
             with _bc2:
-                _b_qty  = st.number_input("買入股數", min_value=0, step=1000)
-                _b_sl   = st.number_input("自訂停損價", min_value=0.0, step=0.5, format="%.2f")
-                _b_sp   = st.number_input("自訂停利價", min_value=0.0, step=0.5, format="%.2f")
+                _b_qty  = st.number_input("買入股數", min_value=0, value=None, step=1000, placeholder="請輸入股數")
+                _b_sl   = st.number_input("自訂停損價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="選填")
+                _b_sp   = st.number_input("自訂停利價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="選填")
             with _bc3:
                 if _b_bp > 0 and _b_qty > 0:
                     _b_cost    = calc_buy_cost(_b_bp, _b_qty)
@@ -3978,8 +4056,8 @@ with tab3:
                 with _sc2:
                     _s_max_qty = int(_pf_sell.get(_s_sid, {}).get("qty", 0))
                     _s_qty  = st.number_input(f"賣出股數（持有 {_s_max_qty} 股）",
-                                               min_value=0, max_value=_s_max_qty, step=1000)
-                    _s_price = st.number_input("賣出均價", min_value=0.0, step=0.5, format="%.2f")
+                                               min_value=0, max_value=_s_max_qty, value=None, step=1000, placeholder="請輸入股數")
+                    _s_price = st.number_input("賣出均價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="請輸入均價")
                 with _sc3:
                     if _s_price > 0 and _s_qty > 0:
                         _s_bp      = float(_pf_sell[_s_sid]["buy_price"])
