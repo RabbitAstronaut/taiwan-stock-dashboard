@@ -150,94 +150,165 @@ def calc_net_profit(buy_price: float, sell_price: float, qty: int) -> tuple:
 # ▌ 帳務三層 JSON 讀寫（portfolio / trades / account）
 # ══════════════════════════════════════════════════════════════
 
+# ══════════════════════════════════════════════════════════════
+# ▌ GitHub API 帳務雲端同步工具函式
+#   架構：本機 JSON 為快取層，GitHub repo 為唯一真實來源
+#   讀取順序：GitHub API → 本機備援
+#   寫入順序：本機寫入 → GitHub API 同步推送
+#   任何裝置（公司/家裡/手機）都從同一 GitHub 來源讀寫，永遠一致
+# ══════════════════════════════════════════════════════════════
+
+def _gh_get_file(path_in_repo: str) -> tuple:
+    """
+    從 GitHub Contents API 讀取檔案。
+    回傳 (內容字串, sha) 或 (None, None)。
+    sha 供後續 PUT 更新時使用（GitHub API 強制要求）。
+    """
+    if not GITHUB_TOKEN:
+        return None, None
+    import base64 as _b64
+    api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path_in_repo}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}",
+               "Accept": "application/vnd.github.v3+json"}
+    try:
+        r = requests.get(api_url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            content = _b64.b64decode(data["content"]).decode("utf-8")
+            return content, data.get("sha")
+    except Exception:
+        pass
+    return None, None
+
+
+def _gh_put_file(path_in_repo: str, content_str: str, sha: str | None, msg: str) -> bool:
+    """
+    用 GitHub Contents API 寫入/更新檔案。
+    sha=None 表示新建；sha=現有值 表示更新。
+    成功回傳 True。
+    """
+    if not GITHUB_TOKEN:
+        return False
+    import base64 as _b64
+    api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path_in_repo}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}",
+               "Accept": "application/vnd.github.v3+json"}
+    body = {
+        "message": msg,
+        "content": _b64.b64encode(content_str.encode("utf-8")).decode(),
+    }
+    if sha:
+        body["sha"] = sha
+    try:
+        r = requests.put(api_url, headers=headers, json=body, timeout=15)
+        return r.status_code in (200, 201)
+    except Exception:
+        return False
+
+
+def _load_json_cloud(gh_path: str, local_path: str, default):
+    """
+    通用雲端讀取：優先從 GitHub 拉最新，失敗才用本機備援。
+    同時把 GitHub 最新版寫入本機，確保本機與雲端一致。
+    """
+    import json as _json
+    # 1) 嘗試從 GitHub 讀取（任何裝置都拿到同一份資料）
+    content, _ = _gh_get_file(gh_path)
+    if content is not None:
+        try:
+            data = _json.loads(content)
+            # 同步寫入本機（確保本機快取為最新）
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            return data
+        except Exception:
+            pass
+    # 2) GitHub 失敗（無 token / 網路問題）→ 本機備援
+    if os.path.exists(local_path):
+        try:
+            with open(local_path, "r", encoding="utf-8") as f:
+                return _json.load(f)
+        except Exception:
+            pass
+    return default
+
+
+def _save_json_cloud(gh_path: str, local_path: str, data, msg: str) -> bool:
+    """
+    通用雲端寫入：先寫本機，再推 GitHub。
+    先取 sha（GitHub PUT 更新必須附上現有 sha），再推送。
+    """
+    import json as _json
+    payload = _json.dumps(data, ensure_ascii=False, indent=2)
+    # 1) 寫入本機
+    try:
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        with open(local_path, "w", encoding="utf-8") as f:
+            f.write(payload)
+    except Exception:
+        pass
+    # 2) 取得現有 sha（更新時 GitHub API 強制要求）
+    _, sha = _gh_get_file(gh_path)
+    # 3) 推送至 GitHub
+    return _gh_put_file(gh_path, payload, sha, msg)
+
+
+# ── portfolio.json ─────────────────────────────────────────
 @st.cache_data(ttl=30, show_spinner=False)
 def load_portfolio() -> dict:
     """
-    讀取 data/portfolio.json（當前持倉）。
+    讀取持倉：優先 GitHub API → 本機備援。
     格式：{"代號": {"buy_price": float, "qty": int,
                     "stop_loss": float, "stop_profit": float,
                     "buy_date": "YYYY-MM-DD"}}
     """
-    import json as _json
-    if os.path.exists(PORTFOLIO_PATH):
-        try:
-            with open(PORTFOLIO_PATH, "r", encoding="utf-8") as f:
-                return _json.load(f)
-        except Exception:
-            pass
-    return {}
+    return _load_json_cloud("data/portfolio.json", PORTFOLIO_PATH, {})
 
 
 def save_portfolio(portfolio: dict) -> bool:
-    """覆寫 data/portfolio.json，成功回傳 True"""
-    import json as _json
-    try:
-        os.makedirs("data", exist_ok=True)
-        with open(PORTFOLIO_PATH, "w", encoding="utf-8") as f:
-            _json.dump(portfolio, f, ensure_ascii=False, indent=2)
-        load_portfolio.clear()
-        return True
-    except Exception:
-        return False
+    """寫入持倉：本機 + GitHub API 雙寫，清除快取。"""
+    ok = _save_json_cloud("data/portfolio.json", PORTFOLIO_PATH,
+                          portfolio, "update portfolio")
+    load_portfolio.clear()
+    return ok
 
 
+# ── trades.json ────────────────────────────────────────────
 @st.cache_data(ttl=30, show_spinner=False)
 def load_trades() -> list:
     """
-    讀取 data/trades.json（歷史交易明細）。
-    格式：[{"date":..,"action":"買入"/"賣出","stock_id":..,"price":..,"qty":..
-             "fee":..,"tax":..,"amount":..,"realized_pnl":..,"roi_pct":..}, ...]
+    讀取交易紀錄：優先 GitHub API → 本機備援。
+    格式：[{"date":..,"action":"買入"/"賣出","stock_id":..,...}, ...]
     """
-    import json as _json
-    if os.path.exists(TRADES_PATH):
-        try:
-            with open(TRADES_PATH, "r", encoding="utf-8") as f:
-                return _json.load(f)
-        except Exception:
-            pass
-    return []
+    return _load_json_cloud("data/trades.json", TRADES_PATH, [])
 
 
 def save_trades(trades: list) -> bool:
-    """覆寫 data/trades.json，成功回傳 True"""
-    import json as _json
-    try:
-        os.makedirs("data", exist_ok=True)
-        with open(TRADES_PATH, "w", encoding="utf-8") as f:
-            _json.dump(trades, f, ensure_ascii=False, indent=2)
-        load_trades.clear()
-        return True
-    except Exception:
-        return False
+    """寫入交易紀錄：本機 + GitHub API 雙寫，清除快取。"""
+    ok = _save_json_cloud("data/trades.json", TRADES_PATH,
+                          trades, "update trades")
+    load_trades.clear()
+    return ok
 
 
+# ── account.json ───────────────────────────────────────────
 @st.cache_data(ttl=30, show_spinner=False)
 def load_account() -> dict:
     """
-    讀取 data/account.json（帳戶層級：初始資金、現金、累計已實現損益）。
+    讀取帳戶：優先 GitHub API → 本機備援。
     格式：{"initial_capital": float, "cash": float, "realized_pnl": float}
     """
-    import json as _json
-    if os.path.exists(ACCOUNT_PATH):
-        try:
-            with open(ACCOUNT_PATH, "r", encoding="utf-8") as f:
-                return _json.load(f)
-        except Exception:
-            pass
-    return {"initial_capital": 0.0, "cash": 0.0, "realized_pnl": 0.0}
+    return _load_json_cloud("data/account.json", ACCOUNT_PATH,
+                            {"initial_capital": 0.0, "cash": 0.0, "realized_pnl": 0.0})
 
 
 def save_account(account: dict) -> bool:
-    """覆寫 data/account.json，成功回傳 True"""
-    import json as _json
-    try:
-        os.makedirs("data", exist_ok=True)
-        with open(ACCOUNT_PATH, "w", encoding="utf-8") as f:
-            _json.dump(account, f, ensure_ascii=False, indent=2)
-        load_account.clear()
-        return True
-    except Exception:
-        return False
+    """寫入帳戶：本機 + GitHub API 雙寫，清除快取。"""
+    ok = _save_json_cloud("data/account.json", ACCOUNT_PATH,
+                          account, "update account")
+    load_account.clear()
+    return ok
 
 
 @st.cache_data(ttl=60, show_spinner=False)
