@@ -208,27 +208,28 @@ def _gh_put_file(path_in_repo: str, content_str: str, sha: str | None, msg: str)
 
 def _load_json_cloud(gh_path: str, local_path: str, default):
     """
-    通用雲端讀取：優先從 GitHub 拉最新，失敗才用本機備援。
-    同時把 GitHub 最新版寫入本機，確保本機與雲端一致。
+    讀取策略：
+    - 本機檔案存在 → 直接讀本機（最快，避免 GitHub API 延遲影響 rerun）
+    - 本機不存在（換裝置/首次）→ 從 GitHub 拉取並寫入本機
+    寫入時已確保本機與 GitHub 同步，所以本機永遠是最新版。
     """
     import json as _json
-    # 1) 嘗試從 GitHub 讀取（任何裝置都拿到同一份資料）
-    content, _ = _gh_get_file(gh_path)
-    if content is not None:
-        try:
-            data = _json.loads(content)
-            # 同步寫入本機（確保本機快取為最新）
-            os.makedirs(os.path.dirname(local_path), exist_ok=True)
-            with open(local_path, "w", encoding="utf-8") as f:
-                f.write(content)
-            return data
-        except Exception:
-            pass
-    # 2) GitHub 失敗（無 token / 網路問題）→ 本機備援
+    # 1) 優先讀本機（寫入時已同步，本機即最新）
     if os.path.exists(local_path):
         try:
             with open(local_path, "r", encoding="utf-8") as f:
                 return _json.load(f)
+        except Exception:
+            pass
+    # 2) 本機不存在（換裝置/初次）→ 從 GitHub 拉取
+    gh_content, _ = _gh_get_file(gh_path)
+    if gh_content is not None:
+        try:
+            data = _json.loads(gh_content)
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "w", encoding="utf-8") as f:
+                f.write(gh_content)
+            return data
         except Exception:
             pass
     return default
