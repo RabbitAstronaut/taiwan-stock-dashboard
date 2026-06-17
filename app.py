@@ -6942,8 +6942,8 @@ with tab2:
     )
 
     @st.cache_data(ttl=1800, show_spinner="大數據雷達掃描中...")
-    def run_radar():
-        """掃描全台股三大雷達，回傳結果 DataFrame"""
+    def run_radar(scan_sids=None):
+        """掃描指定股票清單三大雷達，回傳結果 DataFrame"""
         # 載入基礎資料
         df_si, ok_si   = get_stock_info()
         df_ch, ok_ch   = get_chips()
@@ -7000,9 +7000,10 @@ with tab2:
                         if yoy and yoy != 0:
                             eps_yoy[sid] = (latest - yoy) / abs(yoy) * 100
 
-        # 掃描所有股票
+        # 掃描指定股票（加 gc 釋放記憶體，避免 Streamlit Cloud 爆掉）
+        import gc as _gc_radar
         radar1, radar2, radar3 = [], [], []
-        all_sids = df_si["stock_id"].tolist()
+        all_sids = scan_sids if scan_sids is not None else df_si["stock_id"].tolist()
 
         for sid in all_sids:
             df_p, ok_p = load_price_csv(sid)
@@ -7016,6 +7017,7 @@ with tab2:
             sma20  = float(lt.get("MA20",   float("nan")))
             vol    = float(lt.get("Volume", 0))
             vma5   = float(lt.get("VMA5",   float("nan")))
+            del df_p; _gc_radar.collect()  # 立即釋放記憶體
 
             if any(np.isnan(v) for v in [ema5, sma20]):
                 continue
@@ -7081,13 +7083,36 @@ with tab2:
                 pd.DataFrame(radar2) if radar2 else pd.DataFrame(),
                 pd.DataFrame(radar3) if radar3 else pd.DataFrame())
 
-    # 執行掃描（按鈕觸發，不自動執行避免記憶體爆掉）
-    if st.button("🔍 啟動大數據雷達掃描", type="primary", key="radar_scan"):
-        with st.spinner("大數據雷達掃描中，請稍候..."):
-            df_r1, df_r2, df_r3 = run_radar()
-        st.session_state["radar_r1"] = df_r1
-        st.session_state["radar_r2"] = df_r2
-        st.session_state["radar_r3"] = df_r3
+    # 執行掃描（分段500筆，避免記憶體爆掉）
+    _df_si_total, _ok_si_total = get_stock_info()
+    _total_sids = _df_si_total["stock_id"].tolist() if _ok_si_total and not _df_si_total.empty else []
+    _batch_size = 500
+    _total_batches = (len(_total_sids) + _batch_size - 1) // _batch_size
+
+    st.caption(f"全市場共 {len(_total_sids)} 檔，每批 {_batch_size} 筆，共 {_total_batches} 批")
+
+    _btn_cols = st.columns(_total_batches + 1)
+    for _bi in range(_total_batches):
+        _start = _bi * _batch_size
+        _end   = min(_start + _batch_size, len(_total_sids))
+        if _btn_cols[_bi].button(f"第{_bi+1}批（{_start+1}~{_end}）", key=f"radar_batch_{_bi}"):
+            with st.spinner(f"掃描第{_bi+1}批（{_start+1}~{_end}筆）..."):
+                _batch_sids = _total_sids[_start:_end]
+                df_r1_b, df_r2_b, df_r3_b = run_radar(_batch_sids)
+                # 累加結果
+                _prev_r1 = st.session_state.get("radar_r1", pd.DataFrame())
+                _prev_r2 = st.session_state.get("radar_r2", pd.DataFrame())
+                _prev_r3 = st.session_state.get("radar_r3", pd.DataFrame())
+                st.session_state["radar_r1"] = pd.concat([_prev_r1, df_r1_b], ignore_index=True).drop_duplicates(subset=["代號"]) if not df_r1_b.empty else _prev_r1
+                st.session_state["radar_r2"] = pd.concat([_prev_r2, df_r2_b], ignore_index=True).drop_duplicates(subset=["代號"]) if not df_r2_b.empty else _prev_r2
+                st.session_state["radar_r3"] = pd.concat([_prev_r3, df_r3_b], ignore_index=True).drop_duplicates(subset=["代號"]) if not df_r3_b.empty else _prev_r3
+            st.toast(f"✅ 第{_bi+1}批掃描完成", icon="✅")
+
+    if _btn_cols[_total_batches].button("🗑️ 清除結果", key="radar_clear"):
+        st.session_state.pop("radar_r1", None)
+        st.session_state.pop("radar_r2", None)
+        st.session_state.pop("radar_r3", None)
+        st.rerun()
 
     df_r1 = st.session_state.get("radar_r1", pd.DataFrame())
     df_r2 = st.session_state.get("radar_r2", pd.DataFrame())
