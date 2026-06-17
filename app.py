@@ -7067,6 +7067,7 @@ with tab2:
 # ▌ TAB 7：ETF 存股現金流管家
 # ──────────────────────────────────────────────────────────────
 with tab7:
+    st.write("🔧 TAB7 載入中...")
     st.markdown("<div class='sec-title'>💰 ETF 存股現金流管家</div>", unsafe_allow_html=True)
     # ETF 配息資料更新日期
     try:
