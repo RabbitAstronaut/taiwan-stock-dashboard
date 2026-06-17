@@ -2330,6 +2330,7 @@ st.markdown(
 )
 
 with tab1:
+    st.write("🔧 TAB1 OK")
     st.markdown("<div class='sec-title'>🔍 選股掃描儀 · 三道階層篩選</div>",
                 unsafe_allow_html=True)
 
@@ -3231,6 +3232,7 @@ with tab1:
     # ▌ TAB 2：持股監控
     # ──────────────────────────────────────────────────────────────
 with tab3:
+    st.write("🔧 TAB3a OK")
 
     # ── 每次載入都清除四個板塊的 session_state key，
     #    確保 multiselect 的 default 永遠來自 watch_list.json 最新值，
@@ -4755,6 +4757,7 @@ with tab3:
 # ▌ 換股推薦面板（Tab3 底部）
 # ──────────────────────────────────────────────────────────────
 with tab3:
+    st.write("🔧 TAB3b OK")
     st.markdown("---")
     st.markdown("<div class='sec-title'>🔄 既有資產優化與換股推薦面板</div>",
                 unsafe_allow_html=True)
@@ -4925,6 +4928,7 @@ with tab3:
 # ▌ TAB 4：戰略儲備庫（精兵回頭草雷達）
 # ──────────────────────────────────────────────────────────────
 with tab4:
+    st.write("🔧 TAB4 OK")
     st.markdown("<div class='sec-title'>🏹 戰略儲備庫 · 精兵回頭草雷達</div>",
                 unsafe_allow_html=True)
     st.markdown(
@@ -5519,6 +5523,7 @@ with tab4:
 # ▌ TAB 5：大盤預警
 # ──────────────────────────────────────────────────────────────
 with tab5:
+    st.write("🔧 TAB5 OK")
     st.markdown("<div class='sec-title'>📡 大盤預警 · 期貨引擎 ＋ 蒙格行為學 ＋ AI診斷</div>",
                 unsafe_allow_html=True)
     # ── V6 三軌風控儀表板
@@ -6298,6 +6303,7 @@ with tab5:
 # ▌ TAB 6：每日作戰總部（MTFA 專屬報告）
 # ──────────────────────────────────────────────────────────────
 with tab6:
+    st.write("🔧 TAB6 OK")
     st.markdown("<div class='sec-title'>📝 每日作戰總部 · MTFA 狙擊報告</div>",
                 unsafe_allow_html=True)
 
@@ -6860,6 +6866,7 @@ with tab6:
 # ▌ TAB 2：台股新大陸大數據雷達
 # ──────────────────────────────────────────────────────────────
 with tab2:
+    st.write("🔧 TAB2 OK")
     st.markdown("<div class='sec-title'>📡 台股新大陸大數據雷達</div>",
                 unsafe_allow_html=True)
     st.markdown(
@@ -7067,6 +7074,7 @@ with tab2:
 # ▌ TAB 7：ETF 存股現金流管家
 # ──────────────────────────────────────────────────────────────
 with tab7:
+    st.write("🔧 TAB7 OK")
     st.write("🔧 TAB7 載入中...")
     st.markdown("<div class='sec-title'>💰 ETF 存股現金流管家</div>", unsafe_allow_html=True)
     # ETF 配息資料更新日期
@@ -7594,6 +7602,7 @@ with tab7:
 
 # ──────────────────────────────────────────────────────────────
 with tab8:
+    st.write("🔧 TAB8 OK")
     st.header("🧪 策略回測實驗室")
     st.info("選擇股票與策略維度，驗證財報/技術/籌碼因子的有效性。")
 
