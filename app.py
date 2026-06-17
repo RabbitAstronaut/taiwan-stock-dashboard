@@ -2203,12 +2203,13 @@ if st.session_state.get("live_prices_date") != _today_str:
     st.session_state.live_prices = {}
     st.session_state.live_prices_date = _today_str
 
+# 每次重整都從 GitHub 同步 watchlist，避免 session 殘留舊資料
+manual, scan, etf_sh = load_watchlist_from_github()
+st.session_state.watchlist      = manual
+st.session_state.watchlist_scan = scan
+st.session_state.etf_shares     = etf_sh
 if "wl_loaded" not in st.session_state:
-    manual, scan, etf_sh = load_watchlist_from_github()
-    st.session_state.watchlist      = manual  # 手動加入
-    st.session_state.watchlist_scan = scan    # 掃描結果加入
-    st.session_state.etf_shares     = etf_sh  # ETF 持倉
-    st.session_state.wl_loaded      = True
+    st.session_state.wl_loaded = True
     st.session_state.wl_debug = ("token=有" if GITHUB_TOKEN else "token=無") + f" manual={len(manual)} scan={len(scan)}"
 
 # ══════════════════════════════════════════════════════════════
