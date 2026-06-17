@@ -3598,7 +3598,7 @@ with tab3:
             _trd_headers = [_col_map[k] for k in _trd_keys]
 
             _trd_rows_html = ""
-            for _t in reversed(_trd_filtered):
+            for _ri, _t in enumerate(reversed(_trd_filtered)):
                 _action_color = "#ff4444" if _t.get("action") == "買入" else "#00cc66"
                 _row = ""
                 for _k in _trd_keys:
@@ -3615,7 +3615,7 @@ with tab3:
                         _disp = f"{_disp:,}"
                     _align = "left" if _k in ("date","action","stock_id") else "right"
                     _row += f"<td style='padding:7px 8px;text-align:{_align};white-space:nowrap;{_style}'>{_disp}</td>"
-                _bg = "background:rgba(255,255,255,0.04);" if _trd_filtered.index(_t) % 2 == 0 else ""
+                _bg = "background:rgba(255,255,255,0.04);" if _ri % 2 == 0 else ""
                 _trd_rows_html += f"<tr style='border-bottom:1px solid #1a2f44;{_bg}'>{_row}</tr>"
 
             _trd_head = "".join(
@@ -3646,7 +3646,7 @@ with tab3:
                 _export_cols = [v for v in _col_map.values() if v in _df_export.columns]
                 _df_export   = _df_export[_export_cols]
                 _buf = _io.BytesIO()
-                with pd.ExcelWriter(_buf, engine="xlsxwriter") as _writer:
+                with pd.ExcelWriter(_buf, engine="openpyxl") as _writer:
                     _df_export.to_excel(_writer, sheet_name="交易紀錄", index=False)
                 _buf.seek(0)
                 st.download_button(
@@ -3657,7 +3657,7 @@ with tab3:
                     key="export_trades_excel"
                 )
             except Exception as _xe:
-                st.caption(f"匯出功能需安裝 xlsxwriter：pip install xlsxwriter（{_xe}）")
+                st.caption(f"⚠️ 匯出失敗：{_xe}")
 
             # ── 統計
             _real_trades = [t for t in _trd if t.get("action") == "賣出"]
@@ -3722,64 +3722,64 @@ with tab3:
             if _b_submit:
                 if not _b_sid.strip() or _b_bp <= 0 or _b_qty <= 0:
                     st.error("請填寫完整：股票代號、買入均價、買入股數")
+                elif not _b_sid.strip().isdigit() or len(_b_sid.strip()) not in (4, 5, 6):
+                    st.error(f"⚠️ 股票代號格式錯誤：「{_b_sid.strip()}」應為 4~6 位數字（如 2330、00878）")
                 else:
-                    _b_cost_final = calc_buy_cost(_b_bp, _b_qty)
-                    _acct_now = load_account()
-                    if _acct_now.get("initial_capital", 0) > 0 and _acct_now.get("cash", 0) < _b_cost_final:
-                        st.error(f"⚠️ 可用現金 ${_acct_now['cash']:,.0f} 不足以支付 ${_b_cost_final:,.0f}")
+                    _sid_check = _b_sid.strip()
+                    _df_chk, _ok_chk = load_price_csv(_sid_check)
+                    if not _ok_chk or _df_chk.empty:
+                        st.error(f"⚠️ 找不到股票 **{_sid_check}** 的價格資料，請確認代號是否正確")
                     else:
-                        # 更新持倉
-                        _pf_now = load_portfolio()
-                        _sid_key = _b_sid.strip()
-                        if _sid_key in _pf_now:
-                            # ── 加碼：移動加權平均法（WAC），含手續費的真實成本
-                            _old = _pf_now[_sid_key]
-                            _old_qty = _old["qty"]
-                            _old_avg = _old["buy_price"]
-                            # 舊總成本 = 舊均價×舊股數 + 舊批次的手續費
-                            # 注意：舊均價已是「含費均價」（在之前登記時就已含費攤入），
-                            # 所以舊總成本直接用 舊均價×舊股數 即可（費用已攤入均價）
-                            _old_total_cost = _old_avg * _old_qty
-                            # 新批次總成本 = 新買入金額 + 新批次手續費（剛性含費成本）
-                            _new_total_cost = calc_buy_cost(_b_bp, int(_b_qty))
-                            _new_qty        = _old_qty + int(_b_qty)
-                            # 更新後含費均價 = (舊含費總成本 + 新含費總成本) / 更新後總股數
-                            _new_avg_price  = (_old_total_cost + _new_total_cost) / _new_qty
-                            _pf_now[_sid_key]["buy_price"] = round(_new_avg_price, 4)
-                            _pf_now[_sid_key]["qty"] = _new_qty
-                            if _b_sl > 0: _pf_now[_sid_key]["stop_loss"] = _b_sl
-                            if _b_sp > 0: _pf_now[_sid_key]["stop_profit"] = _b_sp
+                        _b_cost_final = calc_buy_cost(_b_bp, _b_qty)
+                        _acct_now = load_account()
+                        if _acct_now.get("initial_capital", 0) > 0 and _acct_now.get("cash", 0) < _b_cost_final:
+                            st.error(f"⚠️ 可用現金 ${_acct_now['cash']:,.0f} 不足以支付 ${_b_cost_final:,.0f}")
                         else:
-                            # 首次買入：含費均價 = 含費總成本 / 股數
-                            _first_total = calc_buy_cost(_b_bp, int(_b_qty))
-                            _first_avg   = _first_total / int(_b_qty)
-                            _pf_now[_sid_key] = {
-                                "buy_price":   round(_first_avg, 4),  # 含費均價
-                                "qty":         int(_b_qty),
-                                "stop_loss":   _b_sl,
-                                "stop_profit": _b_sp,
-                                "buy_date":    str(_b_date),
-                            }
-                        save_portfolio(_pf_now)
+                            # 更新持倉
+                            _pf_now = load_portfolio()
+                            _sid_key = _b_sid.strip()
+                            if _sid_key in _pf_now:
+                                _old = _pf_now[_sid_key]
+                                _old_qty = _old["qty"]
+                                _old_avg = _old["buy_price"]
+                                _old_total_cost = _old_avg * _old_qty
+                                _new_total_cost = calc_buy_cost(_b_bp, int(_b_qty))
+                                _new_qty        = _old_qty + int(_b_qty)
+                                _new_avg_price  = (_old_total_cost + _new_total_cost) / _new_qty
+                                _pf_now[_sid_key]["buy_price"] = round(_new_avg_price, 4)
+                                _pf_now[_sid_key]["qty"] = _new_qty
+                                if _b_sl > 0: _pf_now[_sid_key]["stop_loss"] = _b_sl
+                                if _b_sp > 0: _pf_now[_sid_key]["stop_profit"] = _b_sp
+                            else:
+                                _first_total = calc_buy_cost(_b_bp, int(_b_qty))
+                                _first_avg   = _first_total / int(_b_qty)
+                                _pf_now[_sid_key] = {
+                                    "buy_price":   round(_first_avg, 4),
+                                    "qty":         int(_b_qty),
+                                    "stop_loss":   _b_sl,
+                                    "stop_profit": _b_sp,
+                                    "buy_date":    str(_b_date),
+                                }
+                            save_portfolio(_pf_now)
 
-                        # 更新現金
-                        _acct_now["cash"] = _acct_now.get("cash", 0) - _b_cost_final
-                        save_account(_acct_now)
+                            # 更新現金
+                            _acct_now["cash"] = _acct_now.get("cash", 0) - _b_cost_final
+                            save_account(_acct_now)
 
-                        # 寫入交易紀錄
-                        _trd_now = load_trades()
-                        _trd_now.append({
-                            "date": str(_b_date), "action": "買入",
-                            "stock_id": _sid_key,
-                            "price": _b_bp, "qty": int(_b_qty),
-                            "fee": round(_calc_fee(_b_bp, _b_qty), 0),
-                            "tax": 0, "amount": round(_b_bp * _b_qty, 0),
-                            "realized_pnl": None, "roi_pct": None,
-                        })
-                        save_trades(_trd_now)
-                        st.success(f"✅ 買入 {_sid_key} {_b_qty}股 @ {_b_bp}，含費成本 ${_b_cost_final:,.0f}，現金已扣除")
-                        st.session_state["buy_count"] = st.session_state.get("buy_count", 0) + 1
-                        st.rerun()
+                            # 寫入交易紀錄
+                            _trd_now = load_trades()
+                            _trd_now.append({
+                                "date": str(_b_date), "action": "買入",
+                                "stock_id": _sid_key,
+                                "price": _b_bp, "qty": int(_b_qty),
+                                "fee": round(_calc_fee(_b_bp, _b_qty), 0),
+                                "tax": 0, "amount": round(_b_bp * _b_qty, 0),
+                                "realized_pnl": None, "roi_pct": None,
+                            })
+                            save_trades(_trd_now)
+                            st.success(f"✅ 買入 {_sid_key} {_b_qty}股 @ {_b_bp}，含費成本 ${_b_cost_final:,.0f}，現金已扣除")
+                            st.session_state["buy_count"] = st.session_state.get("buy_count", 0) + 1
+                            st.rerun()
 
     with _tab_sell:
         _pf_sell = load_portfolio()
