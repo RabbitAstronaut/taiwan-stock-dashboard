@@ -3920,175 +3920,61 @@ with tab3:
         refresh_all_live_prices()
         st.rerun()
 
-# ──────────────────────────────────────────────────────────────
-# ▌ 換股推薦面板（Tab3 底部）
+# ▌ 換股推薦面板（Tab3 底部）—— 來源改為 portfolio 持股
 # ──────────────────────────────────────────────────────────────
 with tab3:
     st.markdown("---")
-    st.markdown("<div class='sec-title'>🔄 既有資產優化與換股推薦面板</div>",
+    st.markdown("<div class='sec-title'>🔄 持股優化建議 · 弱勢汰換雷達</div>",
                 unsafe_allow_html=True)
     st.markdown(
-        "<div class='infobox'>系統自動掃描監控名單，識別弱勢與強勢標的。"
-        "推薦結果依當前選定個股動態生成，切換標的時自動清除。</div>",
+        "<div class='infobox'>系統掃描當前持倉，自動識別弱勢標的並推薦強勢換股方向。</div>",
         unsafe_allow_html=True
     )
 
-    # 取得所有監控標的
-    all_watch = st.session_state.get("watchlist", []) + st.session_state.get("watchlist_scan", [])
-    seen_ids = set()
-    watch_dedup = []
-    for w in all_watch:
-        if w["id"] not in seen_ids:
-            seen_ids.add(w["id"])
-            watch_dedup.append(w)
-
-    # 當前選定個股（來自上方 selectbox）
-    _current_sid = st.session_state.get("last_stock_watch", "")
-
-    if not watch_dedup:
-        st.info("監控清單為空，請先加入標的。")
+    _swap_pf = load_portfolio()
+    if not _swap_pf:
+        st.info("目前無持倉，買入登記後自動顯示換股建議。")
     else:
-        weak_list   = []  # 弱勢待汰
-        strong_list = []  # 強勢轉進
-
-        for w in watch_dedup:
-            sid  = w["id"]
-            name = w.get("name", sid)
-            df_p, ok_p = load_price_csv(sid)
-            if not ok_p or df_p.empty or len(df_p) < 20:
+        _swap_weak = []
+        _swap_strong = []
+        for _sw_sid, _sw_pos in _swap_pf.items():
+            _sw_bp  = float(_sw_pos.get("buy_price", 0))
+            _sw_qty = int(_sw_pos.get("qty", 0))
+            if _sw_bp <= 0 or _sw_qty <= 0:
                 continue
-            df_i = add_indicators(df_p)
-            lt = df_i.iloc[-1]
+            try:
+                _sw_df, _sw_ok = load_price_csv(_sw_sid)
+                if not _sw_ok or _sw_df.empty or len(_sw_df) < 20:
+                    continue
+                _sw_df  = add_indicators(_sw_df)
+                _sw_lt  = _sw_df.iloc[-1]
+                _sw_cp  = float(_sw_lt["Close"])
+                _sw_ma20 = float(_sw_lt.get("MA20", float("nan")))
+                _sw_ema5 = float(_sw_lt.get("EMA5", float("nan")))
+                _sw_roi  = (_sw_cp - _sw_bp) / _sw_bp * 100
+                _sw_name = get_name(_sw_sid)
 
-            close   = float(lt["Close"])
-            ema5    = float(lt.get("EMA5",   float("nan")))
-            bb_mid  = float(lt.get("BB_MID", float("nan")))
-            vol     = float(lt.get("Volume", 0))
-            vma5    = float(lt.get("VMA5",   float("nan")))
-
-            if any(np.isnan(v) for v in [ema5, bb_mid]):
+                # 弱勢判定：虧損超過5% 或 跌破月線
+                if _sw_roi < -5 or (not np.isnan(_sw_ma20) and _sw_cp < _sw_ma20):
+                    _sw_reason = f"虧損 {_sw_roi:.1f}%" if _sw_roi < -5 else f"跌破月線 {_sw_ma20:,.0f}"
+                    _swap_weak.append({
+                        "代號": _sw_sid, "名稱": _sw_name,
+                        "現價": round(_sw_cp, 2), "買入均價": round(_sw_bp, 2),
+                        "ROI%": round(_sw_roi, 2), "弱勢原因": _sw_reason
+                    })
+            except Exception:
                 continue
 
-            # 弱勢條件：現價 < EMA5 且 現價 < BB_MID 且 EMA5 < BB_MID
-            is_weak = (close < ema5) and (close < bb_mid) and (ema5 < bb_mid)
-
-            # 強勢條件：現價 >= EMA5 且 現價 >= BB_MID 且 量 <= VMA5*0.45
-            is_strong = (
-                (close >= ema5) and
-                (close >= bb_mid) and
-                (not np.isnan(vma5) and vma5 > 0 and vol <= vma5 * 0.45)
-            )
-
-            if is_weak:
-                weak_list.append({"id": sid, "name": name, "close": close,
-                                  "ema5": ema5, "bb_mid": bb_mid})
-            if is_strong:
-                strong_list.append({"id": sid, "name": name, "close": close,
-                                    "ema5": ema5, "bb_mid": bb_mid, "vol_ratio": vol/vma5})
-
-        # ── 弱勢警示
-        if weak_list:
-            st.markdown("#### 🔴 弱勢標的（建議汰弱）")
-            for w in weak_list:
-                st.markdown(
-                    f"<div style='background:rgba(255,82,82,0.1);border-left:4px solid #ff5252;"
-                    f"border-radius:8px;padding:12px 16px;margin:6px 0;'>"
-                    f"<b style='color:#ff5252;'>{w['id']} {w['name']}</b>"
-                    f"<span style='color:#ffcdd2;font-size:.85rem;'>"
-                    f"　收盤 {w['close']:.1f} ｜ EMA5 {w['ema5']:.1f} ｜ 布林中軌 {w['bb_mid']:.1f}</span><br>"
-                    f"<span style='color:#ff8a80;font-size:.88rem;'>"
-                    f"⚠️ 建議執行汰弱留強，清倉此部位。</span></div>",
-                    unsafe_allow_html=True
+        if _swap_weak:
+            st.markdown("#### ⚠️ 建議汰弱名單")
+            for _w in _swap_weak:
+                st.warning(
+                    f"**{_w['代號']} {_w['名稱']}**｜現價 {_w['現價']:,.2f}｜"
+                    f"買入均價 {_w['買入均價']:,.2f}｜ROI {_w['ROI%']:+.2f}%｜"
+                    f"原因：{_w['弱勢原因']}｜**建議考慮停損換股**"
                 )
         else:
-            st.success("✅ 監控名單中目前無弱勢標的，持股結構健康。")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # ══════════════════════════════════════════════
-        # 🎯 戰略儲備庫輪動引擎（資金來源唯一限定儲備庫）
-        # ══════════════════════════════════════════════
-        st.markdown("#### 🎯 戰略儲備庫轉進訊號")
-
-        reserve_list = st.session_state.get("reserve_list", [])
-
-        if not reserve_list:
-            st.caption("⏳ 戰略儲備庫尚無標的，請先在 Tab4 加入精兵。")
-        else:
-            # 即時掃描儲備庫所有個股的三大買進訊號
-            reserve_ready   = []  # 3/3 訊號全中
-            reserve_waiting = []  # 尚未成熟
-
-            for rv in reserve_list:
-                rv_sid  = rv["id"]
-                rv_name = rv.get("name", rv_sid)
-                if rv_sid == _current_sid:
-                    continue  # 排除當前持股本身
-
-                df_rv2, ok_rv2 = load_price_csv(rv_sid)
-                if not ok_rv2 or df_rv2.empty or len(df_rv2) < 10:
-                    continue
-
-                df_rv2 = add_indicators(df_rv2)
-                lt_rv2  = df_rv2.iloc[-1]
-                close_rv2 = float(lt_rv2["Close"])
-                ema5_rv2  = float(lt_rv2.get("EMA5",  float("nan")))
-                sma20_rv2 = float(lt_rv2.get("MA20",  float("nan")))
-                vol_rv2   = float(lt_rv2.get("Volume", 0))
-                vma5_rv2  = float(lt_rv2.get("VMA5",  float("nan")))
-                open_rv2  = float(lt_rv2.get("Open",  close_rv2))
-
-                if np.isnan(sma20_rv2) or sma20_rv2 <= 0:
-                    continue
-
-                bias_rv2 = (close_rv2 - sma20_rv2) / sma20_rv2 * 100
-
-                # 三大條件
-                c1 = (not np.isnan(vma5_rv2) and vma5_rv2 > 0 and len(df_rv2) >= 4 and
-                      all(float(df_rv2["Volume"].iloc[i]) < vma5_rv2 * 0.5 for i in [-1,-2,-3]))
-                c2 = bias_rv2 <= 5
-                c3 = close_rv2 > open_rv2 and not np.isnan(ema5_rv2) and close_rv2 > ema5_rv2
-
-                if c1 and c2 and c3:
-                    reserve_ready.append({
-                        "id": rv_sid, "name": rv_name,
-                        "close": close_rv2, "bias": bias_rv2,
-                        "ema5": ema5_rv2, "sma20": sma20_rv2,
-                    })
-                else:
-                    reserve_waiting.append({
-                        "id": rv_sid, "name": rv_name,
-                        "bias": bias_rv2,
-                    })
-
-            # 情境A：儲備精兵訊號亮起
-            if reserve_ready:
-                weak_names = "、".join(f"{w['name']}({w['id']})" for w in weak_list)                              if weak_list else "當前弱勢部位"
-                for r in reserve_ready:
-                    _msg = (
-                        f"🎯 【儲備精兵回頭草推薦】：偵測到弱勢解凍部位。"
-                        f"建議轉進儲備庫中的 {r['name']}（{r['id']}）。"
-                        f" Fact 支撐：該股已完成量縮沉澱，今日現價 {r['close']:.1f} 元，"
-                        f"與月線乖離僅 {r['bias']:.1f}%，"
-                        f"符合低乖離安全卡閘，此為最佳資金效率換手點。"
-                    )
-                    st.info(_msg)
-
-            # 情境B：儲備庫仍在沉澱
-            elif reserve_waiting:
-                names_str = "、".join(f"{r['name']}" for r in reserve_waiting[:3])
-                st.markdown(
-                    f"<div style='background:rgba(84,110,122,0.15);border:1px solid #546e7a;"
-                    f"border-radius:8px;padding:12px 16px;color:#90a4ae;font-size:.85rem;'>"
-                    f"⏳ <b>資金效率提示</b>：目前戰略儲備名單中的精兵（{names_str}等）"
-                    f"正乖離率仍高，處於高檔籌碼沉澱期。"
-                    f"若此時手動解凍持股，建議先保留現金在手，"
-                    f"靜待儲備名單吹響右側反攻號角。</div>",
-                    unsafe_allow_html=True
-                )
-            else:
-                st.caption("⏳ 戰略儲備庫所有精兵正在排除中，稍後再確認。")
-
+            st.success("✅ 所有持股結構健康，暫無汰弱建議。")
 
 # ──────────────────────────────────────────────────────────────
 # ▌ TAB 4：戰略儲備庫（精兵回頭草雷達）
