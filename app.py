@@ -1570,6 +1570,17 @@ header[data-testid="stHeader"]{visibility:hidden!important;}
     color:#00d4ff!important;
     border-color:#00d4ff!important;
 }
+/* ══ Date Picker 黑底深色主題 ══ */
+[data-baseweb="input"]>div,[data-baseweb="base-input"]{background:#0a0f1a!important;color:#ffffff!important;border:1px solid #2a5080!important;}
+[data-baseweb="input"] input{background:#0a0f1a!important;color:#ffffff!important;}
+[data-baseweb="calendar"],[data-baseweb="datepicker"],div[role="dialog"]{background:#0a0f1a!important;border:1px solid #1e3a5f!important;color:#e8f4fd!important;}
+[data-baseweb="calendar"] button,[data-baseweb="calendar"] div{background:#0a0f1a!important;color:#e8f4fd!important;}
+[data-baseweb="calendar"] [role="gridcell"] button{background:#0a0f1a!important;color:#e8f4fd!important;border-radius:4px!important;}
+[data-baseweb="calendar"] [role="gridcell"] button:hover{background:#1e3a5f!important;color:#00d4ff!important;}
+[data-baseweb="calendar"] [aria-current="date"] button{border:1px solid #00d4ff!important;color:#00d4ff!important;}
+[data-baseweb="calendar"] [aria-selected="true"] button{background:#1e3a5f!important;color:#00d4ff!important;font-weight:700!important;}
+[data-baseweb="calendar"] [role="columnheader"],[data-baseweb="calendar"] [role="heading"]{color:#7fb3d3!important;background:#0a0f1a!important;}
+[data-baseweb="calendar"] [aria-disabled="true"] button{color:#3a5a80!important;}
 </style>
 """, unsafe_allow_html=True)
 
