@@ -2072,21 +2072,20 @@ def _load_relay_futures():
     return pd.DataFrame()
 
 def get_futures():
-    # 優先讀 GitHub CSV（排程每日更新，最準確）
-    df, ok = load_csv("futures_data.csv")
-    if ok and not df.empty:
-        if "date" in df.columns:
-            df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        for c in df.select_dtypes("object").columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce").fillna(df[c])
-        return df.sort_values("date") if "date" in df.columns else df, True
-
-    # fallback：讀 Render Relay
+    # 優先讀 Render 即時資料（Cloudflare KV，數字最準確）
     df_relay = _load_relay_futures()
     if not df_relay.empty:
         return df_relay.sort_values("date") if "date" in df_relay.columns else df_relay, True
 
-    return pd.DataFrame(), False
+    # fallback：讀 GitHub CSV
+    df, ok = load_csv("futures_data.csv")
+    if not ok or df.empty:
+        return pd.DataFrame(), False
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    for c in df.select_dtypes("object").columns:
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(df[c])
+    return df.sort_values("date") if "date" in df.columns else df, True
 
 def get_shareholder(stock_id=None):
     df, ok = load_csv("shareholder_data.csv")
