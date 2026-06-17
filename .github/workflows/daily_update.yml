@@ -104,9 +104,11 @@ jobs:
           else
             CHANGED=$(git diff --staged --name-only | wc -l)
             DATE=$(date +'%Y-%m-%d')
-            git commit -m "chore: auto update ${DATE} (${CHANGED} files)"
-            # pull rebase 避免與遠端衝突
+            git stash
             git pull --rebase origin main
+            git stash pop
+            git add data/
+            git commit -m "chore: auto update ${DATE} (${CHANGED} files)"
             git push origin main
             echo "已推送 ${CHANGED} 個檔案"
           fi
