@@ -3269,15 +3269,17 @@ with tab3:
     # ── 初始資金設定（若尚未設定，顯示輸入框）
     if _acct.get("initial_capital", 0) == 0:
         st.markdown("#### 💵 請先設定初始資金")
-        _init_col1, _init_col2 = st.columns([2, 1])
-        with _init_col1:
-            _init_cap = st.number_input(
-                "初始資金（元）", min_value=1000, value=1000000,
-                step=10000, format="%d", key="init_cap_input"
-            )
-        with _init_col2:
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("✅ 確認設定初始資金", key="set_init_cap"):
+        with st.form("init_cap_form"):
+            _init_col1, _init_col2 = st.columns([2, 1])
+            with _init_col1:
+                _init_cap = st.number_input(
+                    "初始資金（元）", min_value=1000, value=1000000,
+                    step=10000, format="%d", key="init_cap_input"
+                )
+            with _init_col2:
+                st.markdown("<br>", unsafe_allow_html=True)
+                _init_submit = st.form_submit_button("✅ 確認設定初始資金", type="primary")
+            if _init_submit:
                 _acct_new = {"initial_capital": float(_init_cap),
                              "cash": float(_init_cap), "realized_pnl": 0.0}
                 save_account(_acct_new)
