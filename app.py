@@ -3588,7 +3588,14 @@ with tab3:
             if _filter_action != "全部":
                 _trd_filtered = [t for t in _trd_filtered if t.get("action") == _filter_action]
 
-            # ── 建立 HTML 表格（固定高度，超過顯示捲軸）
+            # ── 建立 HTML 表格（固定欄寬對齊，超過顯示捲軸）
+            # 每欄固定寬度（px），確保 header 與 body 完全對齊
+            _COL_WIDTHS = {
+                "date": 90, "action": 52, "stock_id": 52,
+                "price": 78, "qty": 65, "fee": 62,
+                "tax": 62, "amount": 88, "hold_cost": 82,
+                "realized_pnl": 88, "roi_pct": 72,
+            }
             _col_map = {"date":"日期","action":"動作","stock_id":"代號",
                         "price":"成交價","qty":"股數","fee":"手續費",
                         "tax":"證交稅","amount":"成交金額","hold_cost":"持有成本",
@@ -3598,7 +3605,7 @@ with tab3:
             _trd_headers = [_col_map[k] for k in _trd_keys]
 
             _trd_rows_html = ""
-            for _t in reversed(_trd_filtered):
+            for _ri, _t in enumerate(reversed(_trd_filtered)):
                 _action_color = "#ff4444" if _t.get("action") == "買入" else "#00cc66"
                 _row = ""
                 for _k in _trd_keys:
@@ -3614,24 +3621,32 @@ with tab3:
                     elif isinstance(_disp, int):
                         _disp = f"{_disp:,}"
                     _align = "left" if _k in ("date","action","stock_id") else "right"
-                    _row += f"<td style='padding:7px 8px;text-align:{_align};white-space:nowrap;{_style}'>{_disp}</td>"
-                _bg = "background:rgba(255,255,255,0.04);" if _trd_filtered.index(_t) % 2 == 0 else ""
-                _trd_rows_html += f"<tr style='border-bottom:1px solid #1a2f44;{_bg}'>{_row}</tr>"
+                    _w = _COL_WIDTHS.get(_k, 80)
+                    _bg_row = "background:rgba(255,255,255,0.04);" if _ri % 2 == 0 else ""
+                    _row += (
+                        f"<td style='padding:6px 8px;text-align:{_align};"
+                        f"white-space:nowrap;width:{_w}px;min-width:{_w}px;max-width:{_w}px;"
+                        f"overflow:hidden;text-overflow:ellipsis;{_style}'>{_disp}</td>"
+                    )
+                _trd_rows_html += f"<tr style='border-bottom:1px solid #1a2f44;'>{_row}</tr>"
 
             _trd_head = "".join(
                 f"<th style='padding:8px;text-align:{'left' if h in ('日期','動作','代號') else 'right'};"
                 f"border-bottom:2px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;"
-                f"white-space:nowrap;position:sticky;top:0;background:#0f2027;z-index:1;'>{h}</th>"
-                for h in _trd_headers
+                f"white-space:nowrap;width:{_COL_WIDTHS.get(k,80)}px;min-width:{_COL_WIDTHS.get(k,80)}px;"
+                f"max-width:{_COL_WIDTHS.get(k,80)}px;position:sticky;top:0;"
+                f"background:#0f2027;z-index:1;'>{h}</th>"
+                for k, h in zip(_trd_keys, _trd_headers)
             )
-            # 固定高度容器（約12列，每列32px = 384px + header 40px）
+            # 固定高度容器（約12列）
             _ROW_H = 32
             _HEADER_H = 40
             _VISIBLE_ROWS = 12
             _table_h = _HEADER_H + _VISIBLE_ROWS * _ROW_H
             st.markdown(
-                f"<div style='overflow-y:auto;max-height:{_table_h}px;border:1px solid #1e3a5f;border-radius:6px;'>"
-                f"<table style='width:100%;border-collapse:collapse;font-size:.83rem;color:#e8f4fd;'>"
+                f"<div style='overflow:auto;max-height:{_table_h}px;border:1px solid #1e3a5f;border-radius:6px;'>"
+                f"<table style='width:max-content;min-width:100%;border-collapse:collapse;"
+                f"font-size:.83rem;color:#e8f4fd;table-layout:fixed;'>"
                 f"<thead><tr>{_trd_head}</tr></thead>"
                 f"<tbody>{_trd_rows_html}</tbody>"
                 f"</table></div>",
@@ -3639,15 +3654,23 @@ with tab3:
             )
             st.caption(f"共 {len(_trd_filtered)} 筆（篩選後）")
 
-            # ── 匯出 Excel
+            # ── 匯出 Excel（使用 openpyxl，無需額外安裝）
             try:
                 import io as _io
                 _df_export = pd.DataFrame(_trd_filtered).rename(columns=_col_map)
                 _export_cols = [v for v in _col_map.values() if v in _df_export.columns]
                 _df_export   = _df_export[_export_cols]
                 _buf = _io.BytesIO()
-                with pd.ExcelWriter(_buf, engine="xlsxwriter") as _writer:
+                with pd.ExcelWriter(_buf, engine="openpyxl") as _writer:
                     _df_export.to_excel(_writer, sheet_name="交易紀錄", index=False)
+                    # 自動調整欄寬
+                    _ws = _writer.sheets["交易紀錄"]
+                    for _col_cells in _ws.columns:
+                        _max_len = max(
+                            len(str(_c.value)) if _c.value is not None else 0
+                            for _c in _col_cells
+                        )
+                        _ws.column_dimensions[_col_cells[0].column_letter].width = min(_max_len + 4, 25)
                 _buf.seek(0)
                 st.download_button(
                     "📥 匯出 Excel",
@@ -3657,7 +3680,7 @@ with tab3:
                     key="export_trades_excel"
                 )
             except Exception as _xe:
-                st.caption(f"匯出功能需安裝 xlsxwriter：pip install xlsxwriter（{_xe}）")
+                st.caption(f"⚠️ 匯出失敗：{_xe}")
 
             # ── 統計
             _real_trades = [t for t in _trd if t.get("action") == "賣出"]
@@ -3722,64 +3745,71 @@ with tab3:
             if _b_submit:
                 if not _b_sid.strip() or _b_bp <= 0 or _b_qty <= 0:
                     st.error("請填寫完整：股票代號、買入均價、買入股數")
+                elif not _b_sid.strip().isdigit() or len(_b_sid.strip()) not in (4, 5, 6):
+                    st.error(f"⚠️ 股票代號格式錯誤：「{_b_sid.strip()}」應為 4~6 位數字（如 2330、00878）")
                 else:
-                    _b_cost_final = calc_buy_cost(_b_bp, _b_qty)
-                    _acct_now = load_account()
-                    if _acct_now.get("initial_capital", 0) > 0 and _acct_now.get("cash", 0) < _b_cost_final:
-                        st.error(f"⚠️ 可用現金 ${_acct_now['cash']:,.0f} 不足以支付 ${_b_cost_final:,.0f}")
+                    # 防呆：確認 CSV 資料庫是否存有此股票
+                    _sid_check = _b_sid.strip()
+                    _df_chk, _ok_chk = load_price_csv(_sid_check)
+                    if not _ok_chk or _df_chk.empty:
+                        st.error(
+                            f"⚠️ 找不到股票 **{_sid_check}** 的價格資料！\n\n"
+                            f"請確認：① 代號是否正確（台股上市4碼、上櫃5碼）"
+                            f"　② 是否已執行 update_data.py 更新 CSV"
+                        )
                     else:
-                        # 更新持倉
-                        _pf_now = load_portfolio()
-                        _sid_key = _b_sid.strip()
-                        if _sid_key in _pf_now:
-                            # ── 加碼：移動加權平均法（WAC），含手續費的真實成本
-                            _old = _pf_now[_sid_key]
-                            _old_qty = _old["qty"]
-                            _old_avg = _old["buy_price"]
-                            # 舊總成本 = 舊均價×舊股數 + 舊批次的手續費
-                            # 注意：舊均價已是「含費均價」（在之前登記時就已含費攤入），
-                            # 所以舊總成本直接用 舊均價×舊股數 即可（費用已攤入均價）
-                            _old_total_cost = _old_avg * _old_qty
-                            # 新批次總成本 = 新買入金額 + 新批次手續費（剛性含費成本）
-                            _new_total_cost = calc_buy_cost(_b_bp, int(_b_qty))
-                            _new_qty        = _old_qty + int(_b_qty)
-                            # 更新後含費均價 = (舊含費總成本 + 新含費總成本) / 更新後總股數
-                            _new_avg_price  = (_old_total_cost + _new_total_cost) / _new_qty
-                            _pf_now[_sid_key]["buy_price"] = round(_new_avg_price, 4)
-                            _pf_now[_sid_key]["qty"] = _new_qty
-                            if _b_sl > 0: _pf_now[_sid_key]["stop_loss"] = _b_sl
-                            if _b_sp > 0: _pf_now[_sid_key]["stop_profit"] = _b_sp
+                        _b_cost_final = calc_buy_cost(_b_bp, _b_qty)
+                        _acct_now = load_account()
+                        if _acct_now.get("initial_capital", 0) > 0 and _acct_now.get("cash", 0) < _b_cost_final:
+                            st.error(f"⚠️ 可用現金 ${_acct_now['cash']:,.0f} 不足以支付 ${_b_cost_final:,.0f}")
                         else:
-                            # 首次買入：含費均價 = 含費總成本 / 股數
-                            _first_total = calc_buy_cost(_b_bp, int(_b_qty))
-                            _first_avg   = _first_total / int(_b_qty)
-                            _pf_now[_sid_key] = {
-                                "buy_price":   round(_first_avg, 4),  # 含費均價
-                                "qty":         int(_b_qty),
-                                "stop_loss":   _b_sl,
-                                "stop_profit": _b_sp,
-                                "buy_date":    str(_b_date),
-                            }
-                        save_portfolio(_pf_now)
+                            # 更新持倉
+                            _pf_now = load_portfolio()
+                            _sid_key = _b_sid.strip()
+                            if _sid_key in _pf_now:
+                                # ── 加碼：移動加權平均法（WAC），含手續費的真實成本
+                                _old = _pf_now[_sid_key]
+                                _old_qty = _old["qty"]
+                                _old_avg = _old["buy_price"]
+                                _old_total_cost = _old_avg * _old_qty
+                                _new_total_cost = calc_buy_cost(_b_bp, int(_b_qty))
+                                _new_qty        = _old_qty + int(_b_qty)
+                                _new_avg_price  = (_old_total_cost + _new_total_cost) / _new_qty
+                                _pf_now[_sid_key]["buy_price"] = round(_new_avg_price, 4)
+                                _pf_now[_sid_key]["qty"] = _new_qty
+                                if _b_sl > 0: _pf_now[_sid_key]["stop_loss"] = _b_sl
+                                if _b_sp > 0: _pf_now[_sid_key]["stop_profit"] = _b_sp
+                            else:
+                                # 首次買入：含費均價 = 含費總成本 / 股數
+                                _first_total = calc_buy_cost(_b_bp, int(_b_qty))
+                                _first_avg   = _first_total / int(_b_qty)
+                                _pf_now[_sid_key] = {
+                                    "buy_price":   round(_first_avg, 4),  # 含費均價
+                                    "qty":         int(_b_qty),
+                                    "stop_loss":   _b_sl,
+                                    "stop_profit": _b_sp,
+                                    "buy_date":    str(_b_date),
+                                }
+                            save_portfolio(_pf_now)
 
-                        # 更新現金
-                        _acct_now["cash"] = _acct_now.get("cash", 0) - _b_cost_final
-                        save_account(_acct_now)
+                            # 更新現金
+                            _acct_now["cash"] = _acct_now.get("cash", 0) - _b_cost_final
+                            save_account(_acct_now)
 
-                        # 寫入交易紀錄
-                        _trd_now = load_trades()
-                        _trd_now.append({
-                            "date": str(_b_date), "action": "買入",
-                            "stock_id": _sid_key,
-                            "price": _b_bp, "qty": int(_b_qty),
-                            "fee": round(_calc_fee(_b_bp, _b_qty), 0),
-                            "tax": 0, "amount": round(_b_bp * _b_qty, 0),
-                            "realized_pnl": None, "roi_pct": None,
-                        })
-                        save_trades(_trd_now)
-                        st.success(f"✅ 買入 {_sid_key} {_b_qty}股 @ {_b_bp}，含費成本 ${_b_cost_final:,.0f}，現金已扣除")
-                        st.session_state["buy_count"] = st.session_state.get("buy_count", 0) + 1
-                        st.rerun()
+                            # 寫入交易紀錄
+                            _trd_now = load_trades()
+                            _trd_now.append({
+                                "date": str(_b_date), "action": "買入",
+                                "stock_id": _sid_key,
+                                "price": _b_bp, "qty": int(_b_qty),
+                                "fee": round(_calc_fee(_b_bp, _b_qty), 0),
+                                "tax": 0, "amount": round(_b_bp * _b_qty, 0),
+                                "realized_pnl": None, "roi_pct": None,
+                            })
+                            save_trades(_trd_now)
+                            st.success(f"✅ 買入 {_sid_key} {_b_qty}股 @ {_b_bp}，含費成本 ${_b_cost_final:,.0f}，現金已扣除")
+                            st.session_state["buy_count"] = st.session_state.get("buy_count", 0) + 1
+                            st.rerun()
 
     with _tab_sell:
         _pf_sell = load_portfolio()
