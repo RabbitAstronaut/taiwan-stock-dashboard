@@ -3929,7 +3929,49 @@ with tab3:
     st.markdown("---")
 
     # ════════════════════════════════════════════════════════
-    # ▌ 以下：原有持股監控（即時防守＋籌碼＋基本面）
+    # ▌ 🦅 持股操作建議（基於買入均價的即時決策）
+    # ════════════════════════════════════════════════════════
+    import gc as _gc_adv
+    if _pf:
+        st.markdown("### 🦅 持股操作建議")
+        for _adv_sid, _adv_pos in _pf.items():
+            _adv_bp  = float(_adv_pos.get("buy_price", 0))
+            _adv_qty = int(_adv_pos.get("qty", 0))
+            _adv_sl  = float(_adv_pos.get("stop_loss", 0))
+            _adv_sp  = float(_adv_pos.get("stop_profit", 0))
+            if _adv_bp <= 0 or _adv_qty <= 0:
+                continue
+            try:
+                _adv_df, _adv_ok = load_price_csv(_adv_sid)
+                _adv_cp   = float(_adv_df["Close"].iloc[-1]) if _adv_ok and not _adv_df.empty else _adv_bp
+                _adv_df2  = add_indicators(_adv_df) if _adv_ok and not _adv_df.empty else _adv_df
+                _adv_ma20 = float(_adv_df2["MA20"].iloc[-1]) if _adv_ok and "MA20" in _adv_df2.columns else 0
+                _adv_ema5 = float(_adv_df2["EMA5"].iloc[-1]) if _adv_ok and "EMA5" in _adv_df2.columns else 0
+                _adv_bb_u = float(_adv_df2["BB_upper"].iloc[-1]) if _adv_ok and "BB_upper" in _adv_df2.columns else (float(_adv_df2["UB2"].iloc[-1]) if _adv_ok and "UB2" in _adv_df2.columns else 0)
+                del _adv_df, _adv_df2; _gc_adv.collect()
+            except Exception:
+                _adv_cp = _adv_bp; _adv_ma20 = 0; _adv_ema5 = 0; _adv_bb_u = 0
+
+            _adv_roi    = (_adv_cp - _adv_bp) / _adv_bp * 100 if _adv_bp > 0 else 0
+            _adv_profit = (_adv_cp - _adv_bp) * _adv_qty
+            _adv_name   = get_name(_adv_sid)
+            _adv_label  = f"**{_adv_sid} {_adv_name}**" if _adv_name else f"**{_adv_sid}**"
+
+            if _adv_sl > 0 and _adv_cp <= _adv_sl:
+                st.error(f"🚨 {_adv_label}｜現價 {_adv_cp:,.2f} 已跌破停損防線 {_adv_sl:,.2f}｜**立即執行風控出清！**")
+            elif _adv_sp > 0 and _adv_cp >= _adv_sp:
+                st.success(f"🎯 {_adv_label}｜現價 {_adv_cp:,.2f} 已達停利目標 {_adv_sp:,.2f}｜浮盈 **{_adv_roi:+.2f}%**｜**建議分批落袋！**")
+            elif _adv_roi >= 15:
+                st.success(f"🔥 {_adv_label}｜現價 {_adv_cp:,.2f}｜浮盈 **{_adv_roi:+.2f}%**（+{_adv_profit:,.0f}元）｜**建議減碼 30~50%，剩餘續抱！**")
+            elif 0 < _adv_roi < 15:
+                _adv_hint = f"EMA5 {_adv_ema5:,.2f} 回踩可加碼" if _adv_ema5 > 0 else "靜待上漲"
+                st.info(f"💡 {_adv_label}｜現價 {_adv_cp:,.2f}｜浮盈 **{_adv_roi:+.2f}%**｜站穩月線結構健康｜**建議維持續抱，{_adv_hint}！**")
+            elif _adv_roi < 0 and (_adv_sl <= 0 or _adv_cp > _adv_sl):
+                st.info(f"⏳ {_adv_label}｜現價 {_adv_cp:,.2f}｜浮虧 **{_adv_roi:.2f}%**（{_adv_profit:,.0f}元）｜未跌破停損｜**建議肉身抗震，嚴禁恐慌割肉！**")
+            else:
+                st.info(f"📊 {_adv_label}｜現價 {_adv_cp:,.2f}｜損益 **{_adv_roi:+.2f}%**｜**建議維持觀察。**")
+
+    st.markdown("---")
     # ════════════════════════════════════════════════════════
         # ▌ 以下：原有持股監控（即時防守＋籌碼＋基本面）
     # ════════════════════════════════════════════════════════
@@ -6762,6 +6804,8 @@ with tab6:
                     )
             elif _is_long:
                 # 長線常規軍：無視盤中震盪，看大戶和30週線
+                _ma20_t6 = float(lt.get("MA20", float("nan")))
+                bias_ma20 = (close_now - _ma20_t6) / _ma20_t6 * 100 if not np.isnan(_ma20_t6) and _ma20_t6 > 0 else 0.0
                 if _risk_st_t6b == "RED_ALERT" and bias_ma20 < -5:
                     st.markdown(
                         f"<div style='background:rgba(244,63,94,0.1);border:1px solid #f43f5e;"
