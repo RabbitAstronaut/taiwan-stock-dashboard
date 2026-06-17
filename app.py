@@ -1570,6 +1570,17 @@ header[data-testid="stHeader"]{visibility:hidden!important;}
     color:#00d4ff!important;
     border-color:#00d4ff!important;
 }
+/* ══ Date Picker 黑底深色主題 ══ */
+[data-baseweb="input"]>div,[data-baseweb="base-input"]{background:#0a0f1a!important;color:#ffffff!important;border:1px solid #2a5080!important;}
+[data-baseweb="input"] input{background:#0a0f1a!important;color:#ffffff!important;}
+[data-baseweb="calendar"],[data-baseweb="datepicker"],div[role="dialog"]{background:#0a0f1a!important;border:1px solid #1e3a5f!important;color:#e8f4fd!important;}
+[data-baseweb="calendar"] button,[data-baseweb="calendar"] div{background:#0a0f1a!important;color:#e8f4fd!important;}
+[data-baseweb="calendar"] [role="gridcell"] button{background:#0a0f1a!important;color:#e8f4fd!important;border-radius:4px!important;}
+[data-baseweb="calendar"] [role="gridcell"] button:hover{background:#1e3a5f!important;color:#00d4ff!important;}
+[data-baseweb="calendar"] [aria-current="date"] button{border:1px solid #00d4ff!important;color:#00d4ff!important;}
+[data-baseweb="calendar"] [aria-selected="true"] button{background:#1e3a5f!important;color:#00d4ff!important;font-weight:700!important;}
+[data-baseweb="calendar"] [role="columnheader"],[data-baseweb="calendar"] [role="heading"]{color:#7fb3d3!important;background:#0a0f1a!important;}
+[data-baseweb="calendar"] [aria-disabled="true"] button{color:#3a5a80!important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1747,6 +1758,19 @@ def load_price_csv(stock_id: str) -> tuple[pd.DataFrame, bool]:
     return pd.DataFrame(), False
 
 # ── 衍生載入函式
+def get_name(sid: str) -> str:
+    """快速查股票名稱，找不到回傳空字串"""
+    try:
+        df_si, ok = get_stock_info()
+        if ok and not df_si.empty:
+            m = df_si[df_si["stock_id"].astype(str) == str(sid)]
+            if not m.empty:
+                return str(m["stock_name"].iloc[0])
+    except Exception:
+        pass
+    return ""
+
+
 def get_stock_info():
     df, ok = load_csv("stock_info.csv")
     if ok and not df.empty:
@@ -3449,7 +3473,7 @@ with tab3:
             _pos_cost_total   += _cost
 
             _pf_rows.append({
-                "代號": _sid, "買入日期": _bdt, "現價": round(_cp, 2),
+                "代號": _sid, "名稱": get_name(_sid), "買入日期": _bdt, "現價": round(_cp, 2),
                 "買入均價": round(_bp, 2), "持股數": _qty,
                 "含費成本": round(_cost, 0), "扣稅實收": round(_inflow, 0),
                 "未實現損益": round(_profit, 0), "ROI%": round(_roi, 2),
@@ -3524,6 +3548,7 @@ with tab3:
                 _rows_html += (
                     f"<tr style='border-bottom:1px solid #1e3a5f;'>"
                     f"<td style='padding:8px;'>{_r['代號']}</td>"
+                    f"<td style='padding:8px;color:#7fb3d3;'>{_r['名稱']}</td>"
                     f"<td style='padding:8px;'>{_r['買入日期']}</td>"
                     f"<td style='padding:8px;text-align:right;'>{_r['現價']:,.2f}</td>"
                     f"<td style='padding:8px;text-align:right;'>{_r['買入均價']:,.4f}</td>"
@@ -3534,9 +3559,9 @@ with tab3:
                     f"<td style='padding:8px;text-align:right;color:{_pnl_color};font-weight:600;'>{_r['ROI%']:+.2f}%</td>"
                     f"</tr>"
                 )
-            _headers = ["代號","買入日期","現價","含費均價","持股數","含費成本","扣稅實收","未實現損益","ROI%"]
+            _headers = ["代號","名稱","買入日期","現價","含費均價","持股數","含費成本","扣稅實收","未實現損益","ROI%"]
             _head_html = "".join(
-                f"<th style='padding:8px;text-align:{'left' if i<2 else 'right'};"
+                f"<th style='padding:8px;text-align:{'left' if i<3 else 'right'};"
                 f"border-bottom:2px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;"
                 f"white-space:nowrap;position:sticky;top:0;background:#0f2027;z-index:1;'>{h}</th>"
                 for i, h in enumerate(_headers)
@@ -3588,55 +3613,67 @@ with tab3:
             if _filter_action != "全部":
                 _trd_filtered = [t for t in _trd_filtered if t.get("action") == _filter_action]
 
-            # ── 建立 HTML 表格（固定高度，超過顯示捲軸）
+            # ── 建立交易紀錄表（含名稱欄 + 刪除功能）
             _col_map = {"date":"日期","action":"動作","stock_id":"代號",
                         "price":"成交價","qty":"股數","fee":"手續費",
                         "tax":"證交稅","amount":"成交金額","hold_cost":"持有成本",
                         "realized_pnl":"實現損益","roi_pct":"ROI%"}
-            _df_trd_base = pd.DataFrame(_trd_filtered) if _trd_filtered else pd.DataFrame()
-            _trd_keys    = [k for k in _col_map if not _df_trd_base.empty and k in _df_trd_base.columns]
-            _trd_headers = [_col_map[k] for k in _trd_keys]
 
-            _trd_rows_html = ""
+            def _fmt_v(v, k):
+                if v is None: return "—"
+                if isinstance(v, float):
+                    if k == "roi_pct": return f"{v:+.2f}"
+                    if k == "price":   return f"{v:,.2f}"
+                    return f"{v:,.0f}"
+                if isinstance(v, int): return f"{v:,}"
+                return str(v)
+
+            # 表頭
+            _th = st.columns([1.4, 0.8, 0.7, 1.1, 1.2, 0.9, 0.8, 0.8, 1.3, 1.2, 1.3, 1.1, 0.5])
+            for _hi, _hl in enumerate(["日期","動作","代號","名稱","成交價","股數","手續費","證交稅","成交金額","持有成本","實現損益","ROI%","刪"]):
+                _th[_hi].markdown(f"<span style='color:#7fb3d3;font-size:.76rem;'>{_hl}</span>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin:2px 0;border-color:#1e3a5f;'>", unsafe_allow_html=True)
+
             for _ri, _t in enumerate(reversed(_trd_filtered)):
-                _action_color = "#ff4444" if _t.get("action") == "買入" else "#00cc66"
-                _row = ""
-                for _k in _trd_keys:
-                    _v    = _t.get(_k)
-                    _disp = "—" if _v is None else _v
-                    _style = ""
-                    if _k == "action":
-                        _style = f"color:{_action_color};font-weight:600;"
-                    elif _k in ("realized_pnl","roi_pct") and isinstance(_v, (int,float)):
-                        _style = "color:#ff4444;font-weight:600;" if _v > 0 else "color:#00cc66;font-weight:600;" if _v < 0 else ""
-                    if isinstance(_disp, float):
-                        _disp = f"{_disp:+.2f}" if _k == "roi_pct" else f"{_disp:,.2f}" if _k == "price" else f"{_disp:,.0f}"
-                    elif isinstance(_disp, int):
-                        _disp = f"{_disp:,}"
-                    _align = "left" if _k in ("date","action","stock_id") else "right"
-                    _row += f"<td style='padding:7px 8px;text-align:{_align};white-space:nowrap;{_style}'>{_disp}</td>"
-                _bg = "background:rgba(255,255,255,0.04);" if _ri % 2 == 0 else ""
-                _trd_rows_html += f"<tr style='border-bottom:1px solid #1a2f44;{_bg}'>{_row}</tr>"
+                _ac = _t.get("action","")
+                _ac_color = "#ff4444" if _ac == "買入" else "#00cc66"
+                _pnl = _t.get("realized_pnl")
+                _roi = _t.get("roi_pct")
+                _pnl_c = ("#ff4444" if (_pnl or 0)>0 else "#00cc66") if _pnl is not None else "#888"
+                _roi_c = ("#ff4444" if (_roi or 0)>0 else "#00cc66") if _roi is not None else "#888"
+                _t_sid = _t.get("stock_id","")
+                _t_name = get_name(_t_sid) if _t_sid else ""
 
-            _trd_head = "".join(
-                f"<th style='padding:8px;text-align:{'left' if h in ('日期','動作','代號') else 'right'};"
-                f"border-bottom:2px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;"
-                f"white-space:nowrap;position:sticky;top:0;background:#0f2027;z-index:1;'>{h}</th>"
-                for h in _trd_headers
-            )
-            # 固定高度容器（約12列，每列32px = 384px + header 40px）
-            _ROW_H = 32
-            _HEADER_H = 40
-            _VISIBLE_ROWS = 12
-            _table_h = _HEADER_H + _VISIBLE_ROWS * _ROW_H
-            st.markdown(
-                f"<div style='overflow-y:auto;max-height:{_table_h}px;border:1px solid #1e3a5f;border-radius:6px;'>"
-                f"<table style='width:100%;border-collapse:collapse;font-size:.83rem;color:#e8f4fd;'>"
-                f"<thead><tr>{_trd_head}</tr></thead>"
-                f"<tbody>{_trd_rows_html}</tbody>"
-                f"</table></div>",
-                unsafe_allow_html=True
-            )
+                _rc = st.columns([1.4, 0.8, 0.7, 1.1, 1.2, 0.9, 0.8, 0.8, 1.3, 1.2, 1.3, 1.1, 0.5])
+                _rc[0].markdown(f"<span style='font-size:.8rem;'>{_t.get('date','')}</span>", unsafe_allow_html=True)
+                _rc[1].markdown(f"<span style='color:{_ac_color};font-size:.8rem;font-weight:600;'>{_ac}</span>", unsafe_allow_html=True)
+                _rc[2].markdown(f"<span style='font-size:.8rem;'>{_t_sid}</span>", unsafe_allow_html=True)
+                _rc[3].markdown(f"<span style='color:#7fb3d3;font-size:.8rem;'>{_t_name}</span>", unsafe_allow_html=True)
+                _rc[4].markdown(f"<span style='font-size:.8rem;'>{_fmt_v(_t.get('price'),'price')}</span>", unsafe_allow_html=True)
+                _rc[5].markdown(f"<span style='font-size:.8rem;'>{_fmt_v(_t.get('qty'),'qty')}</span>", unsafe_allow_html=True)
+                _rc[6].markdown(f"<span style='font-size:.8rem;'>{_fmt_v(_t.get('fee'),'fee')}</span>", unsafe_allow_html=True)
+                _rc[7].markdown(f"<span style='font-size:.8rem;'>{_fmt_v(_t.get('tax'),'tax')}</span>", unsafe_allow_html=True)
+                _rc[8].markdown(f"<span style='font-size:.8rem;'>{_fmt_v(_t.get('amount'),'amount')}</span>", unsafe_allow_html=True)
+                _rc[9].markdown(f"<span style='font-size:.8rem;'>{_fmt_v(_t.get('hold_cost'),'hold_cost')}</span>", unsafe_allow_html=True)
+                _rc[10].markdown(f"<span style='color:{_pnl_c};font-size:.8rem;font-weight:600;'>{_fmt_v(_pnl,'realized_pnl')}</span>", unsafe_allow_html=True)
+                _rc[11].markdown(f"<span style='color:{_roi_c};font-size:.8rem;font-weight:600;'>{_fmt_v(_roi,'roi_pct')}</span>", unsafe_allow_html=True)
+
+                _ck = f"del_confirm_{_ri}"
+                if st.session_state.get(_ck):
+                    if _rc[12].button("✓", key=f"del_ok_{_ri}", type="primary"):
+                        _trd_new = [x for x in _trd if x is not _t]
+                        save_trades(_trd_new)
+                        if _ac == "賣出" and _pnl is not None:
+                            _acct_d = load_account()
+                            _acct_d["realized_pnl"] = _acct_d.get("realized_pnl", 0) - _pnl
+                            save_account(_acct_d)
+                        st.session_state.pop(_ck, None)
+                        st.rerun()
+                else:
+                    if _rc[12].button("🗑", key=f"del_btn_{_ri}"):
+                        st.session_state[_ck] = True
+                        st.rerun()
+
             st.caption(f"共 {len(_trd_filtered)} 筆（篩選後）")
 
             # ── 匯出 Excel
@@ -3699,6 +3736,10 @@ with tab3:
             _bc1, _bc2, _bc3 = st.columns(3)
             with _bc1:
                 _b_sid  = st.text_input("股票代號", placeholder="如 2330")
+                if _b_sid.strip() and _b_sid.strip().isdigit():
+                    _b_name_hint = get_name(_b_sid.strip())
+                    if _b_name_hint:
+                        st.caption(f"📌 {_b_name_hint}")
                 _b_date = st.date_input("買入日期",
                                          value=datetime.now(ZoneInfo("Asia/Taipei")).date())
                 _b_bp   = st.number_input("買入均價", min_value=0.0, step=0.5, format="%.2f")
@@ -3792,6 +3833,9 @@ with tab3:
                 _sc1, _sc2, _sc3 = st.columns(3)
                 with _sc1:
                     _s_sid  = st.selectbox("選擇賣出標的", list(_pf_sell.keys()))
+                    _s_name_hint = get_name(_s_sid)
+                    if _s_name_hint:
+                        st.caption(f"📌 {_s_name_hint}")
                     _s_date = st.date_input("賣出日期",
                                              value=datetime.now(ZoneInfo("Asia/Taipei")).date())
                 with _sc2:
