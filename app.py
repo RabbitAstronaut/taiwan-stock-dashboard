@@ -256,59 +256,57 @@ def _save_json_cloud(gh_path: str, local_path: str, data, msg: str) -> bool:
 
 
 # ── portfolio.json ─────────────────────────────────────────
-@st.cache_data(ttl=0, show_spinner=False)
 def load_portfolio() -> dict:
-    """
-    讀取持倉：優先 GitHub API → 本機備援。
-    格式：{"代號": {"buy_price": float, "qty": int,
-                    "stop_loss": float, "stop_profit": float,
-                    "buy_date": "YYYY-MM-DD"}}
-    """
-    return _load_json_cloud("data/portfolio.json", PORTFOLIO_PATH, {})
+    """session_state 為主快取，沒有才去讀本機/GitHub"""
+    if "_pf_cache" in st.session_state:
+        return st.session_state["_pf_cache"]
+    data = _load_json_cloud("data/portfolio.json", PORTFOLIO_PATH, {})
+    st.session_state["_pf_cache"] = data
+    return data
 
 
 def save_portfolio(portfolio: dict) -> bool:
-    """寫入持倉：本機 + GitHub API 雙寫，清除快取。"""
+    """寫入持倉：session_state 即時更新 + 本機 + GitHub API 雙寫"""
+    st.session_state["_pf_cache"] = portfolio  # 立即更新，rerun 後直接讀這個
     ok = _save_json_cloud("data/portfolio.json", PORTFOLIO_PATH,
                           portfolio, "update portfolio")
-    load_portfolio.clear()
     return ok
 
 
 # ── trades.json ────────────────────────────────────────────
-@st.cache_data(ttl=0, show_spinner=False)
 def load_trades() -> list:
-    """
-    讀取交易紀錄：優先 GitHub API → 本機備援。
-    格式：[{"date":..,"action":"買入"/"賣出","stock_id":..,...}, ...]
-    """
-    return _load_json_cloud("data/trades.json", TRADES_PATH, [])
+    """session_state 為主快取，沒有才去讀本機/GitHub"""
+    if "_tr_cache" in st.session_state:
+        return st.session_state["_tr_cache"]
+    data = _load_json_cloud("data/trades.json", TRADES_PATH, [])
+    st.session_state["_tr_cache"] = data
+    return data
 
 
 def save_trades(trades: list) -> bool:
-    """寫入交易紀錄：本機 + GitHub API 雙寫，清除快取。"""
+    """寫入交易紀錄：session_state 即時更新 + 本機 + GitHub API 雙寫"""
+    st.session_state["_tr_cache"] = trades
     ok = _save_json_cloud("data/trades.json", TRADES_PATH,
                           trades, "update trades")
-    load_trades.clear()
     return ok
 
 
 # ── account.json ───────────────────────────────────────────
-@st.cache_data(ttl=0, show_spinner=False)
 def load_account() -> dict:
-    """
-    讀取帳戶：優先 GitHub API → 本機備援。
-    格式：{"initial_capital": float, "cash": float, "realized_pnl": float}
-    """
-    return _load_json_cloud("data/account.json", ACCOUNT_PATH,
+    """session_state 為主快取，沒有才去讀本機/GitHub"""
+    if "_ac_cache" in st.session_state:
+        return st.session_state["_ac_cache"]
+    data = _load_json_cloud("data/account.json", ACCOUNT_PATH,
                             {"initial_capital": 0.0, "cash": 0.0, "realized_pnl": 0.0})
+    st.session_state["_ac_cache"] = data
+    return data
 
 
 def save_account(account: dict) -> bool:
-    """寫入帳戶：本機 + GitHub API 雙寫，清除快取。"""
+    """寫入帳戶：session_state 即時更新 + 本機 + GitHub API 雙寫"""
+    st.session_state["_ac_cache"] = account
     ok = _save_json_cloud("data/account.json", ACCOUNT_PATH,
                           account, "update account")
-    load_account.clear()
     return ok
 
 
@@ -1897,6 +1895,19 @@ def load_price_csv(stock_id: str) -> tuple[pd.DataFrame, bool]:
     return pd.DataFrame(), False
 
 # ── 衍生載入函式
+def get_name(sid: str) -> str:
+    """快速查股票名稱，找不到回傳空字串"""
+    try:
+        df_si, ok = get_stock_info()
+        if ok and not df_si.empty:
+            m = df_si[df_si["stock_id"].astype(str) == str(sid)]
+            if not m.empty:
+                return str(m["stock_name"].iloc[0])
+    except Exception:
+        pass
+    return ""
+
+
 def get_stock_info():
     df, ok = load_csv("stock_info.csv")
     if ok and not df.empty:
@@ -3600,7 +3611,7 @@ with tab3:
             _pos_cost_total   += _cost
 
             _pf_rows.append({
-                "代號": _sid, "買入日期": _bdt, "現價": round(_cp, 2),
+                "代號": _sid, "名稱": get_name(_sid), "買入日期": _bdt, "現價": round(_cp, 2),
                 "買入均價": round(_bp, 2), "持股數": _qty,
                 "含費成本": round(_cost, 0), "扣稅實收": round(_inflow, 0),
                 "未實現損益": round(_profit, 0), "ROI%": round(_roi, 2),
@@ -3671,6 +3682,7 @@ with tab3:
                 _rows_html += (
                     f"<tr style='border-bottom:1px solid #1e3a5f;{_bg_pf}'>"
                     f"<td style='padding:8px 10px;'>{_r['代號']}</td>"
+                    f"<td style='padding:8px 10px;color:#7fb3d3;'>{_r['名稱']}</td>"
                     f"<td style='padding:8px 10px;'>{_r['買入日期']}</td>"
                     f"<td style='padding:8px 10px;text-align:right;'>{_r['現價']:,.2f}</td>"
                     f"<td style='padding:8px 10px;text-align:right;'>{_r['買入均價']:,.4f}</td>"
@@ -3683,9 +3695,9 @@ with tab3:
                     f"color:{_pnl_color};font-weight:600;'>{_r['ROI%']:+.2f}%</td>"
                     f"</tr>"
                 )
-            _pf_headers = ["代號","買入日期","現價","含費均價","持股數","含費成本","扣稅實收","未實現損益","ROI%"]
+            _pf_headers = ["代號","名稱","買入日期","現價","含費均價","持股數","含費成本","扣稅實收","未實現損益","ROI%"]
             _pf_head_html = "".join(
-                f"<th style='padding:8px 10px;text-align:{'left' if i<2 else 'right'};"
+                f"<th style='padding:8px 10px;text-align:{'left' if i<3 else 'right'};"
                 f"border-bottom:2px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;"
                 f"white-space:nowrap;position:sticky;top:0;background:#0f2027;z-index:1;'>{h}</th>"
                 for i, h in enumerate(_pf_headers)
@@ -3808,11 +3820,12 @@ with tab3:
                         "tax":"證交稅","amount":"成交金額","hold_cost":"持有成本",
                         "realized_pnl":"實現損益","roi_pct":"ROI%"}
 
-            # ── 表頭
-            _h0,_h1,_h2,_h3,_h4,_h5,_h6,_h7,_h8,_h9,_h10,_hx = st.columns([1.6,1,1,1.4,1,1,1,1.6,1.5,1.6,1.2,0.6])
+            # ── 表頭（加名稱欄）
+            _h0,_h1,_h2,_h2b,_h3,_h4,_h5,_h6,_h7,_h8,_h9,_h10,_hx = st.columns([1.6,1,0.8,1.2,1.4,1,1,1,1.6,1.5,1.6,1.2,0.6])
             _h0.markdown("<span style='color:#7fb3d3;font-size:.78rem;'>日期</span>", unsafe_allow_html=True)
             _h1.markdown("<span style='color:#7fb3d3;font-size:.78rem;'>動作</span>", unsafe_allow_html=True)
             _h2.markdown("<span style='color:#7fb3d3;font-size:.78rem;'>代號</span>", unsafe_allow_html=True)
+            _h2b.markdown("<span style='color:#7fb3d3;font-size:.78rem;'>名稱</span>", unsafe_allow_html=True)
             _h3.markdown("<span style='color:#7fb3d3;font-size:.78rem;'>成交價</span>", unsafe_allow_html=True)
             _h4.markdown("<span style='color:#7fb3d3;font-size:.78rem;'>股數</span>", unsafe_allow_html=True)
             _h5.markdown("<span style='color:#7fb3d3;font-size:.78rem;'>手續費</span>", unsafe_allow_html=True)
@@ -3850,10 +3863,13 @@ with tab3:
                     if isinstance(v, int): return f"{v:,}"
                     return str(v)
 
-                _c0,_c1,_c2,_c3,_c4,_c5,_c6,_c7,_c8,_c9,_c10,_cx = st.columns([1.6,1,1,1.4,1,1,1,1.6,1.5,1.6,1.2,0.6])
+                _c0,_c1,_c2,_c2b,_c3,_c4,_c5,_c6,_c7,_c8,_c9,_c10,_cx = st.columns([1.6,1,0.8,1.2,1.4,1,1,1,1.6,1.5,1.6,1.2,0.6])
+                _t_sid = _t.get('stock_id','')
+                _t_name = get_name(_t_sid) if _t_sid else ''
                 _c0.markdown(f"<span style='font-size:.82rem;'>{_t.get('date','')}</span>", unsafe_allow_html=True)
                 _c1.markdown(f"<span style='color:{_ac_color};font-size:.82rem;font-weight:600;'>{_ac}</span>", unsafe_allow_html=True)
-                _c2.markdown(f"<span style='font-size:.82rem;'>{_t.get('stock_id','')}</span>", unsafe_allow_html=True)
+                _c2.markdown(f"<span style='font-size:.82rem;'>{_t_sid}</span>", unsafe_allow_html=True)
+                _c2b.markdown(f"<span style='color:#7fb3d3;font-size:.82rem;'>{_t_name}</span>", unsafe_allow_html=True)
                 _c3.markdown(f"<span style='font-size:.82rem;'>{_fmt(_t.get('price'), 'price')}</span>", unsafe_allow_html=True)
                 _c4.markdown(f"<span style='font-size:.82rem;'>{_fmt(_t.get('qty'), 'qty')}</span>", unsafe_allow_html=True)
                 _c5.markdown(f"<span style='font-size:.82rem;'>{_fmt(_t.get('fee'), 'fee')}</span>", unsafe_allow_html=True)
@@ -3952,6 +3968,11 @@ with tab3:
             _bc1, _bc2, _bc3 = st.columns(3)
             with _bc1:
                 _b_sid  = st.text_input("股票代號", placeholder="如 2330")
+                # 即時顯示股票名稱
+                if _b_sid.strip() and _b_sid.strip().isdigit():
+                    _b_name = get_name(_b_sid.strip())
+                    if _b_name:
+                        st.caption(f"📌 {_b_name}")
                 _b_date = st.date_input("買入日期",
                                          value=datetime.now(ZoneInfo("Asia/Taipei")).date())
                 _b_bp   = st.number_input("買入均價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="請輸入均價")
@@ -4056,6 +4077,10 @@ with tab3:
                 _sc1, _sc2, _sc3 = st.columns(3)
                 with _sc1:
                     _s_sid  = st.selectbox("選擇賣出標的", list(_pf_sell.keys()))
+                    # 即時顯示股票名稱
+                    _s_name = get_name(_s_sid)
+                    if _s_name:
+                        st.caption(f"📌 {_s_name}")
                     _s_date = st.date_input("賣出日期",
                                              value=datetime.now(ZoneInfo("Asia/Taipei")).date())
                 with _sc2:
