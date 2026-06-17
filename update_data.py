@@ -554,8 +554,10 @@ def run_futures(data_dir: str):
 
     if rows:
         combined = pd.concat(rows, ignore_index=True)
+        # 去重欄位：name 可能叫 institutional_investors，動態偵測
+        _name_col = "institutional_investors" if "institutional_investors" in combined.columns else "name"
         save_csv(combined, "futures_data.csv", data_dir,
-                 dedup_cols=["date", "contract", "source", "name"])
+                 dedup_cols=["date", "contract", "source", _name_col])
 
 # ══════════════════════════════════════════════════════════════
 # ▌ 模組五：大戶持股結構（shareholder_data.csv）
