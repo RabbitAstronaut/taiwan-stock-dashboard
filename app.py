@@ -4820,7 +4820,7 @@ with tab3:
     )
 
     # 取得所有監控標的
-    all_watch = st.session_state.get("watchlist", []) + st.session_state.get("watchlist_scan", [])
+    all_watch = [{"id": sid, "name": get_name(sid)} for sid in load_portfolio().keys()]
     seen_ids = set()
     watch_dedup = []
     for w in all_watch:
