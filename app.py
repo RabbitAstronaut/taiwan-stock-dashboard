@@ -7017,7 +7017,6 @@ with tab2:
             sma20  = float(lt.get("MA20",   float("nan")))
             vol    = float(lt.get("Volume", 0))
             vma5   = float(lt.get("VMA5",   float("nan")))
-            del df_p; _gc_radar.collect()  # 立即釋放記憶體
 
             if any(np.isnan(v) for v in [ema5, sma20]):
                 continue
@@ -7064,6 +7063,8 @@ with tab2:
                         "投信買超(張)": int(t_net),
                         "AI戰略評語": "🔥 主力鎖倉惜售，噴發前兆，等量縮突破" if close >= sma20 else "🟡 守EMA5，等月線確認"
                     })
+
+            del df_p; _gc_radar.collect()  # 立即釋放記憶體
 
             # ── 雷達3：大戶硬漢
             bp = float(big_pct.get(sid, 0))
