@@ -5257,7 +5257,6 @@ with tab4:
             help="長線：負乖離大+融資大減=黃金布局點｜短線：籌碼分離=禁止，安全=快狠準"
         )
         _rsv_long_view = "長線" in _rsv_view
-        st.caption(f"🔧 debug：視角={_rsv_view}　_rsv_long_view={_rsv_long_view}")
         triggered = []
         waiting   = []
 
@@ -5508,8 +5507,7 @@ with tab4:
                     f"</div>"
                     f"<div style='margin-top:5px;padding:4px 10px;background:rgba(0,0,0,0.25);"
                     f"border-radius:4px;font-size:.8rem;color:#ffffff;"
-                    f"border-top:1px dashed rgba(255,255,255,0.1);'>"
-                    f"[視角={'長線' if _rsv_long_view else '短線'}] {_sop}</div>"
+                    f"border-top:1px dashed rgba(255,255,255,0.1);'>{_sop}</div>"
                     f"</div>"
                 )
             st.markdown("".join(_cards), unsafe_allow_html=True)
