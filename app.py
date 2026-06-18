@@ -3503,6 +3503,17 @@ with tab3:
             f"</div>",
             unsafe_allow_html=True
         )
+
+        # ── 全局視角切換（影響下方所有持倉卡片的決策建議）
+        _view_mode   = st.radio(
+            "決策視角",
+            ["🛡️ 長線防空洞視角", "⚡ 短線游擊視角"],
+            horizontal=True,
+            key="tab3_view_mode",
+            help="長線視角：屏蔽短線雜訊，聚焦籌碼沉澱與底部布局｜短線視角：快狠準，觸及壓力/支撐即行動"
+        )
+        _is_long_view = "長線" in _view_mode
+
         st.markdown("#### 📋 持股監控卡片（含籌碼決策智庫）")
 
         if not _pf_rows:
@@ -3519,11 +3530,10 @@ with tab3:
                 _r_roi    = _r["ROI%"]
                 _r_margin = _r.get("📉融資增減%")
                 _r_fgn    = _r.get("📡外資買超張")
-                _r_strat  = _r.get("_strategy", "LONG")
                 _r_qty    = _r["持股數"]
 
-                # 策略標籤
-                _strat_label = "🛡️ 長線防空洞" if _r_strat == "LONG" else "⚡ 短線突擊隊"
+                # 全局視角切換決定本次決策邏輯（不固定每支股票的策略）
+                _strat_label = "🛡️ 長線防空洞視角" if _is_long_view else "⚡ 短線游擊視角"
                 _pnl_color   = "#ff4444" if _r_profit > 0 else "#00cc66" if _r_profit < 0 else "#e8f4fd"
 
                 with st.expander(
@@ -3557,7 +3567,7 @@ with tab3:
                     # ══════════════════════════════
                     # 🛡️ LONG 長線防空洞決策軌
                     # ══════════════════════════════
-                    if _r_strat == "LONG":
+                    if _is_long_view:
                         # 停損/停利空間計算
                         _profit_space = ((_r_sp - _r_bp) / _r_bp * 100) if _r_sp > 0 and _r_bp > 0 else None
                         _loss_space   = ((_r_sl - _r_bp) / _r_bp * 100) if _r_sl > 0 and _r_bp > 0 else None
