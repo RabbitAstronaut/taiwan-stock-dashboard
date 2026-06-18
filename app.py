@@ -3551,7 +3551,7 @@ with tab3:
                 _b_sl   = st.number_input("自訂停損價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="選填")
                 _b_sp   = st.number_input("自訂停利價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="選填")
             with _bc3:
-                if _b_bp > 0 and _b_qty > 0:
+                if (_b_bp or 0) > 0 and (_b_qty or 0) > 0:
                     _b_cost    = calc_buy_cost(_b_bp, _b_qty)
                     _b_fee     = _calc_fee(_b_bp, _b_qty)
                     st.markdown("<br>", unsafe_allow_html=True)
@@ -3564,7 +3564,7 @@ with tab3:
 
             _b_submit = st.form_submit_button("💾 確認買入登記", type="primary")
             if _b_submit:
-                if not _b_sid.strip() or _b_bp <= 0 or _b_qty <= 0:
+                if not _b_sid.strip() or (_b_bp or 0) <= 0 or (_b_qty or 0) <= 0:
                     st.error("請填寫完整：股票代號、買入均價、買入股數")
                 else:
                     _sid_key = _b_sid.strip()
@@ -3662,7 +3662,7 @@ with tab3:
                                                min_value=0, max_value=_s_max_qty, step=1000)
                     _s_price = st.number_input("賣出均價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="輸入賣出均價")
                 with _sc3:
-                    if _s_price > 0 and _s_qty > 0:
+                    if (_s_price or 0) > 0 and (_s_qty or 0) > 0:
                         _s_bp      = float(_pf_sell[_s_sid]["buy_price"])
                         _s_inflow  = calc_net_inflow(_s_price, _s_qty)
                         _s_profit, _s_roi = calc_net_profit(_s_bp, _s_price, _s_qty)
@@ -3682,7 +3682,7 @@ with tab3:
 
                 _s_submit = st.form_submit_button("💸 確認賣出登記", type="primary")
                 if _s_submit:
-                    if _s_price <= 0 or _s_qty <= 0:
+                    if (_s_price or 0) <= 0 or (_s_qty or 0) <= 0:
                         st.error("請填寫賣出均價與股數")
                     elif _s_qty > _s_max_qty:
                         st.error(f"賣出股數 {_s_qty} 超過持有股數 {_s_max_qty}")
