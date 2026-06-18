@@ -5771,15 +5771,28 @@ with tab4:
             _wait_rm_btns.append(sid_rv)
 
         if _wait_rows:
-            # 每行：色卡 + 刪除按鈕同一列
-            for _wi, (_wrow, _wsid) in enumerate(zip(_wait_rows, _wait_rm_btns)):
-                _wc_main, _wc_btn = st.columns([20, 1])
-                with _wc_main:
+            # _wait_rows 和 _wait_rm_btns 數量可能不同（每股有多行HTML）
+            # 改為直接在迴圈裡渲染，不用 zip
+            _btn_idx = 0
+            _row_idx = 0
+            while _row_idx < len(_wait_rows):
+                _wrow = _wait_rows[_row_idx]
+                # 判斷是否是主色卡行（有刪除按鈕）還是決策提示行（不需要按鈕）
+                _is_main_card = (_btn_idx < len(_wait_rm_btns) and
+                                 f"<b>{_wait_rm_btns[_btn_idx]}" in _wrow)
+                if _is_main_card:
+                    _wc_main, _wc_btn = st.columns([20, 1])
+                    with _wc_main:
+                        st.markdown(_wrow, unsafe_allow_html=True)
+                    with _wc_btn:
+                        st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
+                        if st.button("✕", key=f"rsv_rm_{_wait_rm_btns[_btn_idx]}", use_container_width=True):
+                            rm_rsv = _wait_rm_btns[_btn_idx]
+                    _btn_idx += 1
+                else:
+                    # 決策提示行，不需要刪除按鈕
                     st.markdown(_wrow, unsafe_allow_html=True)
-                with _wc_btn:
-                    st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
-                    if st.button("✕", key=f"rsv_rm_{_wsid}", use_container_width=True):
-                        rm_rsv = _wsid
+                _row_idx += 1
 
         if rm_rsv:
             st.session_state.reserve_list = [
