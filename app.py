@@ -3412,6 +3412,7 @@ with tab3:
                 "未實現損益": round(_profit, 0), "ROI%": round(_roi, 2),
                 "📉融資增減%": _margin_chg, "📡外資買超張": _foreign_net,
                 "_sl": _sl, "_sp": _sp, "_cp": _cp, "_bp": _bp,
+                "_strategy": _pos.get("strategy_type", "LONG"),  # 預設長線
             })
             try:
                 del _df_pf
@@ -3526,44 +3527,90 @@ with tab3:
             _r_cp      = _r["_cp"]
             _r_bp      = _r["_bp"]
             _r_sl      = _r["_sl"]
+            _r_sp      = _r.get("_sp", 0)  # 停利價
             _r_margin  = _r.get("📉融資增減%")
             _r_foreign = _r.get("📡外資買超張")
             _r_profit  = _r["未實現損益"]
+            _r_strat   = _r.get("_strategy", "LONG")
 
-            # 情境 A：微虧洗盤 + 散戶融資大減肥
-            # 條件：買入價 > 現價 > 停損價，且融資減少 >= 2%
-            if (_r_bp > _r_cp and
-                (_r_sl <= 0 or _r_cp > _r_sl) and
-                _r_margin is not None and _r_margin <= -2.0):
-                st.info(
-                    f"💡 **{_r_sid} {_r_name} 決策提示**\n\n"
-                    f"當前股價雖低於買入成本，但系統偵測到「**融資正在大幅割肉減肥"
-                    f"（減少 {abs(_r_margin):.2f}%）**」！"
-                    f"這代表高位階散戶浮額正在被洗出。"
-                    f"0 槓桿純現貨雷打不動，嚴禁在非理性低位割肉，"
-                    f"肉身扛過去，靜待大戶換股東風！"
-                )
+            # ══════════════════════════════════════════
+            # 🛡️ 長線資產防空洞（LONG）演算法
+            # ══════════════════════════════════════════
+            if _r_strat == "LONG":
+                # 計算潛在獲利/虧損空間
+                _long_profit_space = ((_r_sp - _r_bp) / _r_bp * 100) if _r_sp > 0 and _r_bp > 0 else None
+                _long_loss_space   = ((_r_sl - _r_bp) / _r_bp * 100) if _r_sl > 0 and _r_bp > 0 else None
 
-            # 情境 B：外資真金白銀護盤
-            # 條件：現價 > 買入價，且外資當日買超 > 0
-            elif (_r_cp > _r_bp and
-                  _r_foreign is not None and _r_foreign > 0):
-                st.info(
-                    f"🔥 **{_r_sid} {_r_name} 決策提示**\n\n"
-                    f"股價已成功脫離買入成本區！且今日**外資現貨大舉買超 "
-                    f"{_r_foreign:,.0f} 張**！"
-                    f"多頭骨架無比剛性，請穩坐釣魚台、優雅續抱，"
-                    f"靜待股價撞擊布林上緣或前高天花板時的終極限價提款信號！"
-                )
+                # 情境 A：微虧洗盤 + 散戶融資大減肥 → 黃金持倉點
+                if (_r_bp > _r_cp and
+                    (_r_sl <= 0 or _r_cp > _r_sl) and
+                    _r_margin is not None and _r_margin <= -2.0):
+                    _space_txt = f"｜停利空間 +{_long_profit_space:.1f}%" if _long_profit_space else ""
+                    st.info(
+                        f"💡 **{_r_sid} {_r_name}｜🛡️ 長線防守 Facts**\n\n"
+                        f"目前股價低於買入成本（虧損 {abs(_r_profit):,.0f} 元），"
+                        f"但系統偵測到「**融資正在大幅割肉減肥（減少 {abs(_r_margin):.2f}%）**」！"
+                        f"這代表高位階散戶浮額正在被洗出，底部洗盤特徵明確。"
+                        f"0 槓桿純現貨雷打不動，嚴禁在非理性低位割肉{_space_txt}，"
+                        f"肉身扛過去，靜待大戶換股東風！"
+                    )
 
-            # 情境 C：市場偏弱且持股虧損（即時龍頭掃描結果）
-            elif _mkt_weak and _r_profit < 0:
-                st.info(
-                    f"💡 **{_r_sid} {_r_name} 決策提示**\n\n"
-                    f"即時掃描龍頭站月線僅 **{_sb_above}/{_sb_total_}** 檔，市場結構偏弱。"
-                    f"當前持股微虧屬非理性壓盤，現貨 0 槓桿肉身抗震。"
-                    f"靜待結構修復後的反彈機會！"
-                )
+                # 情境 B：外資護盤 + 現價高於成本 → 穩坐釣魚台
+                elif (_r_cp > _r_bp and
+                      _r_foreign is not None and _r_foreign > 0):
+                    _space_txt = f"｜距停利 +{_long_profit_space:.1f}%" if _long_profit_space else ""
+                    st.info(
+                        f"🔥 **{_r_sid} {_r_name}｜🛡️ 長線續抱信號**\n\n"
+                        f"股價已脫離買入成本區（獲利 {_r_profit:+,.0f} 元）！"
+                        f"且今日**外資現貨大舉買超 {_r_foreign:,.0f} 張**！"
+                        f"多頭骨架剛性，請穩坐釣魚台優雅續抱{_space_txt}，"
+                        f"靜待撞擊布林上緣或前高天花板時的終極提款信號！"
+                    )
+
+                # 情境 C：市場偏弱且虧損 → 龍頭站月線動態提示
+                elif _mkt_weak and _r_profit < 0:
+                    st.info(
+                        f"💡 **{_r_sid} {_r_name}｜🛡️ 長線耐心等待**\n\n"
+                        f"即時掃描龍頭站月線僅 **{_sb_above}/{_sb_total_}** 檔，市場結構偏弱。"
+                        f"長線部位忽略短期雜訊，停損防線 {_r_sl if _r_sl > 0 else '未設定'}，"
+                        f"現貨 0 槓桿肉身抗震，靜待結構修復！"
+                    )
+
+            # ══════════════════════════════════════════
+            # ⚡ 短線游擊突擊隊（SHORT）演算法
+            # ══════════════════════════════════════════
+            else:
+                # 短線停損觸發 → 強制出場紅框
+                if _r_sl > 0 and _r_cp <= _r_sl:
+                    st.error(
+                        f"🚨 **{_r_sid} {_r_name}｜⚡ 短線突擊隊強制令**\n\n"
+                        f"現價 **{_r_cp:.2f}** 已跌破停損防線 **{_r_sl:.2f}**！"
+                        f"請立刻全數清空平倉，出貨後系統直接從名單剔除。"
+                        f"**嚴禁變成長期套牢！** 認賠出場是最強風控。"
+                    )
+
+                # 短線停利觸發 → 強制提款橙框
+                elif _r_sp > 0 and _r_cp >= _r_sp:
+                    st.warning(
+                        f"🎯 **{_r_sid} {_r_name}｜⚡ 短線突擊隊提款令**\n\n"
+                        f"現價 **{_r_cp:.2f}** 已達到停利目標 **{_r_sp:.2f}**！"
+                        f"獲利 {_r_profit:+,.0f} 元（{_r['ROI%']:+.2f}%）。"
+                        f"請立刻全數平倉出場，落袋為安，嚴禁貪心續抱！"
+                    )
+
+                # 短線觀望中 → 顯示上下壓力點
+                else:
+                    _upper = _r_sp if _r_sp > 0 else round(_r_bp * 1.08, 2)
+                    _lower = _r_sl if _r_sl > 0 else round(_r_bp * 0.95, 2)
+                    _pnl_txt = f"獲利 {_r_profit:+,.0f}" if _r_profit >= 0 else f"虧損 {_r_profit:,.0f}"
+                    _fgn_txt = f"外資 {_r_foreign:+,.0f} 張" if _r_foreign is not None else "外資數據待更新"
+                    st.info(
+                        f"⚡ **{_r_sid} {_r_name}｜短線游擊觀察中**\n\n"
+                        f"現價 {_r_cp:.2f}｜{_pnl_txt} 元（{_r['ROI%']:+.2f}%）\n\n"
+                        f"🔴 上方壓力：**{_upper:.2f}**（停利/目標）　"
+                        f"🟢 下方防守：**{_lower:.2f}**（停損防線）\n\n"
+                        f"籌碼：{_fgn_txt}｜融資增減 {f'{_r_margin:+.2f}%' if _r_margin is not None else '—'}"
+                    )
 
         # ════════════════════════════════════════════════════
         # ▌ 當前持倉明細
@@ -3574,16 +3621,20 @@ with tab3:
             _rows_html = ""
             for _r in _pf_rows:
                 _pnl_color = "#ff4444" if _r["未實現損益"] > 0 else "#00cc66" if _r["未實現損益"] < 0 else "#e8f4fd"
-
-                # 融資增減顏色（台灣習慣：融資減少=散戶洗盤=🟢好事，增加=🔴危險）
+                _strat = _r.get("_strategy", "LONG")
+                _strat_badge = (
+                    "<span style='background:#1a3a5c;color:#00d4ff;font-size:.7rem;"
+                    "padding:2px 6px;border-radius:4px;'>🛡️ 長線</span>"
+                    if _strat == "LONG" else
+                    "<span style='background:#3a1a1a;color:#ff9800;font-size:.7rem;"
+                    "padding:2px 6px;border-radius:4px;'>⚡ 短線</span>"
+                )
                 _mg = _r.get("📉融資增減%")
                 if _mg is None:
                     _mg_str, _mg_color = "—", "#7fb3d3"
                 else:
                     _mg_color = "#00cc66" if _mg <= -2 else "#ff4444" if _mg >= 2 else "#e8f4fd"
                     _mg_str   = f"{_mg:+.2f}%"
-
-                # 外資買超顏色（買超紅色，賣超綠色）
                 _fgn = _r.get("📡外資買超張")
                 if _fgn is None:
                     _fgn_str, _fgn_color = "—", "#7fb3d3"
@@ -3595,22 +3646,22 @@ with tab3:
                     f"<tr style='border-bottom:1px solid #1e3a5f;'>"
                     f"<td style='padding:8px;'>{_r['代號']}</td>"
                     f"<td style='padding:8px;color:#9fb8d4;'>{_r['名稱']}</td>"
+                    f"<td style='padding:8px;'>{_strat_badge}</td>"
                     f"<td style='padding:8px;'>{_r['買入日期']}</td>"
                     f"<td style='padding:8px;text-align:right;'>{_r['現價']:,.2f}</td>"
                     f"<td style='padding:8px;text-align:right;'>{_r['買入均價']:,.4f}</td>"
                     f"<td style='padding:8px;text-align:right;'>{_r['持股數']:,}</td>"
                     f"<td style='padding:8px;text-align:right;'>{_r['含費成本']:,.0f}</td>"
-                    f"<td style='padding:8px;text-align:right;'>{_r['扣稅實收']:,.0f}</td>"
                     f"<td style='padding:8px;text-align:right;color:{_pnl_color};font-weight:600;'>{_r['未實現損益']:+,.0f}</td>"
                     f"<td style='padding:8px;text-align:right;color:{_pnl_color};font-weight:600;'>{_r['ROI%']:+.2f}%</td>"
                     f"<td style='padding:8px;text-align:right;color:{_mg_color};font-weight:600;'>{_mg_str}</td>"
                     f"<td style='padding:8px;text-align:right;color:{_fgn_color};font-weight:600;'>{_fgn_str}</td>"
                     f"</tr>"
                 )
-            _headers = ["代號","名稱","買入日期","現價","含費均價","持股數",
-                        "含費成本","扣稅實收","未實現損益","ROI%","📉融資增減%","📡外資買超張"]
+            _headers = ["代號","名稱","策略","買入日期","現價","含費均價","持股數",
+                        "含費成本","未實現損益","ROI%","📉融資增減%","📡外資買超張"]
             _head_html = "".join(
-                f"<th style='padding:8px;text-align:{'left' if i<3 else 'right'};"
+                f"<th style='padding:8px;text-align:{'left' if i<4 else 'right'};"
                 f"border-bottom:2px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;"
                 f"white-space:nowrap;position:sticky;top:0;background:#0f2027;z-index:1;'>{h}</th>"
                 for i, h in enumerate(_headers)
@@ -3774,6 +3825,16 @@ with tab3:
         _buy_form_key = f"buy_form_{st.session_state.get('buy_count', 0)}"
         with st.form(_buy_form_key):
             st.markdown("**📌 新增買入紀錄**")
+            # ── 戰略定位：長線防空洞 or 短線游擊隊（置頂，最重要的決策）
+            _b_strategy = st.radio(
+                "戰略定位",
+                ["🛡️ 長線資產防空洞", "⚡ 短線游擊突擊隊"],
+                horizontal=True,
+                key="buy_strategy_radio",
+                help="長線：忽略短期雜訊，停損空間寬；短線：快狠準，觸及停損/停利立即出場"
+            )
+            _b_strategy_val = "LONG" if "長線" in _b_strategy else "SHORT"
+
             _bc1, _bc2, _bc3 = st.columns(3)
             with _bc1:
                 _b_sid  = st.text_input("股票代號", placeholder="如 2330")
@@ -3845,16 +3906,18 @@ with tab3:
                             _pf_now[_sid_key]["qty"] = _new_qty
                             if _b_sl > 0: _pf_now[_sid_key]["stop_loss"] = _b_sl
                             if _b_sp > 0: _pf_now[_sid_key]["stop_profit"] = _b_sp
+                            _pf_now[_sid_key]["strategy_type"] = _b_strategy_val
                         else:
                             # 首次買入：含費均價 = 含費總成本 / 股數
                             _first_total = calc_buy_cost(_b_bp, int(_b_qty))
                             _first_avg   = _first_total / int(_b_qty)
                             _pf_now[_sid_key] = {
-                                "buy_price":   round(_first_avg, 4),  # 含費均價
-                                "qty":         int(_b_qty),
-                                "stop_loss":   _b_sl,
-                                "stop_profit": _b_sp,
-                                "buy_date":    str(_b_date),
+                                "buy_price":     round(_first_avg, 4),  # 含費均價
+                                "qty":           int(_b_qty),
+                                "stop_loss":     _b_sl or 0,
+                                "stop_profit":   _b_sp or 0,
+                                "buy_date":      str(_b_date),
+                                "strategy_type": _b_strategy_val,  # LONG or SHORT
                             }
                         save_portfolio(_pf_now)
 
