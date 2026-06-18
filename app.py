@@ -240,6 +240,24 @@ def save_account(account: dict) -> bool:
         return False
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_stock_name_map() -> dict:
+    """
+    從 stock_list.csv 建立 {stock_id: stock_name} 對照表。
+    快取1小時，供帳務系統顯示股票名稱使用。
+    """
+    try:
+        df, ok = load_csv("stock_list.csv")
+        if ok and not df.empty and "stock_id" in df.columns:
+            df["stock_id"] = df["stock_id"].astype(str).str.strip()
+            name_col = next((c for c in ["stock_name","name"] if c in df.columns), None)
+            if name_col:
+                return dict(zip(df["stock_id"], df[name_col]))
+    except Exception:
+        pass
+    return {}
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def load_watch_list():
     """
@@ -3244,9 +3262,10 @@ with tab3:
     import gc as _gc
     st.markdown("---")
 
-    _acct = load_account()
-    _pf   = load_portfolio()
-    _trd  = load_trades()
+    _acct    = load_account()
+    _pf      = load_portfolio()
+    _trd     = load_trades()
+    _nm_map  = get_stock_name_map()  # {stock_id: stock_name}
 
     # ── 初始資金設定（若尚未設定，顯示輸入框）
     if _acct.get("initial_capital", 0) == 0:
@@ -3293,7 +3312,7 @@ with tab3:
             _pos_cost_total   += _cost
 
             _pf_rows.append({
-                "代號": _sid, "買入日期": _bdt, "現價": round(_cp, 2),
+                "代號": _sid, "名稱": _nm_map.get(_sid, ""), "買入日期": _bdt, "現價": round(_cp, 2),
                 "買入均價": round(_bp, 2), "持股數": _qty,
                 "含費成本": round(_cost, 0), "扣稅實收": round(_inflow, 0),
                 "未實現損益": round(_profit, 0), "ROI%": round(_roi, 2),
@@ -3368,6 +3387,7 @@ with tab3:
                 _rows_html += (
                     f"<tr style='border-bottom:1px solid #1e3a5f;'>"
                     f"<td style='padding:8px;'>{_r['代號']}</td>"
+                    f"<td style='padding:8px;color:#9fb8d4;'>{_r['名稱']}</td>"
                     f"<td style='padding:8px;'>{_r['買入日期']}</td>"
                     f"<td style='padding:8px;text-align:right;'>{_r['現價']:,.2f}</td>"
                     f"<td style='padding:8px;text-align:right;'>{_r['買入均價']:,.4f}</td>"
@@ -3378,9 +3398,9 @@ with tab3:
                     f"<td style='padding:8px;text-align:right;color:{_pnl_color};font-weight:600;'>{_r['ROI%']:+.2f}%</td>"
                     f"</tr>"
                 )
-            _headers = ["代號","買入日期","現價","含費均價","持股數","含費成本","扣稅實收","未實現損益","ROI%"]
+            _headers = ["代號","名稱","買入日期","現價","含費均價","持股數","含費成本","扣稅實收","未實現損益","ROI%"]
             _head_html = "".join(
-                f"<th style='padding:8px;text-align:{'left' if i<2 else 'right'};"
+                f"<th style='padding:8px;text-align:{'left' if i<3 else 'right'};"
                 f"border-bottom:2px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;"
                 f"white-space:nowrap;position:sticky;top:0;background:#0f2027;z-index:1;'>{h}</th>"
                 for i, h in enumerate(_headers)
@@ -3433,7 +3453,7 @@ with tab3:
                 _trd_filtered = [t for t in _trd_filtered if t.get("action") == _filter_action]
 
             # ── 建立 HTML 表格（固定高度，超過顯示捲軸）
-            _col_map = {"date":"日期","action":"動作","stock_id":"代號",
+            _col_map = {"date":"日期","action":"動作","stock_id":"代號","stock_name":"名稱",
                         "price":"成交價","qty":"股數","fee":"手續費",
                         "tax":"證交稅","amount":"成交金額","hold_cost":"持有成本",
                         "realized_pnl":"實現損益","roi_pct":"ROI%"}
@@ -3490,8 +3510,13 @@ with tab3:
                 _export_cols = [v for v in _col_map.values() if v in _df_export.columns]
                 _df_export   = _df_export[_export_cols]
                 _buf = _io.BytesIO()
-                with pd.ExcelWriter(_buf, engine="xlsxwriter") as _writer:
-                    _df_export.to_excel(_writer, sheet_name="交易紀錄", index=False)
+                # 優先用 xlsxwriter，備援用 openpyxl
+                try:
+                    with pd.ExcelWriter(_buf, engine="xlsxwriter") as _writer:
+                        _df_export.to_excel(_writer, sheet_name="交易紀錄", index=False)
+                except Exception:
+                    with pd.ExcelWriter(_buf, engine="openpyxl") as _writer:
+                        _df_export.to_excel(_writer, sheet_name="交易紀錄", index=False)
                 _buf.seek(0)
                 st.download_button(
                     "📥 匯出 Excel",
@@ -3501,7 +3526,7 @@ with tab3:
                     key="export_trades_excel"
                 )
             except Exception as _xe:
-                st.caption(f"匯出功能需安裝 xlsxwriter：pip install xlsxwriter（{_xe}）")
+                st.caption(f"匯出失敗：{_xe}")
 
             # ── 統計
             _real_trades = [t for t in _trd if t.get("action") == "賣出"]
@@ -3633,6 +3658,7 @@ with tab3:
                         _trd_now.append({
                             "date": str(_b_date), "action": "買入",
                             "stock_id": _sid_key,
+                            "stock_name": get_stock_name_map().get(_sid_key, ""),
                             "price": _b_bp, "qty": int(_b_qty),
                             "fee": round(_calc_fee(_b_bp, _b_qty), 0),
                             "tax": 0, "amount": round(_b_bp * _b_qty, 0),
@@ -3722,6 +3748,7 @@ with tab3:
                         _trd_now2.append({
                             "date": str(_s_date), "action": "賣出",
                             "stock_id": _s_sid,
+                            "stock_name": get_stock_name_map().get(_s_sid, ""),
                             "price": _s_price, "qty": int(_s_qty),
                             "fee": round(_s_fee_fin, 0),
                             "tax": round(_s_tax_fin, 0),
@@ -3763,6 +3790,34 @@ with tab3:
         _pf_mgr = load_portfolio()
         if _pf_mgr:
             st.markdown("---")
+            st.markdown("---")
+            st.markdown("##### ✏️ 編輯持倉")
+            _edit_c1, _edit_c2 = st.columns([2, 2])
+            with _edit_c1:
+                _edit_sid = st.selectbox("選擇要編輯的持股", list(_pf_mgr.keys()), key="pf_edit_sel")
+            if _edit_sid and _edit_sid in _pf_mgr:
+                _ep = _pf_mgr[_edit_sid]
+                with st.form("edit_position_form"):
+                    _ec1, _ec2, _ec3 = st.columns(3)
+                    with _ec1:
+                        _e_bp  = st.number_input("買入均價", value=float(_ep.get("buy_price", 0)), step=0.5, format="%.4f")
+                        _e_qty = st.number_input("持股數", value=int(_ep.get("qty", 0)), step=1000)
+                    with _ec2:
+                        _e_sl  = st.number_input("停損價", value=float(_ep.get("stop_loss", 0)), step=0.5, format="%.2f")
+                        _e_sp  = st.number_input("停利價", value=float(_ep.get("stop_profit", 0)), step=0.5, format="%.2f")
+                    with _ec3:
+                        _e_date = st.text_input("買入日期", value=_ep.get("buy_date", ""))
+                    _e_submit = st.form_submit_button("💾 儲存修改", type="primary")
+                    if _e_submit:
+                        _pf_mgr[_edit_sid] = {
+                            "buy_price": _e_bp, "qty": int(_e_qty),
+                            "stop_loss": _e_sl, "stop_profit": _e_sp,
+                            "buy_date": _e_date,
+                        }
+                        save_portfolio(_pf_mgr)
+                        st.success(f"✅ {_edit_sid} 持倉已更新")
+                        st.rerun()
+
             st.markdown("##### 🗑️ 移除持倉")
             _del_c1, _del_c2 = st.columns([2, 1])
             with _del_c1:
