@@ -3460,11 +3460,65 @@ with tab3:
         # ════════════════════════════════════════════════════
         # ▌ 籌碼自適應決策智庫提示箱
         # 交叉比對：買入成本 × 現價 × 融資增減 × 外資買超
+        # ▌ 市場強弱：即時讀取 watch_list.json 四板塊龍頭，
+        #   動態計算今日站上 SMA20 的比例（不依賴昨日排程結果）
         # ════════════════════════════════════════════════════
-        _sb_now    = get_sector_breadth()
-        _sb_above  = _sb_now.get("above_sma20", 0)
-        _sb_total_ = _sb_now.get("total", 17)
-        _mkt_weak  = (_sb_above / _sb_total_ < 0.5) if _sb_total_ else False
+
+        # ── 即時掃描龍頭站月線（從 watch_list.json 四板塊）
+        @st.cache_data(ttl=1800, show_spinner=False)
+        def _scan_leaders_sma20_live():
+            """
+            即時讀取 watch_list.json 的四大板塊龍頭，
+            逐檔計算是否站上 SMA20，回傳 (above, total, details)。
+            快取30分鐘，避免每次刷新都重新計算。
+            """
+            import json as _j, os as _os
+            _wl_path = _os.path.join("data", "watch_list.json")
+            _wl = {}
+            if _os.path.exists(_wl_path):
+                try:
+                    with open(_wl_path, "r", encoding="utf-8") as _f:
+                        _wl = _j.load(_f)
+                except Exception:
+                    pass
+
+            # 合併四板塊去重
+            _seen = set()
+            _all_ids = []
+            for _key in ("ai_semi", "ai_infra", "next_gen", "shipping_fin"):
+                for _sid in _wl.get(_key, []):
+                    if _sid not in _seen:
+                        _seen.add(_sid)
+                        _all_ids.append(_sid)
+
+            _above, _total = 0, 0
+            _details = []
+            for _sid in _all_ids:
+                try:
+                    _df_l, _ok_l = load_price_csv(_sid)
+                    if not _ok_l or _df_l.empty or len(_df_l) < 20:
+                        continue
+                    _closes = pd.to_numeric(_df_l["Close"], errors="coerce").dropna()
+                    if len(_closes) < 20:
+                        continue
+                    _sma20   = float(_closes.tail(20).mean())
+                    _last_cp = float(_closes.iloc[-1])
+                    _is_above = _last_cp >= _sma20
+                    _total += 1
+                    if _is_above:
+                        _above += 1
+                    _details.append({"id": _sid, "above": _is_above,
+                                     "price": _last_cp, "sma20": round(_sma20, 2)})
+                    del _df_l
+                    import gc; gc.collect()
+                except Exception:
+                    continue
+            return _above, _total, _details
+
+        _ldr_above, _ldr_total, _ = _scan_leaders_sma20_live()
+        _mkt_weak  = (_ldr_above / _ldr_total < 0.5) if _ldr_total else False
+        _sb_above  = _ldr_above   # 供情境C顯示用
+        _sb_total_ = _ldr_total
 
         for _r in _pf_rows:
             _r_sid     = _r["代號"]
@@ -3502,11 +3556,11 @@ with tab3:
                     f"靜待股價撞擊布林上緣或前高天花板時的終極限價提款信號！"
                 )
 
-            # 情境 C：市場偏弱且持股虧損（原有邏輯保留）
+            # 情境 C：市場偏弱且持股虧損（即時龍頭掃描結果）
             elif _mkt_weak and _r_profit < 0:
                 st.info(
                     f"💡 **{_r_sid} {_r_name} 決策提示**\n\n"
-                    f"龍頭站月線僅 {_sb_above}/{_sb_total_} 檔，市場結構偏弱。"
+                    f"即時掃描龍頭站月線僅 **{_sb_above}/{_sb_total_}** 檔，市場結構偏弱。"
                     f"當前持股微虧屬非理性壓盤，現貨 0 槓桿肉身抗震。"
                     f"靜待結構修復後的反彈機會！"
                 )
