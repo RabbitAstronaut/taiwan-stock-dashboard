@@ -5160,6 +5160,13 @@ with tab4:
         rsv_sid = st.text_input("股票代號（可加備註，如：2345 散熱主力股）",
                                 placeholder="輸入代號，如：2345",
                                 key="rsv_sid", label_visibility="collapsed")
+    # 策略標籤選擇（在代號輸入欄旁邊）
+    _rsv_strat_radio = st.radio(
+        "戰略標籤", ["🛡️ 長線防空洞", "⚡ 短線突擊隊"],
+        horizontal=True, key="rsv_strat_tag",
+        label_visibility="collapsed"
+    )
+    _rsv_strat_val = "LONG" if "長線" in _rsv_strat_radio else "SHORT"
     with rsv_c3:
         import json as _json
         if st.session_state.get("reserve_list"):
@@ -5210,7 +5217,8 @@ with tab4:
                 st.session_state.reserve_list.append({
                     "id": sid_r, "name": name_r,
                     "note": rsv_note.strip(),
-                    "added_at": datetime.now().strftime("%Y-%m-%d")
+                    "added_at": datetime.now().strftime("%Y-%m-%d"),
+                    "strategy_tag": _rsv_strat_val,
                 })
                 # 存回 GitHub
                 _wl = st.session_state.watchlist
@@ -5234,14 +5242,27 @@ with tab4:
         triggered = []
         waiting   = []
 
+        # 一次性讀取籌碼事實（快取5分鐘，避免重複IO）
+        _rv_chips_map = get_chips_facts_map()
+
         for item in st.session_state.reserve_list:
-            sid_rv  = item["id"]
-            name_rv = item.get("name", sid_rv)
-            note_rv = item.get("note", "")
+            sid_rv       = item["id"]
+            name_rv      = item.get("name", sid_rv)
+            note_rv      = item.get("note", "")
+            # 讀取策略標籤（可在加入儲備庫時設定，未設定則預設長線）
+            strategy_rv  = item.get("strategy_tag", "LONG")
+            strat_label  = "🛡️ 長線防空洞" if strategy_rv == "LONG" else "⚡ 短線突擊隊"
+
+            # 讀取籌碼事實
+            _rv_chip     = _rv_chips_map.get(sid_rv, {})
+            _rv_margin   = _rv_chip.get("margin_chg_pct", None)   # 融資增減(%)
+            _rv_foreign  = _rv_chip.get("foreign_net",   None)    # 外資買超(張)
 
             df_rv, ok_rv = load_price_csv(sid_rv)
             if not ok_rv or df_rv.empty or len(df_rv) < 10:
-                waiting.append((sid_rv, name_rv, note_rv, None, None, "無K線資料"))
+                waiting.append((sid_rv, name_rv, note_rv, None, None, "無K線資料",
+                                False, False, False, None, None, None, "",
+                                strategy_rv, strat_label, _rv_margin, _rv_foreign))
                 continue
 
             df_rv = add_indicators(df_rv)
@@ -5275,7 +5296,8 @@ with tab4:
             cond3 = (close_rv > open_rv) and (not np.isnan(ema5_rv)) and (close_rv > ema5_rv)
 
             if cond1 and cond2 and cond3:
-                triggered.append((sid_rv, name_rv, note_rv, close_rv, bias_rv))
+                triggered.append((sid_rv, name_rv, note_rv, close_rv, bias_rv,
+                                  strategy_rv, strat_label, _rv_margin, _rv_foreign))
             else:
                 conds_met = sum([cond1, cond2, cond3])
                 # 計算量比（當日量/VMA5）
@@ -5283,7 +5305,8 @@ with tab4:
                 waiting.append((sid_rv, name_rv, note_rv, close_rv, bias_rv,
                                 f"{conds_met}/3 條件成立",
                                 cond1, cond2, cond3,
-                                vol_ratio_rv, ema5_rv, sma20_rv, kline_date_rv))
+                                vol_ratio_rv, ema5_rv, sma20_rv, kline_date_rv,
+                                strategy_rv, strat_label, _rv_margin, _rv_foreign))
 
         # ══════════════════════════════════════════════
         # 📊 精兵回頭草總表排名
@@ -5600,7 +5623,13 @@ with tab4:
 
         # ── 觸發警報顯示
         if triggered:
-            for sid_rv, name_rv, note_rv, close_rv, bias_rv in triggered:
+            for _t in triggered:
+                sid_rv, name_rv, note_rv, close_rv, bias_rv = _t[:5]
+                _t_strat  = _t[5] if len(_t) > 5 else "LONG"
+                _t_slabel = _t[6] if len(_t) > 6 else "🛡️ 長線防空洞"
+                _t_margin = _t[7] if len(_t) > 7 else None
+                _t_fgn    = _t[8] if len(_t) > 8 else None
+
                 _alert_msg = (
                     f"🎯 精兵回頭草警報：戰略儲備股 {name_rv}（{sid_rv}）已在冷宮完成沉澱！"
                     f" 今日現價 {close_rv:.1f} 元，與月線乖離率僅 +{bias_rv:.1f}%（符合<5%限制），"
@@ -5608,6 +5637,37 @@ with tab4:
                     f" 基本面基因優良，短線防禦安全邊際極高，准許執行手動第二波精準獵殺！"
                 )
                 st.info(_alert_msg)
+
+                # ── 買入決策提示（依策略標籤分軌）
+                _chips_txt = (
+                    f"融資增減 {_t_margin:+.2f}%｜" if _t_margin is not None else ""
+                ) + (
+                    f"外資 {_t_fgn:+,.0f} 張" if _t_fgn is not None else "籌碼數據待更新"
+                )
+                if _t_strat == "LONG":
+                    st.success(
+                        f"💡 **{sid_rv} 長線黃金布局點確認**\n\n"
+                        f"籌碼狀態：{_chips_txt}\n\n"
+                        f"精兵回頭草三條件全數觸發！長線特性屏蔽短線雜訊，"
+                        f"此處為絕佳長線種子部位建立點。"
+                        f"建議動用場外現金**分批砸入第1筆現貨**，雷打不動！"
+                    )
+                else:
+                    _chips_sep = ((_t_fgn or 0) < -500) or ((_t_margin or 0) > 3.0)
+                    if _chips_sep:
+                        st.error(
+                            f"🚨 **{sid_rv} 短線｜籌碼分離警告，禁止進場**\n\n"
+                            f"籌碼狀態：{_chips_txt}\n\n"
+                            f"雖然技術面觸發回頭草，但籌碼發生惡性分離！"
+                            f"外資調節+融資散戶逆向接刀，時機點不對，**系統強制封印！**"
+                        )
+                    else:
+                        st.warning(
+                            f"⚡ **{sid_rv} 短線突擊准許進場**\n\n"
+                            f"籌碼狀態：{_chips_txt}\n\n"
+                            f"籌碼結構健康，短線回頭草三條件觸發。"
+                            f"快狠準進場，**設好停損後立即執行**，嚴禁抱成長線！"
+                        )
 
         # ── 等待中標的（依條件數排序，同分依股號，色卡格式）
         st.markdown("#### ⏳ 籌碼沉澱中...")
@@ -5649,7 +5709,7 @@ with tab4:
             _kd_str    = f"<span style='color:#888;font-size:.72rem;'>K線:{_kd}</span>｜" if _kd else ""
 
             _wait_rows.append(
-                f"<div style='font-size:.83rem;margin-bottom:8px;padding:6px 12px;"
+                f"<div style='font-size:.83rem;margin-bottom:4px;padding:6px 12px;"
                 f"border-radius:4px;{_bg}color:{_col};'>"
                 f"{_ico} <b>{sid_rv} {name_rv}</b>｜"
                 f"{_close_str}{_bias_str}{_kd_str}"
@@ -5658,6 +5718,56 @@ with tab4:
                 f"{_note_txt}"
                 f"</div>"
             )
+
+            # ── 策略標籤 + 買入決策提示（在色卡下方）
+            _w_strat  = _w[13] if len(_w) > 13 else "LONG"
+            _w_slabel = _w[14] if len(_w) > 14 else "🛡️ 長線防空洞"
+            _w_margin = _w[15] if len(_w) > 15 else None
+            _w_fgn    = _w[16] if len(_w) > 16 else None
+            _w_bias   = bias_rv if close_rv and not np.isnan(bias_rv if bias_rv is not None else float('nan')) else None
+
+            # 決策提示：長線 - 負乖離≤-10% + 融資大減
+            if _w_strat == "LONG" and _w_bias is not None and _w_bias <= -10 and (_w_margin or 0) <= -2.0:
+                _w_chips_txt = f"融資大減 {abs(_w_margin):.2f}%｜外資 {_w_fgn:+,.0f}張" if _w_fgn is not None else f"融資大減 {abs(_w_margin):.2f}%"
+                _wait_rows.append(
+                    f"<div style='font-size:.8rem;margin-bottom:8px;padding:6px 12px;"
+                    f"background:rgba(0,212,255,0.08);border-left:3px solid #00d4ff;"
+                    f"border-radius:4px;color:#c8dff0;'>"
+                    f"💡 <b>{sid_rv} 長線黃金埋伏點</b>｜{_w_slabel}｜{_w_chips_txt}<br>"
+                    f"月線負乖離 {_w_bias:.1f}%（極度超賣）+ 散戶融資割肉，大戶低位惡意洗盤。"
+                    f"90%勝率長線布局點，動用場外現金分批砸入第1筆種子部位，雷打不動！"
+                    f"</div>"
+                )
+            # 決策提示：短線 - 籌碼分離警告
+            elif _w_strat == "SHORT":
+                _chips_sep = ((_w_fgn or 0) < -500) or ((_w_margin or 0) > 3.0)
+                if _chips_sep:
+                    _w_chips_txt = f"外資 {_w_fgn:+,.0f}張｜融資 {_w_margin:+.2f}%" if _w_margin is not None and _w_fgn is not None else "籌碼分離偵測"
+                    _wait_rows.append(
+                        f"<div style='font-size:.8rem;margin-bottom:8px;padding:6px 12px;"
+                        f"background:rgba(255,68,68,0.08);border-left:3px solid #ff4444;"
+                        f"border-radius:4px;color:#ffaaaa;'>"
+                        f"🚨 <b>{sid_rv} 短線禁止進場</b>｜{_w_slabel}｜{_w_chips_txt}<br>"
+                        f"籌碼惡性分離！外資倒貨+散戶融資逆向接刀，時機極度危險，系統強制封印！"
+                        f"靜待融資徹底踩踏崩潰後再重回視線。"
+                        f"</div>"
+                    )
+                else:
+                    _wait_rows.append(
+                        f"<div style='font-size:.78rem;margin-bottom:8px;padding:4px 10px;"
+                        f"background:rgba(255,152,0,0.06);border-left:2px solid #ff9800;"
+                        f"border-radius:4px;color:#ffcc80;'>"
+                        f"⚡ {sid_rv} {_w_slabel}｜籌碼正常，靜待技術面觸發"
+                        f"</div>"
+                    )
+            else:
+                _wait_rows.append(
+                    f"<div style='font-size:.78rem;margin-bottom:8px;padding:4px 10px;"
+                    f"background:rgba(0,0,0,0.1);border-radius:4px;color:#7fb3d3;'>"
+                    f"　{_w_slabel}｜繼續沉澱中，等待條件成熟"
+                    f"</div>"
+                )
+
             _wait_rm_btns.append(sid_rv)
 
         if _wait_rows:
