@@ -5257,8 +5257,7 @@ with tab4:
             help="長線：負乖離大+融資大減=黃金布局點｜短線：籌碼分離=禁止，安全=快狠準"
         )
         _rsv_long_view = "長線" in _rsv_view
-
-        # 掃描所有儲備標的
+        st.caption(f"🔧 debug：視角={_rsv_view}　_rsv_long_view={_rsv_long_view}")
         triggered = []
         waiting   = []
 
@@ -5426,7 +5425,10 @@ with tab4:
                         _sop = f"🛑 <b>【高度警戒・強制禁買】</b>：個股雖達 <b>{_sc}分</b>，但大台空單 {abs(_tx_net):,} 口+小台散戶多單 {_mtx_retail:,} 口！土石流即將無差別拋售，<b>系統強制關閉交易！</b>"
                     elif _is_yellow:
                         _rc = "#fbbf24"; _bg = "background:rgba(251,191,36,0.08);border-left:5px solid #fbbf24;"
-                        _sop = f"⚠️ <b>【常規警戒・資金減半】</b>：個股技術面 <b>{_sc}分</b>，但大盤進入黃燈警戒。<b>建倉資金強制砍半（僅能建立 1/6 底倉）</b>，嚴格控管風險！"
+                        if _rsv_long_view:
+                            _sop = f"🛡️ <b>【黃燈警戒・長線視角】</b>：個股技術面 <b>{_sc}分</b>，大盤黃燈但長線布局不受短線大盤影響。融資若持續大減，此處更是長線黃金種子倉建立點，建倉資金砍半保守建立！"
+                        else:
+                            _sop = f"⚠️ <b>【常規警戒・資金減半】</b>：個股技術面 <b>{_sc}分</b>，但大盤進入黃燈警戒。<b>建倉資金強制砍半（僅能建立 1/6 底倉）</b>，嚴格控管風險！"
                     elif _is_short_squeeze:
                         _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.12);border-left:5px solid #ff9900;"
                         _sop = f"🚀 <b>【黃金軋空・全力進擊】</b>：個股高達 <b>{_sc}分</b>，且散戶放空 {abs(_mtx_retail):,} 口！史詩級軋空點，建議尾盤無懸念建立 1/3~1/2 波段先鋒倉！"
@@ -5460,7 +5462,15 @@ with tab4:
                         _sop = f"⏳ <b>【高度警戒・取消閃擊】</b>：個股蓄勢（{_sc}分），但大台空單 {abs(_tx_net):,}+散戶多單 {_mtx_retail:,} 口，取消進場，繼續觀望。"
                     elif _is_yellow:
                         _rc = "#fbbf24"; _bg = "background:rgba(251,191,36,0.05);border-left:5px solid #fbbf24;"
-                        _sop = f"⚠️ <b>【黃燈警戒・延後閃擊】</b>：個股蓄勢（{_sc}分），但大盤黃燈，等黃燈解除後再執行閃擊計畫。"
+                        if _rsv_long_view:
+                            _rv_c3  = _rv_chips_map.get(_r["股號"], {})
+                            _rv_mg3 = _rv_c3.get("margin_chg_pct", None)
+                            if _rv_mg3 is not None and _rv_mg3 <= -2:
+                                _sop = f"💡 <b>【黃燈+融資大減=長線洗盤進行中】</b>：個股蓄勢（{_sc}分），大盤黃燈但融資大減 {abs(_rv_mg3):.1f}%。長線視角：散戶正在被清洗，是長線布局的前置訊號，繼續追蹤！"
+                            else:
+                                _sop = f"🛡️ <b>【黃燈・長線觀察中】</b>：個股蓄勢（{_sc}分），大盤黃燈。長線繼續沉澱，等待融資大減訊號出現。"
+                        else:
+                            _sop = f"⚠️ <b>【黃燈警戒・延後閃擊】</b>：個股蓄勢（{_sc}分），但大盤黃燈，等黃燈解除後再執行閃擊計畫。"
                     elif _is_short_squeeze:
                         _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.08);border-left:5px solid #ffee55;"
                         _sop = f"🎯 <b>【蓄勢+軋空加持】</b>：個股蓄勢（{_sc}分）且散戶放空 {abs(_mtx_retail):,} 口，<b>早盤爆量即刻閃擊！</b>"
