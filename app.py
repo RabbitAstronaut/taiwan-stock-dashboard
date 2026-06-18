@@ -1342,6 +1342,16 @@ html,body,[class*="css"]{font-family:"Noto Sans TC",sans-serif;}
 [data-baseweb="calendar"] [aria-selected="true"]{background:#00d4ff!important;color:#060b14!important;}
 [data-baseweb="calendar"] button:hover{background:#1e3a5f!important;}
 [data-baseweb="datepicker"] input{background:#0f2027!important;color:#e8f4fd!important;border-color:#1e3a5f!important;}
+/* 月曆主體 */
+div[data-baseweb="calendar"] div{background:#0f2027!important;}
+div[data-baseweb="calendar"] table{background:#0f2027!important;}
+div[data-baseweb="calendar"] td{background:#0f2027!important;color:#e8f4fd!important;}
+div[data-baseweb="calendar"] th{background:#0a1628!important;color:#7fb3d3!important;}
+div[data-baseweb="calendar"] button{background:#0f2027!important;color:#e8f4fd!important;border:none!important;}
+div[data-baseweb="calendar"] button:hover{background:#1e3a5f!important;}
+/* 月份年份選擇列 */
+div[data-baseweb="select"] div{background:#0f2027!important;color:#e8f4fd!important;}
+div[data-baseweb="popover"]{background:#0f2027!important;border:1px solid #1e3a5f!important;}
 
 
 [data-testid="stSidebar"]{background:#080e1a!important;}
