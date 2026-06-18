@@ -1570,17 +1570,6 @@ header[data-testid="stHeader"]{visibility:hidden!important;}
     color:#00d4ff!important;
     border-color:#00d4ff!important;
 }
-/* ══ Date Picker 黑底深色主題 ══ */
-[data-baseweb="input"]>div,[data-baseweb="base-input"]{background:#0a0f1a!important;color:#ffffff!important;border:1px solid #2a5080!important;}
-[data-baseweb="input"] input{background:#0a0f1a!important;color:#ffffff!important;}
-[data-baseweb="calendar"],[data-baseweb="datepicker"],div[role="dialog"]{background:#0a0f1a!important;border:1px solid #1e3a5f!important;color:#e8f4fd!important;}
-[data-baseweb="calendar"] button,[data-baseweb="calendar"] div{background:#0a0f1a!important;color:#e8f4fd!important;}
-[data-baseweb="calendar"] [role="gridcell"] button{background:#0a0f1a!important;color:#e8f4fd!important;border-radius:4px!important;}
-[data-baseweb="calendar"] [role="gridcell"] button:hover{background:#1e3a5f!important;color:#00d4ff!important;}
-[data-baseweb="calendar"] [aria-current="date"] button{border:1px solid #00d4ff!important;color:#00d4ff!important;}
-[data-baseweb="calendar"] [aria-selected="true"] button{background:#1e3a5f!important;color:#00d4ff!important;font-weight:700!important;}
-[data-baseweb="calendar"] [role="columnheader"],[data-baseweb="calendar"] [role="heading"]{color:#7fb3d3!important;background:#0a0f1a!important;}
-[data-baseweb="calendar"] [aria-disabled="true"] button{color:#3a5a80!important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1758,19 +1747,6 @@ def load_price_csv(stock_id: str) -> tuple[pd.DataFrame, bool]:
     return pd.DataFrame(), False
 
 # ── 衍生載入函式
-def get_name(sid: str) -> str:
-    """快速查股票名稱，找不到回傳空字串"""
-    try:
-        df_si, ok = get_stock_info()
-        if ok and not df_si.empty:
-            m = df_si[df_si["stock_id"].astype(str) == str(sid)]
-            if not m.empty:
-                return str(m["stock_name"].iloc[0])
-    except Exception:
-        pass
-    return ""
-
-
 def get_stock_info():
     df, ok = load_csv("stock_info.csv")
     if ok and not df.empty:
@@ -3256,7 +3232,169 @@ with tab1:
     # ──────────────────────────────────────────────────────────────
 with tab3:
 
+    # ── 每次載入都清除四個板塊的 session_state key，
+    #    確保 multiselect 的 default 永遠來自 watch_list.json 最新值，
+    #    而不是被舊的 session 值覆蓋（這是預設值重疊 bug 的根本原因）
+    for _wl_sk in ["wl_ai_semi", "wl_ai_infra", "wl_next_gen", "wl_shipping_fin"]:
+        if _wl_sk in st.session_state:
+            del st.session_state[_wl_sk]
 
+    with st.expander("👑 全域類股龍頭監控天網（動態微調分列矩陣）", expanded=True):
+
+        # 讀取現有設定（本地JSON → GitHub備援 → 預設值）
+        _wl_data = load_watch_list()
+
+        # 建立 id→name 輔助顯示（stock_list.csv，找不到就用代號本身）
+        _wl_id2name = {}
+        try:
+            _sl_df, _sl_ok = load_csv("stock_list.csv")
+            if _sl_ok and not _sl_df.empty and "stock_id" in _sl_df.columns:
+                _sl_df["stock_id"] = _sl_df["stock_id"].astype(str).str.strip()
+                for _, _slr in _sl_df.drop_duplicates("stock_id").iterrows():
+                    _wl_id2name[_slr["stock_id"]] = _slr.get("stock_name", _slr["stock_id"])
+        except Exception:
+            pass
+
+        def _wl_label(sid: str) -> str:
+            """顯示格式：代號＋名稱（如 2330 台積電）"""
+            name = _wl_id2name.get(str(sid), "")
+            return f"{sid} {name}".strip() if name and name != sid else sid
+
+        def _wl_parse(labels: list) -> list:
+            """把 multiselect 回傳的 label 列表，只取出代號部分（空白前）"""
+            return [str(lb).split(" ")[0].strip() for lb in labels if lb]
+
+        # ══════════════════════════════════════════════════════════
+        # 核心修正：每個板塊各自獨立定義 options 和 default，完全解耦
+        # options = 本板塊現有標的（可額外輸入任意新代號）
+        # default = 從 watch_list.json 讀取本板塊的當前名單
+        # 兩者都只包含本板塊的標的，不共用、不污染其他板塊
+        # ══════════════════════════════════════════════════════════
+
+        # 行列一：🟢 AI 與半導體核心
+        _ids_ai_semi   = _wl_data.get("ai_semi",      WATCH_LIST_DEFAULTS["ai_semi"])
+        _opts_ai_semi  = [_wl_label(s) for s in _ids_ai_semi]
+        _sel_ai_semi   = st.multiselect(
+            "🟢 AI 與半導體核心",
+            options=_opts_ai_semi,
+            default=_opts_ai_semi,
+            key="wl_ai_semi",
+            accept_new_options=True,
+            help="輸入任意台股代號新增（如 3034）；點下方鎖定才寫入",
+        )
+
+        # 行列二：🔵 AI 剛需基礎建設
+        _ids_ai_infra  = _wl_data.get("ai_infra",     WATCH_LIST_DEFAULTS["ai_infra"])
+        _opts_ai_infra = [_wl_label(s) for s in _ids_ai_infra]
+        _sel_ai_infra  = st.multiselect(
+            "🔵 AI 剛需基礎建設",
+            options=_opts_ai_infra,
+            default=_opts_ai_infra,
+            key="wl_ai_infra",
+            accept_new_options=True,
+            help="輸入任意台股代號新增（如 6669）；點下方鎖定才寫入",
+        )
+
+        # 行列三：🟡 次世代戰略兵器
+        _ids_next_gen  = _wl_data.get("next_gen",     WATCH_LIST_DEFAULTS["next_gen"])
+        _opts_next_gen = [_wl_label(s) for s in _ids_next_gen]
+        _sel_next_gen  = st.multiselect(
+            "🟡 次世代戰略兵器",
+            options=_opts_next_gen,
+            default=_opts_next_gen,
+            key="wl_next_gen",
+            accept_new_options=True,
+            help="輸入任意台股代號新增（如 1519）；點下方鎖定才寫入",
+        )
+
+        # 行列四：🔴 航運傳產與大型金融
+        _ids_ship_fin  = _wl_data.get("shipping_fin", WATCH_LIST_DEFAULTS["shipping_fin"])
+        _opts_ship_fin = [_wl_label(s) for s in _ids_ship_fin]
+        _sel_ship_fin  = st.multiselect(
+            "🔴 航運傳產與大型金融",
+            options=_opts_ship_fin,
+            default=_opts_ship_fin,
+            key="wl_shipping_fin",
+            accept_new_options=True,
+            help="輸入任意台股代號新增（如 2884）；點下方鎖定才寫入",
+        )
+
+        # 整合四板塊最新選取結果
+        _wl_new_sectors = {
+            "ai_semi":      _wl_parse(_sel_ai_semi),
+            "ai_infra":     _wl_parse(_sel_ai_infra),
+            "next_gen":     _wl_parse(_sel_next_gen),
+            "shipping_fin": _wl_parse(_sel_ship_fin),
+        }
+
+        # 統計檔數
+        _wl_grand_total = sum(len(v) for v in _wl_new_sectors.values())
+        _wl_over_limit  = any(len(v) > WATCH_LIST_MAX_PER_ROW for v in _wl_new_sectors.values())
+        st.caption(
+            f"四大板塊共計 **{_wl_grand_total}** 檔　"
+            f"（AI半導體{len(_wl_new_sectors['ai_semi'])} ＋ "
+            f"AI建設{len(_wl_new_sectors['ai_infra'])} ＋ "
+            f"次世代{len(_wl_new_sectors['next_gen'])} ＋ "
+            f"傳產金融{len(_wl_new_sectors['shipping_fin'])}）　"
+            f"每行上限 {WATCH_LIST_MAX_PER_ROW} 檔"
+        )
+
+        # ── 龍頭多空定錨（分板塊顯示，不用無意義的合計數字）
+        _sb = get_sector_breadth()
+        if _sb and _sb.get("by_sector"):
+            _by = _sb["by_sector"]
+            _sb_icons = {"ai_semi":"🟢 AI半導體","ai_infra":"🔵 AI建設","next_gen":"🟡 次世代","shipping_fin":"🔴 傳產金融"}
+            _parts = []
+            for _k, _icon in _sb_icons.items():
+                _s = _by.get(_k, {})
+                if _s.get("total"):
+                    _a20, _tot = _s.get("above_sma20",0), _s["total"]
+                    _color = "🔴" if _a20/_tot < 0.35 else "🟡" if _a20/_tot < 0.6 else "🟢"
+                    _parts.append(f"{_icon} {_a20}/{_tot}{_color}")
+            st.markdown(
+                f"<div style='color:#c8dff0;font-size:.82rem;padding:4px 0 8px;'>"
+                f"📊 類股龍頭站月線(SMA20)：{'　'.join(_parts)}"
+                f"　｜　{_sb.get('date','—')}</div>",
+                unsafe_allow_html=True
+            )
+        elif _sb and _sb.get("total"):
+            _sb_above = _sb.get("above_sma20", 0)
+            _sb_total = _sb["total"]
+            st.markdown(
+                f"<div style='color:#c8dff0;font-size:.82rem;padding:4px 0 8px;'>"
+                f"📊 類股龍頭多空定錨：{_sb_above}/{_sb_total} 站月線　｜　{_sb.get('date','—')}</div>",
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                "<div style='color:#7fb3d3;font-size:.78rem;padding:4px 0 8px;'>"
+                "📊 類股龍頭多空定錨：等待每日 17:00 盤後排程計算（daily_scan.py）</div>",
+                unsafe_allow_html=True
+            )
+
+        # 💾 置頂鋼鐵藍色鎖定按鈕（正中央置放）
+        _wl_col_l, _wl_col_c, _wl_col_r = st.columns([1, 2, 1])
+        with _wl_col_c:
+            if st.button(
+                "💾 鎖定新風向（實時覆寫大類股監控名單）",
+                use_container_width=True,
+                disabled=_wl_over_limit,
+                key="wl_save_btn",
+                type="primary",
+            ):
+                _ok_save = save_watch_list_to_github(_wl_new_sectors)
+                if _ok_save:
+                    st.success(
+                        "👑 報告指揮官：17檔大類股防線已物理死鎖，全域雷達已同步移防！"
+                    )
+                else:
+                    st.warning(
+                        "⚠️ 本地已寫入，但 GitHub 推送失敗。"
+                        "請確認 GH_TOKEN 已設定（st.secrets[\"GH_TOKEN\"]），或稍後重試。"
+                    )
+            if _wl_over_limit:
+                st.error(f"⛔ 某行超過 {WATCH_LIST_MAX_PER_ROW} 檔上限，請先移除多餘標的！")
+    # ════════════════════════════════════════════════════════
     # ▌ 帳戶資金儀表板（初始資金 → 現金 → 持倉市值 → 總資產）
     # ════════════════════════════════════════════════════════
     import gc as _gc
@@ -3269,17 +3407,15 @@ with tab3:
     # ── 初始資金設定（若尚未設定，顯示輸入框）
     if _acct.get("initial_capital", 0) == 0:
         st.markdown("#### 💵 請先設定初始資金")
-        with st.form("init_cap_form"):
-            _init_col1, _init_col2 = st.columns([2, 1])
-            with _init_col1:
-                _init_cap = st.number_input(
-                    "初始資金（元）", min_value=1000, value=1000000,
-                    step=10000, format="%d", key="init_cap_input"
-                )
-            with _init_col2:
-                st.markdown("<br>", unsafe_allow_html=True)
-                _init_submit = st.form_submit_button("✅ 確認設定初始資金", type="primary")
-            if _init_submit:
+        _init_col1, _init_col2 = st.columns([2, 1])
+        with _init_col1:
+            _init_cap = st.number_input(
+                "初始資金（元）", min_value=1000, value=1000000,
+                step=10000, format="%d", key="init_cap_input"
+            )
+        with _init_col2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("✅ 確認設定初始資金", key="set_init_cap"):
                 _acct_new = {"initial_capital": float(_init_cap),
                              "cash": float(_init_cap), "realized_pnl": 0.0}
                 save_account(_acct_new)
@@ -3510,7 +3646,7 @@ with tab3:
                 _export_cols = [v for v in _col_map.values() if v in _df_export.columns]
                 _df_export   = _df_export[_export_cols]
                 _buf = _io.BytesIO()
-                with pd.ExcelWriter(_buf, engine="openpyxl") as _writer:
+                with pd.ExcelWriter(_buf, engine="xlsxwriter") as _writer:
                     _df_export.to_excel(_writer, sheet_name="交易紀錄", index=False)
                 _buf.seek(0)
                 st.download_button(
@@ -3521,7 +3657,7 @@ with tab3:
                     key="export_trades_excel"
                 )
             except Exception as _xe:
-                st.caption(f"⚠️ 匯出失敗：{_xe}")
+                st.caption(f"匯出功能需安裝 xlsxwriter：pip install xlsxwriter（{_xe}）")
 
             # ── 統計
             _real_trades = [t for t in _trd if t.get("action") == "賣出"]
@@ -3565,15 +3701,15 @@ with tab3:
                 _b_sid  = st.text_input("股票代號", placeholder="如 2330")
                 _b_date = st.date_input("買入日期",
                                          value=datetime.now(ZoneInfo("Asia/Taipei")).date())
-                _b_bp   = st.number_input("買入均價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="請輸入")
+                _b_bp   = st.number_input("買入均價", min_value=0.0, step=0.5, format="%.2f")
             with _bc2:
-                _b_qty  = st.number_input("買入股數", min_value=0, value=None, step=1000, placeholder="請輸入")
-                _b_sl   = st.number_input("自訂停損價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="選填")
-                _b_sp   = st.number_input("自訂停利價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="選填")
+                _b_qty  = st.number_input("買入股數", min_value=0, step=1000)
+                _b_sl   = st.number_input("自訂停損價", min_value=0.0, step=0.5, format="%.2f")
+                _b_sp   = st.number_input("自訂停利價", min_value=0.0, step=0.5, format="%.2f")
             with _bc3:
-                if (_b_bp or 0) > 0 and (_b_qty or 0) > 0:
-                    _b_cost    = calc_buy_cost(_b_bp or 0, _b_qty or 0)
-                    _b_fee     = _calc_fee(_b_bp or 0, _b_qty or 0)
+                if _b_bp > 0 and _b_qty > 0:
+                    _b_cost    = calc_buy_cost(_b_bp, _b_qty)
+                    _b_fee     = _calc_fee(_b_bp, _b_qty)
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.info(
                         "📊 **預估摩擦成本**\n\n"
@@ -3584,17 +3720,35 @@ with tab3:
 
             _b_submit = st.form_submit_button("💾 確認買入登記", type="primary")
             if _b_submit:
-                if not _b_sid.strip() or (_b_bp or 0) <= 0 or (_b_qty or 0) <= 0:
+                if not _b_sid.strip() or _b_bp <= 0 or _b_qty <= 0:
                     st.error("請填寫完整：股票代號、買入均價、買入股數")
                 else:
-                    _b_cost_final = calc_buy_cost(_b_bp or 0, _b_qty or 0)
-                    _acct_now = load_account()
-                    if _acct_now.get("initial_capital", 0) > 0 and _acct_now.get("cash", 0) < _b_cost_final:
-                        st.error(f"⚠️ 可用現金 ${_acct_now['cash']:,.0f} 不足以支付 ${_b_cost_final:,.0f}")
+                    _sid_key = _b_sid.strip()
+                    # ── 防呆1：驗證股票代號存在於 stock_list.csv
+                    _valid_sid = False
+                    try:
+                        _sl_chk, _sl_ok_chk = load_csv("stock_list.csv")
+                        if _sl_ok_chk and not _sl_chk.empty:
+                            _sl_chk["stock_id"] = _sl_chk["stock_id"].astype(str).str.strip()
+                            _matched = _sl_chk[_sl_chk["stock_id"] == _sid_key]
+                            if not _matched.empty:
+                                _valid_sid = True
+                        else:
+                            _valid_sid = True  # 無清單時放行
+                    except Exception:
+                        _valid_sid = True  # 無法驗證時放行
+
+                    if not _valid_sid:
+                        st.error(f"⚠️ 股票代號【{_sid_key}】查無此股，請確認代號是否正確（台股4位數字）")
                     else:
-                        # 更新持倉
-                        _pf_now = load_portfolio()
-                        _sid_key = _b_sid.strip()
+                        _b_cost_final = calc_buy_cost(_b_bp, int(_b_qty))
+                        _acct_now = load_account()
+                        # ── 防呆2：現金不足
+                        if _acct_now.get("initial_capital", 0) > 0 and _acct_now.get("cash", 0) < _b_cost_final:
+                            st.error(f"⚠️ 可用現金 ${_acct_now['cash']:,.0f} 不足以支付含費成本 ${_b_cost_final:,.0f}")
+                        else:
+                            # ── 更新持倉（WAC移動加權平均）
+                            _pf_now = load_portfolio()
                         if _sid_key in _pf_now:
                             # ── 加碼：移動加權平均法（WAC），含手續費的真實成本
                             _old = _pf_now[_sid_key]
@@ -3605,8 +3759,8 @@ with tab3:
                             # 所以舊總成本直接用 舊均價×舊股數 即可（費用已攤入均價）
                             _old_total_cost = _old_avg * _old_qty
                             # 新批次總成本 = 新買入金額 + 新批次手續費（剛性含費成本）
-                            _new_total_cost = calc_buy_cost(_b_bp or 0, int(_b_qty or 0))
-                            _new_qty        = _old_qty + int(_b_qty or 0)
+                            _new_total_cost = calc_buy_cost(_b_bp, int(_b_qty))
+                            _new_qty        = _old_qty + int(_b_qty)
                             # 更新後含費均價 = (舊含費總成本 + 新含費總成本) / 更新後總股數
                             _new_avg_price  = (_old_total_cost + _new_total_cost) / _new_qty
                             _pf_now[_sid_key]["buy_price"] = round(_new_avg_price, 4)
@@ -3615,11 +3769,11 @@ with tab3:
                             if _b_sp > 0: _pf_now[_sid_key]["stop_profit"] = _b_sp
                         else:
                             # 首次買入：含費均價 = 含費總成本 / 股數
-                            _first_total = calc_buy_cost(_b_bp or 0, int(_b_qty or 0))
-                            _first_avg   = _first_total / int(_b_qty or 1)
+                            _first_total = calc_buy_cost(_b_bp, int(_b_qty))
+                            _first_avg   = _first_total / int(_b_qty)
                             _pf_now[_sid_key] = {
                                 "buy_price":   round(_first_avg, 4),  # 含費均價
-                                "qty":         int(_b_qty or 0),
+                                "qty":         int(_b_qty),
                                 "stop_loss":   _b_sl,
                                 "stop_profit": _b_sp,
                                 "buy_date":    str(_b_date),
@@ -3635,9 +3789,9 @@ with tab3:
                         _trd_now.append({
                             "date": str(_b_date), "action": "買入",
                             "stock_id": _sid_key,
-                            "price": _b_bp or 0, "qty": int(_b_qty or 0),
-                            "fee": round(_calc_fee(_b_bp or 0, _b_qty or 0), 0),
-                            "tax": 0, "amount": round((_b_bp or 0) * (_b_qty or 0), 0),
+                            "price": _b_bp, "qty": int(_b_qty),
+                            "fee": round(_calc_fee(_b_bp, _b_qty), 0),
+                            "tax": 0, "amount": round(_b_bp * _b_qty, 0),
                             "realized_pnl": None, "roi_pct": None,
                         })
                         save_trades(_trd_now)
@@ -3661,13 +3815,13 @@ with tab3:
                 with _sc2:
                     _s_max_qty = int(_pf_sell.get(_s_sid, {}).get("qty", 0))
                     _s_qty  = st.number_input(f"賣出股數（持有 {_s_max_qty} 股）",
-                                               min_value=0, max_value=_s_max_qty, value=None, step=1000, placeholder="請輸入")
-                    _s_price = st.number_input("賣出均價", min_value=0.0, value=None, step=0.5, format="%.2f", placeholder="請輸入")
+                                               min_value=0, max_value=_s_max_qty, step=1000)
+                    _s_price = st.number_input("賣出均價", min_value=0.0, step=0.5, format="%.2f")
                 with _sc3:
-                    if (_s_price or 0) > 0 and (_s_qty or 0) > 0:
+                    if _s_price > 0 and _s_qty > 0:
                         _s_bp      = float(_pf_sell[_s_sid]["buy_price"])
-                        _s_inflow  = calc_net_inflow(_s_price or 0, _s_qty or 0)
-                        _s_profit, _s_roi = calc_net_profit(_s_bp, _s_price or 0, _s_qty or 0)
+                        _s_inflow  = calc_net_inflow(_s_price, _s_qty)
+                        _s_profit, _s_roi = calc_net_profit(_s_bp, _s_price, _s_qty)
                         _s_fee     = _calc_fee(_s_price, _s_qty)
                         _s_tax     = _s_price * _s_qty * TAX_RATE
                         st.markdown("<br>", unsafe_allow_html=True)
@@ -3684,7 +3838,7 @@ with tab3:
 
                 _s_submit = st.form_submit_button("💸 確認賣出登記", type="primary")
                 if _s_submit:
-                    if (_s_price or 0) <= 0 or (_s_qty or 0) <= 0:
+                    if _s_price <= 0 or _s_qty <= 0:
                         st.error("請填寫賣出均價與股數")
                     elif _s_qty > _s_max_qty:
                         st.error(f"賣出股數 {_s_qty} 超過持有股數 {_s_max_qty}")
@@ -3692,36 +3846,42 @@ with tab3:
                         # 持有含費均價（WAC，已含買入手續費攤入）
                         _s_avg_cost   = float(_pf_sell[_s_sid]["buy_price"])
                         # 這批賣出的持有成本 = 含費均價 × 賣出股數
-                        _s_pv = _s_price or 0.0
-                        _s_qv = _s_qty or 0
-                        _s_hold_cost  = _s_avg_cost * _s_qv
-                        _s_fee_fin    = _calc_fee(_s_pv, _s_qv)
-                        _s_tax_fin    = _s_pv * _s_qv * TAX_RATE
-                        _s_inflow_fin = _s_pv * _s_qv - _s_fee_fin - _s_tax_fin
+                        _s_hold_cost  = _s_avg_cost * _s_qty
+                        # 賣出摩擦成本
+                        _s_fee_fin    = _calc_fee(_s_price, _s_qty)
+                        _s_tax_fin    = _s_price * _s_qty * TAX_RATE
+                        # 賣出實收
+                        _s_inflow_fin = _s_price * _s_qty - _s_fee_fin - _s_tax_fin
+                        # 純損益 = 賣出實收 - 持有含費成本（不重複計算買入手續費）
                         _s_profit_fin = _s_inflow_fin - _s_hold_cost
                         _s_roi_fin    = (_s_profit_fin / _s_hold_cost * 100) if _s_hold_cost > 0 else 0.0
 
+                        # 更新持倉：股數減少，均價維持原值不變（WAC規則）
                         _pf_now2 = load_portfolio()
-                        _remain  = _pf_now2[_s_sid]["qty"] - _s_qv
+                        _remain  = _pf_now2[_s_sid]["qty"] - _s_qty
                         if _remain <= 0:
+                            # 全部賣出 → pop 刪除
                             _pf_now2.pop(_s_sid, None)
                         else:
+                            # 部分賣出 → 只更新股數，均價不變
                             _pf_now2[_s_sid]["qty"] = _remain
                         save_portfolio(_pf_now2)
 
+                        # 更新現金與已實現損益
                         _acct_now2 = load_account()
                         _acct_now2["cash"] = _acct_now2.get("cash", 0) + _s_inflow_fin
                         _acct_now2["realized_pnl"] = _acct_now2.get("realized_pnl", 0) + _s_profit_fin
                         save_account(_acct_now2)
 
+                        # 寫入交易紀錄（含持有成本欄位，供後續稽核）
                         _trd_now2 = load_trades()
                         _trd_now2.append({
                             "date": str(_s_date), "action": "賣出",
                             "stock_id": _s_sid,
-                            "price": _s_pv, "qty": int(_s_qv),
+                            "price": _s_price, "qty": int(_s_qty),
                             "fee": round(_s_fee_fin, 0),
                             "tax": round(_s_tax_fin, 0),
-                            "amount": round(_s_pv * _s_qv, 0),
+                            "amount": round(_s_price * _s_qty, 0),
                             "hold_cost": round(_s_hold_cost, 0),
                             "realized_pnl": round(_s_profit_fin, 0),
                             "roi_pct": round(_s_roi_fin, 2),
@@ -3729,7 +3889,7 @@ with tab3:
                         save_trades(_trd_now2)
                         _emoji = "🎉" if _s_profit_fin >= 0 else "📉"
                         st.success(
-                            f"{_emoji} 賣出 {_s_sid} {int(_s_qv)}股 @ {_s_pv}，"
+                            f"{_emoji} 賣出 {_s_sid} {_s_qty}股 @ {_s_price}，"
                             f"實現損益 ${_s_profit_fin:,.0f}（{_s_roi_fin:+.2f}%），現金已回補"
                         )
                         st.session_state["sell_count"] = st.session_state.get("sell_count", 0) + 1
@@ -3774,49 +3934,7 @@ with tab3:
     st.markdown("---")
 
     # ════════════════════════════════════════════════════════
-    # ▌ 🦅 持股操作建議（基於買入均價的即時決策）
-    # ════════════════════════════════════════════════════════
-    import gc as _gc_adv
-    if _pf:
-        st.markdown("### 🦅 持股操作建議")
-        for _adv_sid, _adv_pos in _pf.items():
-            _adv_bp  = float(_adv_pos.get("buy_price", 0))
-            _adv_qty = int(_adv_pos.get("qty", 0))
-            _adv_sl  = float(_adv_pos.get("stop_loss", 0))
-            _adv_sp  = float(_adv_pos.get("stop_profit", 0))
-            if _adv_bp <= 0 or _adv_qty <= 0:
-                continue
-            try:
-                _adv_df, _adv_ok = load_price_csv(_adv_sid)
-                _adv_cp   = float(_adv_df["Close"].iloc[-1]) if _adv_ok and not _adv_df.empty else _adv_bp
-                _adv_df2  = add_indicators(_adv_df) if _adv_ok and not _adv_df.empty else _adv_df
-                _adv_ma20 = float(_adv_df2["MA20"].iloc[-1]) if _adv_ok and "MA20" in _adv_df2.columns else 0
-                _adv_ema5 = float(_adv_df2["EMA5"].iloc[-1]) if _adv_ok and "EMA5" in _adv_df2.columns else 0
-                _adv_bb_u = float(_adv_df2["BB_upper"].iloc[-1]) if _adv_ok and "BB_upper" in _adv_df2.columns else (float(_adv_df2["UB2"].iloc[-1]) if _adv_ok and "UB2" in _adv_df2.columns else 0)
-                del _adv_df, _adv_df2; _gc_adv.collect()
-            except Exception:
-                _adv_cp = _adv_bp; _adv_ma20 = 0; _adv_ema5 = 0; _adv_bb_u = 0
-
-            _adv_roi    = (_adv_cp - _adv_bp) / _adv_bp * 100 if _adv_bp > 0 else 0
-            _adv_profit = (_adv_cp - _adv_bp) * _adv_qty
-            _adv_name   = get_name(_adv_sid)
-            _adv_label  = f"**{_adv_sid} {_adv_name}**" if _adv_name else f"**{_adv_sid}**"
-
-            if _adv_sl > 0 and _adv_cp <= _adv_sl:
-                st.error(f"🚨 {_adv_label}｜現價 {_adv_cp:,.2f} 已跌破停損防線 {_adv_sl:,.2f}｜**立即執行風控出清！**")
-            elif _adv_sp > 0 and _adv_cp >= _adv_sp:
-                st.success(f"🎯 {_adv_label}｜現價 {_adv_cp:,.2f} 已達停利目標 {_adv_sp:,.2f}｜浮盈 **{_adv_roi:+.2f}%**｜**建議分批落袋！**")
-            elif _adv_roi >= 15:
-                st.success(f"🔥 {_adv_label}｜現價 {_adv_cp:,.2f}｜浮盈 **{_adv_roi:+.2f}%**（+{_adv_profit:,.0f}元）｜**建議減碼 30~50%，剩餘續抱！**")
-            elif 0 < _adv_roi < 15:
-                _adv_hint = f"EMA5 {_adv_ema5:,.2f} 回踩可加碼" if _adv_ema5 > 0 else "靜待上漲"
-                st.info(f"💡 {_adv_label}｜現價 {_adv_cp:,.2f}｜浮盈 **{_adv_roi:+.2f}%**｜站穩月線結構健康｜**建議維持續抱，{_adv_hint}！**")
-            elif _adv_roi < 0 and (_adv_sl <= 0 or _adv_cp > _adv_sl):
-                st.info(f"⏳ {_adv_label}｜現價 {_adv_cp:,.2f}｜浮虧 **{_adv_roi:.2f}%**（{_adv_profit:,.0f}元）｜未跌破停損｜**建議肉身抗震，嚴禁恐慌割肉！**")
-            else:
-                st.info(f"📊 {_adv_label}｜現價 {_adv_cp:,.2f}｜損益 **{_adv_roi:+.2f}%**｜**建議維持觀察。**")
-
-    st.markdown("---")
+    # ▌ 以下：原有持股監控（即時防守＋籌碼＋基本面）
     # ════════════════════════════════════════════════════════
         # ▌ 以下：原有持股監控（即時防守＋籌碼＋基本面）
     # ════════════════════════════════════════════════════════
@@ -3880,24 +3998,24 @@ with tab3:
 
     st.markdown("---")
 
-    wl = [{"id": sid, "name": get_name(sid)} for sid in load_portfolio().keys()]
+    wl = st.session_state.watchlist
 
     if not wl:
         st.markdown("""
         <div style='background:#0f2027;border:2px dashed #1e3a5f;border-radius:12px;
              padding:50px;text-align:center;'>
             <div style='font-size:2rem;margin-bottom:10px;'>📋</div>
-            <div style='color:#e8f4fd;font-size:.92rem;font-weight:600;'>目前無持倉</div>
+            <div style='color:#e8f4fd;font-size:.92rem;font-weight:600;'>監控清單為空</div>
             <div style='color:#7fb3d3;font-size:.8rem;margin-top:8px;'>
-                請至下方「買入登記」新增持股，<br>
-                系統將自動顯示持股監控分析
+                請至「選股掃描儀」點擊「加入監控」，<br>
+                或在左側 Sidebar「➕ 加入監控清單」輸入代號
             </div>
         </div>
         """, unsafe_allow_html=True)
     else:
-        # 選擇監控標的 - 來自 portfolio 持倉
-        wl_manual = wl
-        wl_scan   = []
+        # 選擇監控標的 - 分手動/掃描兩組
+        wl_manual = st.session_state.watchlist
+        wl_scan   = st.session_state.watchlist_scan
 
         # 搜尋框過濾
         search_kw = st.text_input("🔎 搜尋標的", placeholder="輸入代號或名稱...",
@@ -4665,7 +4783,7 @@ with tab3:
     )
 
     # 取得所有監控標的
-    all_watch = [{"id": sid, "name": get_name(sid)} for sid in load_portfolio().keys()]
+    all_watch = st.session_state.get("watchlist", []) + st.session_state.get("watchlist_scan", [])
     seen_ids = set()
     watch_dedup = []
     for w in all_watch:
@@ -5419,171 +5537,6 @@ with tab4:
 # ▌ TAB 5：大盤預警
 # ──────────────────────────────────────────────────────────────
 with tab5:
-
-    # ── 每次載入都清除四個板塊的 session_state key，
-    #    確保 multiselect 的 default 永遠來自 watch_list.json 最新值，
-    #    而不是被舊的 session 值覆蓋（這是預設值重疊 bug 的根本原因）
-    for _wl_sk in ["wl_ai_semi", "wl_ai_infra", "wl_next_gen", "wl_shipping_fin"]:
-        if _wl_sk in st.session_state:
-            del st.session_state[_wl_sk]
-
-    with st.expander("👑 全域類股龍頭監控天網（動態微調分列矩陣）", expanded=True):
-
-        # 讀取現有設定（本地JSON → GitHub備援 → 預設值）
-        _wl_data = load_watch_list()
-
-        # 建立 id→name 輔助顯示（stock_list.csv，找不到就用代號本身）
-        _wl_id2name = {}
-        try:
-            _sl_df, _sl_ok = load_csv("stock_list.csv")
-            if _sl_ok and not _sl_df.empty and "stock_id" in _sl_df.columns:
-                _sl_df["stock_id"] = _sl_df["stock_id"].astype(str).str.strip()
-                for _, _slr in _sl_df.drop_duplicates("stock_id").iterrows():
-                    _wl_id2name[_slr["stock_id"]] = _slr.get("stock_name", _slr["stock_id"])
-        except Exception:
-            pass
-
-        def _wl_label(sid: str) -> str:
-            """顯示格式：代號＋名稱（如 2330 台積電）"""
-            name = _wl_id2name.get(str(sid), "")
-            return f"{sid} {name}".strip() if name and name != sid else sid
-
-        def _wl_parse(labels: list) -> list:
-            """把 multiselect 回傳的 label 列表，只取出代號部分（空白前）"""
-            return [str(lb).split(" ")[0].strip() for lb in labels if lb]
-
-        # ══════════════════════════════════════════════════════════
-        # 核心修正：每個板塊各自獨立定義 options 和 default，完全解耦
-        # options = 本板塊現有標的（可額外輸入任意新代號）
-        # default = 從 watch_list.json 讀取本板塊的當前名單
-        # 兩者都只包含本板塊的標的，不共用、不污染其他板塊
-        # ══════════════════════════════════════════════════════════
-
-        # 行列一：🟢 AI 與半導體核心
-        _ids_ai_semi   = _wl_data.get("ai_semi",      WATCH_LIST_DEFAULTS["ai_semi"])
-        _opts_ai_semi  = [_wl_label(s) for s in _ids_ai_semi]
-        _sel_ai_semi   = st.multiselect(
-            "🟢 AI 與半導體核心",
-            options=_opts_ai_semi,
-            default=_opts_ai_semi,
-            key="wl_ai_semi",
-            accept_new_options=True,
-            help="輸入任意台股代號新增（如 3034）；點下方鎖定才寫入",
-        )
-
-        # 行列二：🔵 AI 剛需基礎建設
-        _ids_ai_infra  = _wl_data.get("ai_infra",     WATCH_LIST_DEFAULTS["ai_infra"])
-        _opts_ai_infra = [_wl_label(s) for s in _ids_ai_infra]
-        _sel_ai_infra  = st.multiselect(
-            "🔵 AI 剛需基礎建設",
-            options=_opts_ai_infra,
-            default=_opts_ai_infra,
-            key="wl_ai_infra",
-            accept_new_options=True,
-            help="輸入任意台股代號新增（如 6669）；點下方鎖定才寫入",
-        )
-
-        # 行列三：🟡 次世代戰略兵器
-        _ids_next_gen  = _wl_data.get("next_gen",     WATCH_LIST_DEFAULTS["next_gen"])
-        _opts_next_gen = [_wl_label(s) for s in _ids_next_gen]
-        _sel_next_gen  = st.multiselect(
-            "🟡 次世代戰略兵器",
-            options=_opts_next_gen,
-            default=_opts_next_gen,
-            key="wl_next_gen",
-            accept_new_options=True,
-            help="輸入任意台股代號新增（如 1519）；點下方鎖定才寫入",
-        )
-
-        # 行列四：🔴 航運傳產與大型金融
-        _ids_ship_fin  = _wl_data.get("shipping_fin", WATCH_LIST_DEFAULTS["shipping_fin"])
-        _opts_ship_fin = [_wl_label(s) for s in _ids_ship_fin]
-        _sel_ship_fin  = st.multiselect(
-            "🔴 航運傳產與大型金融",
-            options=_opts_ship_fin,
-            default=_opts_ship_fin,
-            key="wl_shipping_fin",
-            accept_new_options=True,
-            help="輸入任意台股代號新增（如 2884）；點下方鎖定才寫入",
-        )
-
-        # 整合四板塊最新選取結果
-        _wl_new_sectors = {
-            "ai_semi":      _wl_parse(_sel_ai_semi),
-            "ai_infra":     _wl_parse(_sel_ai_infra),
-            "next_gen":     _wl_parse(_sel_next_gen),
-            "shipping_fin": _wl_parse(_sel_ship_fin),
-        }
-
-        # 統計檔數
-        _wl_grand_total = sum(len(v) for v in _wl_new_sectors.values())
-        _wl_over_limit  = any(len(v) > WATCH_LIST_MAX_PER_ROW for v in _wl_new_sectors.values())
-        st.caption(
-            f"四大板塊共計 **{_wl_grand_total}** 檔　"
-            f"（AI半導體{len(_wl_new_sectors['ai_semi'])} ＋ "
-            f"AI建設{len(_wl_new_sectors['ai_infra'])} ＋ "
-            f"次世代{len(_wl_new_sectors['next_gen'])} ＋ "
-            f"傳產金融{len(_wl_new_sectors['shipping_fin'])}）　"
-            f"每行上限 {WATCH_LIST_MAX_PER_ROW} 檔"
-        )
-
-        # ── 龍頭多空定錨（分板塊顯示，不用無意義的合計數字）
-        _sb = get_sector_breadth()
-        if _sb and _sb.get("by_sector"):
-            _by = _sb["by_sector"]
-            _sb_icons = {"ai_semi":"🟢 AI半導體","ai_infra":"🔵 AI建設","next_gen":"🟡 次世代","shipping_fin":"🔴 傳產金融"}
-            _parts = []
-            for _k, _icon in _sb_icons.items():
-                _s = _by.get(_k, {})
-                if _s.get("total"):
-                    _a20, _tot = _s.get("above_sma20",0), _s["total"]
-                    _color = "🔴" if _a20/_tot < 0.35 else "🟡" if _a20/_tot < 0.6 else "🟢"
-                    _parts.append(f"{_icon} {_a20}/{_tot}{_color}")
-            st.markdown(
-                f"<div style='color:#c8dff0;font-size:.82rem;padding:4px 0 8px;'>"
-                f"📊 類股龍頭站月線(SMA20)：{'　'.join(_parts)}"
-                f"　｜　{_sb.get('date','—')}</div>",
-                unsafe_allow_html=True
-            )
-        elif _sb and _sb.get("total"):
-            _sb_above = _sb.get("above_sma20", 0)
-            _sb_total = _sb["total"]
-            st.markdown(
-                f"<div style='color:#c8dff0;font-size:.82rem;padding:4px 0 8px;'>"
-                f"📊 類股龍頭多空定錨：{_sb_above}/{_sb_total} 站月線　｜　{_sb.get('date','—')}</div>",
-                unsafe_allow_html=True
-            )
-        else:
-            st.markdown(
-                "<div style='color:#7fb3d3;font-size:.78rem;padding:4px 0 8px;'>"
-                "📊 類股龍頭多空定錨：等待每日 17:00 盤後排程計算（daily_scan.py）</div>",
-                unsafe_allow_html=True
-            )
-
-        # 💾 置頂鋼鐵藍色鎖定按鈕（正中央置放）
-        _wl_col_l, _wl_col_c, _wl_col_r = st.columns([1, 2, 1])
-        with _wl_col_c:
-            if st.button(
-                "💾 鎖定新風向（實時覆寫大類股監控名單）",
-                use_container_width=True,
-                disabled=_wl_over_limit,
-                key="wl_save_btn",
-                type="primary",
-            ):
-                _ok_save = save_watch_list_to_github(_wl_new_sectors)
-                if _ok_save:
-                    st.success(
-                        "👑 報告指揮官：17檔大類股防線已物理死鎖，全域雷達已同步移防！"
-                    )
-                else:
-                    st.warning(
-                        "⚠️ 本地已寫入，但 GitHub 推送失敗。"
-                        "請確認 GH_TOKEN 已設定（st.secrets[\"GH_TOKEN\"]），或稍後重試。"
-                    )
-            if _wl_over_limit:
-                st.error(f"⛔ 某行超過 {WATCH_LIST_MAX_PER_ROW} 檔上限，請先移除多餘標的！")
-    # ════════════════════════════════════════════════════════
-
     st.markdown("<div class='sec-title'>📡 大盤預警 · 期貨引擎 ＋ 蒙格行為學 ＋ AI診斷</div>",
                 unsafe_allow_html=True)
     # ── V6 三軌風控儀表板
@@ -6816,8 +6769,6 @@ with tab6:
                     )
             elif _is_long:
                 # 長線常規軍：無視盤中震盪，看大戶和30週線
-                _ma20_t6 = float(lt.get("MA20", float("nan")))
-                bias_ma20 = (close_now - _ma20_t6) / _ma20_t6 * 100 if not np.isnan(_ma20_t6) and _ma20_t6 > 0 else 0.0
                 if _risk_st_t6b == "RED_ALERT" and bias_ma20 < -5:
                     st.markdown(
                         f"<div style='background:rgba(244,63,94,0.1);border:1px solid #f43f5e;"
@@ -6938,8 +6889,8 @@ with tab2:
     )
 
     @st.cache_data(ttl=1800, show_spinner="大數據雷達掃描中...")
-    def run_radar(scan_sids=None):
-        """掃描指定股票清單三大雷達，回傳結果 DataFrame"""
+    def run_radar():
+        """掃描全台股三大雷達，回傳結果 DataFrame"""
         # 載入基礎資料
         df_si, ok_si   = get_stock_info()
         df_ch, ok_ch   = get_chips()
@@ -6996,10 +6947,9 @@ with tab2:
                         if yoy and yoy != 0:
                             eps_yoy[sid] = (latest - yoy) / abs(yoy) * 100
 
-        # 掃描指定股票（加 gc 釋放記憶體，避免 Streamlit Cloud 爆掉）
-        import gc as _gc_radar
+        # 掃描所有股票
         radar1, radar2, radar3 = [], [], []
-        all_sids = scan_sids if scan_sids is not None else df_si["stock_id"].tolist()
+        all_sids = df_si["stock_id"].tolist()
 
         for sid in all_sids:
             df_p, ok_p = load_price_csv(sid)
@@ -7060,8 +7010,6 @@ with tab2:
                         "AI戰略評語": "🔥 主力鎖倉惜售，噴發前兆，等量縮突破" if close >= sma20 else "🟡 守EMA5，等月線確認"
                     })
 
-            del df_p; _gc_radar.collect()  # 立即釋放記憶體
-
             # ── 雷達3：大戶硬漢
             bp = float(big_pct.get(sid, 0))
             ey = float(eps_yoy.get(sid, float("nan")))
@@ -7080,40 +7028,17 @@ with tab2:
                 pd.DataFrame(radar2) if radar2 else pd.DataFrame(),
                 pd.DataFrame(radar3) if radar3 else pd.DataFrame())
 
-    # 執行掃描（分段500筆，避免記憶體爆掉）
-    _df_si_total, _ok_si_total = get_stock_info()
-    _total_sids = _df_si_total["stock_id"].tolist() if _ok_si_total and not _df_si_total.empty else []
-    _batch_size = 500
-    _total_batches = (len(_total_sids) + _batch_size - 1) // _batch_size
-
-    st.caption(f"全市場共 {len(_total_sids)} 檔，每批 {_batch_size} 筆，共 {_total_batches} 批")
-
-    _btn_cols = st.columns(_total_batches + 1)
-    for _bi in range(_total_batches):
-        _start = _bi * _batch_size
-        _end   = min(_start + _batch_size, len(_total_sids))
-        if _btn_cols[_bi].button(f"第{_bi+1}批（{_start+1}~{_end}）", key=f"radar_batch_{_bi}"):
-            with st.spinner(f"掃描第{_bi+1}批（{_start+1}~{_end}筆）..."):
-                _batch_sids = _total_sids[_start:_end]
-                df_r1_b, df_r2_b, df_r3_b = run_radar(_batch_sids)
-                # 累加結果
-                _prev_r1 = st.session_state.get("radar_r1", pd.DataFrame())
-                _prev_r2 = st.session_state.get("radar_r2", pd.DataFrame())
-                _prev_r3 = st.session_state.get("radar_r3", pd.DataFrame())
-                st.session_state["radar_r1"] = pd.concat([_prev_r1, df_r1_b], ignore_index=True).drop_duplicates(subset=["代號"]) if not df_r1_b.empty else _prev_r1
-                st.session_state["radar_r2"] = pd.concat([_prev_r2, df_r2_b], ignore_index=True).drop_duplicates(subset=["代號"]) if not df_r2_b.empty else _prev_r2
-                st.session_state["radar_r3"] = pd.concat([_prev_r3, df_r3_b], ignore_index=True).drop_duplicates(subset=["代號"]) if not df_r3_b.empty else _prev_r3
-            st.toast(f"✅ 第{_bi+1}批掃描完成", icon="✅")
-
-    if _btn_cols[_total_batches].button("🗑️ 清除結果", key="radar_clear"):
-        st.session_state.pop("radar_r1", None)
-        st.session_state.pop("radar_r2", None)
-        st.session_state.pop("radar_r3", None)
+    # 執行掃描
+    if st.button("🔍 啟動大數據雷達掃描", type="primary", key="radar_scan"):
+        st.cache_data.clear()
         st.rerun()
 
-    df_r1 = st.session_state.get("radar_r1", pd.DataFrame())
-    df_r2 = st.session_state.get("radar_r2", pd.DataFrame())
-    df_r3 = st.session_state.get("radar_r3", pd.DataFrame())
+    df_r1, df_r2, df_r3 = run_radar()
+
+    # 存入 session_state 供 Tab1 使用
+    st.session_state["radar_r1"] = df_r1
+    st.session_state["radar_r2"] = df_r2
+    st.session_state["radar_r3"] = df_r3
 
     # 頂部 metric
     m1, m2, m3 = st.columns(3)
