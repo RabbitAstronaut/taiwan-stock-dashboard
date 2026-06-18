@@ -3446,32 +3446,14 @@ with tab3:
         # ════════════════════════════════════════════════════
         # ▌ 停損/停利動態預警
         # ════════════════════════════════════════════════════
-        for _r in _pf_rows:
-            if _r["_sl"] > 0 and _r["_cp"] <= _r["_sl"]:
-                st.error(
-                    f"🚨 停損熔斷預警：【{_r['代號']}】現價 {_r['現價']} "
-                    f"已跌破自訂防線 {_r['_sl']}，請強制執行風控指令！"
-                )
-            if _r["_sp"] > 0 and _r["_cp"] >= _r["_sp"]:
-                st.success(
-                    f"🎯 停利觸發：【{_r['代號']}】現價 {_r['現價']} "
-                    f"已到達停利防線 {_r['_sp']}，評估是否執行獲利了結！"
-                )
-
         # ════════════════════════════════════════════════════
-        # ▌ 籌碼自適應決策智庫提示箱
-        # 交叉比對：買入成本 × 現價 × 融資增減 × 外資買超
-        # ▌ 市場強弱：即時讀取 watch_list.json 四板塊龍頭，
-        #   動態計算今日站上 SMA20 的比例（不依賴昨日排程結果）
+        # ▌ 即時龍頭站月線掃描（供決策智庫使用）
         # ════════════════════════════════════════════════════
-
-        # ── 即時掃描龍頭站月線（從 watch_list.json 四板塊）
         @st.cache_data(ttl=1800, show_spinner=False)
         def _scan_leaders_sma20_live():
             """
-            即時讀取 watch_list.json 的四大板塊龍頭，
-            逐檔計算是否站上 SMA20，回傳 (above, total, details)。
-            快取30分鐘，避免每次刷新都重新計算。
+            即時讀取 watch_list.json 四大板塊龍頭，動態計算站上 SMA20 比例。
+            快取30分鐘，避免每次刷新都重跑17檔 load_price_csv。
             """
             import json as _j, os as _os
             _wl_path = _os.path.join("data", "watch_list.json")
@@ -3482,18 +3464,13 @@ with tab3:
                         _wl = _j.load(_f)
                 except Exception:
                     pass
-
-            # 合併四板塊去重
-            _seen = set()
-            _all_ids = []
+            _seen, _all_ids = set(), []
             for _key in ("ai_semi", "ai_infra", "next_gen", "shipping_fin"):
                 for _sid in _wl.get(_key, []):
                     if _sid not in _seen:
                         _seen.add(_sid)
                         _all_ids.append(_sid)
-
             _above, _total = 0, 0
-            _details = []
             for _sid in _all_ids:
                 try:
                     _df_l, _ok_l = load_price_csv(_sid)
@@ -3502,121 +3479,186 @@ with tab3:
                     _closes = pd.to_numeric(_df_l["Close"], errors="coerce").dropna()
                     if len(_closes) < 20:
                         continue
-                    _sma20   = float(_closes.tail(20).mean())
-                    _last_cp = float(_closes.iloc[-1])
-                    _is_above = _last_cp >= _sma20
-                    _total += 1
-                    if _is_above:
+                    _sma20 = float(_closes.tail(20).mean())
+                    if float(_closes.iloc[-1]) >= _sma20:
                         _above += 1
-                    _details.append({"id": _sid, "above": _is_above,
-                                     "price": _last_cp, "sma20": round(_sma20, 2)})
+                    _total += 1
                     del _df_l
                     import gc; gc.collect()
                 except Exception:
                     continue
-            return _above, _total, _details
+            return _above, _total
 
-        _ldr_above, _ldr_total, _ = _scan_leaders_sma20_live()
-        _mkt_weak  = (_ldr_above / _ldr_total < 0.5) if _ldr_total else False
-        _sb_above  = _ldr_above   # 供情境C顯示用
-        _sb_total_ = _ldr_total
-
-        for _r in _pf_rows:
-            _r_sid     = _r["代號"]
-            _r_name    = _r["名稱"] or _r_sid
-            _r_cp      = _r["_cp"]
-            _r_bp      = _r["_bp"]
-            _r_sl      = _r["_sl"]
-            _r_sp      = _r.get("_sp", 0)  # 停利價
-            _r_margin  = _r.get("📉融資增減%")
-            _r_foreign = _r.get("📡外資買超張")
-            _r_profit  = _r["未實現損益"]
-            _r_strat   = _r.get("_strategy", "LONG")
-
-            # ══════════════════════════════════════════
-            # 🛡️ 長線資產防空洞（LONG）演算法
-            # ══════════════════════════════════════════
-            if _r_strat == "LONG":
-                # 計算潛在獲利/虧損空間
-                _long_profit_space = ((_r_sp - _r_bp) / _r_bp * 100) if _r_sp > 0 and _r_bp > 0 else None
-                _long_loss_space   = ((_r_sl - _r_bp) / _r_bp * 100) if _r_sl > 0 and _r_bp > 0 else None
-
-                # 情境 A：微虧洗盤 + 散戶融資大減肥 → 黃金持倉點
-                if (_r_bp > _r_cp and
-                    (_r_sl <= 0 or _r_cp > _r_sl) and
-                    _r_margin is not None and _r_margin <= -2.0):
-                    _space_txt = f"｜停利空間 +{_long_profit_space:.1f}%" if _long_profit_space else ""
-                    st.info(
-                        f"💡 **{_r_sid} {_r_name}｜🛡️ 長線防守 Facts**\n\n"
-                        f"目前股價低於買入成本（虧損 {abs(_r_profit):,.0f} 元），"
-                        f"但系統偵測到「**融資正在大幅割肉減肥（減少 {abs(_r_margin):.2f}%）**」！"
-                        f"這代表高位階散戶浮額正在被洗出，底部洗盤特徵明確。"
-                        f"0 槓桿純現貨雷打不動，嚴禁在非理性低位割肉{_space_txt}，"
-                        f"肉身扛過去，靜待大戶換股東風！"
-                    )
-
-                # 情境 B：外資護盤 + 現價高於成本 → 穩坐釣魚台
-                elif (_r_cp > _r_bp and
-                      _r_foreign is not None and _r_foreign > 0):
-                    _space_txt = f"｜距停利 +{_long_profit_space:.1f}%" if _long_profit_space else ""
-                    st.info(
-                        f"🔥 **{_r_sid} {_r_name}｜🛡️ 長線續抱信號**\n\n"
-                        f"股價已脫離買入成本區（獲利 {_r_profit:+,.0f} 元）！"
-                        f"且今日**外資現貨大舉買超 {_r_foreign:,.0f} 張**！"
-                        f"多頭骨架剛性，請穩坐釣魚台優雅續抱{_space_txt}，"
-                        f"靜待撞擊布林上緣或前高天花板時的終極提款信號！"
-                    )
-
-                # 情境 C：市場偏弱且虧損 → 龍頭站月線動態提示
-                elif _mkt_weak and _r_profit < 0:
-                    st.info(
-                        f"💡 **{_r_sid} {_r_name}｜🛡️ 長線耐心等待**\n\n"
-                        f"即時掃描龍頭站月線僅 **{_sb_above}/{_sb_total_}** 檔，市場結構偏弱。"
-                        f"長線部位忽略短期雜訊，停損防線 {_r_sl if _r_sl > 0 else '未設定'}，"
-                        f"現貨 0 槓桿肉身抗震，靜待結構修復！"
-                    )
-
-            # ══════════════════════════════════════════
-            # ⚡ 短線游擊突擊隊（SHORT）演算法
-            # ══════════════════════════════════════════
-            else:
-                # 短線停損觸發 → 強制出場紅框
-                if _r_sl > 0 and _r_cp <= _r_sl:
-                    st.error(
-                        f"🚨 **{_r_sid} {_r_name}｜⚡ 短線突擊隊強制令**\n\n"
-                        f"現價 **{_r_cp:.2f}** 已跌破停損防線 **{_r_sl:.2f}**！"
-                        f"請立刻全數清空平倉，出貨後系統直接從名單剔除。"
-                        f"**嚴禁變成長期套牢！** 認賠出場是最強風控。"
-                    )
-
-                # 短線停利觸發 → 強制提款橙框
-                elif _r_sp > 0 and _r_cp >= _r_sp:
-                    st.warning(
-                        f"🎯 **{_r_sid} {_r_name}｜⚡ 短線突擊隊提款令**\n\n"
-                        f"現價 **{_r_cp:.2f}** 已達到停利目標 **{_r_sp:.2f}**！"
-                        f"獲利 {_r_profit:+,.0f} 元（{_r['ROI%']:+.2f}%）。"
-                        f"請立刻全數平倉出場，落袋為安，嚴禁貪心續抱！"
-                    )
-
-                # 短線觀望中 → 顯示上下壓力點
-                else:
-                    _upper = _r_sp if _r_sp > 0 else round(_r_bp * 1.08, 2)
-                    _lower = _r_sl if _r_sl > 0 else round(_r_bp * 0.95, 2)
-                    _pnl_txt = f"獲利 {_r_profit:+,.0f}" if _r_profit >= 0 else f"虧損 {_r_profit:,.0f}"
-                    _fgn_txt = f"外資 {_r_foreign:+,.0f} 張" if _r_foreign is not None else "外資數據待更新"
-                    st.info(
-                        f"⚡ **{_r_sid} {_r_name}｜短線游擊觀察中**\n\n"
-                        f"現價 {_r_cp:.2f}｜{_pnl_txt} 元（{_r['ROI%']:+.2f}%）\n\n"
-                        f"🔴 上方壓力：**{_upper:.2f}**（停利/目標）　"
-                        f"🟢 下方防守：**{_lower:.2f}**（停損防線）\n\n"
-                        f"籌碼：{_fgn_txt}｜融資增減 {f'{_r_margin:+.2f}%' if _r_margin is not None else '—'}"
-                    )
+        _ldr_above, _ldr_total = _scan_leaders_sma20_live()
+        _mkt_weak = (_ldr_above / _ldr_total < 0.5) if _ldr_total else False
 
         # ════════════════════════════════════════════════════
-        # ▌ 當前持倉明細
+        # ▌ 持股監控 Expander 卡片（每持倉一張，長短雙軌）
         # ════════════════════════════════════════════════════
         st.markdown("---")
-        st.markdown("#### 📋 當前持倉明細（含摩擦成本）")
+        st.markdown(
+            f"<div style='color:#7fb3d3;font-size:.82rem;margin-bottom:8px;'>"
+            f"📊 市場權值龍頭站上月線：<b style='color:#e8f4fd;'>{_ldr_above} / {_ldr_total}</b> 檔"
+            f"　｜　{'⚠️ 結構偏弱' if _mkt_weak else '✅ 結構健康'}"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+        st.markdown("#### 📋 持股監控卡片（含籌碼決策智庫）")
+
+        if not _pf_rows:
+            st.info("📭 目前無持倉，請在下方帳務登記櫃檯新增買入紀錄。")
+        else:
+            for _r in _pf_rows:
+                _r_sid    = _r["代號"]
+                _r_name   = _r["名稱"] or _r_sid
+                _r_cp     = _r["_cp"]
+                _r_bp     = _r["_bp"]
+                _r_sl     = _r["_sl"]
+                _r_sp     = _r.get("_sp", 0)
+                _r_profit = _r["未實現損益"]
+                _r_roi    = _r["ROI%"]
+                _r_margin = _r.get("📉融資增減%")
+                _r_fgn    = _r.get("📡外資買超張")
+                _r_strat  = _r.get("_strategy", "LONG")
+                _r_qty    = _r["持股數"]
+
+                # 策略標籤
+                _strat_label = "🛡️ 長線防空洞" if _r_strat == "LONG" else "⚡ 短線突擊隊"
+                _pnl_color   = "#ff4444" if _r_profit > 0 else "#00cc66" if _r_profit < 0 else "#e8f4fd"
+
+                with st.expander(
+                    f"{'📈' if _r_profit >= 0 else '📉'} {_r_sid} {_r_name}　｜　"
+                    f"{_strat_label}　｜　"
+                    f"{'獲利' if _r_profit >= 0 else '虧損'} {abs(_r_profit):,.0f} 元（{_r_roi:+.2f}%）",
+                    expanded=True
+                ):
+                    # ── 四格指標
+                    _c1, _c2, _c3, _c4 = st.columns(4)
+                    _c1.metric(
+                        "現價 / 含費均價",
+                        f"{_r_cp:,.2f}",
+                        f"{_r_roi:+.2f}%",
+                        delta_color="normal"
+                    )
+                    _mg_label = f"{_r_margin:+.2f}%" if _r_margin is not None else "—"
+                    _mg_delta = "散戶退場✅" if (_r_margin or 0) < 0 else "散戶進場⚠️" if (_r_margin or 0) > 0 else "—"
+                    _c2.metric("📉 融資增減", _mg_label, _mg_delta,
+                               delta_color="inverse" if (_r_margin or 0) < 0 else "normal")
+                    _fgn_label = f"{_r_fgn:+,.0f} 張" if _r_fgn is not None else "—"
+                    _fgn_delta = "主力吸籌✅" if (_r_fgn or 0) > 0 else "主力調節⚠️" if (_r_fgn or 0) < 0 else "—"
+                    _c3.metric("📡 外資動能", _fgn_label, _fgn_delta,
+                               delta_color="normal" if (_r_fgn or 0) > 0 else "inverse")
+                    _c4.metric(
+                        "持股 / 均價",
+                        f"{_r_qty:,} 股",
+                        f"均價 {_r_bp:,.2f}"
+                    )
+
+                    # ══════════════════════════════
+                    # 🛡️ LONG 長線防空洞決策軌
+                    # ══════════════════════════════
+                    if _r_strat == "LONG":
+                        # 停損/停利空間計算
+                        _profit_space = ((_r_sp - _r_bp) / _r_bp * 100) if _r_sp > 0 and _r_bp > 0 else None
+                        _loss_space   = ((_r_sl - _r_bp) / _r_bp * 100) if _r_sl > 0 and _r_bp > 0 else None
+
+                        # 短線破位等雜訊：長線全面屏蔽，只看籌碼和月線
+                        _chips_healthy = (_r_margin is None or _r_margin <= 2) and (_r_fgn is None or _r_fgn >= -500)
+
+                        # 情境A：底部洗盤（虧損+融資大減）
+                        if _r_bp > _r_cp and (_r_sl <= 0 or _r_cp > _r_sl) and (_r_margin or 0) <= -2.0:
+                            _sp_txt = f"｜停利目標 {_r_sp:.2f}（空間 +{_profit_space:.1f}%）" if _profit_space else ""
+                            st.info(
+                                f"💡 **{_r_sid} 長線防守 Facts：底部洗盤期確認**\n\n"
+                                f"股價低於買入成本（虧損 {abs(_r_profit):,.0f} 元），"
+                                f"但「**融資大幅割肉減肥 {abs(_r_margin):.2f}%**」！"
+                                f"高位散戶浮額正在被清洗出去，底部特徵明確。"
+                                f"0 槓桿純現貨雷打不動，此處為黃金支撐布局點{_sp_txt}，"
+                                f"肉身扛過去，靜待大戶換股東風！"
+                            )
+
+                        # 情境B：外資護盤+獲利
+                        elif _r_cp > _r_bp and (_r_fgn or 0) > 0:
+                            _sp_txt = f"｜距停利 +{_profit_space:.1f}%" if _profit_space else ""
+                            st.info(
+                                f"🔥 **{_r_sid} 長線續抱信號：外資真金白銀護盤**\n\n"
+                                f"股價已脫離買入成本區（獲利 {_r_profit:+,.0f} 元）！"
+                                f"今日外資**大舉買超 {_r_fgn:,.0f} 張**，多頭骨架剛性{_sp_txt}。"
+                                f"穩坐釣魚台優雅續抱，靜待撞擊前高天花板時的終極提款信號！"
+                            )
+
+                        # 情境C：市場結構偏弱+虧損
+                        elif _mkt_weak and _r_profit < 0:
+                            _sl_txt = f"停損防線 {_r_sl:.2f}" if _r_sl > 0 else "停損未設定（建議補設）"
+                            st.info(
+                                f"💡 **{_r_sid} 長線耐心等待：市場結構修復中**\n\n"
+                                f"即時龍頭站月線 **{_ldr_above}/{_ldr_total}** 檔，結構偏弱。"
+                                f"長線部位全面屏蔽短期雜訊，{_sl_txt}，"
+                                f"現貨 0 槓桿肉身抗震，靜待結構修復！"
+                            )
+
+                        # 情境D：正常持倉
+                        else:
+                            _status = "獲利續抱中" if _r_profit >= 0 else "正常回撤中"
+                            st.success(
+                                f"✅ **{_r_sid} 長線防空洞｜{_status}**　"
+                                f"籌碼結構健康，現貨部位**鎖進保險箱雷打不動**。"
+                                f"龍頭站月線 {_ldr_above}/{_ldr_total}，"
+                                f"靜待下一個籌碼分離訊號。"
+                            )
+
+                    # ══════════════════════════════
+                    # ⚡ SHORT 短線游擊突擊隊決策軌
+                    # ══════════════════════════════
+                    else:
+                        # 籌碼分離偵測（外資大賣 OR 融資大增）
+                        _chips_sep = ((_r_fgn or 0) < -500) or ((_r_margin or 0) > 3.0)
+
+                        # 停損觸發
+                        if _r_sl > 0 and _r_cp <= _r_sl:
+                            st.error(
+                                f"🚨 **{_r_sid} 短線突擊隊強制令：停損觸發**\n\n"
+                                f"現價 **{_r_cp:.2f}** 已跌破停損防線 **{_r_sl:.2f}**！"
+                                f"虧損 {abs(_r_profit):,.0f} 元。"
+                                f"**請立刻全數清空平倉，嚴禁抱成長期套牢！**"
+                            )
+
+                        # 停利觸發
+                        elif _r_sp > 0 and _r_cp >= _r_sp:
+                            st.warning(
+                                f"🎯 **{_r_sid} 短線突擊隊提款令：停利觸發**\n\n"
+                                f"現價 **{_r_cp:.2f}** 已達停利目標 **{_r_sp:.2f}**！"
+                                f"獲利 {_r_profit:+,.0f} 元（{_r_roi:+.2f}%）。"
+                                f"**請立刻全數平倉出場，落袋為安！**"
+                            )
+
+                        # 籌碼分離警告
+                        elif _chips_sep:
+                            st.error(
+                                f"🚨 **{_r_sid} 短線｜高危籌碼分離警告（以退為進）**\n\n"
+                                f"偵測到大戶與散戶軌道嚴重分離──"
+                                f"外資 {(_r_fgn or 0):+,.0f} 張｜融資增減 {(_r_margin or 0):+.2f}%。"
+                                f"短線流動性優勢已消失，**請執行以退為進清倉令**，"
+                                f"落袋或認賠，出清後系統剔除追蹤名單，絕不留戀！"
+                            )
+
+                        # 觀望中
+                        else:
+                            _upper = _r_sp if _r_sp > 0 else round(_r_bp * 1.08, 2)
+                            _lower = _r_sl if _r_sl > 0 else round(_r_bp * 0.95, 2)
+                            st.info(
+                                f"⚡ **{_r_sid} 短線游擊｜橫盤監控中**\n\n"
+                                f"現價 {_r_cp:.2f}　{('獲利' if _r_profit >= 0 else '虧損')} "
+                                f"{abs(_r_profit):,.0f} 元（{_r_roi:+.2f}%）\n\n"
+                                f"🔴 上方壓力：**{_upper:.2f}**　"
+                                f"🟢 下方防守：**{_lower:.2f}**\n\n"
+                                f"籌碼：外資 {f'{_r_fgn:+,.0f}張' if _r_fgn is not None else '—'}"
+                                f"｜融資 {f'{_r_margin:+.2f}%' if _r_margin is not None else '—'}。"
+                                f"嚴禁將短線抱成長期套牢，隨時備好閃人防禦！"
+                            )
+
+        st.markdown("---")
+        st.markdown("#### 📋 持倉明細彙總表（含籌碼）")
         if _pf_rows:
             _rows_html = ""
             for _r in _pf_rows:
