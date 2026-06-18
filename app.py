@@ -258,6 +258,81 @@ def get_stock_name_map() -> dict:
     return {}
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def get_chips_facts_map() -> dict:
+    """
+    從 chips_data.csv 和 margin.csv 建立個股籌碼事實對照表。
+
+    回傳格式：
+    {
+      "stock_id": {
+        "foreign_net": 外資當日買超張數（正=買超，負=賣超）,
+        "margin_chg_pct": 融資增減比例（%），
+        "margin_today": 今日融資餘額,
+        "margin_yesterday": 昨日融資餘額,
+      }
+    }
+    讀取失敗的個股回傳 None，不影響其他個股。
+    """
+    result = {}
+
+    # ── 1. 外資買超（chips_data.csv）
+    try:
+        df_c, ok_c = load_csv("chips_data.csv")
+        if ok_c and not df_c.empty:
+            df_c["stock_id"] = df_c["stock_id"].astype(str).str.strip()
+            df_c["net"] = pd.to_numeric(df_c.get("net"), errors="coerce")
+            df_c["date"] = pd.to_datetime(df_c["date"], errors="coerce")
+            # 只取外資（Foreign_Investor）
+            df_foreign = df_c[df_c["name"].astype(str).str.contains("Foreign_Investor", na=False)]
+            # 單位轉換：股→張
+            if not df_foreign.empty and df_foreign["net"].abs().max() > 50000:
+                df_foreign = df_foreign.copy()
+                df_foreign["net"] = df_foreign["net"] / 1000
+            # 每支股票取最新一筆
+            for sid, g in df_foreign.groupby("stock_id"):
+                g = g.dropna(subset=["date"]).sort_values("date")
+                if not g.empty:
+                    if sid not in result:
+                        result[sid] = {}
+                    result[sid]["foreign_net"] = round(float(g.iloc[-1]["net"]), 0)
+        del df_c
+        import gc; gc.collect()
+    except Exception as e:
+        pass
+
+    # ── 2. 融資增減（margin.csv）
+    try:
+        df_m, ok_m = load_csv("margin.csv")
+        if ok_m and not df_m.empty:
+            df_m["stock_id"] = df_m["stock_id"].astype(str).str.strip()
+            _today_col  = "MarginPurchaseTodayBalance"
+            _yest_col   = "MarginPurchaseYesterdayBalance"
+            if _today_col in df_m.columns and _yest_col in df_m.columns:
+                df_m[_today_col] = pd.to_numeric(df_m[_today_col], errors="coerce")
+                df_m[_yest_col]  = pd.to_numeric(df_m[_yest_col],  errors="coerce")
+                df_m = df_m.dropna(subset=[_today_col, _yest_col])
+                # 每支股票取最新一筆
+                df_m_latest = df_m.sort_values("date") if "date" in df_m.columns else df_m
+                df_m_latest = df_m_latest.drop_duplicates("stock_id", keep="last")
+                for _, row in df_m_latest.iterrows():
+                    sid  = str(row["stock_id"])
+                    t    = float(row[_today_col])
+                    y    = float(row[_yest_col])
+                    pct  = round((t - y) / y * 100, 2) if y != 0 else 0.0
+                    if sid not in result:
+                        result[sid] = {}
+                    result[sid]["margin_today"]     = t
+                    result[sid]["margin_yesterday"]  = y
+                    result[sid]["margin_chg_pct"]    = pct
+        del df_m
+        import gc; gc.collect()
+    except Exception:
+        pass
+
+    return result
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def load_watch_list():
     """
@@ -3300,6 +3375,9 @@ with tab3:
         _pos_cost_total   = 0.0
         _pf_rows          = []
 
+        # 一次性讀取全市場籌碼事實（快取5分鐘，不重複IO）
+        _chips_map = get_chips_facts_map()
+
         for _sid, _pos in _pf.items():
             _bp  = float(_pos.get("buy_price", 0))
             _qty = int(_pos.get("qty", 0))
@@ -3318,17 +3396,27 @@ with tab3:
             _inflow = calc_net_inflow(_cp, _qty)
             _profit, _roi = calc_net_profit(_bp, _cp, _qty)
 
-            _pos_market_value += _inflow   # 當前可變現金額
+            _pos_market_value += _inflow
             _pos_cost_total   += _cost
 
+            # 讀取籌碼事實（融資增減 + 外資買超）
+            _chip = _chips_map.get(_sid, {})
+            _foreign_net = _chip.get("foreign_net",   None)
+            _margin_chg  = _chip.get("margin_chg_pct", None)
+
             _pf_rows.append({
-                "代號": _sid, "名稱": _nm_map.get(_sid, ""), "買入日期": _bdt, "現價": round(_cp, 2),
+                "代號": _sid, "名稱": _nm_map.get(_sid, ""),
+                "買入日期": _bdt, "現價": round(_cp, 2),
                 "買入均價": round(_bp, 2), "持股數": _qty,
                 "含費成本": round(_cost, 0), "扣稅實收": round(_inflow, 0),
                 "未實現損益": round(_profit, 0), "ROI%": round(_roi, 2),
-                "_sl": _sl, "_sp": _sp, "_cp": _cp,
+                "📉融資增減%": _margin_chg, "📡外資買超張": _foreign_net,
+                "_sl": _sl, "_sp": _sp, "_cp": _cp, "_bp": _bp,
             })
-            del _df_pf
+            try:
+                del _df_pf
+            except Exception:
+                pass
             _gc.collect()
 
         # 帳戶統計
@@ -3369,20 +3457,59 @@ with tab3:
                     f"已到達停利防線 {_r['_sp']}，評估是否執行獲利了結！"
                 )
 
-        # 決策提示箱
+        # ════════════════════════════════════════════════════
+        # ▌ 籌碼自適應決策智庫提示箱
+        # 交叉比對：買入成本 × 現價 × 融資增減 × 外資買超
+        # ════════════════════════════════════════════════════
         _sb_now    = get_sector_breadth()
         _sb_above  = _sb_now.get("above_sma20", 0)
         _sb_total_ = _sb_now.get("total", 17)
         _mkt_weak  = (_sb_above / _sb_total_ < 0.5) if _sb_total_ else False
-        _any_loss  = any(_r["未實現損益"] < 0 for _r in _pf_rows)
 
-        if _mkt_weak and _any_loss:
-            st.info(
-                "💡 **總指揮官決策觀點**\n\n"
-                f"龍頭站月線僅 {_sb_above}/{_sb_total_} 檔，市場結構偏弱。"
-                f"當前持股微虧屬非理性壓盤，現貨 0 槓桿肉身抗震。"
-                f"靜待結構修復後的反彈機會！"
-            )
+        for _r in _pf_rows:
+            _r_sid     = _r["代號"]
+            _r_name    = _r["名稱"] or _r_sid
+            _r_cp      = _r["_cp"]
+            _r_bp      = _r["_bp"]
+            _r_sl      = _r["_sl"]
+            _r_margin  = _r.get("📉融資增減%")
+            _r_foreign = _r.get("📡外資買超張")
+            _r_profit  = _r["未實現損益"]
+
+            # 情境 A：微虧洗盤 + 散戶融資大減肥
+            # 條件：買入價 > 現價 > 停損價，且融資減少 >= 2%
+            if (_r_bp > _r_cp and
+                (_r_sl <= 0 or _r_cp > _r_sl) and
+                _r_margin is not None and _r_margin <= -2.0):
+                st.info(
+                    f"💡 **{_r_sid} {_r_name} 決策提示**\n\n"
+                    f"當前股價雖低於買入成本，但系統偵測到「**融資正在大幅割肉減肥"
+                    f"（減少 {abs(_r_margin):.2f}%）**」！"
+                    f"這代表高位階散戶浮額正在被洗出。"
+                    f"0 槓桿純現貨雷打不動，嚴禁在非理性低位割肉，"
+                    f"肉身扛過去，靜待大戶換股東風！"
+                )
+
+            # 情境 B：外資真金白銀護盤
+            # 條件：現價 > 買入價，且外資當日買超 > 0
+            elif (_r_cp > _r_bp and
+                  _r_foreign is not None and _r_foreign > 0):
+                st.info(
+                    f"🔥 **{_r_sid} {_r_name} 決策提示**\n\n"
+                    f"股價已成功脫離買入成本區！且今日**外資現貨大舉買超 "
+                    f"{_r_foreign:,.0f} 張**！"
+                    f"多頭骨架無比剛性，請穩坐釣魚台、優雅續抱，"
+                    f"靜待股價撞擊布林上緣或前高天花板時的終極限價提款信號！"
+                )
+
+            # 情境 C：市場偏弱且持股虧損（原有邏輯保留）
+            elif _mkt_weak and _r_profit < 0:
+                st.info(
+                    f"💡 **{_r_sid} {_r_name} 決策提示**\n\n"
+                    f"龍頭站月線僅 {_sb_above}/{_sb_total_} 檔，市場結構偏弱。"
+                    f"當前持股微虧屬非理性壓盤，現貨 0 槓桿肉身抗震。"
+                    f"靜待結構修復後的反彈機會！"
+                )
 
         # ════════════════════════════════════════════════════
         # ▌ 當前持倉明細
@@ -3392,8 +3519,24 @@ with tab3:
         if _pf_rows:
             _rows_html = ""
             for _r in _pf_rows:
-                # 台灣習慣：獲利🔴紅色，虧損🟢綠色
                 _pnl_color = "#ff4444" if _r["未實現損益"] > 0 else "#00cc66" if _r["未實現損益"] < 0 else "#e8f4fd"
+
+                # 融資增減顏色（台灣習慣：融資減少=散戶洗盤=🟢好事，增加=🔴危險）
+                _mg = _r.get("📉融資增減%")
+                if _mg is None:
+                    _mg_str, _mg_color = "—", "#7fb3d3"
+                else:
+                    _mg_color = "#00cc66" if _mg <= -2 else "#ff4444" if _mg >= 2 else "#e8f4fd"
+                    _mg_str   = f"{_mg:+.2f}%"
+
+                # 外資買超顏色（買超紅色，賣超綠色）
+                _fgn = _r.get("📡外資買超張")
+                if _fgn is None:
+                    _fgn_str, _fgn_color = "—", "#7fb3d3"
+                else:
+                    _fgn_color = "#ff4444" if _fgn > 0 else "#00cc66" if _fgn < 0 else "#e8f4fd"
+                    _fgn_str   = f"{_fgn:+,.0f}"
+
                 _rows_html += (
                     f"<tr style='border-bottom:1px solid #1e3a5f;'>"
                     f"<td style='padding:8px;'>{_r['代號']}</td>"
@@ -3406,28 +3549,30 @@ with tab3:
                     f"<td style='padding:8px;text-align:right;'>{_r['扣稅實收']:,.0f}</td>"
                     f"<td style='padding:8px;text-align:right;color:{_pnl_color};font-weight:600;'>{_r['未實現損益']:+,.0f}</td>"
                     f"<td style='padding:8px;text-align:right;color:{_pnl_color};font-weight:600;'>{_r['ROI%']:+.2f}%</td>"
+                    f"<td style='padding:8px;text-align:right;color:{_mg_color};font-weight:600;'>{_mg_str}</td>"
+                    f"<td style='padding:8px;text-align:right;color:{_fgn_color};font-weight:600;'>{_fgn_str}</td>"
                     f"</tr>"
                 )
-            _headers = ["代號","名稱","買入日期","現價","含費均價","持股數","含費成本","扣稅實收","未實現損益","ROI%"]
+            _headers = ["代號","名稱","買入日期","現價","含費均價","持股數",
+                        "含費成本","扣稅實收","未實現損益","ROI%","📉融資增減%","📡外資買超張"]
             _head_html = "".join(
                 f"<th style='padding:8px;text-align:{'left' if i<3 else 'right'};"
                 f"border-bottom:2px solid #1e3a5f;color:#7fb3d3;font-size:.78rem;"
                 f"white-space:nowrap;position:sticky;top:0;background:#0f2027;z-index:1;'>{h}</th>"
                 for i, h in enumerate(_headers)
             )
-            _pf_table_h = 40 + 12 * 34  # header + 12列
+            _pf_table_h = 40 + 12 * 34
             st.markdown(
-                f"<div style='overflow-y:auto;max-height:{_pf_table_h}px;border:1px solid #1e3a5f;border-radius:6px;'>"
-                f"<table style='width:100%;border-collapse:collapse;font-size:.85rem;color:#e8f4fd;'>"
+                f"<div style='overflow-x:auto;overflow-y:auto;max-height:{_pf_table_h}px;"
+                f"border:1px solid #1e3a5f;border-radius:6px;'>"
+                f"<table style='width:100%;border-collapse:collapse;font-size:.83rem;color:#e8f4fd;'>"
                 f"<thead><tr style='background:#0f2027;'>{_head_html}</tr></thead>"
                 f"<tbody style='background:rgba(255,255,255,0.02);'>{_rows_html}</tbody>"
                 f"</table></div>",
                 unsafe_allow_html=True
             )
         else:
-            st.caption("目前無持倉")
-
-        # ════════════════════════════════════════════════════
+            st.caption("目前無持倉")        # ════════════════════════════════════════════════════
         # ════════════════════════════════════════════════════
         # ▌ 歷史交易紀錄（篩選 + 固定高度 + 匯出Excel）
         # ════════════════════════════════════════════════════
