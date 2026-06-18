@@ -5248,6 +5248,16 @@ with tab4:
     else:
         st.markdown(f"### 📡 精兵回頭草雷達｜共 {len(st.session_state.reserve_list)} 檔監控中")
 
+        # ── 全局視角切換（影響所有精兵的買入決策建議）
+        _rsv_view = st.radio(
+            "買入視角",
+            ["🛡️ 長線布局視角", "⚡ 短線突擊視角"],
+            horizontal=True,
+            key="tab4_view_mode",
+            help="長線：負乖離大+融資大減=黃金布局點｜短線：籌碼分離=禁止，安全=快狠準"
+        )
+        _rsv_long_view = "長線" in _rsv_view
+
         # 掃描所有儲備標的
         triggered = []
         waiting   = []
@@ -5424,8 +5434,26 @@ with tab4:
                         _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.12);border-left:5px solid #ff9900;"
                         _sop = f"🔥 <b>【黃金軋空・全力進擊】</b>：個股高達 <b>{_sc}分</b>，台美散戶同步嚇破膽放空！市場具備強烈軋空基因，允許利用小股期進行非對稱動能加壓閃擊！"
                     else:
-                        _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.08);border-left:5px solid #ff9900;"
-                        _sop = f"👑 <b>【黃金特赦區 SOP】</b>：大盤環境安全，個股拉回止跌！建議 <b>13:25 尾盤建立 1/3 常規基本底倉</b>，停損設 EMA5 下。"
+                        if _rsv_long_view:
+                            _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.08);border-left:5px solid #ff9900;"
+                            # 長線視角：讀籌碼判斷是否為黃金布局點
+                            _rv_c   = _rv_chips_map.get(_r["股號"], {})
+                            _rv_mg  = _rv_c.get("margin_chg_pct", None)
+                            _rv_fgn = _rv_c.get("foreign_net", None)
+                            _rv_bi  = float(_r["乖離%"].replace("+","")) if _r["乖離%"] != "—" else 0
+                            if _rv_mg is not None and _rv_mg <= -2 and _rv_bi <= -5:
+                                _sop = (f"💡 <b>【長線黃金埋伏點】</b>：技術面 {_sc}分，"
+                                        f"且融資大減 {abs(_rv_mg):.1f}%（散戶洗盤），"
+                                        f"乖離 {_rv_bi:+.1f}%（極度超賣）。"
+                                        f"<b>動用場外現金分批砸入第1筆現貨種子部位，雷打不動！</b>")
+                            else:
+                                _fgn_txt = f"外資 {_rv_fgn:+,.0f}張" if _rv_fgn is not None else "外資數據待更新"
+                                _sop = (f"🛡️ <b>【長線布局觀察中】</b>：技術面 {_sc}分，"
+                                        f"籌碼：{_fgn_txt}｜融資增減 {f'{_rv_mg:+.2f}%' if _rv_mg is not None else '—'}。"
+                                        f"等待乖離擴大或融資大減後分批建立長線底倉。")
+                        else:
+                            _rc = "#ff9900"; _bg = "background:rgba(255,153,0,0.08);border-left:5px solid #ff9900;"
+                            _sop = f"👑 <b>【短線黃金特赦區 SOP】</b>：大盤環境安全，個股拉回止跌！建議 <b>13:25 尾盤建立 1/3 常規基本底倉</b>，停損設 EMA5 下。"
                 elif _sc >= 5:
                     if _is_danger:
                         _rc = "#8892b0"; _bg = "background:rgba(255,255,255,0.01);border-left:5px solid #44475a;"
@@ -5437,8 +5465,20 @@ with tab4:
                         _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.08);border-left:5px solid #ffee55;"
                         _sop = f"🎯 <b>【蓄勢+軋空加持】</b>：個股蓄勢（{_sc}分）且散戶放空 {abs(_mtx_retail):,} 口，<b>早盤爆量即刻閃擊！</b>"
                     else:
-                        _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.06);border-left:5px solid #ffee55;"
-                        _sop = "🎯 <b>【動能蓄勢區 SOP】</b>：已到技術防守地基，建議<b>鎖定為週一首選儲備</b>，早盤爆量突破 EMA5 直接閃擊。"
+                        if _rsv_long_view:
+                            _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.06);border-left:5px solid #ffee55;"
+                            _rv_c2  = _rv_chips_map.get(_r["股號"], {})
+                            _rv_mg2 = _rv_c2.get("margin_chg_pct", None)
+                            _rv_bi2 = float(_r["乖離%"].replace("+","")) if _r["乖離%"] != "—" else 0
+                            if _rv_mg2 is not None and _rv_mg2 <= -2:
+                                _sop = (f"💡 <b>【長線蓄勢+洗盤中】</b>：技術面 {_sc}分，"
+                                        f"融資大減 {abs(_rv_mg2):.1f}%，散戶持續出清。"
+                                        f"長線繼續觀察，等3條件全觸發後分批建倉。")
+                            else:
+                                _sop = f"🛡️ <b>【長線繼續沉澱】</b>：技術面 {_sc}分，籌碼尚未充分沉澱。耐心等待量縮+乖離回落+融資減少三條件齊發。"
+                        else:
+                            _rc = "#ffee55"; _bg = "background:rgba(255,238,85,0.06);border-left:5px solid #ffee55;"
+                            _sop = "🎯 <b>【短線動能蓄勢區 SOP】</b>：已到技術防守地基，建議<b>鎖定為首選儲備</b>，早盤爆量突破 EMA5 直接閃擊。"
                 elif _sc >= 3:
                     _rc = "#ff6b35"; _bg = "background:rgba(255,107,53,0.05);border-left:5px solid #ff6b35;"
                     _sop = "🟠 <b>【條件未齊 SOP】</b>：部分訊號成立，繼續等待量縮或乖離回落，<b>耐心觀察，不宜進場</b>。"
