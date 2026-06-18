@@ -3841,24 +3841,25 @@ with tab3:
         st.rerun()
 
     st.markdown("---")
-    wl = st.session_state.watchlist
+    # ── 從 portfolio.json 讀取持倉，作為監控標的
+    _pf_watch = load_portfolio()
+    wl = [{"id": sid, "name": sid} for sid in _pf_watch.keys()] if _pf_watch else []
 
     if not wl:
         st.markdown("""
         <div style='background:#0f2027;border:2px dashed #1e3a5f;border-radius:12px;
              padding:50px;text-align:center;'>
             <div style='font-size:2rem;margin-bottom:10px;'>📋</div>
-            <div style='color:#e8f4fd;font-size:.92rem;font-weight:600;'>監控清單為空</div>
+            <div style='color:#e8f4fd;font-size:.92rem;font-weight:600;'>持倉清單為空</div>
             <div style='color:#7fb3d3;font-size:.8rem;margin-top:8px;'>
-                請至「選股掃描儀」點擊「加入監控」，<br>
-                或在左側 Sidebar「➕ 加入監控清單」輸入代號
+                請先在上方「帳務登記櫃檯→買入登記」新增持倉
             </div>
         </div>
         """, unsafe_allow_html=True)
     else:
-        # 選擇監控標的 - 分手動/掃描兩組
-        wl_manual = st.session_state.watchlist
-        wl_scan   = st.session_state.watchlist_scan
+        # 選擇監控標的 - 從持倉讀取
+        wl_manual = wl
+        wl_scan   = []  # 持倉模式下不需要掃描清單
 
         # 搜尋框過濾
         search_kw = st.text_input("🔎 搜尋標的", placeholder="輸入代號或名稱...",
@@ -3875,9 +3876,7 @@ with tab3:
             scan_items   = [o for o in scan_items   if kw in o]
 
         if manual_items:
-            src_options += ["── 手動加入 ──"] + manual_items
-        if scan_items:
-            src_options += ["── 掃描結果 ──"] + scan_items
+            src_options += manual_items
 
         if not src_options:
             st.warning("找不到符合的標的")
