@@ -5513,6 +5513,107 @@ with tab4:
             st.markdown("".join(_cards), unsafe_allow_html=True)
 
         # ══════════════════════════════════════════════
+        # ⚠️ 永年變盤因果律健檢面板（100% 動態，拒絕寫死）
+        # ──────────────────────────────────────────────
+        # 邏輯：
+        #   1. 動態遍歷 st.session_state.reserve_list（拒絕硬編碼任何股票代號）
+        #   2. 即時讀取 margin.csv（融資增減%）與 chips_data.csv（外資買賣超）
+        #   3. 即時計算 20MA 乖離率，動態判定 market_level：
+        #      bias_20 >= +10% → HIGH_RISK（高位階重災區）
+        #      bias_20 <= -10% → BOTTOM_SAFE（底部隔離避風港）
+        #      其餘           → NORMAL（橫盤監控區）
+        #   4. 交叉比對 strategy_type（LONG/SHORT）+ market_level + 籌碼 Facts，
+        #      動態輸出「以退為進」或「鑽石級布局」指令
+        # ══════════════════════════════════════════════
+        st.markdown("---")
+        st.markdown("#### ⚠️ 永年變盤因果律健檢面板")
+        st.caption("動態掃描儲備庫全部標的，交叉比對乖離率位階 × 籌碼真實 Facts，自動觸發變盤警示")
+
+        _yn_chips_map = get_chips_facts_map()  # 一次性讀取，5分鐘快取，不重複IO
+        _yn_alert_count = 0
+
+        for _yn_item in st.session_state.reserve_list:
+            _yn_sid   = _yn_item["id"]
+            _yn_name  = _yn_item.get("name", _yn_sid)
+            _yn_strat = _yn_item.get("strategy_tag", "LONG")  # 預設長線
+
+            # ── 即時讀取K線，動態計算現價與20MA乖離率
+            try:
+                _yn_df, _yn_ok = load_price_csv(_yn_sid)
+                if not _yn_ok or _yn_df.empty or len(_yn_df) < 20:
+                    continue
+                _yn_closes = pd.to_numeric(_yn_df["Close"], errors="coerce").dropna()
+                if len(_yn_closes) < 20:
+                    continue
+                _yn_cp   = float(_yn_closes.iloc[-1])
+                _yn_ma20 = float(_yn_closes.tail(20).mean())
+                _yn_bias = ((_yn_cp - _yn_ma20) / _yn_ma20 * 100) if _yn_ma20 > 0 else 0.0
+                del _yn_df
+                import gc; gc.collect()
+            except Exception:
+                continue
+
+            # ── 動態位階自適應分流（拒絕寫死任何股票判斷）
+            if _yn_bias >= 10.0:
+                _yn_level = "HIGH_RISK"
+            elif _yn_bias <= -10.0:
+                _yn_level = "BOTTOM_SAFE"
+            else:
+                _yn_level = "NORMAL"
+
+            # ── 即時籌碼 Facts（融資增減% + 外資買賣超張）
+            _yn_chip   = _yn_chips_map.get(_yn_sid, {})
+            _yn_margin = _yn_chip.get("margin_chg_pct", None)
+            _yn_fgn    = _yn_chip.get("foreign_net",   None)
+
+            # ══════════════════════════════════════
+            # ⚠️ 觸發高位變盤 ── 以退為進令
+            # 條件：SHORT + HIGH_RISK + 外資賣超 + 融資逆勢大增≥2%
+            # ══════════════════════════════════════
+            if (_yn_strat == "SHORT" and _yn_level == "HIGH_RISK" and
+                _yn_fgn is not None and _yn_fgn < 0 and
+                _yn_margin is not None and _yn_margin >= 2.0):
+
+                _yn_alert_count += 1
+                _yn_c1, _yn_c2 = st.columns([10, 1])
+                with _yn_c1:
+                    st.error(
+                        f"🚨 **【永年變盤警告｜以退為進】{_yn_sid} {_yn_name}**\n\n"
+                        f"變盤因果律 Facts：月線正乖離 **{_yn_bias:+.1f}%**（高位階重災區），"
+                        f"外資冷血大賣 **{_yn_fgn:,.0f} 張**，散戶融資卻逆勢大增 **{_yn_margin:+.2f}%**！\n\n"
+                        f"最高風控令：此處拉高純屬誘敵接刀煙霧彈，系統硬核封印買入權限，"
+                        f"請執行『以退為進』清倉平倉，出貨後完全移除不追蹤！"
+                    )
+                with _yn_c2:
+                    st.markdown("<div style='margin-top:30px;'></div>", unsafe_allow_html=True)
+                    if st.button("🗑️ 物理除名", key=f"yn_remove_{_yn_sid}"):
+                        st.session_state.reserve_list = [
+                            r for r in st.session_state.reserve_list if r["id"] != _yn_sid
+                        ]
+                        st.success(f"已將 {_yn_sid} {_yn_name} 從戰備庫物理除名")
+                        st.rerun()
+
+            # ══════════════════════════════════════
+            # 💎 觸發低位變盤 ── 鑽石級布局令
+            # 條件：LONG + BOTTOM_SAFE + 融資大減≤-1.5%
+            # ══════════════════════════════════════
+            elif (_yn_strat == "LONG" and _yn_level == "BOTTOM_SAFE" and
+                  _yn_margin is not None and _yn_margin <= -1.5):
+
+                _yn_alert_count += 1
+                st.info(
+                    f"💎 **【永年變盤指引｜底部布局】{_yn_sid} {_yn_name}**\n\n"
+                    f"變盤因果律 Facts：月線負乖離 **{_yn_bias:+.1f}%**（底部隔離避風港），"
+                    f"散戶融資正大幅割肉斷頭 **{_yn_margin:+.2f}%**！"
+                    f"系統全面屏蔽短線破位雜訊。\n\n"
+                    f"最高風控令：此處即為鑽石級底部加碼點，請動用場外7成現金儲備分批優雅吸籌，"
+                    f"持股雷打不動死鎖至年底，出清後必須持續追蹤！"
+                )
+
+        if _yn_alert_count == 0:
+            st.caption("✅ 目前儲備庫全數標的籌碼結構正常，未觸發任何永年變盤因果律警示。")
+
+        # ══════════════════════════════════════════════
         # 🕵️ 潛伏期法人鎖碼雷達掃描（快取1小時）
         # ══════════════════════════════════════════════
         st.markdown("#### 🕵️ 潛伏期法人暗中鎖碼雷達")
