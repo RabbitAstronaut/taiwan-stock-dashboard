@@ -6395,53 +6395,92 @@ with tab5:
     )
 
     @st.cache_data(ttl=1800, show_spinner=False)
-    def _auto_diagnose_market_health(sample_size: int = 40):
+    def _auto_diagnose_market_health(sample_size: int = 120):
         """
         全自動計算三大健康指標，拒絕任何手動輸入或假數據。
         快取30分鐘，避免每次刷新都重新批次運算。
+
+        取樣策略：stock_list.csv 沒有產業別欄位，改用「股號區間分散取樣」
+        模擬跨類股覆蓋（台股股號大致依掛牌時間/產業群聚，例如 1xxx傳產／
+        2xxx電子金融／3xxx電子零組件／4xxx生技／5~9xxx其他），
+        避免取樣集中在單一產業造成偏誤。
 
         回傳：(adl_status, adl_detail, foreign_status, foreign_detail,
                pillars_status, pillars_detail)
         """
         import gc as _gc_diag
 
+        def _get_dispersed_sample(all_ids: list, n: int) -> list:
+            """
+            按股號首碼分組（1~9），每組依比例平均抽樣，
+            確保取樣分散在不同股號區間（近似跨產業分散）。
+            """
+            if len(all_ids) <= n:
+                return all_ids
+            groups = {}
+            for sid in all_ids:
+                key = sid[0]  # 股號首碼 1~9
+                groups.setdefault(key, []).append(sid)
+            # 依首碼排序，輪流從每組抽取，確保分散
+            sorted_keys = sorted(groups.keys())
+            result = []
+            idx = 0
+            while len(result) < n and any(groups[k] for k in sorted_keys):
+                k = sorted_keys[idx % len(sorted_keys)]
+                if groups[k]:
+                    result.append(groups[k].pop(0))
+                idx += 1
+            return result[:n]
+
         # ══════════════════════════════════════
         # ① ADL 騰落線動態計算
         # 邏輯：取樣股票池，比對最新收盤 vs 前一日收盤，
         #      統計上漲家數(up_shares) vs 下跌家數(down_shares)
         # ══════════════════════════════════════
-        _up_shares, _down_shares = 0, 0
+        _up_shares, _down_shares, _flat_shares = 0, 0, 0
+        _sample_total, _sample_failed = 0, 0
         try:
             df_sl, ok_sl = load_csv("stock_list.csv")
             if ok_sl and not df_sl.empty and "stock_id" in df_sl.columns:
-                _ids = df_sl["stock_id"].dropna().astype(str).unique().tolist()
-                _ids = [s for s in _ids if s.isdigit() and len(s) == 4][:sample_size]
+                _all_ids = df_sl["stock_id"].dropna().astype(str).unique().tolist()
+                _all_ids = [s for s in _all_ids if s.isdigit() and len(s) == 4]
+                _ids = _get_dispersed_sample(_all_ids, sample_size)
+                _sample_total = len(_ids)
                 for _sid in _ids:
                     _df_p, _ok_p = load_csv(f"prices/{_sid}.csv")
                     if not _ok_p or _df_p.empty:
+                        _sample_failed += 1
                         continue
                     _cc = next((c for c in _df_p.columns if c.lower() == "close"), None)
                     if not _cc:
+                        _sample_failed += 1
                         continue
                     _closes = pd.to_numeric(_df_p[_cc], errors="coerce").dropna()
                     if len(_closes) < 2:
+                        _sample_failed += 1
                         continue
-                    if _closes.iloc[-1] >= _closes.iloc[-2]:
+                    _today_c = _closes.iloc[-1]
+                    _yest_c  = _closes.iloc[-2]
+                    if _today_c > _yest_c:
                         _up_shares += 1
-                    else:
+                    elif _today_c < _yest_c:
                         _down_shares += 1
+                    else:
+                        _flat_shares += 1
                     del _df_p, _closes
         except Exception:
             pass
 
-        if (_up_shares + _down_shares) == 0:
+        if (_up_shares + _down_shares + _flat_shares) == 0:
             adl_status, adl_detail = "UNKNOWN", "資料不足，無法判定"
         elif _up_shares >= _down_shares:
             adl_status = "HEALTHY"
-            adl_detail = f"上漲 {_up_shares} 家 ≥ 下跌 {_down_shares} 家（健康輪動）"
+            adl_detail = (f"上漲 {_up_shares}／下跌 {_down_shares}／平盤 {_flat_shares} 家"
+                          f"（健康輪動，取樣{_sample_total}檔，{_sample_failed}檔無資料）")
         else:
             adl_status = "BEARISH"
-            adl_detail = f"上漲 {_up_shares} 家 < 下跌 {_down_shares} 家（多空背離）"
+            adl_detail = (f"上漲 {_up_shares}／下跌 {_down_shares}／平盤 {_flat_shares} 家"
+                          f"（多空背離，取樣{_sample_total}檔，{_sample_failed}檔無資料）")
 
         _gc_diag.collect()
 
@@ -6455,8 +6494,9 @@ with tab5:
             _chips_map = get_chips_facts_map()
             df_sl2, ok_sl2 = load_csv("stock_list.csv")
             if ok_sl2 and not df_sl2.empty and "stock_id" in df_sl2.columns:
-                _ids2 = df_sl2["stock_id"].dropna().astype(str).unique().tolist()
-                _ids2 = [s for s in _ids2 if s.isdigit() and len(s) == 4][:sample_size]
+                _all_ids2 = df_sl2["stock_id"].dropna().astype(str).unique().tolist()
+                _all_ids2 = [s for s in _all_ids2 if s.isdigit() and len(s) == 4]
+                _ids2 = _get_dispersed_sample(_all_ids2, sample_size)
                 for _sid2 in _ids2:
                     _fgn_zhang = _chips_map.get(_sid2, {}).get("foreign_net")  # 張
                     if _fgn_zhang is None:
