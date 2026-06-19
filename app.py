@@ -6385,55 +6385,210 @@ with tab5:
             )
 
     # ══════════════════════════════════════════════════════════════
-    # ▌ 盤後三大健康指標手動診斷面板
+    # ▌ 盤後三大健康指標全自動診斷面板（100% 動態運算，零手動輸入）
     # ══════════════════════════════════════════════════════════════
-    st.markdown("<div class='sec-title'>🩺 盤後三大健康指標診斷</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sec-title'>🩺 盤後三大健康指標診斷（全自動）</div>", unsafe_allow_html=True)
     st.markdown(
-        "<div class='infobox'>手動輸入今日盤後觀察結果，系統自動研判大盤真實健康狀態。"
-        "即使技術警示分數達 8/8，此診斷可識別「假警報」與「真危機」。</div>",
+        "<div class='infobox'>系統自動讀取本地資料源即時研判大盤真實健康狀態，"
+        "零手動輸入、零主觀判斷。即使技術警示分數達 8/8，此診斷可識別「假警報」與「真危機」。</div>",
         unsafe_allow_html=True
     )
+
+    @st.cache_data(ttl=1800, show_spinner=False)
+    def _auto_diagnose_market_health(sample_size: int = 40):
+        """
+        全自動計算三大健康指標，拒絕任何手動輸入或假數據。
+        快取30分鐘，避免每次刷新都重新批次運算。
+
+        回傳：(adl_status, adl_detail, foreign_status, foreign_detail,
+               pillars_status, pillars_detail)
+        """
+        import gc as _gc_diag
+
+        # ══════════════════════════════════════
+        # ① ADL 騰落線動態計算
+        # 邏輯：取樣股票池，比對最新收盤 vs 前一日收盤，
+        #      統計上漲家數(up_shares) vs 下跌家數(down_shares)
+        # ══════════════════════════════════════
+        _up_shares, _down_shares = 0, 0
+        try:
+            df_sl, ok_sl = load_csv("stock_list.csv")
+            if ok_sl and not df_sl.empty and "stock_id" in df_sl.columns:
+                _ids = df_sl["stock_id"].dropna().astype(str).unique().tolist()
+                _ids = [s for s in _ids if s.isdigit() and len(s) == 4][:sample_size]
+                for _sid in _ids:
+                    _df_p, _ok_p = load_csv(f"prices/{_sid}.csv")
+                    if not _ok_p or _df_p.empty:
+                        continue
+                    _cc = next((c for c in _df_p.columns if c.lower() == "close"), None)
+                    if not _cc:
+                        continue
+                    _closes = pd.to_numeric(_df_p[_cc], errors="coerce").dropna()
+                    if len(_closes) < 2:
+                        continue
+                    if _closes.iloc[-1] >= _closes.iloc[-2]:
+                        _up_shares += 1
+                    else:
+                        _down_shares += 1
+                    del _df_p, _closes
+        except Exception:
+            pass
+
+        if (_up_shares + _down_shares) == 0:
+            adl_status, adl_detail = "UNKNOWN", "資料不足，無法判定"
+        elif _up_shares >= _down_shares:
+            adl_status = "HEALTHY"
+            adl_detail = f"上漲 {_up_shares} 家 ≥ 下跌 {_down_shares} 家（健康輪動）"
+        else:
+            adl_status = "BEARISH"
+            adl_detail = f"上漲 {_up_shares} 家 < 下跌 {_down_shares} 家（多空背離）"
+
+        _gc_diag.collect()
+
+        # ══════════════════════════════════════
+        # ② 外資現貨共振動態計算
+        # 邏輯：取樣股票池，加總「外資買賣超張數 × 現價」估算金額，
+        #      賣超金額 ≥ 100億元 視為大舉砸盤
+        # ══════════════════════════════════════
+        _foreign_amount = 0.0  # 單位：元（正=買超，負=賣超）
+        try:
+            _chips_map = get_chips_facts_map()
+            df_sl2, ok_sl2 = load_csv("stock_list.csv")
+            if ok_sl2 and not df_sl2.empty and "stock_id" in df_sl2.columns:
+                _ids2 = df_sl2["stock_id"].dropna().astype(str).unique().tolist()
+                _ids2 = [s for s in _ids2 if s.isdigit() and len(s) == 4][:sample_size]
+                for _sid2 in _ids2:
+                    _fgn_zhang = _chips_map.get(_sid2, {}).get("foreign_net")  # 張
+                    if _fgn_zhang is None:
+                        continue
+                    _df_p2, _ok_p2 = load_csv(f"prices/{_sid2}.csv")
+                    if not _ok_p2 or _df_p2.empty:
+                        continue
+                    _cc2 = next((c for c in _df_p2.columns if c.lower() == "close"), None)
+                    if not _cc2:
+                        continue
+                    _cp2 = pd.to_numeric(_df_p2[_cc2], errors="coerce").dropna()
+                    if _cp2.empty:
+                        continue
+                    _price = float(_cp2.iloc[-1])
+                    # 張 × 1000股 × 股價 = 金額(元)
+                    _foreign_amount += _fgn_zhang * 1000 * _price
+                    del _df_p2, _cp2
+        except Exception:
+            pass
+
+        _foreign_amount_yi = _foreign_amount / 1e8  # 轉換為「億元」
+        if _foreign_amount_yi <= -100:
+            foreign_status = "DUMP"
+            foreign_detail = f"外資現貨估算大賣超 {abs(_foreign_amount_yi):.1f} 億元（砸盤）"
+        else:
+            foreign_status = "SAFE"
+            foreign_detail = f"外資現貨估算 {_foreign_amount_yi:+.1f} 億元（買超或微幅賣超，安全）"
+
+        _gc_diag.collect()
+
+        # ══════════════════════════════════════
+        # ③ 權值雙雄技術掃描（台積電 2330 ／ 聯發科 2454）
+        # 邏輯：動態讀取現價與 20MA，至少一檔站上 20MA 視為多頭健康
+        # ══════════════════════════════════════
+        _pillar_results = {}
+        for _pid, _pname in [("2330", "台積電"), ("2454", "聯發科")]:
+            try:
+                _df_pil, _ok_pil = load_price_csv(_pid)
+                if not _ok_pil or _df_pil.empty or len(_df_pil) < 20:
+                    _pillar_results[_pid] = None
+                    continue
+                _closes_pil = pd.to_numeric(_df_pil["Close"], errors="coerce").dropna()
+                if len(_closes_pil) < 20:
+                    _pillar_results[_pid] = None
+                    continue
+                _cp_pil  = float(_closes_pil.iloc[-1])
+                _ma20_pil = float(_closes_pil.tail(20).mean())
+                _pillar_results[_pid] = {
+                    "name": _pname, "price": _cp_pil, "ma20": _ma20_pil,
+                    "above": _cp_pil >= _ma20_pil
+                }
+                del _df_pil, _closes_pil
+            except Exception:
+                _pillar_results[_pid] = None
+
+        _valid_pillars = [v for v in _pillar_results.values() if v is not None]
+        _above_count = sum(1 for v in _valid_pillars if v["above"])
+
+        if not _valid_pillars:
+            pillars_status, pillars_detail = "UNKNOWN", "資料不足，無法判定"
+        elif _above_count >= 1:
+            pillars_status = "HEALTHY"
+            _names = "、".join(f"{v['name']}{v['price']:.1f}(20MA:{v['ma20']:.1f})" for v in _valid_pillars)
+            pillars_detail = f"至少一檔站上20MA（多頭健康）｜{_names}"
+        else:
+            pillars_status = "BREAK"
+            _names = "、".join(f"{v['name']}{v['price']:.1f}(20MA:{v['ma20']:.1f})" for v in _valid_pillars)
+            pillars_detail = f"雙雙跌破20MA（多頭崩解）｜{_names}"
+
+        _gc_diag.collect()
+
+        return (adl_status, adl_detail, foreign_status, foreign_detail,
+                pillars_status, pillars_detail)
+
+    (_adl_status, _adl_detail, _foreign_status, _foreign_detail,
+     _pillars_status, _pillars_detail) = _auto_diagnose_market_health()
 
     diag_c1, diag_c2, diag_c3 = st.columns(3)
 
     with diag_c1:
         st.markdown("**① 騰落線（ADL）趨勢**")
-        adl = st.radio(
-            "騰落線狀態",
-            ["📈 持續走高或高檔橫盤（健康）", "📉 連續數日下滑（多空背離）"],
-            key="diag_adl", label_visibility="collapsed"
+        _adl_icon  = "🟢" if _adl_status == "HEALTHY" else "🔴" if _adl_status == "BEARISH" else "⚪"
+        _adl_color = "#00e676" if _adl_status == "HEALTHY" else "#ff5252" if _adl_status == "BEARISH" else "#7fb3d3"
+        st.markdown(
+            f"<div style='padding:10px 12px;border-radius:8px;border-left:3px solid {_adl_color};"
+            f"background:rgba(0,0,0,0.2);font-size:.85rem;color:{_adl_color};'>"
+            f"{_adl_icon} {_adl_detail}</div>",
+            unsafe_allow_html=True
         )
-        adl_healthy = adl.startswith("📈")
+    adl_healthy = (_adl_status == "HEALTHY")
 
     with diag_c2:
         st.markdown("**② 外資期現貨共振狀態**")
-        foreign = st.radio(
-            "外資狀態",
-            ["🟢 現貨持續買超或僅微幅賣超（安全）", "🔴 現貨連續單日百億以上大賣超（砸盤）"],
-            key="diag_foreign", label_visibility="collapsed"
+        _fgn_icon  = "🟢" if _foreign_status == "SAFE" else "🔴"
+        _fgn_color = "#00e676" if _foreign_status == "SAFE" else "#ff5252"
+        st.markdown(
+            f"<div style='padding:10px 12px;border-radius:8px;border-left:3px solid {_fgn_color};"
+            f"background:rgba(0,0,0,0.2);font-size:.85rem;color:{_fgn_color};'>"
+            f"{_fgn_icon} {_foreign_detail}</div>",
+            unsafe_allow_html=True
         )
-        foreign_healthy = foreign.startswith("🟢")
+    foreign_healthy = (_foreign_status == "SAFE")
 
     with diag_c3:
         st.markdown("**③ 台股多頭支柱技術型態**")
-        pillar = st.radio(
-            "權值股狀態",
-            ["🟢 台積電/聯發科至少一檔守住布林中軌（多頭健康）",
-             "🔴 台積電與聯發科雙雙跌破布林中軌（多頭崩解）"],
-            key="diag_pillar", label_visibility="collapsed"
+        _pil_icon  = "🟢" if _pillars_status == "HEALTHY" else "🔴" if _pillars_status == "BREAK" else "⚪"
+        _pil_color = "#00e676" if _pillars_status == "HEALTHY" else "#ff5252" if _pillars_status == "BREAK" else "#7fb3d3"
+        st.markdown(
+            f"<div style='padding:10px 12px;border-radius:8px;border-left:3px solid {_pil_color};"
+            f"background:rgba(0,0,0,0.2);font-size:.8rem;color:{_pil_color};'>"
+            f"{_pil_icon} {_pillars_detail}</div>",
+            unsafe_allow_html=True
         )
-        pillar_healthy = pillar.startswith("🟢")
+    pillar_healthy = (_pillars_status == "HEALTHY")
 
     # ── 自動決策輸出
     healthy_count = sum([adl_healthy, foreign_healthy, pillar_healthy])
-    danger_count  = 3 - healthy_count
+    danger_count  = sum([_adl_status == "BEARISH", _foreign_status == "DUMP", _pillars_status == "BREAK"])
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if healthy_count >= 2:
+
+    # 總診斷自適應綜合指引（依需求規格：3項全過＝假警報；外資DUMP+雙雄崩解＝真危機）
+    if healthy_count == 3:
         st.success(
-            f"✅ **安全診斷：假警報！健康的板塊輪動**　"
-            f"（{healthy_count}/3 項健康指標通過）　"
-            f"現股部位維持綠燈續抱，無須恐慌。"
+            "✅ **安全診斷：假警報！健康的板塊輪動**　"
+            "（3/3 項健康指標通過）　"
+            "現股部位維持綠燈續抱，無須恐慌。"
+        )
+    elif _foreign_status == "DUMP" and _pillars_status == "BREAK":
+        st.error(
+            "❌ **高危診斷：真危機！大資金撤離且多頭支柱破位**　"
+            "系統啟動風控防線，短線標的加速以退為進！"
         )
     elif danger_count >= 2:
         st.error(
@@ -6444,15 +6599,15 @@ with tab5:
     else:
         st.warning(
             "⚠️ **中性觀望：訊號混沌，暫不明確**　"
-            "多空各有 1~2 項訊號，建議縮小部位靜觀其變。"
+            "多空各有訊號交織，建議縮小部位靜觀其變。"
         )
 
     # ── 診斷明細
-    with st.expander("📋 診斷明細", expanded=False):
+    with st.expander("📋 診斷明細（自動運算依據）", expanded=False):
         items = [
-            ("騰落線（ADL）", adl_healthy, adl),
-            ("外資期現貨共振", foreign_healthy, foreign),
-            ("台股多頭支柱", pillar_healthy, pillar),
+            ("騰落線（ADL）", adl_healthy, _adl_detail),
+            ("外資期現貨共振", foreign_healthy, _foreign_detail),
+            ("台股多頭支柱", pillar_healthy, _pillars_detail),
         ]
         for label, is_healthy, val in items:
             color = "#00e676" if is_healthy else "#ff5252"
@@ -6464,6 +6619,7 @@ with tab5:
                 f"<span style='color:#b0cce0;font-size:.85rem;'>{val}</span></div>",
                 unsafe_allow_html=True
             )
+        st.caption("📌 取樣股票池前40檔（依 stock_list.csv 順序），每30分鐘重新計算一次。")
 
     st.markdown("---")
 
