@@ -1,7 +1,5 @@
-streamlit
-pandas
-numpy
-plotly
 requests
+pandas
+lxml
+xlsxwriter
 yfinance
-openpyxl

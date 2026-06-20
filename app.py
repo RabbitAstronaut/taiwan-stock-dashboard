@@ -985,6 +985,104 @@ def get_us_ppi():
     return 6.5
 
 
+# ══════════════════════════════════════════════════════════════
+# ▌ 美股動態流動性與信用天網 — 6欄指標（Tab5 第三行）
+# 100% 直接抓取 yfinance / FRED，零基本檔維護成本
+# ══════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_fred_series_latest(series_id: str, fallback: float = None):
+    """
+    從 FRED 免金鑰 CSV 端點取得任一序列的最新一筆數值。
+    通用函式，供 Fed淨流動性／TED利差／高收益債利差共用。
+    網路防呆：超時或失敗時回傳 fallback 備援值，絕不讓系統崩潰。
+    """
+    try:
+        import requests as _req, io as _io
+        url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
+        r = _req.get(url, timeout=8)
+        if r.status_code == 200:
+            df = pd.read_csv(_io.StringIO(r.text))
+            df.columns = ["date", "value"]
+            df["value"] = pd.to_numeric(df["value"], errors="coerce")
+            df = df.dropna(subset=["value"])
+            if not df.empty:
+                return float(df["value"].iloc[-1])
+    except Exception:
+        pass
+    return fallback
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_fed_net_liquidity():
+    """
+    Fed 淨流動性（兆美元）＝ Fed總資產(WALCL) − 財政部TGA帳戶(WTREGEN) − 隔夜逆回購(RRPONTSYD)
+    此為市場資金面最關鍵的「真實流動性」指標，數值越高代表市場資金越寬鬆。
+    三個FRED序列任一抓取失敗則回傳 None（前端顯示「資料載入中」，不顯示假數據）。
+    """
+    try:
+        walcl = get_fred_series_latest("WALCL")       # Fed總資產（百萬美元）
+        tga   = get_fred_series_latest("WTREGEN")     # 財政部一般帳戶（十億美元）
+        rrp   = get_fred_series_latest("RRPONTSYD")   # 隔夜逆回購（十億美元）
+        if walcl is None or tga is None or rrp is None:
+            return None
+        # 統一換算為「兆美元」：WALCL是百�萬美元，TGA/RRP是十億美元
+        net_liq_trillion = (walcl / 1e6) - (tga / 1e3) - (rrp / 1e3)
+        return net_liq_trillion
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_ted_spread():
+    """泰德利差（TED Spread），反映銀行間信用風險，數值越高代表信用緊縮壓力越大"""
+    return get_fred_series_latest("TEDRATE", fallback=None)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_high_yield_spread():
+    """ICE美銀高收益債信用利差（BAMLH0A0HYM2），反映企業違約風險溢酬"""
+    return get_fred_series_latest("BAMLH0A0HYM2", fallback=None)
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def get_index_bias20(ticker: str):
+    """
+    動態計算任一美股指數的現價與20日均線(月線)乖離率。
+    用於那斯達克100(^NDX)與費城半導體(^SOX)的高位/底部位階判定。
+
+    回傳：{"price": 現價, "ma20": 20MA, "bias_20": 乖離率%} 或 None（抓取失敗）
+    網路防呆：yfinance 逾時或無資料時回傳 None，前端顯示「載入中」不中斷系統。
+    """
+    try:
+        import yfinance as _yf2
+        hist = _yf2.Ticker(ticker).history(period="40d")
+        if hist is None or hist.empty or len(hist) < 20:
+            return None
+        closes = pd.to_numeric(hist["Close"], errors="coerce").dropna()
+        if len(closes) < 20:
+            return None
+        price = float(closes.iloc[-1])
+        ma20  = float(closes.tail(20).mean())
+        bias  = ((price - ma20) / ma20 * 100) if ma20 > 0 else 0.0
+        return {"price": price, "ma20": ma20, "bias_20": bias}
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def get_dxy_index():
+    """美元指數（DXY）當前點數，反映美元相對一籃子貨幣的強弱"""
+    try:
+        import yfinance as _yf3
+        hist = _yf3.Ticker("DX-Y.NYB").history(period="2d")
+        if hist is None or hist.empty:
+            return None
+        return float(hist["Close"].iloc[-1])
+    except Exception:
+        return None
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_macro_indicators():
     """
@@ -6448,6 +6546,109 @@ with tab5:
                      ref="每日17:00盤後自動掃描龍頭清單；0檔=安全，>0檔=炒作出貨陷阱"),
         unsafe_allow_html=True
     )
+
+    # ══════════════════════════════════════════════════════════
+    # 第三行：美股動態流動性與信用天網（6 欄）
+    # 100% 直接抓取 yfinance / FRED，零基本檔維護成本
+    # ══════════════════════════════════════════════════════════
+    st.markdown("<div style='margin:8px 0;'></div>", unsafe_allow_html=True)
+    _r3 = st.columns(6)
+
+    # ── 欄1：Fed 淨流動性（兆美元）
+    _net_liq = get_fed_net_liquidity()
+    if _net_liq is not None:
+        _nl_s = "🟢" if _net_liq >= 5.5 else "🟡" if _net_liq >= 5.0 else "🔴"
+        _nl_h = "資金面寬鬆" if _net_liq >= 5.5 else "資金面中性" if _net_liq >= 5.0 else "資金面緊縮"
+        _r3[0].markdown(
+            _metric_html("Fed淨流動性", f"${_net_liq:.2f}兆", _nl_s, _nl_h,
+                         ref="WALCL−TGA−RRP；數值越高市場資金越寬鬆"),
+            unsafe_allow_html=True
+        )
+    else:
+        _r3[0].markdown(_metric_html("Fed淨流動性", "—", "⚪", "載入中", ref="FRED API"),
+                         unsafe_allow_html=True)
+
+    # ── 欄2：泰德利差（TED Spread）
+    _ted = get_ted_spread()
+    if _ted is not None:
+        _ted_s = "🟢" if _ted < 0.3 else "🟡" if _ted < 0.5 else "🔴"
+        _ted_h = "銀行信用穩定" if _ted < 0.3 else "信用壓力升溫" if _ted < 0.5 else "信用緊縮警戒"
+        _r3[1].markdown(
+            _metric_html("泰德利差", f"{_ted:.2f}%", _ted_s, _ted_h,
+                         ref="銀行間信用風險指標；<0.3%穩定，≥0.5%緊縮警戒"),
+            unsafe_allow_html=True
+        )
+    else:
+        _r3[1].markdown(_metric_html("泰德利差", "—", "⚪", "載入中", ref="FRED: TEDRATE"),
+                         unsafe_allow_html=True)
+
+    # ── 欄3：那斯達克100 月乖離（^NDX）
+    _ndx = get_index_bias20("^NDX")
+    if _ndx is not None:
+        _ndx_bias = _ndx["bias_20"]
+        if _ndx_bias >= 10.0:
+            _ndx_s, _ndx_h = "🔴", "高位階背離泡沫"
+        elif _ndx_bias <= -10.0:
+            _ndx_s, _ndx_h = "🟢", "絕對底部超賣"
+        else:
+            _ndx_s, _ndx_h = "🟡", "正常區間"
+        _r3[2].markdown(
+            _metric_html("那指100月乖離", f"{_ndx_bias:+.1f}%", _ndx_s,
+                         f"{_ndx_h}｜現價{_ndx['price']:,.0f}",
+                         ref="(現價−20MA)/20MA；≥+10%泡沫警戒，≤-10%超賣布局"),
+            unsafe_allow_html=True
+        )
+    else:
+        _r3[2].markdown(_metric_html("那指100月乖離", "—", "⚪", "載入中", ref="yf: ^NDX"),
+                         unsafe_allow_html=True)
+
+    # ── 欄4：費城半導體 月乖離（^SOX，與台股高階晶片高度正相關）
+    _sox = get_index_bias20("^SOX")
+    if _sox is not None:
+        _sox_bias = _sox["bias_20"]
+        if _sox_bias >= 10.0:
+            _sox_s, _sox_h = "🔴", "高位階背離泡沫"
+        elif _sox_bias <= -10.0:
+            _sox_s, _sox_h = "🟢", "絕對底部超賣"
+        else:
+            _sox_s, _sox_h = "🟡", "正常區間"
+        _r3[3].markdown(
+            _metric_html("費半月乖離", f"{_sox_bias:+.1f}%", _sox_s,
+                         f"{_sox_h}｜現價{_sox['price']:,.0f}",
+                         ref="與台股高階晶片高度正相關；≥+10%泡沫，≤-10%超賣"),
+            unsafe_allow_html=True
+        )
+    else:
+        _r3[3].markdown(_metric_html("費半月乖離", "—", "⚪", "載入中", ref="yf: ^SOX"),
+                         unsafe_allow_html=True)
+
+    # ── 欄5：高收益債信用利差
+    _hy_spread = get_high_yield_spread()
+    if _hy_spread is not None:
+        _hy_s = "🟢" if _hy_spread < 4.0 else "🟡" if _hy_spread < 6.0 else "🔴"
+        _hy_h = "信用市場健康" if _hy_spread < 4.0 else "信用利差擴大" if _hy_spread < 6.0 else "信用危機警戒"
+        _r3[4].markdown(
+            _metric_html("高收益債利差", f"{_hy_spread:.2f}%", _hy_s, _hy_h,
+                         ref="反映企業違約風險溢酬；<4%健康，≥6%危機警戒"),
+            unsafe_allow_html=True
+        )
+    else:
+        _r3[4].markdown(_metric_html("高收益債利差", "—", "⚪", "載入中", ref="FRED: BAMLH0A0HYM2"),
+                         unsafe_allow_html=True)
+
+    # ── 欄6：美元指數（DXY）
+    _dxy = get_dxy_index()
+    if _dxy is not None:
+        _dxy_s = "🟢" if _dxy < 100 else "🟡" if _dxy < 105 else "🔴"
+        _dxy_h = "美元偏弱有利新興市場" if _dxy < 100 else "美元中性" if _dxy < 105 else "美元強勢資金回流"
+        _r3[5].markdown(
+            _metric_html("美元指數DXY", f"{_dxy:.1f}", _dxy_s, _dxy_h,
+                         ref="美元相對一籃子貨幣強弱；<100偏弱，≥105強勢"),
+            unsafe_allow_html=True
+        )
+    else:
+        _r3[5].markdown(_metric_html("美元指數DXY", "—", "⚪", "載入中", ref="yf: DX-Y.NYB"),
+                         unsafe_allow_html=True)
 
     st.markdown("<div style='margin:4px 0;'></div>", unsafe_allow_html=True)
 
