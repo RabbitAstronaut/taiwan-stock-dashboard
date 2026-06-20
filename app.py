@@ -333,6 +333,106 @@ def get_chips_facts_map() -> dict:
     return result
 
 
+# ══════════════════════════════════════════════════════════════
+# ▌ 異常變盤因果律自適應決策函數（全域共用，Tab3 + Tab4 同步調用）
+# ══════════════════════════════════════════════════════════════
+def check_anomaly_variant(
+    stock_id: str,
+    strategy_type: str,
+    current_price: float,
+    ma20: float,
+    foreign_buy,      # 外資買賣超張數（可能為 None）
+    margin_change,    # 融資增減百分比（可能為 None）
+) -> dict:
+    """
+    異常變盤因果律核心演算法（100% 動態運算，拒絕寫死任何股票代號或假數據）。
+
+    參數：
+        stock_id      ：股票代號（僅用於回傳訊息顯示，不做任何 if stock_id == 判斷）
+        strategy_type ：'LONG' 或 'SHORT'，個股的長短線戰略標籤
+        current_price ：當前現價
+        ma20          ：20日移動平均線（月線）
+        foreign_buy   ：外資當日買賣超張數（正=買超，負=賣超），無資料則傳 None
+        margin_change ：融資當日增減百分比，無資料則傳 None
+
+    回傳：
+        {
+          "triggered": bool,          # 是否觸發任何異常變盤訊號
+          "level": str,               # "AS_RETREAT"（以退為進令）/ "DIAMOND_BUY"（鑽石級布局令）/ None
+          "market_level": str,        # "HIGH_RISK" / "BOTTOM_SAFE" / "NORMAL"
+          "bias_20": float,           # 月線乖離率(%)
+          "message": str,             # 完整繁中提示文字
+        }
+
+    判定邏輯：
+        bias_20 = (現價 - 20MA) / 20MA × 100
+        bias_20 >= +10.0  → market_level = "HIGH_RISK"   （高位階重災區）
+        bias_20 <= -10.0  → market_level = "BOTTOM_SAFE" （底部隔離避風港）
+        其餘區間          → market_level = "NORMAL"      （橫盤監控區）
+
+        【以退為進令】strategy_type=="SHORT" 且 market_level=="HIGH_RISK"
+                     且 foreign_buy<0 且 margin_change>=2.0
+        【鑽石級布局令】strategy_type=="LONG" 且 market_level=="BOTTOM_SAFE"
+                     且 margin_change<=-1.5
+    """
+    result = {
+        "triggered": False, "level": None, "market_level": "NORMAL",
+        "bias_20": 0.0, "message": "",
+    }
+
+    # 防呆：20MA 無效時無法計算乖離率
+    if ma20 is None or ma20 <= 0 or current_price is None:
+        return result
+
+    bias_20 = (current_price - ma20) / ma20 * 100
+    result["bias_20"] = bias_20
+
+    # ── 動態位階自適應分流（拒絕寫死任何股票代號判斷）
+    if bias_20 >= 10.0:
+        market_level = "HIGH_RISK"
+    elif bias_20 <= -10.0:
+        market_level = "BOTTOM_SAFE"
+    else:
+        market_level = "NORMAL"
+    result["market_level"] = market_level
+
+    # ══════════════════════════════════════
+    # 🚨 以退為進令：SHORT + HIGH_RISK + 外資賣超 + 融資逆勢大增
+    # ══════════════════════════════════════
+    if (strategy_type == "SHORT" and market_level == "HIGH_RISK" and
+        foreign_buy is not None and foreign_buy < 0 and
+        margin_change is not None and margin_change >= 2.0):
+
+        result["triggered"] = True
+        result["level"] = "AS_RETREAT"
+        result["message"] = (
+            f"🚨 **【異常變盤警告｜以退為進】{stock_id}**\n\n"
+            f"變盤因果律 Facts：月線正乖離 **{bias_20:+.1f}%**（高位階重災區），"
+            f"外資冷血大賣 **{foreign_buy:,.0f} 張**，散戶融資卻逆勢大增 **{margin_change:+.2f}%**！\n\n"
+            f"最高風控令：此處拉高純屬誘敵接刀煙霧彈，系統硬核封印買入權限，"
+            f"請執行『以退為進』清倉平倉，出貨後完全移除不追蹤！"
+        )
+
+    # ══════════════════════════════════════
+    # 💎 鑽石級布局令：LONG + BOTTOM_SAFE + 融資大減
+    # ══════════════════════════════════════
+    elif (strategy_type == "LONG" and market_level == "BOTTOM_SAFE" and
+          margin_change is not None and margin_change <= -1.5):
+
+        result["triggered"] = True
+        result["level"] = "DIAMOND_BUY"
+        result["message"] = (
+            f"💎 **【異常變盤指引｜底部布局】{stock_id}**\n\n"
+            f"變盤因果律 Facts：月線負乖離 **{bias_20:+.1f}%**（底部隔離避風港），"
+            f"散戶融資正大幅割肉斷頭 **{margin_change:+.2f}%**！"
+            f"系統全面屏蔽短線破位雜訊。\n\n"
+            f"最高風控令：此處即為鑽石級底部加碼點，請動用場外7成現金儲備分批優雅吸籌，"
+            f"持股雷打不動死鎖至年底，出清後必須持續追蹤！"
+        )
+
+    return result
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def load_watch_list():
     """
@@ -3389,8 +3489,14 @@ with tab3:
             try:
                 _df_pf, _ok_pf = load_price_csv(_sid)
                 _cp = float(_df_pf["Close"].iloc[-1]) if _ok_pf and not _df_pf.empty else _bp
+                # 同步計算 20MA（供異常變盤因果律共用函數使用）
+                if _ok_pf and not _df_pf.empty and len(_df_pf) >= 20:
+                    _ma20_pf = float(pd.to_numeric(_df_pf["Close"], errors="coerce").dropna().tail(20).mean())
+                else:
+                    _ma20_pf = None
             except Exception:
                 _cp = _bp
+                _ma20_pf = None
 
             _cost   = calc_buy_cost(_bp, _qty)
             _inflow = calc_net_inflow(_cp, _qty)
@@ -3411,7 +3517,7 @@ with tab3:
                 "含費成本": round(_cost, 0), "扣稅實收": round(_inflow, 0),
                 "未實現損益": round(_profit, 0), "ROI%": round(_roi, 2),
                 "📉融資增減%": _margin_chg, "📡外資買超張": _foreign_net,
-                "_sl": _sl, "_sp": _sp, "_cp": _cp, "_bp": _bp,
+                "_sl": _sl, "_sp": _sp, "_cp": _cp, "_bp": _bp, "_ma20": _ma20_pf,
                 "_strategy": _pos.get("strategy_type", "LONG"),  # 預設長線
             })
             try:
@@ -3531,10 +3637,24 @@ with tab3:
                 _r_margin = _r.get("📉融資增減%")
                 _r_fgn    = _r.get("📡外資買超張")
                 _r_qty    = _r["持股數"]
+                _r_ma20   = _r.get("_ma20")
 
                 # 全局視角切換決定本次決策邏輯（不固定每支股票的策略）
                 _strat_label = "🛡️ 長線防空洞視角" if _is_long_view else "⚡ 短線游擊視角"
                 _pnl_color   = "#ff4444" if _r_profit > 0 else "#00cc66" if _r_profit < 0 else "#e8f4fd"
+
+                # ── 呼叫全域共用的異常變盤因果律決策函數
+                # 注意：strategy_type 用持倉實際儲存的策略標籤（_strategy），
+                #      不是視角切換（_is_long_view 只影響下方決策智庫文字，
+                #      異常變盤判定仍以持倉真實設定的長短線屬性為準）
+                _r_anomaly = check_anomaly_variant(
+                    stock_id=f"{_r_sid} {_r_name}",
+                    strategy_type=_r.get("_strategy", "LONG"),
+                    current_price=_r_cp,
+                    ma20=_r_ma20,
+                    foreign_buy=_r_fgn,
+                    margin_change=_r_margin,
+                )
 
                 with st.expander(
                     f"{'📈' if _r_profit >= 0 else '📉'} {_r_sid} {_r_name}　｜　"
@@ -3542,6 +3662,20 @@ with tab3:
                     f"{'獲利' if _r_profit >= 0 else '虧損'} {abs(_r_profit):,.0f} 元（{_r_roi:+.2f}%）",
                     expanded=True
                 ):
+                    # ── 異常變盤因果律警告（最上方優先顯示，覆蓋實體資產安全防禦）
+                    if _r_anomaly["triggered"]:
+                        if _r_anomaly["level"] == "AS_RETREAT":
+                            st.error(_r_anomaly["message"])
+                            if st.button("🗑️ 物理除名（出清後從帳本移除）",
+                                         key=f"pf_anomaly_remove_{_r_sid}"):
+                                _pf_after = load_portfolio()
+                                _pf_after.pop(_r_sid, None)
+                                save_portfolio(_pf_after)
+                                st.success(f"已將 {_r_sid} {_r_name} 從持倉物理除名")
+                                st.rerun()
+                        elif _r_anomaly["level"] == "DIAMOND_BUY":
+                            st.info(_r_anomaly["message"])
+
                     # ── 四格指標
                     _c1, _c2, _c3, _c4 = st.columns(4)
                     _c1.metric(
@@ -5537,7 +5671,7 @@ with tab4:
             _yn_name  = _yn_item.get("name", _yn_sid)
             _yn_strat = _yn_item.get("strategy_tag", "LONG")  # 預設長線
 
-            # ── 即時讀取K線，動態計算現價與20MA乖離率
+            # ── 即時讀取K線，動態計算現價與20MA
             try:
                 _yn_df, _yn_ok = load_price_csv(_yn_sid)
                 if not _yn_ok or _yn_df.empty or len(_yn_df) < 20:
@@ -5547,43 +5681,35 @@ with tab4:
                     continue
                 _yn_cp   = float(_yn_closes.iloc[-1])
                 _yn_ma20 = float(_yn_closes.tail(20).mean())
-                _yn_bias = ((_yn_cp - _yn_ma20) / _yn_ma20 * 100) if _yn_ma20 > 0 else 0.0
                 del _yn_df
                 import gc; gc.collect()
             except Exception:
                 continue
-
-            # ── 動態位階自適應分流（拒絕寫死任何股票判斷）
-            if _yn_bias >= 10.0:
-                _yn_level = "HIGH_RISK"
-            elif _yn_bias <= -10.0:
-                _yn_level = "BOTTOM_SAFE"
-            else:
-                _yn_level = "NORMAL"
 
             # ── 即時籌碼 Facts（融資增減% + 外資買賣超張）
             _yn_chip   = _yn_chips_map.get(_yn_sid, {})
             _yn_margin = _yn_chip.get("margin_chg_pct", None)
             _yn_fgn    = _yn_chip.get("foreign_net",   None)
 
-            # ══════════════════════════════════════
-            # ⚠️ 觸發高位變盤 ── 以退為進令
-            # 條件：SHORT + HIGH_RISK + 外資賣超 + 融資逆勢大增≥2%
-            # ══════════════════════════════════════
-            if (_yn_strat == "SHORT" and _yn_level == "HIGH_RISK" and
-                _yn_fgn is not None and _yn_fgn < 0 and
-                _yn_margin is not None and _yn_margin >= 2.0):
+            # ── 呼叫全域共用的異常變盤因果律決策函數
+            _yn_result = check_anomaly_variant(
+                stock_id=f"{_yn_sid} {_yn_name}",
+                strategy_type=_yn_strat,
+                current_price=_yn_cp,
+                ma20=_yn_ma20,
+                foreign_buy=_yn_fgn,
+                margin_change=_yn_margin,
+            )
 
-                _yn_alert_count += 1
+            if not _yn_result["triggered"]:
+                continue
+
+            _yn_alert_count += 1
+
+            if _yn_result["level"] == "AS_RETREAT":
                 _yn_c1, _yn_c2 = st.columns([10, 1])
                 with _yn_c1:
-                    st.error(
-                        f"🚨 **【異常變盤警告｜以退為進】{_yn_sid} {_yn_name}**\n\n"
-                        f"變盤因果律 Facts：月線正乖離 **{_yn_bias:+.1f}%**（高位階重災區），"
-                        f"外資冷血大賣 **{_yn_fgn:,.0f} 張**，散戶融資卻逆勢大增 **{_yn_margin:+.2f}%**！\n\n"
-                        f"最高風控令：此處拉高純屬誘敵接刀煙霧彈，系統硬核封印買入權限，"
-                        f"請執行『以退為進』清倉平倉，出貨後完全移除不追蹤！"
-                    )
+                    st.error(_yn_result["message"])
                 with _yn_c2:
                     st.markdown("<div style='margin-top:30px;'></div>", unsafe_allow_html=True)
                     if st.button("🗑️ 物理除名", key=f"yn_remove_{_yn_sid}"):
@@ -5593,22 +5719,8 @@ with tab4:
                         st.success(f"已將 {_yn_sid} {_yn_name} 從戰備庫物理除名")
                         st.rerun()
 
-            # ══════════════════════════════════════
-            # 💎 觸發低位變盤 ── 鑽石級布局令
-            # 條件：LONG + BOTTOM_SAFE + 融資大減≤-1.5%
-            # ══════════════════════════════════════
-            elif (_yn_strat == "LONG" and _yn_level == "BOTTOM_SAFE" and
-                  _yn_margin is not None and _yn_margin <= -1.5):
-
-                _yn_alert_count += 1
-                st.info(
-                    f"💎 **【異常變盤指引｜底部布局】{_yn_sid} {_yn_name}**\n\n"
-                    f"變盤因果律 Facts：月線負乖離 **{_yn_bias:+.1f}%**（底部隔離避風港），"
-                    f"散戶融資正大幅割肉斷頭 **{_yn_margin:+.2f}%**！"
-                    f"系統全面屏蔽短線破位雜訊。\n\n"
-                    f"最高風控令：此處即為鑽石級底部加碼點，請動用場外7成現金儲備分批優雅吸籌，"
-                    f"持股雷打不動死鎖至年底，出清後必須持續追蹤！"
-                )
+            elif _yn_result["level"] == "DIAMOND_BUY":
+                st.info(_yn_result["message"])
 
         if _yn_alert_count == 0:
             st.caption("✅ 目前儲備庫全數標的籌碼結構正常，未觸發任何異常變盤因果律警示。")
