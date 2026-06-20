@@ -5475,6 +5475,86 @@ with tab4:
 
     st.markdown("---")
 
+    # ══════════════════════════════════════════════════════════════
+    # ▌ 大盤層級全天候監控（系統核心定錨，永遠置頂，不可移除）
+    # ──────────────────────────────────────────────────────────────
+    # 設計說明：
+    #   1. 此區塊完全獨立於 st.session_state.reserve_list，不寫入
+    #      watchlist.json，僅在 UI 渲染層注入，保持資料檔案乾淨。
+    #   2. 監控標的：台股加權指數(^TWII) ／ 費城半導體指數(^SOX)，
+    #      代表「大盤層級」與「美股半導體領先指標」雙重宏觀防線。
+    #   3. 100% 動態抓取 yfinance，拒絕任何寫死數值。
+    #   4. 沒收刪除權限：UI不渲染移除按鈕，僅顯示「系統核心定錨」字樣。
+    # ══════════════════════════════════════════════════════════════
+    st.markdown("#### 🌐 大盤層級全天候監控（系統核心定錨）")
+    st.caption("台股加權指數 ＋ 費城半導體指數，雙重宏觀防線，永遠置頂，剛性特赦不可移除")
+
+    _index_anchors = [
+        {"ticker": "^TWII", "name": "台股加權指數", "scope": "TOTAL_MARKET"},
+        {"ticker": "^SOX",  "name": "費城半導體指數", "scope": "US_SEMICON"},
+    ]
+
+    _macro_overload_triggered = False  # 大盤總體重力超載旗標
+
+    for _idx_item in _index_anchors:
+        _idx_data = get_index_bias20(_idx_item["ticker"])
+
+        if _idx_data is None:
+            st.markdown(
+                f"<div style='background:rgba(255,255,255,0.03);border:1px solid #1e3a5f;"
+                f"border-radius:8px;padding:12px 16px;margin:8px 0;'>"
+                f"<b>{_idx_item['name']}</b>　"
+                f"<span style='color:#7fb3d3;'>⚪ 資料載入中（yfinance連線中）</span>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+            continue
+
+        _idx_price = _idx_data["price"]
+        _idx_ma20  = _idx_data["ma20"]
+        _idx_bias  = _idx_data["bias_20"]
+
+        # ── 大盤層級乖離率燈號（門檻 8.0，較個股 10.0 更保守）
+        if _idx_bias >= 8.0:
+            _idx_color, _idx_icon, _idx_status = "#ff4444", "🔴", "過熱重災區"
+            _macro_overload_triggered = True
+        elif _idx_bias <= -8.0:
+            _idx_color, _idx_icon, _idx_status = "#00cc66", "🟢", "底部超賣區"
+        else:
+            _idx_color, _idx_icon, _idx_status = "#fbbf24", "🟡", "正常區間"
+
+        _idx_c1, _idx_c2 = st.columns([10, 2])
+        with _idx_c1:
+            st.markdown(
+                f"<div style='background:rgba(255,255,255,0.03);border:1px solid {_idx_color};"
+                f"border-left:4px solid {_idx_color};border-radius:8px;padding:12px 16px;margin:8px 0;'>"
+                f"<b style='color:#e8f4fd;font-size:1rem;'>{_idx_item['name']}</b>　"
+                f"<span style='color:#9fb8d4;font-size:.85rem;'>"
+                f"現價 {_idx_price:,.1f}　月線(20MA) {_idx_ma20:,.1f}</span><br>"
+                f"<span style='color:{_idx_color};font-weight:600;'>"
+                f"{_idx_icon} 月乖離 {_idx_bias:+.1f}%（{_idx_status}）</span>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        with _idx_c2:
+            # 沒收刪除權限：僅顯示靜態文字，不渲染任何刪除按鈕
+            st.markdown(
+                "<div style='margin-top:18px;color:#7a8fa0;font-size:.78rem;text-align:center;"
+                "padding:6px 4px;background:rgba(255,255,255,0.02);border-radius:6px;'>"
+                "🔒 系統核心定錨<br>（剛性特赦，不可移除）</div>",
+                unsafe_allow_html=True
+            )
+
+    # ── 大盤總體重力超載警告（任一指數觸發即全域亮燈）
+    if _macro_overload_triggered:
+        st.error(
+            "🚨 **總體重力超載：大盤月乖離已進入過熱重災區**　"
+            "系統全域啟動以退為進防禦姿態，嚴禁對下方個股盲目追高！"
+        )
+
+    st.markdown("---")
+
+
     if not st.session_state.reserve_list:
         st.info("🏹 戰略儲備庫尚無標的，請從上方加入或從 Tab3 持股監控移入。")
     else:
