@@ -1,5 +1,8 @@
 requests
 pandas
+numpy
 lxml
 xlsxwriter
+openpyxl
 yfinance
+plotly
