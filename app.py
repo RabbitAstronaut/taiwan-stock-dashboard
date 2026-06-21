@@ -1496,7 +1496,7 @@ def get_dual_alert():
 # ══════════════════════════════════════════════════════════════
 def get_mtx_retail_position():
     """
-    回傳小台散戶淨留倉口數
+    回傳小台散戶淨留倉口數（最新一天）
     正數=散戶做多（危險）/ 負數=散戶放空（軋空機會）
     """
     try:
@@ -1526,6 +1526,55 @@ def get_mtx_retail_position():
         return -total_inst
     except:
         return 0
+
+
+def get_mtx_retail_position_with_delta():
+    """
+    回傳小台散戶淨留倉「今日／昨日」雙日數值，供逐日增減判定使用。
+    正數=散戶做多（危險）/ 負數=散戶放空（軋空機會）
+
+    回傳：{"today": 今日散戶淨部位, "yesterday": 昨日散戶淨部位, "delta": 今日-昨日}
+          任一資料缺失時對應欄位回傳 None。
+    """
+    result = {"today": None, "yesterday": None, "delta": None}
+    try:
+        df_fut, ok_fut = get_futures()
+        if not ok_fut or df_fut.empty:
+            return result
+        nm = next((c for c in ["name","institutional_investors"] if c in df_fut.columns), None)
+        lc = next((c for c in df_fut.columns if "long_open_interest_balance" in c and "amount" not in c), None)
+        sc = next((c for c in df_fut.columns if "short_open_interest_balance" in c and "amount" not in c), None)
+        if not nm or not lc or not sc:
+            return result
+        inst = df_fut[df_fut["source"]=="institutional"] if "source" in df_fut.columns else df_fut
+        mtx  = inst[inst["contract"]=="MTX"] if "contract" in inst.columns else pd.DataFrame()
+        if mtx.empty:
+            return result
+
+        # 取最近兩個交易日期
+        _dates = sorted(mtx["date"].dropna().unique())
+        if not _dates:
+            return result
+
+        def _calc_retail_for_date(target_date):
+            day = mtx[mtx["date"] == target_date].copy()
+            total_inst = 0
+            for kw in ["自營","投信","外資"]:
+                row = day[day[nm].astype(str).str.contains(kw, na=False)]
+                if not row.empty:
+                    try:
+                        total_inst += int(float(row[lc].values[0])) - int(float(row[sc].values[0]))
+                    except Exception:
+                        pass
+            return -total_inst  # 散戶 = 法人反向
+
+        result["today"] = _calc_retail_for_date(_dates[-1])
+        if len(_dates) >= 2:
+            result["yesterday"] = _calc_retail_for_date(_dates[-2])
+            result["delta"] = result["today"] - result["yesterday"]
+        return result
+    except Exception:
+        return result
 
 # ══════════════════════════════════════════════════════════════
 # ▌ CSS 主題
@@ -6473,15 +6522,36 @@ with tab5:
         unsafe_allow_html=True
     )
 
-    # ── 欄2：小台散戶多空比 %
-    _retail     = _risk_info["mtx_retail"]
+    # ── 欄2：小台散戶多空比 %（含逐日增減自適應判定，100% 動態，拒絕寫死）
+    _retail_dd  = get_mtx_retail_position_with_delta()
+    _retail     = _retail_dd["today"] if _retail_dd["today"] is not None else _risk_info["mtx_retail"]
+    _delta_r    = _retail_dd["delta"]  # None 或 今日-昨日增減口數
+
     _mtx_total  = abs(_retail) + 10000  # 近似全市場
     _retail_pct = round(_retail / _mtx_total * 100, 1) if _mtx_total else 0
-    if _retail_pct >= 15:   _rt_s, _rt_h = "🔴", "散戶抄底踩踏"
-    elif _retail_pct <= -20: _rt_s, _rt_h = "🟢", "籌碼乾淨"
-    else:                    _rt_s, _rt_h = "⚪", "中性"
+
+    # ── 基礎燈號：依多空比%絕對水位判定（沿用原有門檻）
+    if _retail_pct >= 15:
+        _rt_s, _rt_base_h = "🔴", "散戶抄底踩踏"
+    elif _retail_pct <= -20:
+        _rt_s, _rt_base_h = "🟢", "籌碼乾淨"
+    else:
+        _rt_s, _rt_base_h = "⚪", "中性"
+
+    # ── 逐日增減自適應描述：在高位散戶多單的前提下，
+    #    區分「認賠減倉」（風險降溫）vs「逆勢爆增」（接刀加劇）
+    if _retail > 0 and _delta_r is not None:
+        if _delta_r < 0:
+            _rt_h = f"{_rt_base_h}｜散戶多單高位減少（認賠減倉，風險降溫）"
+        else:
+            _rt_h = f"{_rt_base_h}｜散戶多單逆勢爆增（高位接刀，風險加劇）"
+    elif _delta_r is not None:
+        _rt_h = f"{_rt_base_h}｜日增減 {_delta_r:+,}口"
+    else:
+        _rt_h = _rt_base_h
+
     _r1[1].markdown(_metric_html("小台散戶", f"{_retail:+,}口", _rt_s, _rt_h,
-                     ref="多空比 -20%~+15% 為中性區間"), unsafe_allow_html=True)
+                     ref="多空比 -20%~+15% 為中性區間；高位減倉=降溫，高位爆增=接刀加劇"), unsafe_allow_html=True)
 
     # ── 欄3：CBOE P/C
     _pc = _risk_info["pc_ratio"]
