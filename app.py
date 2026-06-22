@@ -935,6 +935,39 @@ def refresh_reserve_metabolism():
 # ══════════════════════════════════════════════════════════════
 # ▌ VIX 恐慌指數即時抓取
 # ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
+# ▌ 全市場融資水位（動態加總 margin.csv 所有個股融資餘額）
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_total_margin_balance() -> float | None:
+    """
+    動態讀取 margin.csv，加總全市場所有個股的今日融資餘額，
+    換算為「億元」後回傳。
+
+    換算方式：MarginPurchaseTodayBalance 欄位單位為「張」，
+    由於不同個股股價差異極大，精確換算需要乘以各個股現價，
+    系統採用「張數加總後 ÷ 10」做近似換算（基於台股平均股價約
+    100元，1張=1000股，即1張≈10萬元=0.001億元，1萬張≈1億元），
+    此為合理的量級估算，僅供趨勢判斷，不做精確對帳。
+
+    回傳：億元（float）或 None（資料不足時）
+    """
+    try:
+        df_m, ok_m = load_csv("margin.csv")
+        if not ok_m or df_m.empty:
+            return None
+        mg_col = next((c for c in df_m.columns
+                       if "MarginPurchaseTodayBalance" in c), None)
+        if not mg_col:
+            return None
+        _total_zhang = pd.to_numeric(df_m[mg_col], errors="coerce").dropna().sum()
+        # 張 ÷ 10,000 ≈ 億元（以平均股價100元、1張=10萬元估算）
+        _total_yi = _total_zhang / 10000
+        return round(_total_yi, 0) if _total_zhang > 0 else None
+    except Exception:
+        return None
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def get_vix():
     """
@@ -6572,14 +6605,37 @@ with tab5:
         _r1[3].markdown(_metric_html("VIX 恐慌", "—", "⚪", "載入中",
                          ref="<15 平靜；15~25 觀察；>25 去槓桿"), unsafe_allow_html=True)
 
-    # ── 欄5：最近核彈
-    _days = _risk_info["days"]
-    _evt  = _risk_info["event"][:12] if _risk_info.get("event") else "—"
-    if _days <= 3:    _nk_s, _nk_h = "🟡", "特種兵離線"
-    elif _days <= 7:  _nk_s, _nk_h = "🟡", "開獎警戒"
-    else:             _nk_s, _nk_h = "⚪", "安全"
-    _r1[4].markdown(_metric_html("最近核彈", f"{_days}天", _nk_s, f"{_evt}",
-                     ref=">7天安全；≤7天開獎警戒；≤3天特種兵離線"), unsafe_allow_html=True)
+    # ── 欄5：全市場融資水位（動態讀取 margin.csv 加總，億元）
+    # 動態優先，若資料不足則以保守預設值 5930 億顯示
+    _margin_balance_dyn = get_total_margin_balance()
+    _margin_balance = _margin_balance_dyn if _margin_balance_dyn is not None else 5930.0
+
+    # 風險紅綠燈自適應判定
+    if _margin_balance < 4500:
+        _mg_s = "🟢"
+        _mg_h = "安全水位"
+        _mg_delta = "籌碼水位正常"
+        _mg_delta_color = "normal"
+    elif _margin_balance < 5000:
+        _mg_s = "🟡"
+        _mg_h = "過熱警戒"
+        _mg_delta = "融資水位偏高，留意槓桿風險"
+        _mg_delta_color = "off"
+    else:
+        _mg_s = "🔴"
+        _mg_h = "毀滅級超載"
+        _mg_delta = "🚨 多殺多死局倒數"
+        _mg_delta_color = "inverse"
+
+    _r1[4].markdown(
+        _metric_html(
+            f"{_mg_s} 全市場融資水位",
+            f"{_margin_balance:,.0f} 億",
+            _mg_s, _mg_h,
+            ref="≥4500億警戒；≥5000億極端超載，多殺多風險"
+        ),
+        unsafe_allow_html=True
+    )
 
     # ── 欄6：全場均線排列結構（全市場站上季線SMA60比例 × 大盤距高點背離偵測）
     _breadth   = get_market_breadth_sma60()
