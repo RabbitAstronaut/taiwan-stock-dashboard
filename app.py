@@ -936,31 +936,26 @@ def refresh_reserve_metabolism():
 # ▌ VIX 恐慌指數即時抓取
 # ══════════════════════════════════════════════════════════════
 # ══════════════════════════════════════════════════════════════
-# ▌ 全市場融資水位（動態加總 margin.csv 所有個股融資餘額）
+# ▌ 全市場融資水位（讀取 daily_scan.py 排程抓取的證交所彙總 JSON）
 # ══════════════════════════════════════════════════════════════
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_total_margin_balance() -> dict:
     """
-    動態讀取 margin.csv，加總系統監控個股的今日融資餘額。
+    讀取 daily_scan.py 每日排程抓取的全市場融資餘額彙總 JSON
+    (data/margin_summary.json)，來源為證交所信用交易統計彙總表。
     回傳：{"balance": 億元, "date": 資料日期} 或 None
     """
     try:
-        df_m, ok_m = load_csv("margin.csv")
-        if not ok_m or df_m.empty:
+        import os as _os, json as _j
+        _path = _os.path.join("data", "margin_summary.json")
+        if not _os.path.exists(_path):
             return None
-        mg_col = next((c for c in df_m.columns
-                       if "MarginPurchaseTodayBalance" in c), None)
-        if not mg_col:
-            return None
-        df_m[mg_col] = pd.to_numeric(df_m[mg_col], errors="coerce")
-        df_m = df_m.dropna(subset=[mg_col])
-        if df_m.empty:
-            return None
-        _total = df_m[mg_col].sum()
-        _yi = round(_total / 100_000, 0)
-        _date_col = next((c for c in df_m.columns if "date" in c.lower()), None)
-        _date_str = str(df_m[_date_col].max())[:10] if _date_col else "—"
-        return {"balance": _yi, "date": _date_str}
+        with open(_path, "r", encoding="utf-8") as _f:
+            _d = _j.load(_f)
+        return {
+            "balance": float(_d.get("balance_yi", 0)),
+            "date":    _d.get("date", "—"),
+        }
     except Exception:
         return None
 
@@ -6602,14 +6597,16 @@ with tab5:
         _r1[3].markdown(_metric_html("VIX 恐慌", "—", "⚪", "載入中",
                          ref="<15 平靜；15~25 觀察；>25 去槓桿"), unsafe_allow_html=True)
 
-    # ── 欄5：全市場融資水位（動態讀取 margin.csv 加總，億元）
+    # ── 欄5：全市場融資水位（讀取 margin_summary.json，來源：證交所彙總）
     _mg_data = get_total_margin_balance()
-    _margin_balance = _mg_data["balance"] if _mg_data else 1652.0
+    _margin_balance = _mg_data["balance"] if _mg_data else 0.0
     _mg_date = _mg_data["date"] if _mg_data else "—"
 
-    if _margin_balance < 2000:
+    if _margin_balance <= 0:
+        _mg_s, _mg_h = "⚪", "資料更新中"
+    elif _margin_balance < 4500:
         _mg_s, _mg_h = "🟢", "安全水位"
-    elif _margin_balance < 2500:
+    elif _margin_balance < 5000:
         _mg_s, _mg_h = "🟡", "過熱警戒"
     else:
         _mg_s, _mg_h = "🔴", "毀滅級超載"
@@ -6617,9 +6614,9 @@ with tab5:
     _r1[4].markdown(
         _metric_html(
             f"{_mg_s} 全市場融資水位",
-            f"{_margin_balance:,.0f} 億",
+            f"{_margin_balance:,.0f} 億" if _margin_balance > 0 else "—",
             _mg_s, _mg_h,
-            ref=f"資料日期：{_mg_date}｜系統監控個股加總；≥2000億警戒；≥2500億超載"
+            ref=f"資料日期：{_mg_date}｜來源：證交所彙總；≥4500億警戒；≥5000億超載"
         ),
         unsafe_allow_html=True
     )
