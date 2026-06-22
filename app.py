@@ -939,18 +939,10 @@ def refresh_reserve_metabolism():
 # ▌ 全市場融資水位（動態加總 margin.csv 所有個股融資餘額）
 # ══════════════════════════════════════════════════════════════
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_total_margin_balance() -> float | None:
+def get_total_margin_balance() -> dict:
     """
-    動態讀取 margin.csv，加總全市場所有個股的今日融資餘額，
-    換算為「億元」後回傳。
-
-    換算方式：MarginPurchaseTodayBalance 欄位單位為「張」，
-    由於不同個股股價差異極大，精確換算需要乘以各個股現價，
-    系統採用「張數加總後 ÷ 10」做近似換算（基於台股平均股價約
-    100元，1張=1000股，即1張≈10萬元=0.001億元，1萬張≈1億元），
-    此為合理的量級估算，僅供趨勢判斷，不做精確對帳。
-
-    回傳：億元（float）或 None（資料不足時）
+    動態讀取 margin.csv，加總系統監控個股的今日融資餘額。
+    回傳：{"balance": 億元, "date": 資料日期} 或 None
     """
     try:
         df_m, ok_m = load_csv("margin.csv")
@@ -960,12 +952,15 @@ def get_total_margin_balance() -> float | None:
                        if "MarginPurchaseTodayBalance" in c), None)
         if not mg_col:
             return None
-        _total_zhang = pd.to_numeric(df_m[mg_col], errors="coerce").dropna().sum()
-        # margin.csv 的 MarginPurchaseTodayBalance 單位為「千元」
-        # 千元 ÷ 100,000 = 億元
-        # 注意：CSV 只涵蓋系統監控的個股，非全市場，數字約為實際值的 1/3~1/2
-        _total_yi = _total_zhang / 100_000
-        return round(_total_yi, 0) if _total_zhang > 0 else None
+        df_m[mg_col] = pd.to_numeric(df_m[mg_col], errors="coerce")
+        df_m = df_m.dropna(subset=[mg_col])
+        if df_m.empty:
+            return None
+        _total = df_m[mg_col].sum()
+        _yi = round(_total / 100_000, 0)
+        _date_col = next((c for c in df_m.columns if "date" in c.lower()), None)
+        _date_str = str(df_m[_date_col].max())[:10] if _date_col else "—"
+        return {"balance": _yi, "date": _date_str}
     except Exception:
         return None
 
@@ -6608,32 +6603,23 @@ with tab5:
                          ref="<15 平靜；15~25 觀察；>25 去槓桿"), unsafe_allow_html=True)
 
     # ── 欄5：全市場融資水位（動態讀取 margin.csv 加總，億元）
-    # 動態優先，若資料不足則以保守預設值 5930 億顯示
-    _margin_balance_dyn = get_total_margin_balance()
-    _margin_balance = _margin_balance_dyn if _margin_balance_dyn is not None else 5930.0
+    _mg_data = get_total_margin_balance()
+    _margin_balance = _mg_data["balance"] if _mg_data else 1652.0
+    _mg_date = _mg_data["date"] if _mg_data else "—"
 
-    # 風險紅綠燈自適應判定
-    # 注意：margin.csv 僅涵蓋系統監控個股（約全市場1/3~1/2）
-    # 門檻依比例調整：全市場4500億 → 系統覆蓋約2000億；5000億 → 約2500億
     if _margin_balance < 2000:
-        _mg_s = "🟢"
-        _mg_h = "安全水位"
-        _mg_delta = "籌碼水位正常"
+        _mg_s, _mg_h = "🟢", "安全水位"
     elif _margin_balance < 2500:
-        _mg_s = "🟡"
-        _mg_h = "過熱警戒"
-        _mg_delta = "融資水位偏高，留意槓桿風險"
+        _mg_s, _mg_h = "🟡", "過熱警戒"
     else:
-        _mg_s = "🔴"
-        _mg_h = "毀滅級超載"
-        _mg_delta = "🚨 多殺多死局倒數"
+        _mg_s, _mg_h = "🔴", "毀滅級超載"
 
     _r1[4].markdown(
         _metric_html(
             f"{_mg_s} 全市場融資水位",
             f"{_margin_balance:,.0f} 億",
             _mg_s, _mg_h,
-            ref="系統監控個股加總（約全市場1/2）；≥2000億警戒；≥2500億極端超載"
+            ref=f"資料日期：{_mg_date}｜系統監控個股加總；≥2000億警戒；≥2500億超載"
         ),
         unsafe_allow_html=True
     )
