@@ -961,8 +961,10 @@ def get_total_margin_balance() -> float | None:
         if not mg_col:
             return None
         _total_zhang = pd.to_numeric(df_m[mg_col], errors="coerce").dropna().sum()
-        # 張 ÷ 10,000 ≈ 億元（以平均股價100元、1張=10萬元估算）
-        _total_yi = _total_zhang / 10000
+        # margin.csv 的 MarginPurchaseTodayBalance 單位為「千元」
+        # 千元 ÷ 100,000 = 億元
+        # 注意：CSV 只涵蓋系統監控的個股，非全市場，數字約為實際值的 1/3~1/2
+        _total_yi = _total_zhang / 100_000
         return round(_total_yi, 0) if _total_zhang > 0 else None
     except Exception:
         return None
@@ -6611,28 +6613,27 @@ with tab5:
     _margin_balance = _margin_balance_dyn if _margin_balance_dyn is not None else 5930.0
 
     # 風險紅綠燈自適應判定
-    if _margin_balance < 4500:
+    # 注意：margin.csv 僅涵蓋系統監控個股（約全市場1/3~1/2）
+    # 門檻依比例調整：全市場4500億 → 系統覆蓋約2000億；5000億 → 約2500億
+    if _margin_balance < 2000:
         _mg_s = "🟢"
         _mg_h = "安全水位"
         _mg_delta = "籌碼水位正常"
-        _mg_delta_color = "normal"
-    elif _margin_balance < 5000:
+    elif _margin_balance < 2500:
         _mg_s = "🟡"
         _mg_h = "過熱警戒"
         _mg_delta = "融資水位偏高，留意槓桿風險"
-        _mg_delta_color = "off"
     else:
         _mg_s = "🔴"
         _mg_h = "毀滅級超載"
         _mg_delta = "🚨 多殺多死局倒數"
-        _mg_delta_color = "inverse"
 
     _r1[4].markdown(
         _metric_html(
             f"{_mg_s} 全市場融資水位",
             f"{_margin_balance:,.0f} 億",
             _mg_s, _mg_h,
-            ref="≥4500億警戒；≥5000億極端超載，多殺多風險"
+            ref="系統監控個股加總（約全市場1/2）；≥2000億警戒；≥2500億極端超載"
         ),
         unsafe_allow_html=True
     )
