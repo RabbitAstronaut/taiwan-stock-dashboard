@@ -1,0 +1,38 @@
+name: Daily Margin Balance
+
+on:
+  schedule:
+    - cron: '30 13 * * 1-5'  # UTC 13:30 = 台灣時間 21:30（週一~週五）
+  workflow_dispatch:           # 允許手動觸發（方便測試）
+
+jobs:
+  fetch-margin:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch margin balance
+        run: python fetch_margin.py
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
+          git add data/margin_summary.json
+          git diff --cached --quiet || git commit -m "📊 自動更新全市場融資餘額（$(date '+%Y-%m-%d')）"
+          git push
