@@ -3050,125 +3050,216 @@ with tab1:
     )
 
     # ══════════════════════════════════════════════════════════════
-    # ▌ 新星池觀察清單（30天觀察期機制）
+    # ▌ 新星池觀察清單（朋友未滿區）
     # ══════════════════════════════════════════════════════════════
-    with st.expander("🌟 新星池觀察清單（30天觀察期）", expanded=True):
-        # 初始化 session state
-        if "nova_pool" not in st.session_state:
-            st.session_state.nova_pool = []  # [{id, name, added_date, note}]
+    with st.expander("🌟 新星池｜朋友未滿區", expanded=True):
 
-        # ── 手動加入新星
-        _np_c1, _np_c2, _np_c3 = st.columns([2, 2, 1])
+        # ── session state 初始化
+        # 每檔格式：{
+        #   id, name, added_date,
+        #   logs: [{date, note}],       ← 觀察紀錄歷史
+        #   checks: {c1,c2,c3,c4,c5}   ← 升級前驗證條件
+        # }
+        if "nova_pool" not in st.session_state:
+            st.session_state.nova_pool = []
+
+        # ── 加入新星
+        st.markdown("**➕ 加入新標的**")
+        _np_c1, _np_c2, _np_c3 = st.columns([2, 3, 1])
         with _np_c1:
-            _np_sid  = st.text_input("加入新星（股票代號）", placeholder="如：3661", key="nova_sid")
+            _np_sid = st.text_input("股票代號", placeholder="如：3661", key="nova_sid")
         with _np_c2:
-            _np_note = st.text_input("觀察原因（必填）", placeholder="如：AI散熱新客戶導入", key="nova_note")
+            _np_note = st.text_input("第一筆觀察原因（必填）",
+                                      placeholder="如：AI散熱新客戶導入，法說會提到Q3放量",
+                                      key="nova_note")
         with _np_c3:
             st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
-            if st.button("➕ 加入觀察", key="nova_add"):
-                if _np_sid and _np_note:
-                    _np_exists = any(n["id"] == _np_sid.strip() for n in st.session_state.nova_pool)
-                    if _np_exists:
+            if st.button("加入", key="nova_add", use_container_width=True):
+                if _np_sid.strip() and _np_note.strip():
+                    if any(n["id"] == _np_sid.strip() for n in st.session_state.nova_pool):
                         st.warning(f"{_np_sid} 已在新星池中")
                     else:
                         _np_name = get_stock_name_map().get(_np_sid.strip(), _np_sid.strip())
+                        _today_str = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
                         st.session_state.nova_pool.append({
                             "id":         _np_sid.strip(),
                             "name":       _np_name,
-                            "added_date": datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d"),
-                            "note":       _np_note.strip(),
+                            "added_date": _today_str,
+                            "logs":       [{"date": _today_str, "note": _np_note.strip()}],
+                            "checks":     {"c1": False, "c2": False, "c3": False,
+                                           "c4": False, "c5": False},
                         })
                         st.success(f"✅ {_np_sid} {_np_name} 已加入新星池，30天觀察期開始")
                         st.rerun()
                 else:
                     st.warning("請填寫股票代號與觀察原因")
 
-        # ── 顯示觀察清單
+        st.markdown("---")
+
         if not st.session_state.nova_pool:
-            st.caption("新星池目前為空。使用下方掃描工具發現標的後，手動加入觀察清單。")
+            st.caption("新星池目前為空。使用下方掃描工具發現陌生標的後，手動加入。")
         else:
             _today_np = datetime.now(ZoneInfo("Asia/Taipei")).date()
-            _graduated, _watching, _remove_id = [], [], None
+            _remove_id, _upgrade_id = None, None
 
             for _np in st.session_state.nova_pool:
                 try:
                     _added = datetime.strptime(_np["added_date"], "%Y-%m-%d").date()
                     _days  = (_today_np - _added).days
-                    if _days >= 30:
-                        _graduated.append((_np, _days))
-                    else:
-                        _watching.append((_np, _days))
                 except Exception:
-                    _watching.append((_np, 0))
+                    _days = 0
+                _remaining = max(0, 30 - _days)
+                _prog      = min(100, int(_days / 30 * 100))
+                _graduated = _days >= 30
 
-            # 畢業生（>=30天）
-            if _graduated:
-                st.markdown("**🎓 觀察期已滿（可升級王者候選名單）**")
-                for _np, _days in _graduated:
-                    _gc1, _gc2, _gc3 = st.columns([5, 2, 2])
-                    with _gc1:
+                # 邊框顏色
+                _border = "#00cc66" if _graduated else "#fbbf24"
+                _status = "🎓 觀察期已滿" if _graduated else f"👁️ 觀察中"
+
+                with st.container():
+                    st.markdown(
+                        f"<div style='border:1px solid {_border};"
+                        f"border-left:4px solid {_border};"
+                        f"border-radius:8px;padding:14px 16px;margin:10px 0;"
+                        f"background:rgba(255,255,255,0.02);'>",
+                        unsafe_allow_html=True
+                    )
+
+                    # ── 標題列
+                    _h1, _h2 = st.columns([7, 3])
+                    with _h1:
                         st.markdown(
-                            f"<div style='padding:8px 12px;background:rgba(0,212,100,0.08);"
-                            f"border-left:3px solid #00cc66;border-radius:4px;font-size:.85rem;'>"
-                            f"🎓 <b>{_np['id']} {_np['name']}</b>　"
-                            f"觀察 {_days} 天｜加入：{_np['added_date']}<br>"
-                            f"<span style='color:#7fb3d3;'>觀察原因：{_np['note']}</span>"
-                            f"</div>",
+                            f"<span style='font-size:1rem;font-weight:700;color:#e8f4fd;'>"
+                            f"{_status}　{_np['id']} {_np['name']}</span>　"
+                            f"<span style='color:#9fb8d4;font-size:.82rem;'>"
+                            f"加入：{_np['added_date']}　"
+                            f"{'已觀察 '+str(_days)+' 天' if not _graduated else '共觀察 '+str(_days)+' 天'}"
+                            f"</span>",
                             unsafe_allow_html=True
                         )
-                    with _gc2:
-                        if st.button("⬆️ 升級王者名單", key=f"nova_grad_{_np['id']}"):
-                            # 加入戰略儲備庫
-                            _exists_rsv = any(
-                                r["id"] == _np["id"]
-                                for r in st.session_state.get("reserve_list", [])
-                            )
-                            if not _exists_rsv:
-                                if "reserve_list" not in st.session_state:
-                                    st.session_state.reserve_list = []
-                                st.session_state.reserve_list.append({
-                                    "id":        _np["id"],
-                                    "name":      _np["name"],
-                                    "note":      f"[新星池升級] {_np['note']}",
-                                    "added_at":  datetime.now().strftime("%Y-%m-%d"),
-                                })
-                                st.session_state.nova_pool = [
-                                    n for n in st.session_state.nova_pool
-                                    if n["id"] != _np["id"]
-                                ]
-                                st.success(f"✅ {_np['id']} {_np['name']} 已升級進入王者候選名單")
-                                st.rerun()
+                    with _h2:
+                        _btn_cols = st.columns(2)
+                        with _btn_cols[0]:
+                            # 升級按鈕：畢業才可用
+                            _checks = _np.get("checks", {})
+                            _all_checked = all(_checks.get(f"c{i}", False) for i in range(1, 6))
+                            if _graduated and _all_checked:
+                                if st.button("⬆️ 升級王者", key=f"nova_up_{_np['id']}",
+                                             use_container_width=True):
+                                    _upgrade_id = _np["id"]
+                            elif _graduated and not _all_checked:
+                                st.button("⬆️ 升級王者", key=f"nova_up_{_np['id']}",
+                                          disabled=True, use_container_width=True,
+                                          help="請先完成所有驗證條件")
                             else:
-                                st.info(f"{_np['id']} 已在王者候選名單中")
-                    with _gc3:
-                        if st.button("🗑️ 移除", key=f"nova_rm_g_{_np['id']}"):
-                            _remove_id = _np["id"]
+                                st.button(f"還差 {_remaining} 天",
+                                          key=f"nova_up_{_np['id']}",
+                                          disabled=True, use_container_width=True)
+                        with _btn_cols[1]:
+                            if st.button("🗑️ 淘汰", key=f"nova_rm_{_np['id']}",
+                                         use_container_width=True):
+                                _remove_id = _np["id"]
 
-            # 觀察中（<30天）
-            if _watching:
-                st.markdown("**👁️ 觀察中（未滿30天）**")
-                for _np, _days in _watching:
-                    _remaining = 30 - _days
-                    _wc1, _wc2 = st.columns([8, 1])
-                    with _wc1:
-                        _prog = int(_days / 30 * 100)
+                    # ── 進度條
+                    if not _graduated:
                         st.markdown(
-                            f"<div style='padding:8px 12px;background:rgba(255,255,255,0.02);"
-                            f"border-left:3px solid #fbbf24;border-radius:4px;font-size:.85rem;'>"
-                            f"👁️ <b>{_np['id']} {_np['name']}</b>　"
-                            f"已觀察 {_days} 天，還差 <b>{_remaining} 天</b> 可升級<br>"
-                            f"<span style='color:#7fb3d3;'>觀察原因：{_np['note']}</span><br>"
-                            f"<div style='background:#1e3a5f;border-radius:4px;height:4px;margin-top:4px;'>"
-                            f"<div style='background:#fbbf24;width:{_prog}%;height:4px;border-radius:4px;'></div>"
-                            f"</div>"
-                            f"</div>",
+                            f"<div style='background:#1e3a5f;border-radius:4px;"
+                            f"height:5px;margin:8px 0 12px;'>"
+                            f"<div style='background:#fbbf24;width:{_prog}%;"
+                            f"height:5px;border-radius:4px;'></div></div>",
                             unsafe_allow_html=True
                         )
-                    with _wc2:
-                        if st.button("✕", key=f"nova_rm_w_{_np['id']}"):
-                            _remove_id = _np["id"]
 
-            # 執行移除
+                    # ── 觀察紀錄 + 新增紀錄
+                    _log_col, _check_col = st.columns([6, 4])
+
+                    with _log_col:
+                        st.markdown("**📓 觀察紀錄**")
+                        _logs = _np.get("logs", [])
+                        for _log in reversed(_logs[-5:]):  # 最新5筆
+                            st.markdown(
+                                f"<div style='padding:4px 10px;margin:3px 0;"
+                                f"border-left:2px solid #1e3a5f;"
+                                f"font-size:.8rem;color:#9fb8d4;'>"
+                                f"<span style='color:#7fb3d3;'>{_log['date']}</span>　"
+                                f"{_log['note']}</div>",
+                                unsafe_allow_html=True
+                            )
+                        # 追加紀錄
+                        _new_log = st.text_input(
+                            "追加觀察紀錄",
+                            placeholder="今天的觀察...",
+                            key=f"nova_log_{_np['id']}",
+                            label_visibility="collapsed"
+                        )
+                        if st.button("➕ 追加", key=f"nova_log_add_{_np['id']}"):
+                            if _new_log.strip():
+                                _log_date = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
+                                for _item in st.session_state.nova_pool:
+                                    if _item["id"] == _np["id"]:
+                                        if "logs" not in _item:
+                                            _item["logs"] = []
+                                        _item["logs"].append({
+                                            "date": _log_date,
+                                            "note": _new_log.strip()
+                                        })
+                                        break
+                                st.rerun()
+
+                    with _check_col:
+                        # ── 升級前五大驗證條件
+                        st.markdown("**✅ 升級驗證條件（滿足才可升級）**")
+                        _check_labels = {
+                            "c1": "了解公司主要產品與客戶",
+                            "c2": "看過最近一季財報或法說",
+                            "c3": "確認產業景氣方向向上",
+                            "c4": "確認外資或投信持續買進",
+                            "c5": "確認股價未在歷史高點區",
+                        }
+                        for _ck, _cl in _check_labels.items():
+                            _cur = _np.get("checks", {}).get(_ck, False)
+                            _new_val = st.checkbox(
+                                _cl, value=_cur,
+                                key=f"nova_ck_{_np['id']}_{_ck}"
+                            )
+                            if _new_val != _cur:
+                                for _item in st.session_state.nova_pool:
+                                    if _item["id"] == _np["id"]:
+                                        if "checks" not in _item:
+                                            _item["checks"] = {}
+                                        _item["checks"][_ck] = _new_val
+                                        break
+
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+            # ── 執行升級
+            if _upgrade_id:
+                _np_obj = next((n for n in st.session_state.nova_pool if n["id"] == _upgrade_id), None)
+                if _np_obj:
+                    _exists_rsv = any(
+                        r["id"] == _upgrade_id
+                        for r in st.session_state.get("reserve_list", [])
+                    )
+                    if not _exists_rsv:
+                        if "reserve_list" not in st.session_state:
+                            st.session_state.reserve_list = []
+                        _all_logs = _np_obj.get("logs", [])
+                        _log_summary = "；".join(
+                            l["note"] for l in _all_logs[-3:]
+                        ) if _all_logs else ""
+                        st.session_state.reserve_list.append({
+                            "id":       _upgrade_id,
+                            "name":     _np_obj["name"],
+                            "note":     f"[新星池升級 {_np_obj['added_date']}~{datetime.now().strftime('%Y-%m-%d')}] {_log_summary}",
+                            "added_at": datetime.now().strftime("%Y-%m-%d"),
+                        })
+                    st.session_state.nova_pool = [
+                        n for n in st.session_state.nova_pool if n["id"] != _upgrade_id
+                    ]
+                    st.success(f"✅ {_upgrade_id} {_np_obj['name']} 已升級進入王者候選名單！")
+                    st.rerun()
+
+            # ── 執行淘汰
             if _remove_id:
                 st.session_state.nova_pool = [
                     n for n in st.session_state.nova_pool if n["id"] != _remove_id
