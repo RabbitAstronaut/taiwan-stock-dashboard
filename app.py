@@ -3038,8 +3038,152 @@ st.markdown(
 )
 
 with tab1:
-    st.markdown("<div class='sec-title'>🔍 選股掃描儀 · 三道階層篩選</div>",
+    st.markdown("<div class='sec-title'>🔭 新星池 · 陌生高成長標的發現引擎</div>",
                 unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>"
+        "新星池的任務：從全市場發現你還不認識的高成長標的。"
+        "發現後進入<b>30天強制觀察期</b>，觀察期結束後才可人工升級進入王者候選名單。"
+        "<br><b>硬性規則：新星池的標的不給買進建議，不設停損價，只負責讓你認識它。</b>"
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+    # ══════════════════════════════════════════════════════════════
+    # ▌ 新星池觀察清單（30天觀察期機制）
+    # ══════════════════════════════════════════════════════════════
+    with st.expander("🌟 新星池觀察清單（30天觀察期）", expanded=True):
+        # 初始化 session state
+        if "nova_pool" not in st.session_state:
+            st.session_state.nova_pool = []  # [{id, name, added_date, note}]
+
+        # ── 手動加入新星
+        _np_c1, _np_c2, _np_c3 = st.columns([2, 2, 1])
+        with _np_c1:
+            _np_sid  = st.text_input("加入新星（股票代號）", placeholder="如：3661", key="nova_sid")
+        with _np_c2:
+            _np_note = st.text_input("觀察原因（必填）", placeholder="如：AI散熱新客戶導入", key="nova_note")
+        with _np_c3:
+            st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
+            if st.button("➕ 加入觀察", key="nova_add"):
+                if _np_sid and _np_note:
+                    _np_exists = any(n["id"] == _np_sid.strip() for n in st.session_state.nova_pool)
+                    if _np_exists:
+                        st.warning(f"{_np_sid} 已在新星池中")
+                    else:
+                        _np_name = get_stock_name_map().get(_np_sid.strip(), _np_sid.strip())
+                        st.session_state.nova_pool.append({
+                            "id":         _np_sid.strip(),
+                            "name":       _np_name,
+                            "added_date": datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d"),
+                            "note":       _np_note.strip(),
+                        })
+                        st.success(f"✅ {_np_sid} {_np_name} 已加入新星池，30天觀察期開始")
+                        st.rerun()
+                else:
+                    st.warning("請填寫股票代號與觀察原因")
+
+        # ── 顯示觀察清單
+        if not st.session_state.nova_pool:
+            st.caption("新星池目前為空。使用下方掃描工具發現標的後，手動加入觀察清單。")
+        else:
+            _today_np = datetime.now(ZoneInfo("Asia/Taipei")).date()
+            _graduated, _watching, _remove_id = [], [], None
+
+            for _np in st.session_state.nova_pool:
+                try:
+                    _added = datetime.strptime(_np["added_date"], "%Y-%m-%d").date()
+                    _days  = (_today_np - _added).days
+                    if _days >= 30:
+                        _graduated.append((_np, _days))
+                    else:
+                        _watching.append((_np, _days))
+                except Exception:
+                    _watching.append((_np, 0))
+
+            # 畢業生（>=30天）
+            if _graduated:
+                st.markdown("**🎓 觀察期已滿（可升級王者候選名單）**")
+                for _np, _days in _graduated:
+                    _gc1, _gc2, _gc3 = st.columns([5, 2, 2])
+                    with _gc1:
+                        st.markdown(
+                            f"<div style='padding:8px 12px;background:rgba(0,212,100,0.08);"
+                            f"border-left:3px solid #00cc66;border-radius:4px;font-size:.85rem;'>"
+                            f"🎓 <b>{_np['id']} {_np['name']}</b>　"
+                            f"觀察 {_days} 天｜加入：{_np['added_date']}<br>"
+                            f"<span style='color:#7fb3d3;'>觀察原因：{_np['note']}</span>"
+                            f"</div>",
+                            unsafe_allow_html=True
+                        )
+                    with _gc2:
+                        if st.button("⬆️ 升級王者名單", key=f"nova_grad_{_np['id']}"):
+                            # 加入戰略儲備庫
+                            _exists_rsv = any(
+                                r["id"] == _np["id"]
+                                for r in st.session_state.get("reserve_list", [])
+                            )
+                            if not _exists_rsv:
+                                if "reserve_list" not in st.session_state:
+                                    st.session_state.reserve_list = []
+                                st.session_state.reserve_list.append({
+                                    "id":        _np["id"],
+                                    "name":      _np["name"],
+                                    "note":      f"[新星池升級] {_np['note']}",
+                                    "added_at":  datetime.now().strftime("%Y-%m-%d"),
+                                })
+                                st.session_state.nova_pool = [
+                                    n for n in st.session_state.nova_pool
+                                    if n["id"] != _np["id"]
+                                ]
+                                st.success(f"✅ {_np['id']} {_np['name']} 已升級進入王者候選名單")
+                                st.rerun()
+                            else:
+                                st.info(f"{_np['id']} 已在王者候選名單中")
+                    with _gc3:
+                        if st.button("🗑️ 移除", key=f"nova_rm_g_{_np['id']}"):
+                            _remove_id = _np["id"]
+
+            # 觀察中（<30天）
+            if _watching:
+                st.markdown("**👁️ 觀察中（未滿30天）**")
+                for _np, _days in _watching:
+                    _remaining = 30 - _days
+                    _wc1, _wc2 = st.columns([8, 1])
+                    with _wc1:
+                        _prog = int(_days / 30 * 100)
+                        st.markdown(
+                            f"<div style='padding:8px 12px;background:rgba(255,255,255,0.02);"
+                            f"border-left:3px solid #fbbf24;border-radius:4px;font-size:.85rem;'>"
+                            f"👁️ <b>{_np['id']} {_np['name']}</b>　"
+                            f"已觀察 {_days} 天，還差 <b>{_remaining} 天</b> 可升級<br>"
+                            f"<span style='color:#7fb3d3;'>觀察原因：{_np['note']}</span><br>"
+                            f"<div style='background:#1e3a5f;border-radius:4px;height:4px;margin-top:4px;'>"
+                            f"<div style='background:#fbbf24;width:{_prog}%;height:4px;border-radius:4px;'></div>"
+                            f"</div>"
+                            f"</div>",
+                            unsafe_allow_html=True
+                        )
+                    with _wc2:
+                        if st.button("✕", key=f"nova_rm_w_{_np['id']}"):
+                            _remove_id = _np["id"]
+
+            # 執行移除
+            if _remove_id:
+                st.session_state.nova_pool = [
+                    n for n in st.session_state.nova_pool if n["id"] != _remove_id
+                ]
+                st.rerun()
+
+    st.markdown("---")
+    st.markdown(
+        "<div style='color:#7fb3d3;font-size:.82rem;margin-bottom:12px;'>"
+        "⬇️ 使用下方掃描工具發現有潛力的陌生標的，再手動加入上方新星池觀察清單。"
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 原有選股掃描功能保留（發現工具）
 
     # ── 空頭避險 Toggle
     bear_mode = st.toggle("🐻 啟動空頭避險模式", key="bear_mode")
