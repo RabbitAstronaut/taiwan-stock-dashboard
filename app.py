@@ -4197,10 +4197,15 @@ with tab1:
     # ▌ TAB 2：持股監控
     # ──────────────────────────────────────────────────────────────
 with tab3:
-
-    # ▌ 帳戶資金儀表板（初始資金 → 現金 → 持倉市值 → 總資產）
-    # ════════════════════════════════════════════════════════
-    import gc as _gc
+    st.markdown("<div class='sec-title'>📊 指揮中心 · 持倉管理</div>",
+                unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>"
+        "指揮中心是你每日唯一必須看的頁面。"
+        "目標：<b>3分鐘內</b>確認持倉狀況，處理今天有沒有需要行動的事。"
+        "<br>停損觸發 → 立刻處理。無警示 → 關掉繼續做自己的事。</div>",
+        unsafe_allow_html=True
+    )
     st.markdown("---")
 
     _acct    = load_account()
