@@ -553,6 +553,29 @@ def _rex_king_score(stock_id: str) -> dict:
     except Exception:
         pass
 
+    # ── 產業風口強度：讀取使用者在 Tab4 手動標記的產業景氣燈號
+    _sector_score_map = {
+        "🌱 起步": 4, "🚀 加速": 5, "⚡ 高峰": 2,
+        "🌙 衰退": 0, "❓ 未標記": 2,
+    }
+    _stock_sector_map = {
+        "2330": "AI算力",    "2454": "AI算力",
+        "2383": "高速傳輸",  "2345": "高速傳輸",
+        "3017": "散熱電源",  "2308": "散熱電源",
+        "1519": "電力基建",
+        "3491": "低軌衛星",
+        "3037": "半導體供應鏈", "8299": "半導體供應鏈",
+        "6285": "網通",
+    }
+    try:
+        _sid_sector   = _stock_sector_map.get(str(stock_id), "其他電子")
+        _sector_tags  = st.session_state.get("sector_tags", {})
+        _sector_label = _sector_tags.get(_sid_sector, "❓ 未標記")
+        result["sector_score"] = _sector_score_map.get(_sector_label, 2)
+        result["sector_tag"]   = f"{_sid_sector}｜{_sector_label}"
+    except Exception:
+        pass
+
     result["total"] = (
         result["revenue_yoy_score"] + result["eps_yoy_score"] +
         result["gm_score"] + result["sector_score"] + result["holder_score"]
@@ -5969,13 +5992,66 @@ with tab3:
 # ▌ TAB 4：戰略儲備庫（精兵回頭草雷達）
 # ──────────────────────────────────────────────────────────────
 with tab4:
-    st.markdown("<div class='sec-title'>🏹 戰略儲備庫 · 精兵回頭草雷達</div>",
+    st.markdown("<div class='sec-title'>🏆 王者候選名單 · 精兵儲備庫</div>",
                 unsafe_allow_html=True)
     st.markdown(
-        "<div class='infobox'>存放「曾持有但因短線破位暫時出清」的優質標的。"
-        "系統每日自動監控，一旦籌碼沉澱完成即觸發精準獵殺警報。</div>",
+        "<div class='infobox'>存放值得長期等待的優質標的。"
+        "Rex Priority Score 每日自動排名，告訴你今天最值得關注哪幾檔。</div>",
         unsafe_allow_html=True
     )
+
+    # ══════════════════════════════════════════════════════════════
+    # ▌ Phase 3：產業景氣燈號（手動標記，影響 Rex Priority Score）
+    # 每月更新一次，反映你對產業週期的主觀判斷
+    # ══════════════════════════════════════════════════════════════
+    with st.expander("🌐 產業景氣燈號（每月人工標記一次）", expanded=False):
+        st.caption("這是你作為產業趨勢投資人最核心的判斷，系統無法替代，請每月更新一次。")
+
+        # 初始化
+        if "sector_tags" not in st.session_state:
+            st.session_state.sector_tags = {}
+
+        _sector_options = {
+            "🌱 起步": 4,
+            "🚀 加速": 5,
+            "⚡ 高峰": 2,
+            "🌙 衰退": 0,
+            "❓ 未標記": 2,
+        }
+
+        _sectors = [
+            ("AI算力",      ["2330", "2454"]),
+            ("高速傳輸",    ["2383", "2345"]),
+            ("散熱電源",    ["3017", "2308"]),
+            ("電力基建",    ["1519"]),
+            ("低軌衛星",    ["3491"]),
+            ("半導體供應鏈", ["3037", "8299"]),
+            ("網通",        ["6285"]),
+            ("其他電子",    []),
+        ]
+
+        _sc1, _sc2 = st.columns(2)
+        for _si, (_sname, _sids) in enumerate(_sectors):
+            _col = _sc1 if _si % 2 == 0 else _sc2
+            with _col:
+                _cur_tag = st.session_state.sector_tags.get(_sname, "❓ 未標記")
+                _new_tag = st.selectbox(
+                    f"{_sname}（{', '.join(_sids) if _sids else '—'}）",
+                    options=list(_sector_options.keys()),
+                    index=list(_sector_options.keys()).index(_cur_tag)
+                          if _cur_tag in _sector_options else 4,
+                    key=f"sector_tag_{_sname}"
+                )
+                if _new_tag != _cur_tag:
+                    st.session_state.sector_tags[_sname] = _new_tag
+
+        st.caption(f"🕐 上次標記：{st.session_state.get('sector_tags_updated', '尚未標記')}")
+        if st.button("💾 儲存本次標記", key="save_sector_tags"):
+            st.session_state.sector_tags_updated = datetime.now(
+                ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
+            st.success("✅ 產業景氣燈號已儲存")
+
+    st.markdown("---")
 
     # ══════════════════════════════════════════════════════════════
     # ▌ Rex Priority Score — 今日優先研究 TOP 5
