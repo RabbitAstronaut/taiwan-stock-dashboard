@@ -433,6 +433,332 @@ def check_anomaly_variant(
     return result
 
 
+# ══════════════════════════════════════════════════════════════
+# ▌ Rex Priority Score 排序引擎
+# ──────────────────────────────────────────────────────────────
+# 設計說明：
+#   本模組是「注意力分配工具」，不是買進訊號。
+#   回答的問題是：「今天應該把研究時間花在哪5檔？」
+#
+#   三層架構：
+#     王者分數(40)  = 公司基本面品質
+#     攻擊分數(40)  = 技術面買點位置
+#     市場環境分(20) = 整體環境允不允許出手
+#
+#   降級旗標：即使總分高，觸發旗標時會標記警告
+# ══════════════════════════════════════════════════════════════
+
+def _rex_king_score(stock_id: str) -> dict:
+    """
+    王者分數（40分）：這家公司值不值得等？
+    來源：financial_data.csv（Revenue/EPS/GrossMargin）
+          shareholder_data.csv（大戶持股趨勢）
+          由使用者手動標記的產業風口（strategy_tag 或預設中性）
+    """
+    result = {
+        "total": 0,
+        "revenue_yoy_score": 0, "revenue_yoy_val": None,
+        "eps_yoy_score": 0,     "eps_yoy_val": None,
+        "gm_score": 0,          "gm_trend": "—",
+        "sector_score": 2,      "sector_tag": "未標記",
+        "holder_score": 0,      "holder_trend": "—",
+    }
+    try:
+        sid = str(stock_id).strip()
+
+        # ── 讀取財報資料
+        df_fin, ok_fin = load_financial_data(sid)
+
+        # ── 營收 YoY
+        if ok_fin and not df_fin.empty and "type" in df_fin.columns:
+            rev_df = df_fin[
+                df_fin["type"].astype(str).str.contains("Revenue", case=False, na=False)
+            ].copy()
+            if len(rev_df) >= 2 and "value" in rev_df.columns:
+                rev_df = rev_df.sort_values("date")
+                latest  = float(rev_df["value"].iloc[-1])
+                prev    = float(rev_df["value"].iloc[-2])
+                if prev != 0:
+                    yoy = (latest - prev) / abs(prev) * 100
+                    result["revenue_yoy_val"] = round(yoy, 1)
+                    if yoy >= 30:   result["revenue_yoy_score"] = 10
+                    elif yoy >= 15: result["revenue_yoy_score"] = 7
+                    elif yoy >= 0:  result["revenue_yoy_score"] = 4
+                    else:           result["revenue_yoy_score"] = 0
+
+        # ── EPS YoY
+        if ok_fin and not df_fin.empty and "type" in df_fin.columns:
+            eps_df = df_fin[
+                df_fin["type"].astype(str).str.contains("EPS", case=False, na=False)
+            ].copy()
+            if len(eps_df) >= 2 and "value" in eps_df.columns:
+                eps_df = eps_df.sort_values("date")
+                e_lat  = float(eps_df["value"].iloc[-1])
+                e_prev = float(eps_df["value"].iloc[-2])
+                if e_prev != 0:
+                    e_yoy = (e_lat - e_prev) / abs(e_prev) * 100
+                    result["eps_yoy_val"] = round(e_yoy, 1)
+                    if e_yoy >= 30:   result["eps_yoy_score"] = 10
+                    elif e_yoy >= 15: result["eps_yoy_score"] = 7
+                    elif e_yoy >= 0:  result["eps_yoy_score"] = 4
+                    else:             result["eps_yoy_score"] = 0
+
+        # ── 毛利率趨勢（連續兩季比較）
+        if ok_fin and not df_fin.empty and "type" in df_fin.columns:
+            gm_df = df_fin[
+                df_fin["type"].astype(str).str.contains("GrossMargin", case=False, na=False)
+            ].copy()
+            if len(gm_df) >= 3 and "value" in gm_df.columns:
+                gm_df = gm_df.sort_values("date")
+                gm_vals = gm_df["value"].dropna().astype(float).tolist()
+                if len(gm_vals) >= 3:
+                    g0, g1, g2 = gm_vals[-3], gm_vals[-2], gm_vals[-1]
+                    if g2 > g1 > g0:
+                        result["gm_score"], result["gm_trend"] = 10, "連續兩季提升 ✅"
+                    elif g2 > g1:
+                        result["gm_score"], result["gm_trend"] = 7, "近季提升"
+                    elif abs(g2 - g1) < 1:
+                        result["gm_score"], result["gm_trend"] = 5, "持平"
+                    elif g2 < g1 and g1 >= g0:
+                        result["gm_score"], result["gm_trend"] = 2, "單季下滑 ⚠️"
+                    else:
+                        result["gm_score"], result["gm_trend"] = 0, "連續下滑 ❌"
+
+        # ── 大戶持股趨勢（shareholder_data.csv，400張以上大戶比例）
+        try:
+            df_sh, ok_sh = load_csv("shareholder_data.csv")
+            if ok_sh and not df_sh.empty:
+                df_sh["stock_id"] = df_sh["stock_id"].astype(str).str.strip()
+                sh_s = df_sh[df_sh["stock_id"] == sid].copy()
+                # 找持股400張以上的大戶比例欄位
+                ratio_col = next(
+                    (c for c in sh_s.columns
+                     if "400" in str(c) and "ratio" in str(c).lower()), None
+                )
+                if ratio_col and len(sh_s) >= 2 and "date" in sh_s.columns:
+                    sh_s = sh_s.sort_values("date")
+                    sh_s[ratio_col] = pd.to_numeric(sh_s[ratio_col], errors="coerce")
+                    r_lat  = float(sh_s[ratio_col].iloc[-1])
+                    r_prev = float(sh_s[ratio_col].iloc[-2])
+                    diff   = r_lat - r_prev
+                    if diff > 0.5:
+                        result["holder_score"], result["holder_trend"] = 5, "持續上升 ✅"
+                    elif diff >= 0:
+                        result["holder_score"], result["holder_trend"] = 3, "持平"
+                    else:
+                        result["holder_score"], result["holder_trend"] = 0, "下滑 ⚠️"
+        except Exception:
+            pass
+
+    except Exception:
+        pass
+
+    result["total"] = (
+        result["revenue_yoy_score"] + result["eps_yoy_score"] +
+        result["gm_score"] + result["sector_score"] + result["holder_score"]
+    )
+    return result
+
+
+def _rex_attack_score(stock_id: str, chips_map: dict) -> dict:
+    """
+    攻擊分數（40分）：現在的進場位置是否具備優勢？
+    來源：prices/*.csv（支撐位置/MA結構/MOM動能）
+          chips_data.csv + margin.csv（籌碼沉澱）
+    """
+    result = {
+        "total": 0,
+        "support_score": 0, "support_detail": "—",
+        "ma_score": 0,      "ma_detail": "—",
+        "mom_score": 0,     "mom_detail": "—",
+        "chips_score": 0,   "chips_detail": "—",
+        "downgrade_flag": None,  # 降級旗標
+        "bias_20": None,
+    }
+    try:
+        df_p, ok_p = load_price_csv(stock_id)
+        if not ok_p or df_p.empty or len(df_p) < 65:
+            return result
+
+        df_p = df_p.copy()
+        closes = pd.to_numeric(df_p["Close"], errors="coerce").dropna()
+        if len(closes) < 65:
+            return result
+
+        price    = float(closes.iloc[-1])
+        sma20    = float(closes.tail(20).mean())
+        sma60    = float(closes.tail(60).mean())
+        bias_20  = (price - sma20) / sma20 * 100 if sma20 > 0 else 0.0
+        result["bias_20"] = round(bias_20, 1)
+
+        # ── SMA斜率（用近10日vs近20日均線方向判定）
+        sma20_now  = float(closes.tail(20).mean())
+        sma20_prev = float(closes.iloc[-21:-1].mean()) if len(closes) >= 21 else sma20_now
+        sma60_now  = float(closes.tail(60).mean())
+        sma60_prev = float(closes.iloc[-61:-1].mean()) if len(closes) >= 61 else sma60_now
+        sma20_up   = sma20_now > sma20_prev
+        sma60_up   = sma60_now > sma60_prev
+
+        # ── 支撐位置（10分）
+        if bias_20 <= -10 and price >= sma60:
+            result["support_score"]  = 10
+            result["support_detail"] = f"深度回測月線({bias_20:+.1f}%)且守季線 ✅"
+        elif bias_20 <= -5 and price >= sma60:
+            result["support_score"]  = 8
+            result["support_detail"] = f"回測月線({bias_20:+.1f}%)且季線健在"
+        elif bias_20 <= -2 and price >= sma20:
+            result["support_score"]  = 6
+            result["support_detail"] = f"輕微回落至月線附近({bias_20:+.1f}%)"
+        elif -2 < bias_20 <= 5:
+            result["support_score"]  = 3
+            result["support_detail"] = f"月線上方不遠({bias_20:+.1f}%)"
+        elif bias_20 > 5:
+            result["support_score"]  = 1
+            result["support_detail"] = f"正乖離({bias_20:+.1f}%)，追高風險偏高"
+        if price < sma60:
+            result["support_score"]  = max(0, result["support_score"] - 3)
+            result["support_detail"] += "｜跌破季線 ⚠️"
+
+        # ── MA結構（10分）+ 降級旗標
+        if price >= sma20 >= sma60 and sma20_up:
+            result["ma_score"]  = 10
+            result["ma_detail"] = "月線>季線 且月線上彎 ✅"
+        elif price >= sma20 >= sma60 and not sma20_up:
+            result["ma_score"]  = 7
+            result["ma_detail"] = "月線>季線 但月線走平"
+        elif sma20 >= sma60 and price < sma20:
+            result["ma_score"]  = 5
+            result["ma_detail"] = "月線仍>季線，股價回測月線"
+        elif sma20 < sma60 and sma60_up:
+            result["ma_score"]  = 4
+            result["ma_detail"] = "月線跌破季線 但季線仍向上（觀察中）⚠️"
+        elif sma20 < sma60 and not sma60_up:
+            result["ma_score"]  = 0
+            result["ma_detail"] = "月線跌破季線 且季線下彎 ❌"
+            result["downgrade_flag"] = "⛔ 趨勢破壞"
+
+        # ── MOM 動能（10分）
+        if len(closes) >= 61:
+            mom_20 = (price - float(closes.iloc[-21])) / float(closes.iloc[-21]) * 100
+            mom_60 = (price - float(closes.iloc[-61])) / float(closes.iloc[-61]) * 100
+            if mom_20 > 0 and mom_60 > 0:
+                result["mom_score"]  = 10
+                result["mom_detail"] = f"短中期動能皆正(20D:{mom_20:+.1f}% 60D:{mom_60:+.1f}%) ✅"
+            elif mom_20 > 0 and mom_60 <= 0:
+                result["mom_score"]  = 7
+                result["mom_detail"] = f"短線反彈 中期仍弱(20D:{mom_20:+.1f}% 60D:{mom_60:+.1f}%)"
+            elif mom_20 <= 0 and mom_60 > 0:
+                result["mom_score"]  = 5
+                result["mom_detail"] = f"短線回落 中期仍強(20D:{mom_20:+.1f}% 60D:{mom_60:+.1f}%) 洗盤機會"
+            else:
+                result["mom_score"]  = 2
+                result["mom_detail"] = f"短中期動能皆負(20D:{mom_20:+.1f}% 60D:{mom_60:+.1f}%)，尚未止跌"
+
+        # ── 籌碼沉澱（10分）：外資(4) + 融資方向(6)
+        chip = chips_map.get(str(stock_id), {})
+        fgn  = chip.get("foreign_net", None)
+        mgp  = chip.get("margin_chg_pct", None)
+
+        fgn_score = 4 if (fgn is not None and fgn > 500)  else \
+                    2 if (fgn is not None and fgn > 0)     else 0
+        mg_score  = 6 if (mgp is not None and mgp <= -2.0) else \
+                    4 if (mgp is not None and mgp <= 0)    else \
+                    1 if (mgp is not None and mgp <= 2)    else 0
+
+        result["chips_score"] = fgn_score + mg_score
+        fgn_txt = f"外資{fgn:+,.0f}張" if fgn is not None else "外資—"
+        mg_txt  = f"融資{mgp:+.2f}%" if mgp is not None else "融資—"
+        result["chips_detail"] = f"{fgn_txt}｜{mg_txt}"
+
+        # 籌碼惡化旗標
+        if fgn is not None and fgn < -500 and mgp is not None and mgp > 2:
+            result["downgrade_flag"] = result.get("downgrade_flag") or "🚨 籌碼惡化"
+
+    except Exception:
+        pass
+
+    result["total"] = (
+        result["support_score"] + result["ma_score"] +
+        result["mom_score"] + result["chips_score"]
+    )
+    return result
+
+
+def _rex_market_score(market_signal: str) -> int:
+    """
+    市場環境分（20分）：整體環境允不允許出手？
+    承接 Tab4 市場溫度計的輸出燈號。
+    """
+    if "🟢" in str(market_signal): return 20
+    if "🟡" in str(market_signal): return 10
+    return 0
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡") -> list:
+    """
+    對戰略儲備庫全部標的計算 Rex Priority Score。
+    回傳按總分降序排列的清單。
+    快取30分鐘，避免每次刷新都重算。
+
+    Args:
+        reserve_ids:   儲備庫股票代號的 tuple（用於快取key）
+        market_signal: 市場溫度計燈號（🟢/🟡/🔴）
+    """
+    import gc as _gc
+    chips_map = get_chips_facts_map()
+    mkt_score = _rex_market_score(market_signal)
+    results   = []
+
+    for sid in reserve_ids:
+        try:
+            king   = _rex_king_score(sid)
+            attack = _rex_attack_score(sid, chips_map)
+            total  = king["total"] + attack["total"] + mkt_score
+
+            # 降級旗標判定
+            flag = attack.get("downgrade_flag")
+            if king["revenue_yoy_val"] is not None and king["eps_yoy_val"] is not None:
+                if king["revenue_yoy_val"] < 0 and king["eps_yoy_val"] < 0:
+                    flag = flag or "⚠️ 基本面衰退"
+
+            results.append({
+                "stock_id":     sid,
+                "total":        total,
+                "king_total":   king["total"],
+                "attack_total": attack["total"],
+                "mkt_score":    mkt_score,
+                "flag":         flag,
+                # 王者分數明細
+                "revenue_yoy_score": king["revenue_yoy_score"],
+                "revenue_yoy_val":   king["revenue_yoy_val"],
+                "eps_yoy_score":     king["eps_yoy_score"],
+                "eps_yoy_val":       king["eps_yoy_val"],
+                "gm_score":          king["gm_score"],
+                "gm_trend":          king["gm_trend"],
+                "sector_score":      king["sector_score"],
+                "holder_score":      king["holder_score"],
+                "holder_trend":      king["holder_trend"],
+                # 攻擊分數明細
+                "support_score":  attack["support_score"],
+                "support_detail": attack["support_detail"],
+                "ma_score":       attack["ma_score"],
+                "ma_detail":      attack["ma_detail"],
+                "mom_score":      attack["mom_score"],
+                "mom_detail":     attack["mom_detail"],
+                "chips_score":    attack["chips_score"],
+                "chips_detail":   attack["chips_detail"],
+                "bias_20":        attack["bias_20"],
+            })
+        except Exception:
+            pass
+        finally:
+            _gc.collect()
+
+    results.sort(key=lambda x: (-x["total"], x["stock_id"]))
+    return results
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def load_watch_list():
     """
@@ -5415,6 +5741,153 @@ with tab4:
         "系統每日自動監控，一旦籌碼沉澱完成即觸發精準獵殺警報。</div>",
         unsafe_allow_html=True
     )
+
+    # ══════════════════════════════════════════════════════════════
+    # ▌ Rex Priority Score — 今日優先研究 TOP 5
+    # 注意力排序工具，不是買進訊號。
+    # 回答：「今天我應該把研究時間花在哪幾檔？」
+    # ══════════════════════════════════════════════════════════════
+    with st.expander("🏆 Rex Priority Score｜今日優先研究排行榜", expanded=True):
+        st.caption(
+            "⚠️ Rex Priority Score 是注意力排序工具，不是買進訊號。"
+            "告訴你「今天最值得研究哪幾檔」，不告訴你「今天要買哪幾檔」。"
+        )
+
+        if not st.session_state.get("reserve_list"):
+            st.info("儲備庫尚無標的，請先加入精兵。")
+        else:
+            # 取得市場溫度（讀現有的三軌風控燈號）
+            try:
+                _rex_mkt_info = get_risk_status()
+                _rex_mkt_level = _rex_mkt_info.get("level", "YELLOW_ALERT")
+                if _rex_mkt_level == "GREEN_NORMAL":
+                    _rex_mkt_sig = "🟢"
+                elif _rex_mkt_level == "RED_ALERT":
+                    _rex_mkt_sig = "🔴"
+                else:
+                    _rex_mkt_sig = "🟡"
+            except Exception:
+                _rex_mkt_sig = "🟡"
+
+            _rex_ids = tuple(item["id"] for item in st.session_state.reserve_list)
+            _rex_nm  = {item["id"]: item.get("name", item["id"])
+                        for item in st.session_state.reserve_list}
+
+            with st.spinner("計算 Rex Priority Score 中..."):
+                _rex_scores = calc_rex_priority_scores(_rex_ids, _rex_mkt_sig)
+
+            if not _rex_scores:
+                st.warning("資料不足，無法計算評分。請確認 K線/財報/籌碼資料已更新。")
+            else:
+                # ── 市場環境燈號顯示
+                _rex_mkt_txt = {"🟢": "適合布局", "🟡": "謹慎觀望", "🔴": "縮手防守"}
+                st.markdown(
+                    f"<div style='font-size:.85rem;color:#9fb8d4;margin-bottom:12px;'>"
+                    f"市場環境：{_rex_mkt_sig} {_rex_mkt_txt.get(_rex_mkt_sig,'—')}"
+                    f"　｜　環境分：{_rex_market_score(_rex_mkt_sig)}/20"
+                    f"　｜　共 {len(_rex_scores)} 檔參與排名</div>",
+                    unsafe_allow_html=True
+                )
+
+                # ── TOP 5 卡片
+                _top5 = _rex_scores[:5]
+                for _rank, _rs in enumerate(_top5, 1):
+                    _sid  = _rs["stock_id"]
+                    _name = _rex_nm.get(_sid, _sid)
+                    _tot  = _rs["total"]
+                    _flag = _rs["flag"]
+
+                    # 總分燈號
+                    if _tot >= 75:   _tc, _tl = "#ff6b6b", "🔴 高度優先"
+                    elif _tot >= 60: _tc, _tl = "#fbbf24", "🟡 次要優先"
+                    else:            _tc, _tl = "#7fb3d3", "⚪ 觀察中"
+
+                    # 旗標樣式
+                    _flag_html = ""
+                    if _flag:
+                        _fc = "#ff4444" if "⛔" in _flag or "🚨" in _flag else "#fbbf24"
+                        _flag_html = (
+                            f"<span style='background:{_fc}22;color:{_fc};"
+                            f"border:1px solid {_fc};border-radius:4px;"
+                            f"padding:1px 6px;font-size:.78rem;margin-left:6px;'>{_flag}</span>"
+                        )
+
+                    st.markdown(
+                        f"<div style='border:1px solid {_tc};border-left:4px solid {_tc};"
+                        f"border-radius:8px;padding:12px 16px;margin:8px 0;"
+                        f"background:rgba(255,255,255,0.02);'>"
+
+                        # 標題列
+                        f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
+                        f"<span style='font-size:1rem;font-weight:700;color:#e8f4fd;'>"
+                        f"#{_rank}　{_sid} {_name}</span>"
+                        f"<span style='font-size:1.1rem;font-weight:700;color:{_tc};'>"
+                        f"{_tot}/100　{_tl}</span>"
+                        f"</div>"
+                        f"{_flag_html}"
+
+                        # 三層分數條
+                        f"<div style='display:flex;gap:16px;margin:10px 0 6px;font-size:.82rem;'>"
+                        f"<span style='color:#a8d8ea;'>👑 王者 {_rs['king_total']}/40</span>"
+                        f"<span style='color:#ffd700;'>⚔️ 攻擊 {_rs['attack_total']}/40</span>"
+                        f"<span style='color:#90ee90;'>🌡️ 環境 {_rs['mkt_score']}/20</span>"
+                        f"</div>"
+
+                        # 王者分數明細
+                        f"<div style='font-size:.78rem;color:#9fb8d4;line-height:1.8;"
+                        f"border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;'>"
+                        f"<b style='color:#a8d8ea;'>👑 王者分數</b>　"
+                        f"營收YoY {_rs['revenue_yoy_score']}/10"
+                        f"（{('+'+str(int(_rs['revenue_yoy_val']))+'%') if _rs['revenue_yoy_val'] is not None else '—'}）　"
+                        f"EPS YoY {_rs['eps_yoy_score']}/10"
+                        f"（{('+'+str(int(_rs['eps_yoy_val']))+'%') if _rs['eps_yoy_val'] is not None else '—'}）　"
+                        f"毛利率 {_rs['gm_score']}/10（{_rs['gm_trend']}）　"
+                        f"產業風口 {_rs['sector_score']}/5　"
+                        f"大戶趨勢 {_rs['holder_score']}/5（{_rs['holder_trend']}）"
+                        f"</div>"
+
+                        # 攻擊分數明細
+                        f"<div style='font-size:.78rem;color:#9fb8d4;line-height:1.8;"
+                        f"margin-top:4px;'>"
+                        f"<b style='color:#ffd700;'>⚔️ 攻擊分數</b>　"
+                        f"支撐位置 {_rs['support_score']}/10（{_rs['support_detail']}）　"
+                        f"MA結構 {_rs['ma_score']}/10（{_rs['ma_detail']}）　"
+                        f"MOM動能 {_rs['mom_score']}/10（{_rs['mom_detail'][:25]}...）　"
+                        f"籌碼沉澱 {_rs['chips_score']}/10（{_rs['chips_detail']}）"
+                        f"</div>"
+
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+
+                # ── 完整排名摺疊表（所有標的）
+                with st.expander(f"📋 完整排名（共 {len(_rex_scores)} 檔）", expanded=False):
+                    _rank_html = ""
+                    for _i, _rs in enumerate(_rex_scores, 1):
+                        _sid  = _rs["stock_id"]
+                        _name = _rex_nm.get(_sid, _sid)
+                        _tot  = _rs["total"]
+                        _flag = _rs["flag"]
+                        _fc   = "#ff6b6b" if _tot >= 75 else "#fbbf24" if _tot >= 60 else "#7fb3d3"
+                        _fl   = f" {_rs['flag']}" if _rs["flag"] else ""
+                        _rank_html += (
+                            f"<div style='padding:5px 10px;border-bottom:1px solid #1e3a5f;"
+                            f"font-size:.82rem;color:#e8f4fd;display:flex;"
+                            f"justify-content:space-between;'>"
+                            f"<span>#{_i}　{_sid} {_name}{_fl}</span>"
+                            f"<span style='color:{_fc};font-weight:600;'>{_tot}分　"
+                            f"<span style='color:#a8d8ea;font-weight:400;'>王{_rs['king_total']}</span>+"
+                            f"<span style='color:#ffd700;font-weight:400;'>攻{_rs['attack_total']}</span>+"
+                            f"<span style='color:#90ee90;font-weight:400;'>環{_rs['mkt_score']}</span>"
+                            f"</span></div>"
+                        )
+                    st.markdown(
+                        f"<div style='border:1px solid #1e3a5f;border-radius:6px;"
+                        f"max-height:400px;overflow-y:auto;'>{_rank_html}</div>",
+                        unsafe_allow_html=True
+                    )
+
+    st.markdown("---")
 
     # ── Session State 初始化（戰略儲備清單）
     if "reserve_list" not in st.session_state:
