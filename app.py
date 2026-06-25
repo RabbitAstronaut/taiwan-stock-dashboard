@@ -526,29 +526,41 @@ def _rex_king_score(stock_id: str) -> dict:
                     else:
                         result["gm_score"], result["gm_trend"] = 0, f"連續下滑({g2:.1f}%) ❌"
 
-        # ── 大戶持股趨勢（shareholder_data.csv，400張以上大戶比例）
+        # ── 大戶持股趨勢（shareholder_data.csv）
+        # 400張（400,000股）以上層級加總 percent，比較最近兩個日期的變化
         try:
             df_sh, ok_sh = load_csv("shareholder_data.csv")
             if ok_sh and not df_sh.empty:
                 df_sh["stock_id"] = df_sh["stock_id"].astype(str).str.strip()
                 sh_s = df_sh[df_sh["stock_id"] == sid].copy()
-                # 找持股400張以上的大戶比例欄位
-                ratio_col = next(
-                    (c for c in sh_s.columns
-                     if "400" in str(c) and "ratio" in str(c).lower()), None
-                )
-                if ratio_col and len(sh_s) >= 2 and "date" in sh_s.columns:
-                    sh_s = sh_s.sort_values("date")
-                    sh_s[ratio_col] = pd.to_numeric(sh_s[ratio_col], errors="coerce")
-                    r_lat  = float(sh_s[ratio_col].iloc[-1])
-                    r_prev = float(sh_s[ratio_col].iloc[-2])
-                    diff   = r_lat - r_prev
-                    if diff > 0.5:
-                        result["holder_score"], result["holder_trend"] = 5, "持續上升 ✅"
-                    elif diff >= 0:
-                        result["holder_score"], result["holder_trend"] = 3, "持平"
-                    else:
-                        result["holder_score"], result["holder_trend"] = 0, "下滑 ⚠️"
+
+                # 400張以上的層級
+                _big_levels = {
+                    "400,001-600,000", "600,001-800,000",
+                    "800,001-1,000,000", "more than 1,000,001"
+                }
+                sh_big = sh_s[sh_s["HoldingSharesLevel"].isin(_big_levels)].copy()
+
+                if not sh_big.empty and "date" in sh_big.columns and "percent" in sh_big.columns:
+                    sh_big["percent"] = pd.to_numeric(sh_big["percent"], errors="coerce")
+                    sh_big["date"]    = pd.to_datetime(sh_big["date"], errors="coerce")
+
+                    # 各日期加總大戶比例
+                    sh_agg = sh_big.groupby("date")["percent"].sum().sort_index()
+
+                    if len(sh_agg) >= 2:
+                        r_lat  = float(sh_agg.iloc[-1])
+                        r_prev = float(sh_agg.iloc[-2])
+                        diff   = r_lat - r_prev
+                        if diff > 0.5:
+                            result["holder_score"] = 5
+                            result["holder_trend"] = f"持續上升({r_lat:.1f}%) ✅"
+                        elif diff >= 0:
+                            result["holder_score"] = 3
+                            result["holder_trend"] = f"持平({r_lat:.1f}%)"
+                        else:
+                            result["holder_score"] = 0
+                            result["holder_trend"] = f"下滑({r_lat:.1f}%) ⚠️"
         except Exception:
             pass
 
