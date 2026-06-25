@@ -3053,7 +3053,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🎯 今日行動建議",      # Phase 6 新增
     "🌱 產業趨勢雷達",      # 新增（第六個核心模組）
     "💰 ETF退休計畫",       # Phase 7 保留（退休壓艙石）
-    "🧪 策略回測實驗室",    # 暫時保留，Phase 後期評估退休
+    "🎯 今日行動建議",      # Phase 6（回測退休，改為行動建議）
 ])
 
 # ══════════════════════════════════════════════════════════════
@@ -9806,272 +9806,166 @@ with tab7:
 
 # ──────────────────────────────────────────────────────────────
 with tab8:
-    st.header("🧪 策略回測實驗室")
-    st.info("選擇股票與策略維度，驗證財報/技術/籌碼因子的有效性。")
+    st.markdown("<div class='sec-title'>🎯 今日行動建議</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>"
+        "整合市場溫度計 × Rex Priority Score × 持倉現況，"
+        "回答今天最值得行動的事。"
+        "<br><b>這不是買進訊號，是今天應該把注意力放在哪裡的行動清單。</b>"
+        "</div>",
+        unsafe_allow_html=True
+    )
 
-    bt_c1, bt_c2, bt_c3 = st.columns([2, 2, 3])
-    with bt_c1:
-        bt_sid = st.text_input("股票代號", value="2330", key="bt_sid")
-    with bt_c2:
-        bt_capital = st.number_input("初始資金（元）", value=1000000, step=50000,
-                                      min_value=10000, key="bt_capital")
-    with bt_c3:
-        bt_strategy = st.radio(
-            "策略維度",
-            ["1️⃣ 純財報基本面", "2️⃣ 技術面＋籌碼面", "3️⃣ 財報＋技術＋籌碼（全方位）"],
-            horizontal=True, key="bt_strategy"
-        )
+    # ══════════════════════════════════════════════════════════════
+    # ▌ 今日行動建議
+    # 邏輯：市場溫度計 × Rex Priority Score TOP5 × 持倉異常警示
+    # ══════════════════════════════════════════════════════════════
+    try:
+        # ── 市場環境
+        _ab_status, _ab_info = get_system_risk_status()
+        _ab_vix   = get_vix()
+        _ab_mg    = get_total_margin_balance()
+        _ab_mg_b  = _ab_mg["balance"] if _ab_mg else 0
 
-    bt_sl_c1, bt_sl_c2 = st.columns([2, 6])
-    with bt_sl_c1:
-        bt_stop_loss = st.number_input(
-            "🛡️ 單筆強制停損 (%)",
-            value=10.0, step=1.0, min_value=1.0, max_value=50.0,
-            key="bt_stop_loss"
-        )
+        _ab_tx    = _ab_info.get("tx_net", 0)
+        _ab_rt    = _ab_info.get("mtx_retail", 0)
 
-    st.markdown("---")
+        # 六指標燈號計分
+        _ab_sigs = [
+            "🟢" if _ab_tx <= -25000 else "🔴" if _ab_tx > -10000 else "🟡",
+            "🟢" if _ab_rt < 0 else "🔴" if _ab_rt > 12000 else "🟡",
+            "🟢" if (_ab_vix or 99) < 20 else "🔴" if (_ab_vix or 0) > 30 else "🟡",
+            "🟢" if _ab_mg_b < 4500 else "🔴" if _ab_mg_b >= 5000 else "🟡",
+        ]
+        _ab_red = _ab_sigs.count("🔴")
+        _ab_grn = _ab_sigs.count("🟢")
 
-    if st.button("🚀 開始回測", type="primary", key="bt_run"):
-        sid_bt = bt_sid.strip()
-        if not sid_bt:
-            st.warning("請輸入股票代號")
+        if _ab_red >= 3:
+            _ab_env, _ab_env_c = "🔴 縮手防守", "#ff4444"
+        elif _ab_grn >= 3:
+            _ab_env, _ab_env_c = "🟢 適合布局", "#00cc66"
         else:
+            _ab_env, _ab_env_c = "🟡 謹慎觀望", "#fbbf24"
+
+        # ── 市場環境摘要
+        st.markdown(
+            f"<div style='border-left:4px solid {_ab_env_c};padding:10px 16px;"
+            f"background:rgba(255,255,255,0.02);border-radius:0 8px 8px 0;"
+            f"margin-bottom:16px;'>"
+            f"<span style='font-size:1.1rem;font-weight:700;color:{_ab_env_c};'>"
+            f"市場環境：{_ab_env}</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
+        # ── Rex Priority Score TOP5
+        if st.session_state.get("reserve_list"):
+            _ab_ids   = tuple(i["id"] for i in st.session_state.reserve_list)
+            _ab_nm    = {i["id"]: i.get("name", i["id"]) for i in st.session_state.reserve_list}
+            _ab_scores = calc_rex_priority_scores(_ab_ids, _ab_env[0])
+            _ab_top5  = _ab_scores[:5]
+        else:
+            _ab_top5 = []
+
+        # ── 持倉異常警示
+        _ab_pf    = load_portfolio()
+        _ab_chips = get_chips_facts_map()
+        _ab_anomaly = []
+        for _ab_sid, _ab_pos in _ab_pf.items():
             try:
-                with st.spinner(f"載入 {sid_bt} 資料中..."):
-                    df_k, ok_k = load_price_csv(sid_bt)
+                _ab_df, _ab_ok = load_price_csv(_ab_sid)
+                if not _ab_ok or _ab_df.empty or len(_ab_df) < 20:
+                    continue
+                _ab_cl  = pd.to_numeric(_ab_df["Close"], errors="coerce").dropna()
+                _ab_cp  = float(_ab_cl.iloc[-1])
+                _ab_ma20 = float(_ab_cl.tail(20).mean())
+                _ab_chip = _ab_chips.get(_ab_sid, {})
+                _ab_res  = check_anomaly_variant(
+                    stock_id=_ab_sid,
+                    strategy_type=_ab_pos.get("strategy_type", "LONG"),
+                    current_price=_ab_cp,
+                    ma20=_ab_ma20,
+                    foreign_buy=_ab_chip.get("foreign_net"),
+                    margin_change=_ab_chip.get("margin_chg_pct"),
+                )
+                if _ab_res["triggered"]:
+                    _ab_anomaly.append({
+                        "sid": _ab_sid,
+                        "name": get_stock_name_map().get(_ab_sid, _ab_sid),
+                        "level": _ab_res["level"],
+                        "msg": _ab_res["message"],
+                    })
+            except Exception:
+                continue
 
-                if not ok_k or df_k.empty or len(df_k) < 30:
-                    st.error(f"{sid_bt} 無足夠 K 線資料（需 30 日以上）")
+        # ══════════════════════════════
+        # 輸出區塊一：需要立刻處理
+        # ══════════════════════════════
+        st.markdown("#### 🚨 需要立刻處理")
+        if _ab_anomaly:
+            for _ab_a in _ab_anomaly:
+                if _ab_a["level"] == "AS_RETREAT":
+                    st.error(f"**{_ab_a['sid']} {_ab_a['name']}** — 異常變盤觸發，建議立刻出清！")
+        elif _ab_red >= 3:
+            st.error("市場環境亮紅燈，停止新增任何部位，保留現金。")
+        else:
+            st.success("✅ 持倉無異常警示，今天不需要緊急處理任何事。")
+
+        # ══════════════════════════════
+        # 輸出區塊二：值得關注的機會
+        # ══════════════════════════════
+        st.markdown("#### 📌 今日值得關注")
+        if _ab_env[0] == "🔴":
+            st.warning("市場環境不利，暫停所有新買進計畫，等待環境改善。")
+        elif _ab_top5:
+            for _ab_rank, _ab_r in enumerate(_ab_top5[:3], 1):
+                _ab_sid  = _ab_r["stock_id"]
+                _ab_name = _ab_nm.get(_ab_sid, _ab_sid)
+                _ab_tot  = _ab_r["total"]
+                _ab_bias = _ab_r.get("bias_20")
+                _ab_flag = _ab_r.get("flag", "")
+
+                # 判斷買點狀態
+                if _ab_bias is not None and _ab_bias <= -5:
+                    _ab_action = "📍 已回落至月線附近，可開始觀察分批機會"
+                    _ab_ac     = "#00cc66"
+                elif _ab_bias is not None and _ab_bias > 8:
+                    _ab_action = "⏳ 位置偏高，等待回落再行動"
+                    _ab_ac     = "#fbbf24"
                 else:
-                    # ── K線整理（index 已是 date）
-                    df_k = df_k.copy()
-                    df_k.index = pd.to_datetime(df_k.index, errors="coerce")
-                    df_k = df_k[~df_k.index.isna()].sort_index()
-                    df_k["Close"]  = pd.to_numeric(df_k["Close"],  errors="coerce")
-                    df_k["Volume"] = pd.to_numeric(
-                        df_k["Volume"] if "Volume" in df_k.columns else 0,
-                        errors="coerce").fillna(0)
-                    df_k["MA20"]  = df_k["Close"].rolling(20).mean()
-                    df_k["VMA5"]  = df_k["Volume"].rolling(5).mean()
-                    df_k = df_k.dropna(subset=["Close", "MA20"])
+                    _ab_action = "👁️ 持續追蹤，等待更好的切入點"
+                    _ab_ac     = "#7fb3d3"
 
-                    # ── 財報（EPS）
-                    df_fin_bt, ok_fin_bt = get_financials(sid_bt)
-                    eps_series = pd.Series(dtype=float)
-                    if ok_fin_bt and not df_fin_bt.empty and "type" in df_fin_bt.columns:
-                        df_fin_bt["date"]  = pd.to_datetime(df_fin_bt["date"], errors="coerce")
-                        df_fin_bt["value"] = pd.to_numeric(df_fin_bt["value"], errors="coerce")
-                        eps_q = df_fin_bt[df_fin_bt["type"] == "EPS"].dropna(subset=["date"])
-                        if not eps_q.empty:
-                            eps_series = eps_q.set_index("date")["value"].sort_index()
+                st.markdown(
+                    f"<div style='border:1px solid #1e3a5f;border-left:3px solid {_ab_ac};"
+                    f"border-radius:6px;padding:10px 14px;margin:6px 0;"
+                    f"background:rgba(255,255,255,0.02);'>"
+                    f"<b style='color:#e8f4fd;'>#{_ab_rank} {_ab_sid} {_ab_name}</b>"
+                    f"　<span style='color:#9fb8d4;font-size:.85rem;'>"
+                    f"Rex分數 {_ab_tot}/100</span>"
+                    f"{'　<span style="color:#ff4444;font-size:.8rem;">'+_ab_flag+'</span>' if _ab_flag else ''}"
+                    f"<br><span style='color:{_ab_ac};font-size:.88rem;'>{_ab_action}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+        else:
+            st.info("王者候選名單為空，請先在 Tab4 建立儲備庫。")
 
-                    # ── 籌碼（外資+投信+融資）
-                    df_c_bt, ok_c_bt = get_chips(sid_bt)
-                    foreign_series = pd.Series(0.0, index=df_k.index, name="foreign")
-                    trust_series   = pd.Series(0.0, index=df_k.index, name="trust")
-                    margin_series  = pd.Series(0.0, index=df_k.index, name="margin_chg")
+        # ══════════════════════════════
+        # 輸出區塊三：今日不需要動
+        # ══════════════════════════════
+        st.markdown("#### ✅ 今日不需要動")
+        st.markdown(
+            "<div style='color:#7fb3d3;font-size:.88rem;padding:8px 0;'>"
+            "持倉中無異常警示的標的，維持原計畫，不需要任何操作。<br>"
+            "Rex Priority Score 排名後段的標的，今天不需要花時間研究。"
+            "</div>",
+            unsafe_allow_html=True
+        )
 
-                    if ok_c_bt and not df_c_bt.empty:
-                        df_c_bt["date"] = pd.to_datetime(df_c_bt.get("date"), errors="coerce")
-                        df_c_bt["net"]  = pd.to_numeric(df_c_bt.get("net", 0), errors="coerce").fillna(0)
-                        if "name" in df_c_bt.columns:
-                            f_df = df_c_bt[df_c_bt["name"].astype(str).str.contains("Foreign_Investor", na=False)]
-                            t_df = df_c_bt[df_c_bt["name"].astype(str).str.contains("Investment_Trust", na=False)]
-                            if not f_df.empty:
-                                f_grp = f_df.groupby("date")["net"].sum()
-                                foreign_series = f_grp.reindex(df_k.index).fillna(0)
-                            if not t_df.empty:
-                                t_grp = t_df.groupby("date")["net"].sum()
-                                trust_series = t_grp.reindex(df_k.index).fillna(0)
-                        # 融資變化
-                        mg_col = next((c for c in df_c_bt.columns if "MarginPurchaseTodayBalance" in c), None)
-                        if mg_col:
-                            mg_df = df_c_bt.dropna(subset=["date"]).groupby("date")[mg_col].last().sort_index()
-                            mg_num = pd.to_numeric(mg_df, errors="coerce").ffill()
-                            mg_chg = mg_num.diff().reindex(df_k.index).fillna(0)
-                            margin_series = mg_chg
+        st.markdown("---")
+        st.caption(f"更新時間：{datetime.now(ZoneInfo('Asia/Taipei')).strftime('%H:%M')}　｜　"
+                   f"Rex Priority Score 快取30分鐘，市場環境即時計算")
 
-                    # ── 合併到 df_bt
-                    df_bt = df_k.copy()
-                    if not eps_series.empty:
-                        combined_idx = df_bt.index.union(eps_series.index)
-                        df_bt["eps_q"] = eps_series.reindex(combined_idx).ffill().reindex(df_bt.index)
-                    else:
-                        df_bt["eps_q"] = np.nan
-
-                    df_bt["foreign"]    = foreign_series.values if len(foreign_series)==len(df_bt) else 0
-                    df_bt["trust"]      = trust_series.values   if len(trust_series)==len(df_bt)   else 0
-                    df_bt["margin_chg"] = margin_series.values  if len(margin_series)==len(df_bt)  else 0
-                    df_bt = df_bt.fillna({"foreign":0,"trust":0,"margin_chg":0})
-                    # Reset index 確保 iloc 正確對應
-                    df_bt = df_bt.reset_index()
-                    if "date" not in df_bt.columns and "index" in df_bt.columns:
-                        df_bt = df_bt.rename(columns={"index": "date"})
-
-                    # ── 訊號條件
-                    above_ma20   = df_bt["Close"] > df_bt["MA20"]
-                    below_ma20   = df_bt["Close"] < df_bt["MA20"]
-                    eps_positive = df_bt["eps_q"].fillna(0) > 0
-
-                    # V6 量縮放寬：今日或昨日量 < VMA5 * 0.7 即算籌碼沉澱
-                    _vma5_bt = df_bt["VMA5"].fillna(df_bt["Volume"].rolling(5).mean())
-                    vol_shrink = (
-                        (df_bt["Volume"] < _vma5_bt * 0.7) |
-                        (df_bt["Volume"].shift(1) < _vma5_bt * 0.7)
-                    )
-
-                    # 策略2：技籌條件（放寬：任何大資金或放量跡象）
-                    any_buy_chip = (
-                        (df_bt["foreign"]    > 0) |
-                        (df_bt["trust"]      > 0) |
-                        (df_bt["margin_chg"] > 0) |
-                        (df_bt["Volume"]     > _vma5_bt)
-                    )
-
-                    # 有籌碼資料才用，否則退化為純技術
-                    has_chip = (df_bt["foreign"] != 0).any() or (df_bt["trust"] != 0).any()
-
-                    if "1️⃣" in bt_strategy:
-                        raw_buy  = eps_positive
-                        raw_exit = ~eps_positive
-                        strat_name = "純財報基本面"
-                    elif "2️⃣" in bt_strategy:
-                        if has_chip:
-                            raw_buy = above_ma20 & any_buy_chip
-                        else:
-                            # 無籌碼資料：純技術（站上MA20即進場）
-                            raw_buy = above_ma20
-                        raw_exit   = below_ma20
-                        strat_name = "技術面＋籌碼面"
-                    else:
-                        if has_chip:
-                            raw_buy = eps_positive & above_ma20 & any_buy_chip
-                        else:
-                            raw_buy = eps_positive & above_ma20
-                        raw_exit   = below_ma20 | (~eps_positive)
-                        strat_name = "財報＋技術＋籌碼"
-
-                    # ── 持倉狀態（買進後抱住 + 硬性停損保護）
-                    stop_loss_pct = bt_stop_loss / 100.0
-                    position_arr  = np.zeros(len(df_bt), dtype=int)
-                    in_pos        = False
-                    entry_price   = 0.0
-                    for i in range(len(df_bt)):
-                        current_price = float(df_bt["Close"].iloc[i])
-                        if not in_pos and raw_buy.iloc[i]:
-                            in_pos      = True
-                            entry_price = current_price
-                        elif in_pos:
-                            # 第一道防線：硬性停損
-                            if entry_price > 0 and (current_price - entry_price) / entry_price <= -stop_loss_pct:
-                                in_pos = False
-                            # 第二道防線：策略技術出場
-                            elif raw_exit.iloc[i]:
-                                in_pos = False
-                        position_arr[i] = 1 if in_pos else 0
-
-                    df_bt["position"] = position_arr
-
-                    # ── 除錯資訊
-                    _buy_count = int(raw_buy.sum())
-                    _pos_count = int((position_arr==1).sum())
-                    if _buy_count == 0:
-                        st.warning(f"⚠️ 策略無任何買進訊號（{strat_name}）。"
-                                   f"可能原因：籌碼資料不足或條件過嚴。"
-                                   f"嘗試切換策略維度或選擇其他股票。")
-                    else:
-                        st.caption(f"📊 買進訊號 {_buy_count} 天，持倉 {_pos_count} 天，交易 {trades} 次")
-
-                    # ── 資金曲線
-                    capital  = float(bt_capital)
-                    cash     = capital
-                    shares   = 0
-                    equity   = []
-                    trades   = 0
-
-                    for i in range(len(df_bt)):
-                        price = float(df_bt["Close"].iloc[i])
-                        pos   = df_bt["position"].iloc[i]
-                        prev  = df_bt["position"].iloc[i-1] if i > 0 else 0
-
-                        if pos == 1 and prev == 0:  # 買進（零股精確模式）
-                            max_alloc = capital * 0.10  # 最大單一持倉 10%
-                            alloc = min(cash, max_alloc)
-                            exact_shares = alloc / price   # 零股精確股數
-                            if exact_shares > 0:
-                                shares = exact_shares
-                                cash  -= shares * price
-                                trades += 1
-                        elif pos == 0 and prev == 1:  # 賣出
-                            cash  += shares * price
-                            shares = 0
-
-                        equity.append(cash + shares * price)
-
-                    df_bt["equity_strat"] = equity
-                    df_bt["equity_bnh"]   = capital * (df_bt["Close"] / df_bt["Close"].iloc[0])
-
-                    # 若最後還在倉，計算已實現+未實現
-                    if shares > 0:
-                        last_price = float(df_bt["Close"].iloc[-1])
-                        final_strat = cash + shares * last_price
-                    else:
-                        final_strat = df_bt["equity_strat"].iloc[-1]
-
-                    final_bnh  = df_bt["equity_bnh"].iloc[-1]
-                    ret_strat  = (final_strat - capital) / capital * 100
-                    ret_bnh    = (final_bnh   - capital) / capital * 100
-                    peak       = df_bt["equity_strat"].cummax()
-                    dd_strat   = ((df_bt["equity_strat"] - peak) / peak * 100).min()
-
-                    # ── 績效顯示
-                    st.markdown(f"### 📊 {sid_bt} 回測結果｜策略：{strat_name}")
-                    m1, m2, m3, m4, m5 = st.columns(5)
-                    m1.metric("策略總報酬", f"{ret_strat:+.1f}%",
-                              delta=f"{'優' if ret_strat>ret_bnh else '遜'}於B&H {ret_strat-ret_bnh:+.1f}%")
-                    m2.metric("買入持有報酬", f"{ret_bnh:+.1f}%")
-                    m3.metric("策略最大回撤", f"{dd_strat:.1f}%")
-                    m4.metric("交易次數", f"{trades} 次")
-                    m5.metric("回測天數", f"{len(df_bt)} 日")
-
-                    # ── 資金曲線圖
-                    st.markdown("### 📈 資金曲線對比")
-                    fig_bt = go.Figure()
-                    fig_bt.add_trace(go.Scatter(
-                        x=df_bt.index, y=df_bt["equity_bnh"],
-                        name="📦 Buy & Hold 基準",
-                        mode="lines", line=dict(color="#546e7a", width=1.5, dash="dot"),
-                    ))
-                    fig_bt.add_trace(go.Scatter(
-                        x=df_bt.index, y=df_bt["equity_strat"],
-                        name=f"🎯 {strat_name}",
-                        mode="lines", line=dict(color="#00d4ff", width=2),
-                        fill="tonexty", fillcolor="rgba(0,212,255,0.05)"
-                    ))
-                    # 標記買賣點
-                    buy_pts  = df_bt[(df_bt["position"]==1) & (df_bt["position"].shift(1).fillna(0)==0)]
-                    sell_pts = df_bt[(df_bt["position"]==0) & (df_bt["position"].shift(1).fillna(0)==1)]
-                    if not buy_pts.empty:
-                        fig_bt.add_trace(go.Scatter(
-                            x=buy_pts.index, y=buy_pts["equity_strat"],
-                            mode="markers", name="買入",
-                            marker=dict(color="#ff5252", size=8, symbol="triangle-up")
-                        ))
-                    if not sell_pts.empty:
-                        fig_bt.add_trace(go.Scatter(
-                            x=sell_pts.index, y=sell_pts["equity_strat"],
-                            mode="markers", name="賣出",
-                            marker=dict(color="#00e676", size=8, symbol="triangle-down")
-                        ))
-                    fig_bt.update_layout(**base_layout(f"{sid_bt} 策略回測資金曲線", 480))
-                    fig_bt.update_yaxes(gridcolor="#1e3a5f")
-                    st.plotly_chart(fig_bt, width='stretch')
-
-                    # ── 持倉區間說明
-                    st.caption(f"▲紅三角=買入  ▼綠三角=賣出  共 {trades} 次進場")
-
-            except Exception as _e:
-                st.error(f"回測發生錯誤：{_e}")
-                import traceback as _tb
-                st.code(_tb.format_exc())
+    except Exception as _ab_err:
+        st.error(f"今日行動建議計算中，請稍候... ({_ab_err})")
