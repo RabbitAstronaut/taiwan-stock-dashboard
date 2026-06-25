@@ -1,13 +1,13 @@
 {
   "alerts": [],
   "sector_breadth": {
-    "date": "2026-06-16",
-    "above_sma20": 8,
-    "above_sma60": 13,
+    "date": "2026-06-23",
+    "above_sma20": 9,
+    "above_sma60": 12,
     "total": 17,
     "by_sector": {
       "ai_semi": {
-        "above_sma20": 3,
+        "above_sma20": 2,
         "above_sma60": 4,
         "total": 4,
         "details": [
@@ -32,13 +32,13 @@
           {
             "stock_id": "2357",
             "name": "華碩",
-            "above_sma20": true,
+            "above_sma20": false,
             "above_sma60": true
           }
         ]
       },
       "ai_infra": {
-        "above_sma20": 1,
+        "above_sma20": 2,
         "above_sma60": 3,
         "total": 4,
         "details": [
@@ -63,7 +63,7 @@
           {
             "stock_id": "8299",
             "name": "群聯",
-            "above_sma20": false,
+            "above_sma20": true,
             "above_sma60": true
           }
         ]
@@ -100,15 +100,15 @@
         ]
       },
       "shipping_fin": {
-        "above_sma20": 3,
-        "above_sma60": 4,
+        "above_sma20": 4,
+        "above_sma60": 3,
         "total": 5,
         "details": [
           {
             "stock_id": "2603",
             "name": "長榮",
             "above_sma20": false,
-            "above_sma60": true
+            "above_sma60": false
           },
           {
             "stock_id": "2610",
@@ -119,14 +119,14 @@
           {
             "stock_id": "2002",
             "name": "中鋼",
-            "above_sma20": false,
-            "above_sma60": false
+            "above_sma20": true,
+            "above_sma60": true
           },
           {
             "stock_id": "1101",
             "name": "台泥",
             "above_sma20": true,
-            "above_sma60": true
+            "above_sma60": false
           },
           {
             "stock_id": "2891",
