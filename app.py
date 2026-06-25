@@ -7159,7 +7159,7 @@ with tab5:
     # ══════════════════════════════════════════════════════════════
     try:
         # 讀取六個核心指標
-        _t5_risk     = get_risk_status()
+        _t5_risk_status, _t5_risk = get_system_risk_status()
         _t5_tx_net   = _t5_risk.get("tx_net", 0)
         _t5_retail   = _t5_risk.get("mtx_retail", 0)
         _t5_vix      = get_vix()
@@ -7217,8 +7217,8 @@ with tab5:
             f"</div>",
             unsafe_allow_html=True
         )
-    except Exception as _t5_err:
-        st.caption(f"市場溫度計計算中... debug: {_t5_err}")
+    except Exception:
+        st.caption("市場溫度計載入中，請稍候...")
 
     st.markdown("---")
     st.markdown(
