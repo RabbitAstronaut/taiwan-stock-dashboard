@@ -7487,16 +7487,13 @@ with tab5:
     elif _pc > 1.2:  _pc_s, _pc_h = "🟢", "恐慌買點"
     else:            _pc_s, _pc_h = "⚪", "正常"
 
-    # ── 欄4：VIX
+    # ── 欄4：VIX（渲染移到第二行區塊，避免_r2未定義錯誤）
     if _vix is not None:
         if _vix > 25:    _vix_s, _vix_h = "🔴", "市場去槓桿"
         elif _vix < 15:  _vix_s, _vix_h = "🟢", "風平浪靜"
         else:            _vix_s, _vix_h = "⚪", "警戒中"
-        _r2[5].markdown(_metric_html("VIX 恐慌", f"{_vix:.1f}", _vix_s, _vix_h,
-                         ref="<15 平靜；15~25 觀察；>25 去槓桿"), unsafe_allow_html=True)
     else:
-        _r2[5].markdown(_metric_html("VIX 恐慌", "—", "⚪", "載入中",
-                         ref="<15 平靜；15~25 觀察；>25 去槓桿"), unsafe_allow_html=True)
+        _vix_s, _vix_h = "⚪", "載入中"
 
     # ── 欄5：全市場融資水位（讀取 margin_summary.json，來源：證交所彙總）
     _mg_data = get_total_margin_balance()
@@ -7610,7 +7607,16 @@ with tab5:
     _r2[4].markdown(_metric_html("航運 BDI", _ship_val, _ship_s, _ship_h,
                      ref="<1000 資金歸建電子；1000~2000 盤整；>2000 通膨隱憂"), unsafe_allow_html=True)
 
-    # ── 欄6：利多不漲排毒（後端 daily_scan.py 每日17:00盤後掃描，前端僅讀結果）
+    # ── 欄6：VIX 恐慌指數（從第一行移入，與總經指標同排）
+    _r2[5].markdown(
+        _metric_html("VIX 恐慌",
+                     f"{_vix:.1f}" if _vix is not None else "—",
+                     _vix_s, _vix_h,
+                     ref="<15 平靜；15~25 觀察；>25 去槓桿"),
+        unsafe_allow_html=True
+    )
+
+    # ── 欄6（原）：利多不漲排毒（後端 daily_scan.py 每日17:00盤後掃描，前端僅讀結果）
     # 此卡片【只顯示】是否有個股符合「炒作熱度高＋收黑/長上影線＋外資大倒貨」
     # 龍頭多空定錨已移至頂端天網區塊獨立顯示，兩者完全解耦
     _alerts_today = get_triggered_alerts_today()
