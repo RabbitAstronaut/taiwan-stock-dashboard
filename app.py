@@ -7150,8 +7150,82 @@ with tab4:
 # ▌ TAB 5：大盤預警
 # ──────────────────────────────────────────────────────────────
 with tab5:
-    st.markdown("<div class='sec-title'>📡 大盤預警 · 期貨引擎 ＋ 蒙格行為學 ＋ AI診斷</div>",
+    st.markdown("<div class='sec-title'>🌡️ 市場溫度計 · 大盤預警</div>",
                 unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # ▌ 市場溫度計：六指標快速判讀（Phase 5 新增）
+    # 回答一個問題：「現在適合出手嗎？」
+    # ══════════════════════════════════════════════════════════════
+    try:
+        # 讀取六個核心指標
+        _t5_risk     = get_risk_status()
+        _t5_tx_net   = _t5_risk.get("tx_net", 0)
+        _t5_retail   = _t5_risk.get("mtx_retail", 0)
+        _t5_vix      = get_vix()
+        _t5_mg       = get_total_margin_balance()
+        _t5_mg_bal   = _t5_mg["balance"] if _t5_mg else 0
+        _t5_twii     = get_index_bias20("^TWII")
+        _t5_sox      = get_index_bias20("^SOX")
+
+        # 各指標燈號
+        _t5_tx_s  = "🟢" if _t5_tx_net <= -25000 else "🔴" if _t5_tx_net > -10000 else "🟡"
+        _t5_rt_s  = "🟢" if _t5_retail < 0 else "🔴" if _t5_retail > 12000 else "🟡"
+        _t5_vx_s  = "🟢" if (_t5_vix or 99) < 20 else "🔴" if (_t5_vix or 0) > 30 else "🟡"
+        _t5_mg_s  = "🟢" if _t5_mg_bal < 4500 else "🔴" if _t5_mg_bal >= 5000 else "🟡"
+        _t5_tw_s  = ("🔴" if _t5_twii and _t5_twii["bias_20"] >= 8
+                     else "🟢" if _t5_twii and _t5_twii["bias_20"] <= -8 else "🟡")
+        _t5_sx_s  = ("🔴" if _t5_sox and _t5_sox["bias_20"] >= 8
+                     else "🟢" if _t5_sox and _t5_sox["bias_20"] <= -8 else "🟡")
+
+        # 燈號計分 → 總體判斷
+        _t5_tw_val = f"{_t5_twii['bias_20']:+.1f}%" if _t5_twii else '—'
+        _t5_sx_val = f"{_t5_sox['bias_20']:+.1f}%" if _t5_sox else '—'
+        _t5_all = [_t5_tx_s, _t5_rt_s, _t5_vx_s, _t5_mg_s, _t5_tw_s, _t5_sx_s]
+        _t5_red  = _t5_all.count("🔴")
+        _t5_grn  = _t5_all.count("🟢")
+
+        if _t5_red >= 3:
+            _t5_overall = "🔴 縮手防守"
+            _t5_oc      = "#ff4444"
+            _t5_advice  = "多項指標亮紅燈，環境不利，停止新增部位，保留現金。"
+        elif _t5_grn >= 4:
+            _t5_overall = "🟢 適合布局"
+            _t5_oc      = "#00cc66"
+            _t5_advice  = "環境健康，可執行王者候選名單中的布局計畫。"
+        else:
+            _t5_overall = "🟡 謹慎觀望"
+            _t5_oc      = "#fbbf24"
+            _t5_advice  = "訊號混沌，等待更清晰的方向，輕倉為主。"
+
+        # 渲染溫度計卡片
+        st.markdown(
+            f"<div style='border:2px solid {_t5_oc};border-radius:10px;"
+            f"padding:14px 18px;margin:12px 0;background:rgba(255,255,255,0.02);'>"
+            f"<div style='font-size:1.2rem;font-weight:700;color:{_t5_oc};"
+            f"margin-bottom:10px;'>{_t5_overall}</div>"
+            f"<div style='display:flex;gap:20px;flex-wrap:wrap;font-size:.88rem;"
+            f"margin-bottom:10px;'>"
+            f"<span>{_t5_tx_s} 外資大台 {_t5_tx_net:+,}口</span>"
+            f"<span>{_t5_rt_s} 小台散戶 {_t5_retail:+,}口</span>"
+            f"<span>{_t5_vx_s} VIX {f'{_t5_vix:.1f}' if _t5_vix else '—'}</span>"
+            f"<span>{_t5_mg_s} 融資水位 {f'{_t5_mg_bal:,.0f}億' if _t5_mg_bal else '—'}</span>"
+            f"<span>{_t5_tw_s} 台股月乖離 {_t5_tw_val}</span>"
+            f"<span>{_t5_sx_s} 費半月乖離 {_t5_sx_val}</span>"
+            f"</div>"
+            f"<div style='color:#9fb8d4;font-size:.83rem;'>{_t5_advice}</div>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+    except Exception:
+        st.caption("市場溫度計計算中...")
+
+    st.markdown("---")
+    st.markdown(
+        "<div style='color:#7fb3d3;font-size:.8rem;margin-bottom:8px;'>"
+        "⬇️ 以下為完整大盤預警詳細指標（需要深入研究時使用）</div>",
+        unsafe_allow_html=True
+    )
 
     # ── 每次載入都清除四個板塊的 session_state key，
     #    確保 multiselect 的 default 永遠來自 watch_list.json 最新值，
