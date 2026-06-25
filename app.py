@@ -6070,6 +6070,20 @@ with tab4:
         )
 
         if not st.session_state.get("reserve_list"):
+            # 嘗試從本地 watchlist.json 直接讀取，不等 session 初始化
+            try:
+                import json as _jj, os as _oo
+                _wl_path = _oo.path.join("data", "watchlist.json")
+                if _oo.path.exists(_wl_path):
+                    with open(_wl_path, "r", encoding="utf-8") as _ff:
+                        _wl_data = _jj.load(_ff)
+                    _pre_rsv = _wl_data.get("reserve", [])
+                    if _pre_rsv:
+                        st.session_state.reserve_list = _pre_rsv
+            except Exception:
+                pass
+
+        if not st.session_state.get("reserve_list"):
             st.info("儲備庫尚無標的，請先加入精兵。")
         else:
             # 取得市場溫度（讀現有的三軌風控燈號）
