@@ -7217,8 +7217,8 @@ with tab5:
             f"</div>",
             unsafe_allow_html=True
         )
-    except Exception:
-        st.caption("市場溫度計計算中...")
+    except Exception as _t5_err:
+        st.caption(f"市場溫度計計算中... debug: {_t5_err}")
 
     st.markdown("---")
     st.markdown(
