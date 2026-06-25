@@ -466,18 +466,22 @@ def _rex_king_score(stock_id: str) -> dict:
     try:
         sid = str(stock_id).strip()
 
-        # ── 讀取財報資料
-        df_fin, ok_fin = load_financial_data(sid)
+        # ── 讀取財報資料（使用 get_financials，自動處理 int64 stock_id）
+        df_fin, ok_fin = get_financials(sid)
 
-        # ── 營收 YoY
         if ok_fin and not df_fin.empty and "type" in df_fin.columns:
-            rev_df = df_fin[
-                df_fin["type"].astype(str).str.contains("Revenue", case=False, na=False)
-            ].copy()
-            if len(rev_df) >= 2 and "value" in rev_df.columns:
-                rev_df = rev_df.sort_values("date")
-                latest  = float(rev_df["value"].iloc[-1])
-                prev    = float(rev_df["value"].iloc[-2])
+
+            def _get_type_series(df, type_kw):
+                """取得特定 type 的季度數值序列（依日期排序）"""
+                _sub = df[df["type"].astype(str).str.contains(type_kw, case=False, na=False)].copy()
+                if "date" in _sub.columns:
+                    _sub = _sub.sort_values("date")
+                return _sub["value"].dropna().astype(float).tolist() if "value" in _sub.columns else []
+
+            # ── 營收 YoY（type = Revenue，比較最近兩季同期）
+            rev_vals = _get_type_series(df_fin, "Revenue")
+            if len(rev_vals) >= 2:
+                latest, prev = rev_vals[-1], rev_vals[-2]
                 if prev != 0:
                     yoy = (latest - prev) / abs(prev) * 100
                     result["revenue_yoy_val"] = round(yoy, 1)
@@ -486,15 +490,10 @@ def _rex_king_score(stock_id: str) -> dict:
                     elif yoy >= 0:  result["revenue_yoy_score"] = 4
                     else:           result["revenue_yoy_score"] = 0
 
-        # ── EPS YoY
-        if ok_fin and not df_fin.empty and "type" in df_fin.columns:
-            eps_df = df_fin[
-                df_fin["type"].astype(str).str.contains("EPS", case=False, na=False)
-            ].copy()
-            if len(eps_df) >= 2 and "value" in eps_df.columns:
-                eps_df = eps_df.sort_values("date")
-                e_lat  = float(eps_df["value"].iloc[-1])
-                e_prev = float(eps_df["value"].iloc[-2])
+            # ── 稅後淨利 YoY（type = IncomeAfterTaxes，替代 EPS）
+            eat_vals = _get_type_series(df_fin, "IncomeAfterTaxes")
+            if len(eat_vals) >= 2:
+                e_lat, e_prev = eat_vals[-1], eat_vals[-2]
                 if e_prev != 0:
                     e_yoy = (e_lat - e_prev) / abs(e_prev) * 100
                     result["eps_yoy_val"] = round(e_yoy, 1)
@@ -503,26 +502,29 @@ def _rex_king_score(stock_id: str) -> dict:
                     elif e_yoy >= 0:  result["eps_yoy_score"] = 4
                     else:             result["eps_yoy_score"] = 0
 
-        # ── 毛利率趨勢（連續兩季比較）
-        if ok_fin and not df_fin.empty and "type" in df_fin.columns:
-            gm_df = df_fin[
-                df_fin["type"].astype(str).str.contains("GrossMargin", case=False, na=False)
-            ].copy()
-            if len(gm_df) >= 3 and "value" in gm_df.columns:
-                gm_df = gm_df.sort_values("date")
-                gm_vals = gm_df["value"].dropna().astype(float).tolist()
-                if len(gm_vals) >= 3:
-                    g0, g1, g2 = gm_vals[-3], gm_vals[-2], gm_vals[-1]
+            # ── 毛利率趨勢（GrossProfit / Revenue，動態計算比例後比較趨勢）
+            gp_vals  = _get_type_series(df_fin, "GrossProfit")
+            rev_vals2 = _get_type_series(df_fin, "Revenue")
+            n = min(len(gp_vals), len(rev_vals2))
+            if n >= 3:
+                # 計算近3季毛利率
+                gm_rates = []
+                for _i in range(-3, 0):
+                    _r = rev_vals2[_i]
+                    gm_rates.append(gp_vals[_i] / _r * 100 if _r else None)
+                gm_rates = [g for g in gm_rates if g is not None]
+                if len(gm_rates) >= 3:
+                    g0, g1, g2 = gm_rates[0], gm_rates[1], gm_rates[2]
                     if g2 > g1 > g0:
-                        result["gm_score"], result["gm_trend"] = 10, "連續兩季提升 ✅"
+                        result["gm_score"], result["gm_trend"] = 10, f"連續提升({g2:.1f}%) ✅"
                     elif g2 > g1:
-                        result["gm_score"], result["gm_trend"] = 7, "近季提升"
+                        result["gm_score"], result["gm_trend"] = 7, f"近季提升({g2:.1f}%)"
                     elif abs(g2 - g1) < 1:
-                        result["gm_score"], result["gm_trend"] = 5, "持平"
+                        result["gm_score"], result["gm_trend"] = 5, f"持平({g2:.1f}%)"
                     elif g2 < g1 and g1 >= g0:
-                        result["gm_score"], result["gm_trend"] = 2, "單季下滑 ⚠️"
+                        result["gm_score"], result["gm_trend"] = 2, f"單季下滑({g2:.1f}%) ⚠️"
                     else:
-                        result["gm_score"], result["gm_trend"] = 0, "連續下滑 ❌"
+                        result["gm_score"], result["gm_trend"] = 0, f"連續下滑({g2:.1f}%) ❌"
 
         # ── 大戶持股趨勢（shareholder_data.csv，400張以上大戶比例）
         try:
