@@ -7469,23 +7469,33 @@ with tab5:
     _r1[1].markdown(_metric_html("小台散戶", f"{_retail:+,}口", _rt_s, _rt_h,
                      ref="多空比 -20%~+15% 為中性區間；高位減倉=降溫，高位爆增=接刀加劇"), unsafe_allow_html=True)
 
-    # ── 欄3：CBOE P/C
+    # ── 欄3：大盤月乖離（從第二行移到第一行，更核心）
+    _bias_r1 = _macro_ind.get("bias")
+    if _bias_r1 is not None:
+        if _bias_r1 > 4:      _bias_r1_s, _bias_r1_h = "🔴", "極端超漲"
+        elif _bias_r1 < -4:   _bias_r1_s, _bias_r1_h = "🟢", "黃金打底區"
+        else:                  _bias_r1_s, _bias_r1_h = "⚪", "正常範圍"
+        _r1[3].markdown(_metric_html("大盤月乖離", f"{_bias_r1:+.1f}%", _bias_r1_s, _bias_r1_h,
+                         ref="-4%~+4% 正常；>+4% 超漲；<-4% 打底區"), unsafe_allow_html=True)
+    else:
+        _r1[3].markdown(_metric_html("大盤月乖離", "—", "⚪", "計算中",
+                         ref="-4%~+4% 正常；>+4% 超漲；<-4% 打底區"), unsafe_allow_html=True)
+
+    # CBOE P/C 保留在第二行（_r2）顯示
     _pc = _risk_info["pc_ratio"]
     if _pc < 0.8:    _pc_s, _pc_h = "🔴", "極度貪婪"
     elif _pc > 1.2:  _pc_s, _pc_h = "🟢", "恐慌買點"
     else:            _pc_s, _pc_h = "⚪", "正常"
-    _r1[2].markdown(_metric_html("CBOE P/C", f"{_pc:.2f}", _pc_s, _pc_h,
-                     ref="0.8~1.2 常態；<0.8 過熱／>1.2 恐慌"), unsafe_allow_html=True)
 
     # ── 欄4：VIX
     if _vix is not None:
         if _vix > 25:    _vix_s, _vix_h = "🔴", "市場去槓桿"
         elif _vix < 15:  _vix_s, _vix_h = "🟢", "風平浪靜"
         else:            _vix_s, _vix_h = "⚪", "警戒中"
-        _r1[3].markdown(_metric_html("VIX 恐慌", f"{_vix:.1f}", _vix_s, _vix_h,
+        _r2[5].markdown(_metric_html("VIX 恐慌", f"{_vix:.1f}", _vix_s, _vix_h,
                          ref="<15 平靜；15~25 觀察；>25 去槓桿"), unsafe_allow_html=True)
     else:
-        _r1[3].markdown(_metric_html("VIX 恐慌", "—", "⚪", "載入中",
+        _r2[5].markdown(_metric_html("VIX 恐慌", "—", "⚪", "載入中",
                          ref="<15 平靜；15~25 觀察；>25 去槓桿"), unsafe_allow_html=True)
 
     # ── 欄5：全市場融資水位（讀取 margin_summary.json，來源：證交所彙總）
@@ -7502,7 +7512,7 @@ with tab5:
     else:
         _mg_s, _mg_h = "🔴", "毀滅級超載"
 
-    _r1[4].markdown(
+    _r1[2].markdown(
         _metric_html(
             f"{_mg_s} 全市場融資水位",
             f"{_margin_balance:,.0f} 億" if _margin_balance > 0 else "—",
@@ -7526,10 +7536,10 @@ with tab5:
             _bd_s, _bd_h = "🟢", "多頭排列健康"
         else:
             _bd_s, _bd_h = "⚪", "結構中性"
-        _r1[5].markdown(_metric_html("全場均線結構", f"{_breadth:.1f}%站季線", _bd_s, _bd_h,
+        _r1[4].markdown(_metric_html("全場均線結構", f"{_breadth:.1f}%站季線", _bd_s, _bd_h,
                          ref="35%~60% 中性；≥60% 健康；<35%且大盤距高<5% 為背離警戒"), unsafe_allow_html=True)
     else:
-        _r1[5].markdown(_metric_html("全場均線結構", "—", "⚪", "計算中",
+        _r1[4].markdown(_metric_html("全場均線結構", "—", "⚪", "計算中",
                          ref="35%~60% 中性；≥60% 健康；<35%且大盤距高<5% 為背離警戒"), unsafe_allow_html=True)
 
     st.markdown("<div style='margin:6px 0;'></div>", unsafe_allow_html=True)
@@ -7585,17 +7595,9 @@ with tab5:
         _r2[2].markdown(_metric_html("美債10年", "—", "⚪", "載入中",
                          ref="<4.0% 資金解封；4.0%~4.4% 觀察；>4.4% 估值壓制"), unsafe_allow_html=True)
 
-    # ── 欄4：大盤月乖離
-    _bias = _macro_ind.get("bias")
-    if _bias is not None:
-        if _bias > 4:      _bias_s, _bias_h = "🔴", "極端超漲"
-        elif _bias < -4:   _bias_s, _bias_h = "🟢", "黃金打底區"
-        else:              _bias_s, _bias_h = "⚪", "正常範圍"
-        _r2[3].markdown(_metric_html("大盤月乖離", f"{_bias:+.1f}%", _bias_s, _bias_h,
-                         ref="-4%~+4% 正常；>+4% 超漲；<-4% 打底區"), unsafe_allow_html=True)
-    else:
-        _r2[3].markdown(_metric_html("大盤月乖離", "—", "⚪", "計算中",
-                         ref="-4%~+4% 正常；>+4% 超漲；<-4% 打底區"), unsafe_allow_html=True)
+    # ── 欄4：CBOE P/C（從第一行移入）
+    _r2[3].markdown(_metric_html("CBOE P/C", f"{_pc:.2f}", _pc_s, _pc_h,
+                     ref="0.8~1.2 常態；<0.8 過熱／>1.2 恐慌"), unsafe_allow_html=True)
 
     # ── 欄5：航運指數（BDI 波羅的海乾散裝指數，以 BDRY ETF×100 近似）
     #    說明：SCFI（上海貨櫃運價指數）無公開免費即時來源，故不顯示，
@@ -7622,7 +7624,7 @@ with tab5:
         _trap_s, _trap_h = "🟢", "全域安全"
         _trap_val = "戰備軍無毒"
 
-    _r2[5].markdown(
+    _r1[5].markdown(
         _metric_html("利多不漲排毒", _trap_val, _trap_s, _trap_h,
                      ref="每日17:00盤後自動掃描龍頭清單；0檔=安全，>0檔=炒作出貨陷阱"),
         unsafe_allow_html=True
