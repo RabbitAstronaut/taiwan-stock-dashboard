@@ -1383,7 +1383,21 @@ def build_etf_menu() -> "pd.DataFrame":
     df_csv[date_col]   = pd.to_datetime(df_csv[date_col], errors="coerce")
     df_csv[amt_col]    = pd.to_numeric(df_csv[amt_col], errors="coerce").fillna(0)
     df_csv = df_csv.dropna(subset=[date_col])
-    return df_csv
+    rows = []
+    for sid, grp in df_csv.groupby("stock_id"):
+        grp = grp.sort_values(date_col)
+        latest_div = round(float(grp[amt_col].iloc[-1]), 4)
+        one_year   = grp[grp[date_col] >= pd.Timestamp(datetime.now() - timedelta(days=365))]
+        freq       = len(one_year) if not one_year.empty else len(grp.tail(4))
+        freq_label = "月配" if freq >= 10 else ("季配" if freq >= 3 else ("半年配" if freq >= 2 else "年配"))
+        annual_div = round(float(grp[amt_col].tail(max(freq, 1)).sum()), 4)
+        div_months = sorted(one_year[date_col].dt.month.unique().tolist()) if not one_year.empty \
+                     else sorted(grp.tail(max(freq, 1))[date_col].dt.month.unique().tolist())
+        months_str = "/".join(str(m) for m in div_months) + "月"
+        rows.append({"代號": sid, "最新配息/股": latest_div, "年化配息/股": annual_div,
+                     "頻率": freq_label, "配息月份": months_str})
+    df_out = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
+    return df_out.sort_values("代號").reset_index(drop=True)
 
 
 @st.cache_data(ttl=300, show_spinner=False)
