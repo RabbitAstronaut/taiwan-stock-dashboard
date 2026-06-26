@@ -732,17 +732,29 @@ def _rex_market_score(market_signal: str) -> int:
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡") -> list:
+def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡",
+                              reserve_list: list = None) -> list:
     """
     對戰略儲備庫全部標的計算 Rex Priority Score。
-    回傳按總分降序排列的清單。
+    依股票分級（King/Prince/Hunter）套用不同評分權重。
     快取30分鐘，避免每次刷新都重算。
 
-    Args:
-        reserve_ids:   儲備庫股票代號的 tuple（用於快取key）
-        market_signal: 市場溫度計燈號（🟢/🟡/🔴）
+    分級權重設計（總分仍為100分制）：
+      👑 King：   王者×1.00 / 攻擊×0.75 / 環境×1.50 → 財報護城河優先
+                  滿分：40×1.00 + 40×0.75 + 20×1.50 = 40+30+30 = 100
+      🛡 Prince： 王者×0.875 / 攻擊×0.875 / 環境×1.50 → 財報技術並重
+                  滿分：40×0.875 + 40×0.875 + 20×1.50 = 35+35+30 = 100
+      ⚔ Hunter：  王者×0.50 / 攻擊×1.25 / 環境×1.50 → 技術趨勢優先
+                  滿分：40×0.50 + 40×1.25 + 20×1.50 = 20+50+30 = 100
     """
     import gc as _gc
+
+    # 建立 stock_id → class 對照表
+    class_map = {}
+    if reserve_list:
+        for item in reserve_list:
+            class_map[item["id"]] = item.get("class", "Prince")
+
     chips_map = get_chips_facts_map()
     mkt_score = _rex_market_score(market_signal)
     results   = []
@@ -751,7 +763,23 @@ def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡") ->
         try:
             king   = _rex_king_score(sid)
             attack = _rex_attack_score(sid, chips_map)
-            total  = king["total"] + attack["total"] + mkt_score
+
+            # ── 依分級套用權重
+            stock_class = class_map.get(sid, "Prince")
+            if stock_class == "King":
+                weighted_king   = king["total"]   * 1.00
+                weighted_attack = attack["total"] * 0.75
+                weighted_mkt    = mkt_score       * 1.50
+            elif stock_class == "Hunter":
+                weighted_king   = king["total"]   * 0.50
+                weighted_attack = attack["total"] * 1.25
+                weighted_mkt    = mkt_score       * 1.50
+            else:  # Prince
+                weighted_king   = king["total"]   * 0.875
+                weighted_attack = attack["total"] * 0.875
+                weighted_mkt    = mkt_score       * 1.50
+
+            total = int(weighted_king + weighted_attack + weighted_mkt)
 
             # 降級旗標判定
             flag = attack.get("downgrade_flag")
@@ -761,12 +789,12 @@ def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡") ->
 
             results.append({
                 "stock_id":     sid,
+                "stock_class":  stock_class,
                 "total":        total,
                 "king_total":   king["total"],
                 "attack_total": attack["total"],
                 "mkt_score":    mkt_score,
                 "flag":         flag,
-                # 王者分數明細
                 "revenue_yoy_score": king["revenue_yoy_score"],
                 "revenue_yoy_val":   king["revenue_yoy_val"],
                 "eps_yoy_score":     king["eps_yoy_score"],
@@ -776,7 +804,6 @@ def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡") ->
                 "sector_score":      king["sector_score"],
                 "holder_score":      king["holder_score"],
                 "holder_trend":      king["holder_trend"],
-                # 攻擊分數明細
                 "support_score":  attack["support_score"],
                 "support_detail": attack["support_detail"],
                 "ma_score":       attack["ma_score"],
@@ -6118,7 +6145,10 @@ with tab4:
                         for item in st.session_state.reserve_list}
 
             with st.spinner("計算 Rex Priority Score 中..."):
-                _rex_scores = calc_rex_priority_scores(_rex_ids, _rex_mkt_sig)
+                _rex_scores = calc_rex_priority_scores(
+                    _rex_ids, _rex_mkt_sig,
+                    reserve_list=list(st.session_state.reserve_list)
+                )
 
             if not _rex_scores:
                 st.warning("資料不足，無法計算評分。請確認 K線/財報/籌碼資料已更新。")
@@ -6140,6 +6170,9 @@ with tab4:
                     _name = _rex_nm.get(_sid, _sid)
                     _tot  = _rs["total"]
                     _flag = _rs["flag"]
+                    _cls  = _rs.get("stock_class", "Prince")
+                    _cls_icon = {"King": "👑", "Prince": "🛡", "Hunter": "⚔"}.get(_cls, "🛡")
+                    _cls_color = {"King": "#ffd700", "Prince": "#a8d8ea", "Hunter": "#ff9f7f"}.get(_cls, "#a8d8ea")
 
                     # 總分燈號
                     if _tot >= 75:   _tc, _tl = "#ff6b6b", "🔴 高度優先"
@@ -6165,8 +6198,12 @@ with tab4:
                         f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
                         f"<span style='font-size:1rem;font-weight:700;color:#e8f4fd;'>"
                         f"#{_rank}　{_sid} {_name}</span>"
+                        f"<span style='background:{_cls_color}22;color:{_cls_color};"
+                        f"border:1px solid {_cls_color};border-radius:4px;"
+                        f"padding:1px 7px;font-size:.78rem;margin-left:6px;'>"
+                        f"{_cls_icon} {_cls}</span>"
                         f"<span style='font-size:1.1rem;font-weight:700;color:{_tc};'>"
-                        f"{_tot}/100　{_tl}</span>"
+                        f"　{_tot}/100　{_tl}</span>"
                         f"</div>"
                         f"{_flag_html}"
 
