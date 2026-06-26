@@ -732,8 +732,9 @@ def _rex_market_score(market_signal: str) -> int:
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False)
 def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡",
-                              reserve_list: list = None) -> list:
+                              reserve_class_map: tuple = ()) -> list:
     """
     對戰略儲備庫全部標的計算 Rex Priority Score。
     依股票分級（King/Prince/Hunter）套用不同評分權重。
@@ -749,11 +750,8 @@ def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡",
     """
     import gc as _gc
 
-    # 建立 stock_id → class 對照表
-    class_map = {}
-    if reserve_list:
-        for item in reserve_list:
-            class_map[item["id"]] = item.get("class", "Prince")
+    # 還原 class_map（從 hashable tuple 轉回 dict）
+    class_map = dict(reserve_class_map)
 
     chips_map = get_chips_facts_map()
     mkt_score = _rex_market_score(market_signal)
@@ -6145,9 +6143,12 @@ with tab4:
                         for item in st.session_state.reserve_list}
 
             with st.spinner("計算 Rex Priority Score 中..."):
+                _rex_class_map = tuple(
+                    (item["id"], item.get("class", "Prince"))
+                    for item in st.session_state.reserve_list
+                )
                 _rex_scores = calc_rex_priority_scores(
-                    _rex_ids, _rex_mkt_sig,
-                    reserve_list=list(st.session_state.reserve_list)
+                    _rex_ids, _rex_mkt_sig, _rex_class_map
                 )
 
             if not _rex_scores:
@@ -9899,9 +9900,12 @@ with tab8:
         if st.session_state.get("reserve_list"):
             _ab_ids   = tuple(i["id"] for i in st.session_state.reserve_list)
             _ab_nm    = {i["id"]: i.get("name", i["id"]) for i in st.session_state.reserve_list}
+            _ab_class_map = tuple(
+                (item["id"], item.get("class", "Prince"))
+                for item in st.session_state.get("reserve_list", [])
+            )
             _ab_scores = calc_rex_priority_scores(
-                _ab_ids, _ab_env[0],
-                reserve_list=list(st.session_state.get("reserve_list", []))
+                _ab_ids, _ab_env[0], _ab_class_map
             )
             _ab_top5  = _ab_scores[:5]
         else:
