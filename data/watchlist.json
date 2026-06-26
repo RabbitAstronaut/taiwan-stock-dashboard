@@ -5,151 +5,168 @@
   "reserve": [
     {
       "id": "7769",
-      "name": "鴻勁"
+      "name": "鴻勁",
+      "class": "Hunter"
     },
     {
       "id": "6451",
-      "name": "訊芯-KY"
-    },
-    {
-      "id": "3008",
-      "name": "大立光"
+      "name": "訊芯-KY",
+      "class": "Hunter"
     },
     {
       "id": "2330",
-      "name": "台積電"
-    },
-    {
-      "id": "2313",
-      "name": "華通"
+      "name": "台積電",
+      "class": "King"
     },
     {
       "id": "6285",
-      "name": "啟碁"
+      "name": "啟碁",
+      "class": "Prince"
     },
     {
       "id": "3044",
-      "name": "健鼎"
+      "name": "健鼎",
+      "class": "Prince"
     },
     {
       "id": "3665",
-      "name": "貿聯-KY"
+      "name": "貿聯-KY",
+      "class": "Hunter"
     },
     {
       "id": "6274",
-      "name": "台燿"
+      "name": "台燿",
+      "class": "King"
     },
     {
       "id": "3017",
-      "name": "奇鋐"
+      "name": "奇鋐",
+      "class": "King"
     },
     {
       "id": "2308",
-      "name": "台達電"
+      "name": "台達電",
+      "class": "King"
     },
     {
       "id": "2301",
-      "name": "光寶科技"
-    },
-    {
-      "id": "3481",
-      "name": "群創"
+      "name": "光寶科技",
+      "class": "Prince"
     },
     {
       "id": "2404",
-      "name": "漢唐"
-    },
-    {
-      "id": "2327",
-      "name": "國巨"
+      "name": "漢唐",
+      "class": "Prince"
     },
     {
       "id": "3131",
-      "name": "弘塑"
+      "name": "弘塑",
+      "class": "Prince"
     },
     {
       "id": "6187",
-      "name": "萬潤"
+      "name": "萬潤",
+      "class": "Prince"
     },
     {
       "id": "6510",
-      "name": "精測"
+      "name": "精測",
+      "class": "Prince"
     },
     {
       "id": "3455",
-      "name": "由田"
+      "name": "由田",
+      "class": "Hunter"
     },
     {
       "id": "6239",
-      "name": "力成"
+      "name": "力成",
+      "class": "Prince"
     },
     {
       "id": "2383",
-      "name": "台光電"
+      "name": "台光電",
+      "class": "King"
     },
     {
       "id": "2454",
-      "name": "聯發科"
+      "name": "聯發科",
+      "class": "King"
     },
     {
       "id": "2059",
-      "name": "川湖"
+      "name": "川湖",
+      "class": "King"
     },
     {
       "id": "2368",
-      "name": "金像電"
+      "name": "金像電",
+      "class": "King"
     },
     {
       "id": "2345",
-      "name": "智邦"
+      "name": "智邦",
+      "class": "King"
     },
     {
       "id": "8358",
-      "name": "金居"
+      "name": "金居",
+      "class": "Hunter"
     },
     {
       "id": "2359",
-      "name": "所羅門"
-    },
-    {
-      "id": "2344",
-      "name": "華邦電"
-    },
-    {
-      "id": "2357",
-      "name": "華碩"
+      "name": "所羅門",
+      "class": "Hunter"
     },
     {
       "id": "2379",
-      "name": "瑞昱"
+      "name": "瑞昱",
+      "class": "Prince"
     },
     {
       "id": "5289",
-      "name": "宜鼎"
+      "name": "宜鼎",
+      "class": "Prince"
     },
     {
       "id": "8299",
-      "name": "群聯"
+      "name": "群聯",
+      "class": "Prince"
     },
     {
       "id": "3037",
-      "name": "欣興"
+      "name": "欣興",
+      "class": "Prince"
     },
     {
       "id": "3491",
-      "name": "昇達科"
+      "name": "昇達科",
+      "class": "Hunter"
     },
     {
       "id": "2317",
-      "name": "鴻海"
+      "name": "鴻海",
+      "class": "King"
     },
     {
       "id": "1519",
-      "name": "華城"
+      "name": "華城",
+      "class": "King"
     },
     {
       "id": "8210",
-      "name": "勤誠"
+      "name": "勤誠",
+      "class": "King"
+    },
+    {
+      "id": "3533",
+      "name": "嘉澤",
+      "class": "King"
+    },
+    {
+      "id": "6669",
+      "name": "緯穎",
+      "class": "King"
     }
   ]
 }
