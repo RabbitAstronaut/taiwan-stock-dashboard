@@ -9949,7 +9949,117 @@ with tab8:
     )
 
     # ══════════════════════════════════════════════════════════════
-    # ▌ 今日行動建議
+    # ▌ Today's Focus（每天只看這裡，3檔，30秒決定今天研究誰）
+    # ══════════════════════════════════════════════════════════════
+    try:
+        _tf_reserve = st.session_state.get("reserve_list", [])
+        if not _tf_reserve:
+            try:
+                import json as _jj2
+                _wl2 = _jj2.load(open("data/watchlist.json", encoding="utf-8"))
+                _tf_reserve = _wl2.get("reserve", [])
+            except Exception:
+                pass
+
+        if _tf_reserve:
+            # 計算 Rex Priority Score（用快取結果）
+            _tf_ids = tuple(i["id"] for i in _tf_reserve)
+            _tf_nm  = {i["id"]: i.get("name", i["id"]) for i in _tf_reserve}
+            _tf_cls = {i["id"]: i.get("class", "Prince") for i in _tf_reserve}
+
+            _tf_status, _tf_info = get_system_risk_status()
+            _tf_mkt = ("🟢" if _tf_status == "GREEN_NORMAL" else
+                       "🔴" if _tf_status == "RED_ALERT" else "🟡")
+
+            _tf_class_map = tuple(
+                (i["id"], i.get("class", "Prince")) for i in _tf_reserve
+            )
+            _tf_scores = calc_rex_priority_scores(_tf_ids, _tf_mkt, _tf_class_map)
+
+            # Today's Focus 選取邏輯：
+            # 優先選 King 類股中有折扣的（bias_20 <= -3）
+            # 其次選攻擊分高的（代表位置好）
+            # 最後取前3檔
+            _tf_focus = []
+            _tf_kings_discounted = [
+                s for s in _tf_scores
+                if _tf_cls.get(s["stock_id"]) == "King"
+                and s.get("bias_20") is not None
+                and s["bias_20"] <= -3
+            ]
+            _tf_high_attack = [
+                s for s in _tf_scores
+                if s not in _tf_kings_discounted
+                and s.get("attack_total", 0) >= 25
+            ]
+            _tf_rest = [
+                s for s in _tf_scores
+                if s not in _tf_kings_discounted
+                and s not in _tf_high_attack
+            ]
+
+            for _src in [_tf_kings_discounted, _tf_high_attack, _tf_rest]:
+                for _s in _src:
+                    if len(_tf_focus) >= 3:
+                        break
+                    _tf_focus.append(_s)
+                if len(_tf_focus) >= 3:
+                    break
+
+            # 渲染 Today's Focus
+            _tf_date = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d")
+            st.markdown(
+                f"<div style='background:linear-gradient(135deg,#0b3d5c,#0d4a6e);"
+                f"border-radius:10px;padding:16px 20px;margin:12px 0;'>"
+                f"<div style='font-size:1.15rem;font-weight:700;color:#e8f4fd;"
+                f"margin-bottom:12px;'>📌 Today's Focus　"
+                f"<span style='font-size:.85rem;color:#7fb3d3;font-weight:400;'>"
+                f"{_tf_date}　今天值得研究的股票</span></div>",
+                unsafe_allow_html=True
+            )
+
+            for _tf_rank, _tfs in enumerate(_tf_focus, 1):
+                _tf_sid  = _tfs["stock_id"]
+                _tf_name = _tf_nm.get(_tf_sid, _tf_sid)
+                _tf_c    = _tf_cls.get(_tf_sid, "Prince")
+                _tf_ci   = {"King": "👑", "Prince": "🛡", "Hunter": "⚔"}.get(_tf_c, "🛡")
+                _tf_bias = _tfs.get("bias_20")
+                _tf_tot  = _tfs["total"]
+
+                # 決定今天的研究方向
+                if _tf_c == "King" and _tf_bias is not None and _tf_bias <= -8:
+                    _tf_stage = "🟠 重新研究"
+                    _tf_why   = f"王者打折 {_tf_bias:+.1f}%，重新確認故事是否仍在"
+                elif _tf_c == "King" and _tf_bias is not None and _tf_bias <= -3:
+                    _tf_stage = "🟡 開始觀察"
+                    _tf_why   = f"王者開始回落 {_tf_bias:+.1f}%，值得開始追蹤"
+                elif _tfs.get("attack_total", 0) >= 28:
+                    _tf_stage = "🎯 技術面就位"
+                    _tf_why   = f"攻擊分 {_tfs['attack_total']}/40，位置接近布局區"
+                else:
+                    _tf_stage = "👀 持續追蹤"
+                    _tf_why   = f"Priority Score {_tf_tot}分，今日排名靠前"
+
+                st.markdown(
+                    f"<div style='display:flex;align-items:center;gap:12px;"
+                    f"padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);'>"
+                    f"<span style='font-size:1.3rem;color:#fbbf24;font-weight:700;"
+                    f"min-width:24px;'>#{_tf_rank}</span>"
+                    f"<span style='color:#e8f4fd;font-weight:600;font-size:.95rem;'>"
+                    f"{_tf_ci} {_tf_sid} {_tf_name}</span>"
+                    f"<span style='color:#fbbf24;font-size:.82rem;'>{_tf_stage}</span>"
+                    f"<span style='color:#7fb3d3;font-size:.8rem;margin-left:auto;'>"
+                    f"{_tf_why}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    except Exception:
+        pass
+
+    st.markdown("---")
     # 邏輯：市場溫度計 × Rex Priority Score TOP5 × 持倉異常警示
     # ══════════════════════════════════════════════════════════════
     try:
