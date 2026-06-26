@@ -1375,17 +1375,20 @@ def get_total_margin_balance() -> dict:
 # ══════════════════════════════════════════════════════════════
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_etf_price(stock_id: str) -> tuple:
-    """回傳 (現值, 更新時間字串)，快取1小時"""
+    """回傳 (現值, 更新時間字串)，快取1小時，timeout 3秒避免卡住"""
     try:
         import yfinance as _yf_etf
         sid = str(stock_id).strip().zfill(4)
         for suffix in [".TW", ".TWO"]:
-            tk   = _yf_etf.Ticker(sid + suffix)
-            hist = tk.history(period="5d")
-            if not hist.empty:
-                price = round(float(hist["Close"].iloc[-1]), 2)
-                update_time = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d %H:%M")
-                return price, update_time
+            try:
+                tk   = _yf_etf.Ticker(sid + suffix)
+                hist = tk.history(period="5d", timeout=3)
+                if hist is not None and not hist.empty:
+                    price = round(float(hist["Close"].iloc[-1]), 2)
+                    update_time = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d %H:%M")
+                    return price, update_time
+            except Exception:
+                continue
     except Exception:
         pass
     return 0.0, ""
@@ -9801,16 +9804,9 @@ with tab8:
     st.markdown(f"### 📋 ETF 清單　共 {len(df_menu)} 檔　輸入張數後自動試算")
     st.caption("最新配息/股=最近一次除息　年化配息/股=近1年合計　配息月份=歷史除息月份")
 
-    # 批次抓取所有 ETF 股價（快取5分鐘）
-    @st.cache_data(ttl=300)
-    def get_all_etf_prices(sids: tuple) -> dict:
-        result = {}
-        for sid in sids:
-            val = fetch_etf_price(sid)
-            result[sid] = val[0] if isinstance(val, tuple) else val
-        return result
-
-    price_map = get_all_etf_prices(tuple(df_menu["代號"].tolist()))
+    # ETF 現價改為懶加載，不在啟動時批次抓取（避免數百次yfinance呼叫卡住啟動）
+    # 使用者可點擊個別ETF的「更新現價」按鈕即時抓取
+    price_map = {}  # 預設空，依需求即時查詢
 
     # 顯示最後更新時間
     _etf_last_update = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d %H:%M")
