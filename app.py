@@ -9899,7 +9899,10 @@ with tab8:
         if st.session_state.get("reserve_list"):
             _ab_ids   = tuple(i["id"] for i in st.session_state.reserve_list)
             _ab_nm    = {i["id"]: i.get("name", i["id"]) for i in st.session_state.reserve_list}
-            _ab_scores = calc_rex_priority_scores(_ab_ids, _ab_env[0])
+            _ab_scores = calc_rex_priority_scores(
+                _ab_ids, _ab_env[0],
+                reserve_list=list(st.session_state.get("reserve_list", []))
+            )
             _ab_top5  = _ab_scores[:5]
         else:
             _ab_top5 = []
