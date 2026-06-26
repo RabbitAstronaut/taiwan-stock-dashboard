@@ -736,25 +736,45 @@ def _rex_market_score(market_signal: str) -> int:
 def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡",
                               reserve_class_map: tuple = ()) -> list:
     """
-    對戰略儲備庫全部標的計算 Rex Priority Score。
-    依股票分級（King/Prince/Hunter）套用不同評分權重。
-    快取30分鐘，避免每次刷新都重算。
-
-    分級權重設計（總分仍為100分制）：
-      👑 King：   王者×1.00 / 攻擊×0.75 / 環境×1.50 → 財報護城河優先
-                  滿分：40×1.00 + 40×0.75 + 20×1.50 = 40+30+30 = 100
-      🛡 Prince： 王者×0.875 / 攻擊×0.875 / 環境×1.50 → 財報技術並重
-                  滿分：40×0.875 + 40×0.875 + 20×1.50 = 35+35+30 = 100
-      ⚔ Hunter：  王者×0.50 / 攻擊×1.25 / 環境×1.50 → 技術趨勢優先
-                  滿分：40×0.50 + 40×1.25 + 20×1.50 = 20+50+30 = 100
+    優先讀取 data/rex_scores.json（由 calc_rex_scores.py 每日預計算）。
+    讀取成功後，依當前市場環境燈號動態加上環境分，再重新排序。
+    JSON 不存在時才 fallback 到即時計算（速度較慢）。
     """
-    import gc as _gc
+    import os as _os, json as _jj
 
-    # 還原 class_map（從 hashable tuple 轉回 dict）
-    class_map = dict(reserve_class_map)
-
-    chips_map = get_chips_facts_map()
     mkt_score = _rex_market_score(market_signal)
+
+    # ── 優先讀預計算 JSON
+    _json_path = _os.path.join("data", "rex_scores.json")
+    if _os.path.exists(_json_path):
+        try:
+            with open(_json_path, "r", encoding="utf-8") as _f:
+                _cached = _jj.load(_f)
+
+            # 只取本次儲備庫中的股票（reserve_ids）
+            _id_set = set(reserve_ids)
+            results = []
+            for _r in _cached.get("scores", []):
+                if _r["stock_id"] not in _id_set:
+                    continue
+                # 動態加上市場環境分（依當前燈號）
+                _r = dict(_r)  # 避免修改原始資料
+                _cls = _r.get("stock_class", "Prince")
+                _wm  = 1.50
+                _mkt = int(mkt_score * _wm)
+                _r["total"]     = _r["base_total"] + _mkt
+                _r["mkt_score"] = mkt_score
+                results.append(_r)
+
+            results.sort(key=lambda x: (-x["total"], x["stock_id"]))
+            return results
+        except Exception:
+            pass  # fallback 到即時計算
+
+    # ── Fallback：即時計算（JSON 不存在時）
+    import gc as _gc
+    class_map = dict(reserve_class_map)
+    chips_map = get_chips_facts_map()
     results   = []
 
     for sid in reserve_ids:
@@ -762,37 +782,26 @@ def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡",
             king   = _rex_king_score(sid)
             attack = _rex_attack_score(sid, chips_map)
 
-            # ── 依分級套用權重
             stock_class = class_map.get(sid, "Prince")
             if stock_class == "King":
-                weighted_king   = king["total"]   * 1.00
-                weighted_attack = attack["total"] * 0.75
-                weighted_mkt    = mkt_score       * 1.50
+                wk, wa, wm = 1.00, 0.75, 1.50
             elif stock_class == "Hunter":
-                weighted_king   = king["total"]   * 0.50
-                weighted_attack = attack["total"] * 1.25
-                weighted_mkt    = mkt_score       * 1.50
-            else:  # Prince
-                weighted_king   = king["total"]   * 0.875
-                weighted_attack = attack["total"] * 0.875
-                weighted_mkt    = mkt_score       * 1.50
+                wk, wa, wm = 0.50, 1.25, 1.50
+            else:
+                wk, wa, wm = 0.875, 0.875, 1.50
 
-            total = int(weighted_king + weighted_attack + weighted_mkt)
+            total = int(king["total"]*wk + attack["total"]*wa + mkt_score*wm)
 
-            # 降級旗標判定
             flag = attack.get("downgrade_flag")
-            if king["revenue_yoy_val"] is not None and king["eps_yoy_val"] is not None:
+            if king.get("revenue_yoy_val") is not None and king.get("eps_yoy_val") is not None:
                 if king["revenue_yoy_val"] < 0 and king["eps_yoy_val"] < 0:
                     flag = flag or "⚠️ 基本面衰退"
 
             results.append({
-                "stock_id":     sid,
-                "stock_class":  stock_class,
-                "total":        total,
-                "king_total":   king["total"],
-                "attack_total": attack["total"],
-                "mkt_score":    mkt_score,
-                "flag":         flag,
+                "stock_id": sid, "stock_class": stock_class,
+                "total": total, "base_total": total - int(mkt_score*1.50),
+                "king_total": king["total"], "attack_total": attack["total"],
+                "mkt_score": mkt_score, "flag": flag,
                 "revenue_yoy_score": king["revenue_yoy_score"],
                 "revenue_yoy_val":   king["revenue_yoy_val"],
                 "eps_yoy_score":     king["eps_yoy_score"],
@@ -819,6 +828,19 @@ def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡",
 
     results.sort(key=lambda x: (-x["total"], x["stock_id"]))
     return results
+    """
+    對戰略儲備庫全部標的計算 Rex Priority Score。
+    依股票分級（King/Prince/Hunter）套用不同評分權重。
+    快取30分鐘，避免每次刷新都重算。
+
+    分級權重設計（總分仍為100分制）：
+      👑 King：   王者×1.00 / 攻擊×0.75 / 環境×1.50 → 財報護城河優先
+                  滿分：40×1.00 + 40×0.75 + 20×1.50 = 40+30+30 = 100
+      🛡 Prince： 王者×0.875 / 攻擊×0.875 / 環境×1.50 → 財報技術並重
+                  滿分：40×0.875 + 40×0.875 + 20×1.50 = 35+35+30 = 100
+      ⚔ Hunter：  王者×0.50 / 攻擊×1.25 / 環境×1.50 → 技術趨勢優先
+                  滿分：40×0.50 + 40×1.25 + 20×1.50 = 20+50+30 = 100
+    """
 
 
 @st.cache_data(ttl=60, show_spinner=False)
