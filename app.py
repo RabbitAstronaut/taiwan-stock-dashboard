@@ -6102,6 +6102,100 @@ with tab4:
     # 注意力排序工具，不是買進訊號。
     # 回答：「今天我應該把研究時間花在哪幾檔？」
     # ══════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════
+    # ▌ King Discount Monitor（王者折扣監視器）
+    # 每天只需掃一眼：哪些王者開始打折？
+    # 不是找最低點，而是知道哪些王者值得重新研究
+    # ══════════════════════════════════════════════════════════════
+    with st.expander("👑 King Discount Monitor｜王者折扣監視器", expanded=True):
+        st.caption("追蹤 King 類股距離近期高點的折扣幅度。打折不代表可以買，代表值得重新研究。")
+
+        # 取得King類股清單
+        _kdm_kings = [
+            item for item in st.session_state.get("reserve_list", [])
+            if item.get("class") == "King"
+        ]
+
+        if not _kdm_kings:
+            # 備援：直接從watchlist.json讀
+            try:
+                import json as _jj, os as _oo
+                _wl = _jj.load(open("data/watchlist.json", encoding="utf-8"))
+                _kdm_kings = [r for r in _wl.get("reserve", []) if r.get("class") == "King"]
+            except Exception:
+                pass
+
+        if not _kdm_kings:
+            st.caption("尚無 King 類股資料")
+        else:
+            _kdm_rows = []
+            for _ki in _kdm_kings:
+                try:
+                    _df_k, _ok_k = load_price_csv(_ki["id"])
+                    if not _ok_k or _df_k.empty or len(_df_k) < 20:
+                        continue
+                    _cl_k = pd.to_numeric(_df_k["Close"], errors="coerce").dropna()
+                    if len(_cl_k) < 20:
+                        continue
+                    _cp_k    = float(_cl_k.iloc[-1])
+                    _ma20_k  = float(_cl_k.tail(20).mean())
+                    _high_k  = float(_cl_k.tail(60).max())  # 近60日高點
+                    _bias_k  = (_cp_k - _ma20_k) / _ma20_k * 100
+                    _disc_k  = (_cp_k - _high_k) / _high_k * 100  # 距高點折扣（負值）
+
+                    # 折扣燈號
+                    if _disc_k >= -3:
+                        _dk_s, _dk_label = "⚪", "正常"
+                    elif _disc_k >= -8:
+                        _dk_s, _dk_label = "🟡", "開始觀察"
+                    elif _disc_k >= -15:
+                        _dk_s, _dk_label = "🟠", "重新研究"
+                    else:
+                        _dk_s, _dk_label = "🔴", "重新估值"
+
+                    _kdm_rows.append({
+                        "id": _ki["id"], "name": _ki.get("name", _ki["id"]),
+                        "price": _cp_k, "ma20": _ma20_k,
+                        "bias": _bias_k, "discount": _disc_k,
+                        "signal": _dk_s, "label": _dk_label,
+                    })
+                except Exception:
+                    continue
+
+            # 依折扣幅度排序（折扣最大的排最前面）
+            _kdm_rows.sort(key=lambda x: x["discount"])
+
+            # 分兩欄顯示
+            _kdm_col1, _kdm_col2 = st.columns(2)
+            for _ki_idx, _kr in enumerate(_kdm_rows):
+                _col = _kdm_col1 if _ki_idx % 2 == 0 else _kdm_col2
+                _bg  = ("rgba(255,100,100,0.08)" if _kr["signal"] == "🔴"
+                        else "rgba(255,165,0,0.08)" if _kr["signal"] == "🟠"
+                        else "rgba(255,200,0,0.05)" if _kr["signal"] == "🟡"
+                        else "rgba(255,255,255,0.02)")
+                _col.markdown(
+                    f"<div style='padding:8px 12px;margin:4px 0;border-radius:6px;"
+                    f"background:{_bg};border:1px solid #1e3a5f;'>"
+                    f"<span style='color:#e8f4fd;font-weight:600;'>"
+                    f"{_kr['id']} {_kr['name']}</span>"
+                    f"<span style='float:right;color:#9fb8d4;font-size:.82rem;'>"
+                    f"{_kr['price']:,.1f}</span><br>"
+                    f"<span style='font-size:.85rem;'>{_kr['signal']} {_kr['label']}</span>"
+                    f"　<span style='color:#9fb8d4;font-size:.8rem;'>"
+                    f"距高點 {_kr['discount']:+.1f}%　月乖離 {_kr['bias']:+.1f}%"
+                    f"</span></div>",
+                    unsafe_allow_html=True
+                )
+
+            # 摘要：目前有幾檔在重新研究/估值區
+            _hot_count = sum(1 for r in _kdm_rows if r["signal"] in ["🟠", "🔴"])
+            if _hot_count > 0:
+                st.info(f"👀 目前有 **{_hot_count} 檔** King 類股進入「重新研究／重新估值」區，值得今天花時間看。")
+            else:
+                st.caption("✅ 目前所有 King 類股距近期高點折扣不大，暫無特別值得關注的折扣機會。")
+
+    st.markdown("---")
+
     with st.expander("🏆 Rex Priority Score｜今日優先研究排行榜", expanded=True):
         st.caption(
             "⚠️ Rex Priority Score 是注意力排序工具，不是買進訊號。"
