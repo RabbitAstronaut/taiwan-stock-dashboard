@@ -9430,12 +9430,20 @@ with tab2:
                 pd.DataFrame(radar2) if radar2 else pd.DataFrame(),
                 pd.DataFrame(radar3) if radar3 else pd.DataFrame())
 
-    # 執行掃描
+    # 執行掃描（懶加載：只有快取命中或使用者主動觸發才執行）
     if st.button("🔍 啟動大數據雷達掃描", type="primary", key="radar_scan"):
         st.cache_data.clear()
         st.rerun()
 
-    df_r1, df_r2, df_r3 = run_radar()
+    # 檢查快取是否已有資料（避免每次啟動都重新掃描全台股）
+    if st.session_state.get("radar_r1") is not None:
+        df_r1 = st.session_state.get("radar_r1", pd.DataFrame())
+        df_r2 = st.session_state.get("radar_r2", pd.DataFrame())
+        df_r3 = st.session_state.get("radar_r3", pd.DataFrame())
+    else:
+        # 第一次或快取清除後，需要使用者主動點按鈕
+        st.info("👆 點擊上方「啟動大數據雷達掃描」開始掃描全台股（約需30~60秒）")
+        df_r1, df_r2, df_r3 = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
     # 存入 session_state 供 Tab1 使用
     st.session_state["radar_r1"] = df_r1
