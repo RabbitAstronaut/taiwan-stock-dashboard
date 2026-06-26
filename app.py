@@ -1348,6 +1348,44 @@ def get_total_margin_balance() -> dict:
         return None
 
 
+# ══════════════════════════════════════════════════════════════
+# ▌ ETF 現價查詢（全域定義，避免巢狀cache造成tab7載入延遲）
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_etf_price(stock_id: str) -> tuple:
+    """回傳 (現值, 更新時間字串)，快取1小時"""
+    try:
+        import yfinance as _yf_etf
+        sid = str(stock_id).strip().zfill(4)
+        for suffix in [".TW", ".TWO"]:
+            tk   = _yf_etf.Ticker(sid + suffix)
+            hist = tk.history(period="5d")
+            if not hist.empty:
+                price = round(float(hist["Close"].iloc[-1]), 2)
+                update_time = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d %H:%M")
+                return price, update_time
+    except Exception:
+        pass
+    return 0.0, ""
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def build_etf_menu() -> "pd.DataFrame":
+    """讀取 ETF 配息資料，每日快取一次"""
+    df_csv, ok = load_csv("etf_dividend_data.csv")
+    if not ok or df_csv.empty:
+        return pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
+    amt_col  = next((c for c in ["CashDividend","cash_dividend","dividend"] if c in df_csv.columns), None)
+    date_col = next((c for c in ["ex_dividend_date","ExDividendDate","date"] if c in df_csv.columns), None)
+    if not amt_col or not date_col:
+        return pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
+    df_csv["stock_id"] = df_csv["stock_id"].astype(str).str.strip()
+    df_csv[date_col]   = pd.to_datetime(df_csv[date_col], errors="coerce")
+    df_csv[amt_col]    = pd.to_numeric(df_csv[amt_col], errors="coerce").fillna(0)
+    df_csv = df_csv.dropna(subset=[date_col])
+    return df_csv
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def get_vix():
     """
@@ -9426,53 +9464,10 @@ with tab7:
         pass
     st.markdown("<div class='infobox'>在下方輸入持有張數，系統即時試算投入本金、預估年化殖利率與未來 12 個月現金流。</div>", unsafe_allow_html=True)
 
-    @st.cache_data(ttl=300)
-    def fetch_etf_price(stock_id: str) -> tuple:
-        """回傳 (現值, 更新時間字串)"""
-        try:
-            import yfinance as yf
-            # ETF 代號補零到4碼（如 50 → 0050）
-            sid = str(stock_id).strip().zfill(4)
-            for suffix in [".TW", ".TWO"]:
-                tk = yf.Ticker(sid + suffix)
-                hist = tk.history(period="5d")
-                if not hist.empty:
-                    price = round(float(hist["Close"].iloc[-1]), 2)
-                    update_time = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d %H:%M")
-                    return price, update_time
-        except Exception:
-            pass
-        return 0.0, ""
+    # fetch_etf_price 已移至全域定義（避免巢狀cache造成載入延遲）
+    pass
 
-    @st.cache_data(ttl=3600, show_spinner="載入 ETF 配息資料...")
-    def build_etf_menu() -> pd.DataFrame:
-        df_csv, ok = load_csv("etf_dividend_data.csv")
-        if not ok or df_csv.empty:
-            return pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
-        amt_col  = next((c for c in ["CashDividend","cash_dividend","dividend"] if c in df_csv.columns), None)
-        date_col = next((c for c in ["ex_dividend_date","ExDividendDate","date"] if c in df_csv.columns), None)
-        if not amt_col or not date_col:
-            return pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
-        df_csv["stock_id"] = df_csv["stock_id"].astype(str).str.strip()
-        df_csv[date_col]   = pd.to_datetime(df_csv[date_col], errors="coerce")
-        df_csv[amt_col]    = pd.to_numeric(df_csv[amt_col], errors="coerce").fillna(0)
-        df_csv = df_csv.dropna(subset=[date_col])
-        rows = []
-        for sid, grp in df_csv.groupby("stock_id"):
-            grp = grp.sort_values(date_col)
-            latest_div = round(float(grp[amt_col].iloc[-1]), 4)
-            one_year = grp[grp[date_col] >= pd.Timestamp(datetime.now() - timedelta(days=365))]
-            freq = len(one_year) if not one_year.empty else len(grp.tail(4))
-            freq_label = "月配" if freq >= 10 else ("季配" if freq >= 3 else ("半年配" if freq >= 2 else "年配"))
-            annual_div = round(float(grp[amt_col].tail(max(freq,1)).sum()), 4)
-            div_months = sorted(one_year[date_col].dt.month.unique().tolist()) if not one_year.empty \
-                         else sorted(grp.tail(max(freq,1))[date_col].dt.month.unique().tolist())
-            months_str = "/".join(str(m) for m in div_months) + "月"
-            rows.append({"代號": sid, "最新配息/股": latest_div, "年化配息/股": annual_div,
-                         "頻率": freq_label, "配息月份": months_str})
-        df_out = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["代號","最新配息/股","年化配息/股","頻率","配息月份"])
-        return df_out.sort_values("代號").reset_index(drop=True)
-
+    # build_etf_menu 已移至全域定義
     df_menu = build_etf_menu()
     if df_menu.empty:
         st.warning("ETF 配息資料載入失敗，請確認 data/etf_dividend_data.csv 是否存在。")
