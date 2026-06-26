@@ -3129,8 +3129,8 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🌡️ 市場溫度計",
     "📡 大盤預警",
     "🌱 產業趨勢雷達",
-    "💰 ETF退休計畫",
     "🎯 今日行動建議",
+    "💰 ETF退休計畫",
 ])
 
 # ══════════════════════════════════════════════════════════════
@@ -9464,6 +9464,286 @@ with tab2:
 # ▌ TAB 7：ETF 存股現金流管家
 # ──────────────────────────────────────────────────────────────
 with tab7:
+    st.markdown("<div class='sec-title'>🎯 今日行動建議</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>"
+        "整合市場溫度計 × Rex Priority Score × 持倉現況，"
+        "回答今天最值得行動的事。"
+        "<br><b>這不是買進訊號，是今天應該把注意力放在哪裡的行動清單。</b>"
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+    # ══════════════════════════════════════════════════════════════
+    # ▌ Today's Focus（每天只看這裡，3檔，30秒決定今天研究誰）
+    # ══════════════════════════════════════════════════════════════
+    try:
+        _tf_reserve = st.session_state.get("reserve_list", [])
+        if not _tf_reserve:
+            try:
+                import json as _jj2
+                _wl2 = _jj2.load(open("data/watchlist.json", encoding="utf-8"))
+                _tf_reserve = _wl2.get("reserve", [])
+            except Exception:
+                pass
+
+        if _tf_reserve:
+            # 計算 Rex Priority Score（用快取結果）
+            _tf_ids = tuple(i["id"] for i in _tf_reserve)
+            _tf_nm  = {i["id"]: i.get("name", i["id"]) for i in _tf_reserve}
+            _tf_cls = {i["id"]: i.get("class", "Prince") for i in _tf_reserve}
+
+            _tf_status, _tf_info = get_system_risk_status()
+            _tf_mkt = ("🟢" if _tf_status == "GREEN_NORMAL" else
+                       "🔴" if _tf_status == "RED_ALERT" else "🟡")
+
+            _tf_class_map = tuple(
+                (i["id"], i.get("class", "Prince")) for i in _tf_reserve
+            )
+            _tf_scores = calc_rex_priority_scores(_tf_ids, _tf_mkt, _tf_class_map)
+
+            # Today's Focus 選取邏輯：
+            # 優先選 King 類股中有折扣的（bias_20 <= -3）
+            # 其次選攻擊分高的（代表位置好）
+            # 最後取前3檔
+            _tf_focus = []
+            _tf_kings_discounted = [
+                s for s in _tf_scores
+                if _tf_cls.get(s["stock_id"]) == "King"
+                and s.get("bias_20") is not None
+                and s["bias_20"] <= -3
+            ]
+            _tf_high_attack = [
+                s for s in _tf_scores
+                if s not in _tf_kings_discounted
+                and s.get("attack_total", 0) >= 25
+            ]
+            _tf_rest = [
+                s for s in _tf_scores
+                if s not in _tf_kings_discounted
+                and s not in _tf_high_attack
+            ]
+
+            for _src in [_tf_kings_discounted, _tf_high_attack, _tf_rest]:
+                for _s in _src:
+                    if len(_tf_focus) >= 3:
+                        break
+                    _tf_focus.append(_s)
+                if len(_tf_focus) >= 3:
+                    break
+
+            # 渲染 Today's Focus
+            _tf_date = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d")
+            st.markdown(
+                f"<div style='background:linear-gradient(135deg,#0b3d5c,#0d4a6e);"
+                f"border-radius:10px;padding:16px 20px;margin:12px 0;'>"
+                f"<div style='font-size:1.15rem;font-weight:700;color:#e8f4fd;"
+                f"margin-bottom:12px;'>📌 Today's Focus　"
+                f"<span style='font-size:.85rem;color:#7fb3d3;font-weight:400;'>"
+                f"{_tf_date}　今天值得研究的股票</span></div>",
+                unsafe_allow_html=True
+            )
+
+            for _tf_rank, _tfs in enumerate(_tf_focus, 1):
+                _tf_sid  = _tfs["stock_id"]
+                _tf_name = _tf_nm.get(_tf_sid, _tf_sid)
+                _tf_c    = _tf_cls.get(_tf_sid, "Prince")
+                _tf_ci   = {"King": "👑", "Prince": "🛡", "Hunter": "⚔"}.get(_tf_c, "🛡")
+                _tf_bias = _tfs.get("bias_20")
+                _tf_tot  = _tfs["total"]
+
+                # 決定今天的研究方向
+                if _tf_c == "King" and _tf_bias is not None and _tf_bias <= -8:
+                    _tf_stage = "🟠 重新研究"
+                    _tf_why   = f"王者打折 {_tf_bias:+.1f}%，重新確認故事是否仍在"
+                elif _tf_c == "King" and _tf_bias is not None and _tf_bias <= -3:
+                    _tf_stage = "🟡 開始觀察"
+                    _tf_why   = f"王者開始回落 {_tf_bias:+.1f}%，值得開始追蹤"
+                elif _tfs.get("attack_total", 0) >= 28:
+                    _tf_stage = "🎯 技術面就位"
+                    _tf_why   = f"攻擊分 {_tfs['attack_total']}/40，位置接近布局區"
+                else:
+                    _tf_stage = "👀 持續追蹤"
+                    _tf_why   = f"Priority Score {_tf_tot}分，今日排名靠前"
+
+                st.markdown(
+                    f"<div style='display:flex;align-items:center;gap:12px;"
+                    f"padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);'>"
+                    f"<span style='font-size:1.3rem;color:#fbbf24;font-weight:700;"
+                    f"min-width:24px;'>#{_tf_rank}</span>"
+                    f"<span style='color:#e8f4fd;font-weight:600;font-size:.95rem;'>"
+                    f"{_tf_ci} {_tf_sid} {_tf_name}</span>"
+                    f"<span style='color:#fbbf24;font-size:.82rem;'>{_tf_stage}</span>"
+                    f"<span style='color:#7fb3d3;font-size:.8rem;margin-left:auto;'>"
+                    f"{_tf_why}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    except Exception:
+        pass
+
+    st.markdown("---")
+    # 邏輯：市場溫度計 × Rex Priority Score TOP5 × 持倉異常警示
+    # ══════════════════════════════════════════════════════════════
+    try:
+        # ── 市場環境
+        _ab_status, _ab_info = get_system_risk_status()
+        _ab_vix   = get_vix()
+        _ab_mg    = get_total_margin_balance()
+        _ab_mg_b  = _ab_mg["balance"] if _ab_mg else 0
+
+        _ab_tx    = _ab_info.get("tx_net", 0)
+        _ab_rt    = _ab_info.get("mtx_retail", 0)
+
+        # 六指標燈號計分
+        _ab_sigs = [
+            "🟢" if _ab_tx <= -25000 else "🔴" if _ab_tx > -10000 else "🟡",
+            "🟢" if _ab_rt < 0 else "🔴" if _ab_rt > 12000 else "🟡",
+            "🟢" if (_ab_vix or 99) < 20 else "🔴" if (_ab_vix or 0) > 30 else "🟡",
+            "🟢" if _ab_mg_b < 4500 else "🔴" if _ab_mg_b >= 5000 else "🟡",
+        ]
+        _ab_red = _ab_sigs.count("🔴")
+        _ab_grn = _ab_sigs.count("🟢")
+
+        if _ab_red >= 3:
+            _ab_env, _ab_env_c = "🔴 縮手防守", "#ff4444"
+        elif _ab_grn >= 3:
+            _ab_env, _ab_env_c = "🟢 適合布局", "#00cc66"
+        else:
+            _ab_env, _ab_env_c = "🟡 謹慎觀望", "#fbbf24"
+
+        # ── 市場環境摘要
+        st.markdown(
+            f"<div style='border-left:4px solid {_ab_env_c};padding:10px 16px;"
+            f"background:rgba(255,255,255,0.02);border-radius:0 8px 8px 0;"
+            f"margin-bottom:16px;'>"
+            f"<span style='font-size:1.1rem;font-weight:700;color:{_ab_env_c};'>"
+            f"市場環境：{_ab_env}</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
+        # ── Rex Priority Score TOP5
+        if st.session_state.get("reserve_list"):
+            _ab_ids   = tuple(i["id"] for i in st.session_state.reserve_list)
+            _ab_nm    = {i["id"]: i.get("name", i["id"]) for i in st.session_state.reserve_list}
+            _ab_class_map = tuple(
+                (item["id"], item.get("class", "Prince"))
+                for item in st.session_state.get("reserve_list", [])
+            )
+            _ab_scores = calc_rex_priority_scores(
+                _ab_ids, _ab_env[0], _ab_class_map
+            )
+            _ab_top5  = _ab_scores[:5]
+        else:
+            _ab_top5 = []
+
+        # ── 持倉異常警示
+        _ab_pf    = load_portfolio()
+        _ab_chips = get_chips_facts_map()
+        _ab_anomaly = []
+        for _ab_sid, _ab_pos in _ab_pf.items():
+            try:
+                _ab_df, _ab_ok = load_price_csv(_ab_sid)
+                if not _ab_ok or _ab_df.empty or len(_ab_df) < 20:
+                    continue
+                _ab_cl  = pd.to_numeric(_ab_df["Close"], errors="coerce").dropna()
+                _ab_cp  = float(_ab_cl.iloc[-1])
+                _ab_ma20 = float(_ab_cl.tail(20).mean())
+                _ab_chip = _ab_chips.get(_ab_sid, {})
+                _ab_res  = check_anomaly_variant(
+                    stock_id=_ab_sid,
+                    strategy_type=_ab_pos.get("strategy_type", "LONG"),
+                    current_price=_ab_cp,
+                    ma20=_ab_ma20,
+                    foreign_buy=_ab_chip.get("foreign_net"),
+                    margin_change=_ab_chip.get("margin_chg_pct"),
+                )
+                if _ab_res["triggered"]:
+                    _ab_anomaly.append({
+                        "sid": _ab_sid,
+                        "name": get_stock_name_map().get(_ab_sid, _ab_sid),
+                        "level": _ab_res["level"],
+                        "msg": _ab_res["message"],
+                    })
+            except Exception:
+                continue
+
+        # ══════════════════════════════
+        # 輸出區塊一：需要立刻處理
+        # ══════════════════════════════
+        st.markdown("#### 🚨 需要立刻處理")
+        if _ab_anomaly:
+            for _ab_a in _ab_anomaly:
+                if _ab_a["level"] == "AS_RETREAT":
+                    st.error(f"**{_ab_a['sid']} {_ab_a['name']}** — 異常變盤觸發，建議立刻出清！")
+        elif _ab_red >= 3:
+            st.error("市場環境亮紅燈，停止新增任何部位，保留現金。")
+        else:
+            st.success("✅ 持倉無異常警示，今天不需要緊急處理任何事。")
+
+        # ══════════════════════════════
+        # 輸出區塊二：值得關注的機會
+        # ══════════════════════════════
+        st.markdown("#### 📌 今日值得關注")
+        if _ab_env[0] == "🔴":
+            st.warning("市場環境不利，暫停所有新買進計畫，等待環境改善。")
+        elif _ab_top5:
+            for _ab_rank, _ab_r in enumerate(_ab_top5[:3], 1):
+                _ab_sid  = _ab_r["stock_id"]
+                _ab_name = _ab_nm.get(_ab_sid, _ab_sid)
+                _ab_tot  = _ab_r["total"]
+                _ab_bias = _ab_r.get("bias_20")
+                _ab_flag = _ab_r.get("flag", "")
+
+                # 判斷買點狀態
+                if _ab_bias is not None and _ab_bias <= -5:
+                    _ab_action = "📍 已回落至月線附近，可開始觀察分批機會"
+                    _ab_ac     = "#00cc66"
+                elif _ab_bias is not None and _ab_bias > 8:
+                    _ab_action = "⏳ 位置偏高，等待回落再行動"
+                    _ab_ac     = "#fbbf24"
+                else:
+                    _ab_action = "👁️ 持續追蹤，等待更好的切入點"
+                    _ab_ac     = "#7fb3d3"
+
+                st.markdown(
+                    f"<div style='border:1px solid #1e3a5f;border-left:3px solid {_ab_ac};"
+                    f"border-radius:6px;padding:10px 14px;margin:6px 0;"
+                    f"background:rgba(255,255,255,0.02);'>"
+                    f"<b style='color:#e8f4fd;'>#{_ab_rank} {_ab_sid} {_ab_name}</b>"
+                    f"　<span style='color:#9fb8d4;font-size:.85rem;'>"
+                    f"Rex分數 {_ab_tot}/100</span>"
+                    f"{'　<span style="color:#ff4444;font-size:.8rem;">'+_ab_flag+'</span>' if _ab_flag else ''}"
+                    f"<br><span style='color:{_ab_ac};font-size:.88rem;'>{_ab_action}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+        else:
+            st.info("王者候選名單為空，請先在 Tab4 建立儲備庫。")
+
+        # ══════════════════════════════
+        # 輸出區塊三：今日不需要動
+        # ══════════════════════════════
+        st.markdown("#### ✅ 今日不需要動")
+        st.markdown(
+            "<div style='color:#7fb3d3;font-size:.88rem;padding:8px 0;'>"
+            "持倉中無異常警示的標的，維持原計畫，不需要任何操作。<br>"
+            "Rex Priority Score 排名後段的標的，今天不需要花時間研究。"
+            "</div>",
+            unsafe_allow_html=True
+        )
+
+        st.markdown("---")
+        st.caption(f"更新時間：{datetime.now(ZoneInfo('Asia/Taipei')).strftime('%H:%M')}　｜　"
+                   f"Rex Priority Score 快取30分鐘，市場環境即時計算")
+
+    except Exception as _ab_err:
+        st.error(f"今日行動建議計算中，請稍候... ({_ab_err})")
+with tab8:
     st.markdown("<div class='sec-title'>💰 ETF 存股現金流管家</div>", unsafe_allow_html=True)
     # ETF 配息資料更新日期
     try:
@@ -9946,283 +10226,3 @@ with tab7:
 # ──────────────────────────────────────────────────────────────
 
 # ──────────────────────────────────────────────────────────────
-with tab8:
-    st.markdown("<div class='sec-title'>🎯 今日行動建議</div>", unsafe_allow_html=True)
-    st.markdown(
-        "<div class='infobox'>"
-        "整合市場溫度計 × Rex Priority Score × 持倉現況，"
-        "回答今天最值得行動的事。"
-        "<br><b>這不是買進訊號，是今天應該把注意力放在哪裡的行動清單。</b>"
-        "</div>",
-        unsafe_allow_html=True
-    )
-
-    # ══════════════════════════════════════════════════════════════
-    # ▌ Today's Focus（每天只看這裡，3檔，30秒決定今天研究誰）
-    # ══════════════════════════════════════════════════════════════
-    try:
-        _tf_reserve = st.session_state.get("reserve_list", [])
-        if not _tf_reserve:
-            try:
-                import json as _jj2
-                _wl2 = _jj2.load(open("data/watchlist.json", encoding="utf-8"))
-                _tf_reserve = _wl2.get("reserve", [])
-            except Exception:
-                pass
-
-        if _tf_reserve:
-            # 計算 Rex Priority Score（用快取結果）
-            _tf_ids = tuple(i["id"] for i in _tf_reserve)
-            _tf_nm  = {i["id"]: i.get("name", i["id"]) for i in _tf_reserve}
-            _tf_cls = {i["id"]: i.get("class", "Prince") for i in _tf_reserve}
-
-            _tf_status, _tf_info = get_system_risk_status()
-            _tf_mkt = ("🟢" if _tf_status == "GREEN_NORMAL" else
-                       "🔴" if _tf_status == "RED_ALERT" else "🟡")
-
-            _tf_class_map = tuple(
-                (i["id"], i.get("class", "Prince")) for i in _tf_reserve
-            )
-            _tf_scores = calc_rex_priority_scores(_tf_ids, _tf_mkt, _tf_class_map)
-
-            # Today's Focus 選取邏輯：
-            # 優先選 King 類股中有折扣的（bias_20 <= -3）
-            # 其次選攻擊分高的（代表位置好）
-            # 最後取前3檔
-            _tf_focus = []
-            _tf_kings_discounted = [
-                s for s in _tf_scores
-                if _tf_cls.get(s["stock_id"]) == "King"
-                and s.get("bias_20") is not None
-                and s["bias_20"] <= -3
-            ]
-            _tf_high_attack = [
-                s for s in _tf_scores
-                if s not in _tf_kings_discounted
-                and s.get("attack_total", 0) >= 25
-            ]
-            _tf_rest = [
-                s for s in _tf_scores
-                if s not in _tf_kings_discounted
-                and s not in _tf_high_attack
-            ]
-
-            for _src in [_tf_kings_discounted, _tf_high_attack, _tf_rest]:
-                for _s in _src:
-                    if len(_tf_focus) >= 3:
-                        break
-                    _tf_focus.append(_s)
-                if len(_tf_focus) >= 3:
-                    break
-
-            # 渲染 Today's Focus
-            _tf_date = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d")
-            st.markdown(
-                f"<div style='background:linear-gradient(135deg,#0b3d5c,#0d4a6e);"
-                f"border-radius:10px;padding:16px 20px;margin:12px 0;'>"
-                f"<div style='font-size:1.15rem;font-weight:700;color:#e8f4fd;"
-                f"margin-bottom:12px;'>📌 Today's Focus　"
-                f"<span style='font-size:.85rem;color:#7fb3d3;font-weight:400;'>"
-                f"{_tf_date}　今天值得研究的股票</span></div>",
-                unsafe_allow_html=True
-            )
-
-            for _tf_rank, _tfs in enumerate(_tf_focus, 1):
-                _tf_sid  = _tfs["stock_id"]
-                _tf_name = _tf_nm.get(_tf_sid, _tf_sid)
-                _tf_c    = _tf_cls.get(_tf_sid, "Prince")
-                _tf_ci   = {"King": "👑", "Prince": "🛡", "Hunter": "⚔"}.get(_tf_c, "🛡")
-                _tf_bias = _tfs.get("bias_20")
-                _tf_tot  = _tfs["total"]
-
-                # 決定今天的研究方向
-                if _tf_c == "King" and _tf_bias is not None and _tf_bias <= -8:
-                    _tf_stage = "🟠 重新研究"
-                    _tf_why   = f"王者打折 {_tf_bias:+.1f}%，重新確認故事是否仍在"
-                elif _tf_c == "King" and _tf_bias is not None and _tf_bias <= -3:
-                    _tf_stage = "🟡 開始觀察"
-                    _tf_why   = f"王者開始回落 {_tf_bias:+.1f}%，值得開始追蹤"
-                elif _tfs.get("attack_total", 0) >= 28:
-                    _tf_stage = "🎯 技術面就位"
-                    _tf_why   = f"攻擊分 {_tfs['attack_total']}/40，位置接近布局區"
-                else:
-                    _tf_stage = "👀 持續追蹤"
-                    _tf_why   = f"Priority Score {_tf_tot}分，今日排名靠前"
-
-                st.markdown(
-                    f"<div style='display:flex;align-items:center;gap:12px;"
-                    f"padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);'>"
-                    f"<span style='font-size:1.3rem;color:#fbbf24;font-weight:700;"
-                    f"min-width:24px;'>#{_tf_rank}</span>"
-                    f"<span style='color:#e8f4fd;font-weight:600;font-size:.95rem;'>"
-                    f"{_tf_ci} {_tf_sid} {_tf_name}</span>"
-                    f"<span style='color:#fbbf24;font-size:.82rem;'>{_tf_stage}</span>"
-                    f"<span style='color:#7fb3d3;font-size:.8rem;margin-left:auto;'>"
-                    f"{_tf_why}</span>"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
-
-            st.markdown("</div>", unsafe_allow_html=True)
-
-    except Exception:
-        pass
-
-    st.markdown("---")
-    # 邏輯：市場溫度計 × Rex Priority Score TOP5 × 持倉異常警示
-    # ══════════════════════════════════════════════════════════════
-    try:
-        # ── 市場環境
-        _ab_status, _ab_info = get_system_risk_status()
-        _ab_vix   = get_vix()
-        _ab_mg    = get_total_margin_balance()
-        _ab_mg_b  = _ab_mg["balance"] if _ab_mg else 0
-
-        _ab_tx    = _ab_info.get("tx_net", 0)
-        _ab_rt    = _ab_info.get("mtx_retail", 0)
-
-        # 六指標燈號計分
-        _ab_sigs = [
-            "🟢" if _ab_tx <= -25000 else "🔴" if _ab_tx > -10000 else "🟡",
-            "🟢" if _ab_rt < 0 else "🔴" if _ab_rt > 12000 else "🟡",
-            "🟢" if (_ab_vix or 99) < 20 else "🔴" if (_ab_vix or 0) > 30 else "🟡",
-            "🟢" if _ab_mg_b < 4500 else "🔴" if _ab_mg_b >= 5000 else "🟡",
-        ]
-        _ab_red = _ab_sigs.count("🔴")
-        _ab_grn = _ab_sigs.count("🟢")
-
-        if _ab_red >= 3:
-            _ab_env, _ab_env_c = "🔴 縮手防守", "#ff4444"
-        elif _ab_grn >= 3:
-            _ab_env, _ab_env_c = "🟢 適合布局", "#00cc66"
-        else:
-            _ab_env, _ab_env_c = "🟡 謹慎觀望", "#fbbf24"
-
-        # ── 市場環境摘要
-        st.markdown(
-            f"<div style='border-left:4px solid {_ab_env_c};padding:10px 16px;"
-            f"background:rgba(255,255,255,0.02);border-radius:0 8px 8px 0;"
-            f"margin-bottom:16px;'>"
-            f"<span style='font-size:1.1rem;font-weight:700;color:{_ab_env_c};'>"
-            f"市場環境：{_ab_env}</span>"
-            f"</div>",
-            unsafe_allow_html=True
-        )
-
-        # ── Rex Priority Score TOP5
-        if st.session_state.get("reserve_list"):
-            _ab_ids   = tuple(i["id"] for i in st.session_state.reserve_list)
-            _ab_nm    = {i["id"]: i.get("name", i["id"]) for i in st.session_state.reserve_list}
-            _ab_class_map = tuple(
-                (item["id"], item.get("class", "Prince"))
-                for item in st.session_state.get("reserve_list", [])
-            )
-            _ab_scores = calc_rex_priority_scores(
-                _ab_ids, _ab_env[0], _ab_class_map
-            )
-            _ab_top5  = _ab_scores[:5]
-        else:
-            _ab_top5 = []
-
-        # ── 持倉異常警示
-        _ab_pf    = load_portfolio()
-        _ab_chips = get_chips_facts_map()
-        _ab_anomaly = []
-        for _ab_sid, _ab_pos in _ab_pf.items():
-            try:
-                _ab_df, _ab_ok = load_price_csv(_ab_sid)
-                if not _ab_ok or _ab_df.empty or len(_ab_df) < 20:
-                    continue
-                _ab_cl  = pd.to_numeric(_ab_df["Close"], errors="coerce").dropna()
-                _ab_cp  = float(_ab_cl.iloc[-1])
-                _ab_ma20 = float(_ab_cl.tail(20).mean())
-                _ab_chip = _ab_chips.get(_ab_sid, {})
-                _ab_res  = check_anomaly_variant(
-                    stock_id=_ab_sid,
-                    strategy_type=_ab_pos.get("strategy_type", "LONG"),
-                    current_price=_ab_cp,
-                    ma20=_ab_ma20,
-                    foreign_buy=_ab_chip.get("foreign_net"),
-                    margin_change=_ab_chip.get("margin_chg_pct"),
-                )
-                if _ab_res["triggered"]:
-                    _ab_anomaly.append({
-                        "sid": _ab_sid,
-                        "name": get_stock_name_map().get(_ab_sid, _ab_sid),
-                        "level": _ab_res["level"],
-                        "msg": _ab_res["message"],
-                    })
-            except Exception:
-                continue
-
-        # ══════════════════════════════
-        # 輸出區塊一：需要立刻處理
-        # ══════════════════════════════
-        st.markdown("#### 🚨 需要立刻處理")
-        if _ab_anomaly:
-            for _ab_a in _ab_anomaly:
-                if _ab_a["level"] == "AS_RETREAT":
-                    st.error(f"**{_ab_a['sid']} {_ab_a['name']}** — 異常變盤觸發，建議立刻出清！")
-        elif _ab_red >= 3:
-            st.error("市場環境亮紅燈，停止新增任何部位，保留現金。")
-        else:
-            st.success("✅ 持倉無異常警示，今天不需要緊急處理任何事。")
-
-        # ══════════════════════════════
-        # 輸出區塊二：值得關注的機會
-        # ══════════════════════════════
-        st.markdown("#### 📌 今日值得關注")
-        if _ab_env[0] == "🔴":
-            st.warning("市場環境不利，暫停所有新買進計畫，等待環境改善。")
-        elif _ab_top5:
-            for _ab_rank, _ab_r in enumerate(_ab_top5[:3], 1):
-                _ab_sid  = _ab_r["stock_id"]
-                _ab_name = _ab_nm.get(_ab_sid, _ab_sid)
-                _ab_tot  = _ab_r["total"]
-                _ab_bias = _ab_r.get("bias_20")
-                _ab_flag = _ab_r.get("flag", "")
-
-                # 判斷買點狀態
-                if _ab_bias is not None and _ab_bias <= -5:
-                    _ab_action = "📍 已回落至月線附近，可開始觀察分批機會"
-                    _ab_ac     = "#00cc66"
-                elif _ab_bias is not None and _ab_bias > 8:
-                    _ab_action = "⏳ 位置偏高，等待回落再行動"
-                    _ab_ac     = "#fbbf24"
-                else:
-                    _ab_action = "👁️ 持續追蹤，等待更好的切入點"
-                    _ab_ac     = "#7fb3d3"
-
-                st.markdown(
-                    f"<div style='border:1px solid #1e3a5f;border-left:3px solid {_ab_ac};"
-                    f"border-radius:6px;padding:10px 14px;margin:6px 0;"
-                    f"background:rgba(255,255,255,0.02);'>"
-                    f"<b style='color:#e8f4fd;'>#{_ab_rank} {_ab_sid} {_ab_name}</b>"
-                    f"　<span style='color:#9fb8d4;font-size:.85rem;'>"
-                    f"Rex分數 {_ab_tot}/100</span>"
-                    f"{'　<span style="color:#ff4444;font-size:.8rem;">'+_ab_flag+'</span>' if _ab_flag else ''}"
-                    f"<br><span style='color:{_ab_ac};font-size:.88rem;'>{_ab_action}</span>"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
-        else:
-            st.info("王者候選名單為空，請先在 Tab4 建立儲備庫。")
-
-        # ══════════════════════════════
-        # 輸出區塊三：今日不需要動
-        # ══════════════════════════════
-        st.markdown("#### ✅ 今日不需要動")
-        st.markdown(
-            "<div style='color:#7fb3d3;font-size:.88rem;padding:8px 0;'>"
-            "持倉中無異常警示的標的，維持原計畫，不需要任何操作。<br>"
-            "Rex Priority Score 排名後段的標的，今天不需要花時間研究。"
-            "</div>",
-            unsafe_allow_html=True
-        )
-
-        st.markdown("---")
-        st.caption(f"更新時間：{datetime.now(ZoneInfo('Asia/Taipei')).strftime('%H:%M')}　｜　"
-                   f"Rex Priority Score 快取30分鐘，市場環境即時計算")
-
-    except Exception as _ab_err:
-        st.error(f"今日行動建議計算中，請稍候... ({_ab_err})")
