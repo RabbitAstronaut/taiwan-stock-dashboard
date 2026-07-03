@@ -10272,10 +10272,13 @@ with tab9:
     def fetch_twse_dividend():
         """
         從 TWSE 抓取除權息預告資料。
-        嘗試多個端點，回傳 DataFrame。
+        TWT49U = 當日除權息（今天實際發生）
+        正確來源應使用預告資料或直接解析當日+未來資料。
+        策略：抓當月+下個月的除權息公告，篩選未來21天。
         """
         import requests as _req
         import pandas as _pd
+        from datetime import datetime as _dt2
 
         _headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0",
@@ -10286,58 +10289,80 @@ with tab9:
         _rows = []
         _debug = {"status": [], "fields": [], "sample": []}
 
-        # 端點1：TWSE 上市除權息預告
-        _urls_twse = [
-            "https://www.twse.com.tw/rwd/zh/exRight/TWT49U?response=json",
-            "https://www.twse.com.tw/exchangeReport/TWT49U?response=json&_=1",
-        ]
+        # 抓當月 + 下2個月的資料（確保涵蓋未來21天）
+        _now = _dt2.now()
+        _months_to_fetch = []
+        for _offset in range(3):
+            _m = _now.month + _offset
+            _y = _now.year + (_m - 1) // 12
+            _m = ((_m - 1) % 12) + 1
+            _months_to_fetch.append((_y, _m))
 
-        for _url in _urls_twse:
+        for _y, _m in _months_to_fetch:
+            # TWSE 月份除權息預告
+            _url = (
+                f"https://www.twse.com.tw/rwd/zh/exRight/TWT49U"
+                f"?response=json&strDate={_y}{str(_m).zfill(2)}01"
+                f"&endDate={_y}{str(_m).zfill(2)}31"
+            )
             try:
                 _r = _req.get(_url, headers=_headers, timeout=12)
-                _debug["status"].append(f"TWSE {_r.status_code}")
+                _debug["status"].append(f"TWSE {_y}/{_m} {_r.status_code}")
                 if _r.status_code == 200 and _r.text.strip().startswith("{"):
                     _data = _r.json()
                     _fields = _data.get("fields", [])
-                    _debug["fields"] = _fields
-                    _debug["sample"] = _data.get("data", [])[:2]
-                    for _row in _data.get("data", []):
-                        _d = dict(zip(_fields, _row))
-                        # 嘗試多種欄位名稱
-                        _sid = str(
-                            _d.get("股票代號") or _d.get("Code") or _d.get("代號") or ""
-                        ).strip()
-                        _name = str(
-                            _d.get("股票名稱") or _d.get("Name") or _d.get("名稱") or ""
-                        ).strip()
-                        # 除息/除權息日期
-                        _edate = str(
-                            _d.get("除息日期") or _d.get("除權息日期") or
-                            _d.get("最後過戶日") or _d.get("ExRightDate") or ""
-                        ).strip()
-                        # 現金股利
-                        _cash = str(
-                            _d.get("現金股利") or _d.get("息值(元)") or
-                            _d.get("現金股息") or _d.get("CashDividend") or "0"
-                        ).strip()
-                        # 股票股利
-                        _stock = str(
-                            _d.get("股票股利") or _d.get("權值(元)") or
-                            _d.get("StockDividend") or "0"
-                        ).strip()
+                    if not _debug["fields"]:
+                        _debug["fields"] = _fields
+                    _raw_data = _data.get("data", [])
+                    if not _debug["sample"] and _raw_data:
+                        _debug["sample"] = _raw_data[:2]
+
+                    for _row in _raw_data:
+                        # 欄位：資料日期(0), 股票代號(1), 股票名稱(2),
+                        #       除權息前收盤價(3), 除權息參考價(4), 權值+息值(5),
+                        #       權/息(6), ...
+                        if len(_row) < 7:
+                            continue
+                        _date_str = str(_row[0]).strip()   # 115年07月03日
+                        _sid      = str(_row[1]).strip()
+                        _name     = str(_row[2]).strip()
+                        _amount   = str(_row[5]).strip()   # 息值
+                        _type     = str(_row[6]).strip()   # 息/權/權息
+
+                        # 解析日期（民國年）
+                        try:
+                            import re as _re
+                            _m_match = _re.match(r'(\d+)年(\d+)月(\d+)日', _date_str)
+                            if _m_match:
+                                _ry, _rm, _rd = int(_m_match.group(1)), int(_m_match.group(2)), int(_m_match.group(3))
+                                _edate = _pd.Timestamp(f"{_ry+1911}-{str(_rm).zfill(2)}-{str(_rd).zfill(2)}")
+                            else:
+                                continue
+                        except Exception:
+                            continue
+
+                        # 判斷現金股利 vs 股票股利
+                        try:
+                            _amt_val = float(_amount.replace(",", "") or 0)
+                        except Exception:
+                            _amt_val = 0.0
+
+                        _cash_div  = _amt_val if "息" in _type else 0.0
+                        _stock_div = _amt_val if "權" in _type else 0.0
+
                         if _sid:
                             _rows.append({
-                                "stock_id": _sid, "name": _name,
-                                "ex_date_str": _edate,
-                                "cash_div_str": _cash, "stock_div_str": _stock,
-                                "market": "上市"
+                                "stock_id":  _sid,
+                                "name":      _name,
+                                "ex_date":   _edate,
+                                "cash_div":  _cash_div,
+                                "stock_div": _stock_div,
+                                "market":    "上市"
                             })
-                    if _rows:
-                        break
             except Exception as _e:
-                _debug["status"].append(f"錯誤:{_e}")
+                _debug["status"].append(f"TWSE {_y}/{_m} 錯誤:{str(_e)[:30]}")
 
-        # 端點2：TPEX 上櫃
+        # TPEX 上櫃除權息預告
         try:
             _url_otc = "https://www.tpex.org.tw/web/stock/exright/dailyquo/exDailyQ_result.php?l=zh-tw&o=json"
             _r2 = _req.get(_url_otc, headers=_headers, timeout=12)
@@ -10345,20 +10370,35 @@ with tab9:
             if _r2.status_code == 200:
                 _data2 = _r2.json()
                 _aa = _data2.get("aaData", [])
-                if _aa:
+                if _aa and not _debug["sample"]:
                     _debug["sample"].extend(_aa[:1])
-                for _row in _aa:
-                    if len(_row) >= 5:
+                for _row2 in _aa:
+                    if len(_row2) < 5:
+                        continue
+                    # OTC格式：[代號, 名稱, 除息日(民國), 現金股利, 股票股利, ...]
+                    try:
+                        import re as _re2
+                        _ds = str(_row2[2]).strip()
+                        _mm = _re2.match(r'(\d+)/(\d+)/(\d+)', _ds)
+                        if _mm:
+                            _ry2 = int(_mm.group(1)) + 1911
+                            _edate2 = _pd.Timestamp(f"{_ry2}-{_mm.group(2).zfill(2)}-{_mm.group(3).zfill(2)}")
+                        else:
+                            continue
+                        _cash2  = float(str(_row2[3]).replace(",","") or 0)
+                        _stock2 = float(str(_row2[4]).replace(",","") or 0)
                         _rows.append({
-                            "stock_id": str(_row[0]).strip(),
-                            "name":     str(_row[1]).strip(),
-                            "ex_date_str":   str(_row[2]).strip(),
-                            "cash_div_str":  str(_row[3]).strip(),
-                            "stock_div_str": str(_row[4]).strip(),
-                            "market": "上櫃"
+                            "stock_id":  str(_row2[0]).strip(),
+                            "name":      str(_row2[1]).strip(),
+                            "ex_date":   _edate2,
+                            "cash_div":  _cash2,
+                            "stock_div": _stock2,
+                            "market":    "上櫃"
                         })
+                    except Exception:
+                        continue
         except Exception as _e2:
-            _debug["status"].append(f"OTC錯誤:{_e2}")
+            _debug["status"].append(f"OTC 錯誤:{str(_e2)[:30]}")
 
         # 存 debug
         try:
@@ -10373,35 +10413,7 @@ with tab9:
 
         df = _pd.DataFrame(_rows)
         df["stock_id"] = df["stock_id"].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
-
-        def _parse_num(s):
-            try:
-                return float(str(s).replace(",", "").replace("%", "").replace("--", "0").replace("－", "0").strip() or 0)
-            except Exception:
-                return None
-
-        df["cash_div"]  = df["cash_div_str"].apply(_parse_num)
-        df["stock_div"] = df["stock_div_str"].apply(_parse_num)
-
-        def _parse_date(s):
-            s = str(s).strip()
-            if not s or s in ("--", "N/A", ""):
-                return None
-            try:
-                parts = s.replace("-", "/").split("/")
-                if len(parts) == 3:
-                    y = int(parts[0])
-                    if y < 200:  # 民國年
-                        y += 1911
-                    return _pd.Timestamp(f"{y}-{parts[1].zfill(2)}-{parts[2].zfill(2)}")
-                return _pd.to_datetime(s, errors="coerce")
-            except Exception:
-                return None
-
-        df["ex_date"] = df["ex_date_str"].apply(_parse_date)
-        df = df.dropna(subset=["ex_date"])
         df = df.drop_duplicates(subset=["stock_id", "ex_date"])
-
         return df[["stock_id", "name", "ex_date", "cash_div", "stock_div", "market"]].copy()
 
 
