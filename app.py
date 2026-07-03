@@ -3147,7 +3147,7 @@ st.markdown(f"""
 # ══════════════════════════════════════════════════════════════
 # ▌ 三大分頁
 # ══════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "📡 大盤預警",
     "🌱 產業趨勢雷達",
     "🌡️ 王者名單溫度",
@@ -3156,6 +3156,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🔭 新星池",
     "📊 指揮中心",
     "💰 ETF退休計畫",
+    "💰 除權息精兵榜",
 ])
 
 # ══════════════════════════════════════════════════════════════
@@ -10252,3 +10253,321 @@ with tab8:
 # ──────────────────────────────────────────────────────────────
 
 # ──────────────────────────────────────────────────────────────
+
+# ──────────────────────────────────────────────────────────────
+# ▌ TAB 9：除權息精兵榜
+# ──────────────────────────────────────────────────────────────
+with tab9:
+    st.markdown("<div class='sec-title'>🎯 除權息精兵榜</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>未來三週、現金殖利率 4% 以上標的，"
+        "套用精兵評分排序。殖利率高不等於好標的，精兵總分才是關鍵。</div>",
+        unsafe_allow_html=True
+    )
+
+    DIVIDEND_LOOKAHEAD_DAYS = 21
+    MIN_CASH_DIVIDEND_YIELD = 4.0
+
+    @st.cache_data(ttl=1800, show_spinner=False)
+    def fetch_twse_dividend():
+        """
+        從 TWSE 抓取除權息預告資料（TWT49U）。
+        回傳 DataFrame，欄位：stock_id, name, ex_date, cash_div, stock_div
+        失敗時回傳空 DataFrame。
+        """
+        import requests as _req
+        import pandas as _pd
+        from datetime import datetime as _dt
+
+        _headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Referer": "https://www.twse.com.tw/",
+        }
+
+        # TWSE 除權息預告（上市）
+        _url = "https://www.twse.com.tw/rwd/zh/exRight/TWT49U?response=json"
+        _rows = []
+        try:
+            _r = _req.get(_url, headers=_headers, timeout=10)
+            if _r.status_code == 200:
+                _data = _r.json()
+                _fields = _data.get("fields", [])
+                for _row in _data.get("data", []):
+                    _d = dict(zip(_fields, _row))
+                    # 欄位對應：股票代號、名稱、除息日期、現金股利、股票股利
+                    _sid   = str(_d.get("股票代號", _d.get("Code", ""))).strip()
+                    _name  = str(_d.get("股票名稱", _d.get("Name", ""))).strip()
+                    _edate = str(_d.get("除息日期", _d.get("除權息日期", ""))).strip()
+                    _cash  = str(_d.get("現金股利", _d.get("息值(元)", "0"))).strip()
+                    _stock = str(_d.get("股票股利", _d.get("權值(元)", "0"))).strip()
+                    if _sid:
+                        _rows.append({
+                            "stock_id": _sid, "name": _name,
+                            "ex_date_str": _edate,
+                            "cash_div_str": _cash, "stock_div_str": _stock,
+                            "market": "上市"
+                        })
+        except Exception:
+            pass
+
+        # TWSE OTC 除權息預告（上櫃）
+        _url_otc = "https://www.tpex.org.tw/web/stock/exright/dailyquo/exDailyQ_result.php?l=zh-tw&o=json"
+        try:
+            _r2 = _req.get(_url_otc, headers=_headers, timeout=10)
+            if _r2.status_code == 200:
+                _data2 = _r2.json()
+                for _row in _data2.get("aaData", []):
+                    # OTC格式：[代號, 名稱, 除息日, 現金股利, 股票股利, ...]
+                    if len(_row) >= 5:
+                        _rows.append({
+                            "stock_id": str(_row[0]).strip(),
+                            "name": str(_row[1]).strip(),
+                            "ex_date_str": str(_row[2]).strip(),
+                            "cash_div_str": str(_row[3]).strip(),
+                            "stock_div_str": str(_row[4]).strip(),
+                            "market": "上櫃"
+                        })
+        except Exception:
+            pass
+
+        if not _rows:
+            return _pd.DataFrame()
+
+        df = _pd.DataFrame(_rows)
+
+        # 清理股票代號（不含前導零問題，台股代號4碼）
+        df["stock_id"] = df["stock_id"].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
+
+        # 清理現金股利
+        def _parse_num(s):
+            try:
+                return float(str(s).replace(",", "").replace("%", "").replace("--", "0").strip() or 0)
+            except Exception:
+                return None
+
+        df["cash_div"]  = df["cash_div_str"].apply(_parse_num)
+        df["stock_div"] = df["stock_div_str"].apply(_parse_num)
+
+        # 清理日期（民國年 → 西元年）
+        def _parse_twse_date(s):
+            s = str(s).strip()
+            if not s or s in ("--", "N/A", ""):
+                return None
+            try:
+                # 民國格式 113/07/15 → 2024/07/15
+                parts = s.replace("-", "/").split("/")
+                if len(parts) == 3 and int(parts[0]) < 200:
+                    y = int(parts[0]) + 1911
+                    return _pd.Timestamp(f"{y}/{parts[1]}/{parts[2]}")
+                return _pd.to_datetime(s, errors="coerce")
+            except Exception:
+                return None
+
+        df["ex_date"] = df["ex_date_str"].apply(_parse_twse_date)
+
+        # 去除日期解析失敗
+        df = df.dropna(subset=["ex_date"])
+
+        # 去重（股票代號＋除息日期）
+        df = df.drop_duplicates(subset=["stock_id", "ex_date"])
+
+        return df[["stock_id", "name", "ex_date", "cash_div", "stock_div", "market"]].copy()
+
+
+    def get_stock_price_for_dividend(sid):
+        """取得股票現價，優先用prices CSV，備援yfinance"""
+        try:
+            df_p, ok_p = load_price_csv(sid)
+            if ok_p and not df_p.empty:
+                price = float(pd.to_numeric(df_p["Close"], errors="coerce").dropna().iloc[-1])
+                price_date = str(df_p.index[-1])[:10] if hasattr(df_p.index[-1], 'strftime') else str(df_p.index[-1])[:10]
+                if price > 0:
+                    return price, price_date
+        except Exception:
+            pass
+        return None, None
+
+
+    # ── 重新整理按鈕（只清Tab9快取）
+    _d9_col1, _d9_col2 = st.columns([2, 6])
+    with _d9_col1:
+        if st.button("🔄 重新整理", key="tab9_refresh"):
+            fetch_twse_dividend.clear()
+            st.rerun()
+
+    # ── 計算日期範圍
+    _today = datetime.now(ZoneInfo("Asia/Taipei")).date()
+    _end_date = _today + timedelta(days=DIVIDEND_LOOKAHEAD_DAYS)
+    _update_time = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y/%m/%d %H:%M")
+
+    st.markdown(
+        f"<div class='infobox'>"
+        f"查詢期間：{_today.strftime('%Y/%m/%d')}～{_end_date.strftime('%Y/%m/%d')}　"
+        f"最低現金殖利率：{MIN_CASH_DIVIDEND_YIELD:.2f}%　"
+        f"更新時間：{_update_time}"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 抓取除權息資料
+    with st.spinner("載入除權息資料中..."):
+        df_div = fetch_twse_dividend()
+
+    if df_div.empty:
+        st.warning("目前無法取得除權息資料，請稍後重新整理。")
+        st.stop()
+
+    # ── 篩選未來21天內
+    _today_ts = pd.Timestamp(_today)
+    _end_ts   = pd.Timestamp(_end_date)
+    df_div = df_div[
+        (df_div["ex_date"] >= _today_ts) &
+        (df_div["ex_date"] <= _end_ts)
+    ].copy()
+
+    if df_div.empty:
+        st.info(f"目前沒有找到未來 {DIVIDEND_LOOKAHEAD_DAYS} 天內的除權息標的。")
+    else:
+        # ── 篩選有現金股利
+        df_div = df_div[df_div["cash_div"].notna() & (df_div["cash_div"] > 0)].copy()
+
+        # ── 取得股價並計算殖利率
+        _qualified = []   # 符合條件
+        _missing   = []   # 資料不足
+
+        for _, _row in df_div.iterrows():
+            _sid   = _row["stock_id"]
+            _price, _pdate = get_stock_price_for_dividend(_sid)
+
+            if _price is None or _price <= 0:
+                _missing.append({
+                    "stock_id": _sid, "name": _row["name"],
+                    "ex_date": _row["ex_date"], "cash_div": _row["cash_div"],
+                    "缺少": "股價"
+                })
+                continue
+
+            _yield = _row["cash_div"] / _price * 100
+
+            if _yield < MIN_CASH_DIVIDEND_YIELD:
+                continue  # 殖利率不足，不進榜
+
+            # ── 套用既有精兵評分（從rex_scores.json讀取）
+            _rex_score = None
+            _rex_class = None
+            try:
+                import json as _jj, os as _oo
+                _rpath = _oo.path.join("data", "rex_scores.json")
+                if _oo.path.exists(_rpath):
+                    with open(_rpath, "r", encoding="utf-8") as _f:
+                        _rcache = _jj.load(_f)
+                    for _rs in _rcache.get("scores", []):
+                        if _rs["stock_id"] == _sid:
+                            _rex_score = _rs.get("base_total", 0)
+                            _rex_class = _rs.get("stock_class", "—")
+                            break
+            except Exception:
+                pass
+
+            _days_left = (_row["ex_date"].date() - _today).days
+
+            _qualified.append({
+                "stock_id":   _sid,
+                "name":       _row["name"],
+                "market":     _row.get("market", "—"),
+                "ex_date":    _row["ex_date"],
+                "days_left":  _days_left,
+                "cash_div":   _row["cash_div"],
+                "stock_div":  _row.get("stock_div", 0) or 0,
+                "price":      _price,
+                "price_date": _pdate,
+                "yield_pct":  round(_yield, 2),
+                "rex_score":  _rex_score,
+                "rex_class":  _rex_class,
+            })
+
+        # ── 顯示統計
+        st.markdown(
+            f"<div style='font-size:.88rem;color:#9fb8d4;margin:8px 0;'>"
+            f"符合條件：<b style='color:#00e676;'>{len(_qualified)} 檔</b>　"
+            f"資料不足：<b style='color:#ff9800;'>{len(_missing)} 檔</b>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
+        if not _qualified:
+            st.info(f"目前沒有找到未來 {DIVIDEND_LOOKAHEAD_DAYS} 天內、現金殖利率達 {MIN_CASH_DIVIDEND_YIELD:.2f}% 以上的標的。")
+        else:
+            # ── 排序：精兵總分↓ → 殖利率↓ → 日期↑ → 代號↑
+            df_q = pd.DataFrame(_qualified)
+            df_q["_sort_score"] = df_q["rex_score"].fillna(-1)
+            df_q = df_q.sort_values(
+                ["_sort_score", "yield_pct", "ex_date", "stock_id"],
+                ascending=[False, False, True, True]
+            ).reset_index(drop=True)
+            df_q["排名"] = df_q.index + 1
+
+            # ── 渲染榜單
+            st.markdown("### 🏆 精兵榜單")
+            for _, _r in df_q.iterrows():
+                _score_str = f"{int(_r['rex_score'])}/100" if _r["rex_score"] is not None else "—"
+                _class_str = _r["rex_class"] or "—"
+                _cls_icon  = {"King": "👑", "Prince": "🛡", "Hunter": "⚔"}.get(_class_str, "")
+                _cls_color = {"King": "#ffd700", "Prince": "#a8d8ea", "Hunter": "#ff9f7f"}.get(_class_str, "#9fb8d4")
+                _yield_color = "#ff5252" if _r["yield_pct"] >= 6 else "#fbbf24" if _r["yield_pct"] >= 4 else "#e8f4fd"
+                _days_str  = f"今天" if _r["days_left"] == 0 else f"{_r['days_left']} 天後"
+                _stock_div_str = f"　股利+{_r['stock_div']:.2f}元" if _r["stock_div"] > 0 else ""
+
+                st.markdown(
+                    f"<div style='border:1px solid #1e3a5f;border-radius:8px;"
+                    f"padding:10px 16px;margin:6px 0;background:rgba(255,255,255,0.02);'>"
+                    f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
+                    f"<span style='font-size:1rem;font-weight:700;color:#e8f4fd;'>"
+                    f"#{int(_r['排名'])}　{_r['stock_id']} {_r['name']}"
+                    f"<span style='color:#7fb3d3;font-size:.8rem;font-weight:400;'>　{_r['market']}</span>"
+                    f"</span>"
+                    f"<span style='color:{_yield_color};font-size:1.1rem;font-weight:700;'>"
+                    f"{_r['yield_pct']:.2f}%</span>"
+                    f"</div>"
+                    f"<div style='display:flex;gap:20px;font-size:.82rem;color:#9fb8d4;margin-top:6px;flex-wrap:wrap;'>"
+                    f"<span>📅 除息 {_r['ex_date'].strftime('%m/%d')}（{_days_str}）</span>"
+                    f"<span>💰 現金股利 {_r['cash_div']:.2f} 元{_stock_div_str}</span>"
+                    f"<span>📈 股價 {_r['price']:.1f}（{_r['price_date']}）</span>"
+                    f"<span style='color:{_cls_color};'>{_cls_icon} {_class_str}　精兵分 {_score_str}</span>"
+                    f"</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+            # ── 表格下載
+            _df_export = df_q[[
+                "排名", "stock_id", "name", "market",
+                "ex_date", "days_left", "cash_div", "stock_div",
+                "price", "yield_pct", "rex_score", "rex_class", "price_date"
+            ]].copy()
+            _df_export.columns = [
+                "排名", "代號", "名稱", "市場", "除息日期", "距今天數",
+                "現金股利", "股票股利", "股價", "殖利率%", "精兵總分", "精兵等級", "股價日期"
+            ]
+            _df_export["除息日期"] = _df_export["除息日期"].dt.strftime("%Y/%m/%d")
+            import io as _io9
+            _csv9 = _io9.StringIO()
+            _df_export.to_csv(_csv9, index=False, encoding="utf-8-sig")
+            st.download_button(
+                "⬇️ 下載榜單 CSV", data=_csv9.getvalue().encode("utf-8-sig"),
+                file_name=f"除權息精兵榜_{_today.strftime('%Y%m%d')}.csv",
+                mime="text/csv", key="dl_div9"
+            )
+
+        # ── 資料不足清單
+        if _missing:
+            with st.expander(f"⚠️ 資料不足（共 {len(_missing)} 檔）", expanded=False):
+                for _m in _missing:
+                    st.markdown(
+                        f"<div style='font-size:.82rem;color:#ff9800;padding:3px 0;'>"
+                        f"{_m['stock_id']} {_m['name']}　"
+                        f"除息 {pd.Timestamp(_m['ex_date']).strftime('%m/%d')}　"
+                        f"現金股利 {_m['cash_div']:.2f}　"
+                        f"缺少：{_m['缺少']}</div>",
+                        unsafe_allow_html=True
+                    )
