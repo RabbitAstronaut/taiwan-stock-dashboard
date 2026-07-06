@@ -10467,9 +10467,9 @@ with tab9:
                 _type_color = {"息": "#00e676", "權息": "#fbbf24", "權": "#9fb8d4"}.get(r["type"], "#9fb8d4")
                 _yield_str  = f"{r['yield_pct']:.2f}%" if r["yield_pct"] else "—"
                 _yield_color= "#ff5252" if r["yield_pct"] and r["yield_pct"]>=7 else                               "#fbbf24" if r["yield_pct"] and r["yield_pct"]>=4 else "#e8f4fd"
-                _score_str  = f"{int(r['tech_score'])}/10" if r["tech_score"] is not None else "—"
-                _score_color= "#00e676" if r["tech_score"] and r["tech_score"]>=7 else                               "#fbbf24" if r["tech_score"] and r["tech_score"]>=4 else "#9fb8d4"
-                _stock_str  = f"+股利{r['stock_div']:.4f}" if r["stock_div"] > 0 else ""
+                _ts = r["tech_score"] if (r["tech_score"] is not None and str(r["tech_score"]) != "nan") else None
+                _score_str  = f"{int(_ts)}/10" if _ts is not None else "—"
+                _score_color= "#00e676" if _ts and _ts>=7 else "#fbbf24" if _ts and _ts>=4 else "#9fb8d4"
                 _days_str   = "今天" if r["days_left"]==0 else f"{r['days_left']}天後"
                 _price_str  = f"{r['price']:.1f}（{r['price_date']}）" if r["price"] else "—"
                 st.markdown(
