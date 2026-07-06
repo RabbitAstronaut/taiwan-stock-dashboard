@@ -1,0 +1,37 @@
+name: Daily Dividend Data
+
+on:
+  schedule:
+    - cron: '0 10 * * 1-5'  # UTC 10:00 = 台灣時間 18:00（週一~週五盤後）
+  workflow_dispatch:
+
+jobs:
+  fetch-dividend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch and push dividend data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git reset --hard origin/main
+          python fetch_dividend.py
+          git add data/dividend_data.json
+          git diff --cached --quiet || git commit -m "📊 自動更新除權息資料（$(date '+%Y-%m-%d')）"
+          git push

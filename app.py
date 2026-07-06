@@ -10268,131 +10268,33 @@ with tab9:
     DIVIDEND_LOOKAHEAD_DAYS = 21
     MIN_CASH_DIVIDEND_YIELD = 4.0
 
-    @st.cache_data(ttl=1800, show_spinner=False)
-    def fetch_twse_dividend():
-        """從 TWSE/TPEX 抓取除權息預告，回傳 DataFrame"""
-        import requests as _req
-        import pandas as _pd
-        import re as _re
-        from datetime import date as _date2, timedelta as _td2
-
-        _headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0",
-            "Referer": "https://www.twse.com.tw/",
-        }
-
-        _rows = []
-        _debug = {"status": [], "fields": [], "sample": []}
-
-        # 日期範圍
-        _td = _date2.today()
-        _ed = _td + _td2(days=DIVIDEND_LOOKAHEAD_DAYS)
-        _sd_str = _td.strftime("%Y%m%d")
-        _ed_str = _ed.strftime("%Y%m%d")
-
-        def _parse_roc_date(s):
-            """民國年字串 → pd.Timestamp，失敗回 None"""
-            s = str(s).strip()
-            m = _re.match(r'(\d+)年(\d+)月(\d+)日', s)
-            if m:
-                try:
-                    return _pd.Timestamp(f"{int(m.group(1))+1911}-{m.group(2).zfill(2)}-{m.group(3).zfill(2)}")
-                except Exception:
-                    return None
-            return None
-
-        # TWSE 上市：帶日期參數 + fallback 不帶日期
-        for _url in [
-            f"https://www.twse.com.tw/rwd/zh/exRight/TWT49U?response=json&strDate={_sd_str}&endDate={_ed_str}",
-            "https://www.twse.com.tw/rwd/zh/exRight/TWT49U?response=json",
-        ]:
-            try:
-                _r = _req.get(_url, headers=_headers, timeout=12)
-                _debug["status"].append(f"TWSE {_r.status_code}")
-                if _r.status_code != 200:
-                    continue
-                _data = _r.json()
-                _fields = _data.get("fields", [])
-                _raw = _data.get("data", [])
-                if not _debug["fields"]:
-                    _debug["fields"] = _fields
-                if not _debug["sample"] and _raw:
-                    _debug["sample"] = _raw[:2]
-                for _row in _raw:
-                    if len(_row) < 7:
-                        continue
-                    _edate = _parse_roc_date(_row[0])
-                    if _edate is None:
-                        continue
-                    _sid    = str(_row[1]).strip()
-                    _name   = str(_row[2]).strip()
-                    _amount = str(_row[5]).strip()
-                    _type   = str(_row[6]).strip()
-                    try:
-                        _amt = float(_amount.replace(",", "") or 0)
-                    except Exception:
-                        _amt = 0.0
-                    _rows.append({
-                        "stock_id":  _sid,
-                        "name":      _name,
-                        "ex_date":   _edate,
-                        "cash_div":  _amt if "息" in _type else 0.0,
-                        "stock_div": _amt if "權" in _type else 0.0,
-                        "market":    "上市",
-                    })
-                if _rows:
-                    break
-            except Exception as _e:
-                _debug["status"].append(f"TWSE錯誤:{str(_e)[:40]}")
-
-        # TPEX 上櫃
+    @st.cache_data(ttl=300, show_spinner=False)
+    def load_dividend_data():
+        """
+        讀取 data/dividend_data.json（由 fetch_dividend.py 建立和維護）。
+        第一次需手動執行：python fetch_dividend.py --init
+        之後每天由 daily_dividend.yml 自動更新。
+        """
+        import json as _jj, os as _oo, pandas as _pd
+        _path = _oo.path.join("data", "dividend_data.json")
+        if not _oo.path.exists(_path):
+            return _pd.DataFrame(), None
         try:
-            _r2 = _req.get(
-                "https://www.tpex.org.tw/web/stock/exright/dailyquo/exDailyQ_result.php?l=zh-tw&o=json",
-                headers=_headers, timeout=12
-            )
-            _debug["status"].append(f"OTC {_r2.status_code}")
-            if _r2.status_code == 200:
-                _aa = _r2.json().get("aaData", [])
-                if _aa and not _debug["sample"]:
-                    _debug["sample"].extend(_aa[:1])
-                for _row2 in _aa:
-                    if len(_row2) < 5:
-                        continue
-                    try:
-                        # OTC日期格式：115/07/03
-                        _parts = str(_row2[2]).strip().split("/")
-                        if len(_parts) == 3:
-                            _edate2 = _pd.Timestamp(f"{int(_parts[0])+1911}-{_parts[1].zfill(2)}-{_parts[2].zfill(2)}")
-                        else:
-                            continue
-                        _rows.append({
-                            "stock_id":  str(_row2[0]).strip(),
-                            "name":      str(_row2[1]).strip(),
-                            "ex_date":   _edate2,
-                            "cash_div":  float(str(_row2[3]).replace(",","") or 0),
-                            "stock_div": float(str(_row2[4]).replace(",","") or 0),
-                            "market":    "上櫃",
-                        })
-                    except Exception:
-                        continue
-        except Exception as _e2:
-            _debug["status"].append(f"OTC錯誤:{str(_e2)[:40]}")
-
-        try:
-            import streamlit as _st2
-            _st2.session_state["_div9_debug"] = _debug
-            _st2.session_state["_div9_row_count"] = len(_rows)
-        except Exception:
-            pass
-
-        if not _rows:
-            return _pd.DataFrame()
-
-        df = _pd.DataFrame(_rows)
-        df["stock_id"] = df["stock_id"].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
-        df = df.drop_duplicates(subset=["stock_id", "ex_date"])
-        return df[["stock_id", "name", "ex_date", "cash_div", "stock_div", "market"]].copy()
+            with open(_path, "r", encoding="utf-8") as _f:
+                _d = _jj.load(_f)
+            _rows = _d.get("data", [])
+            _updated = _d.get("updated_at", "—")
+            if not _rows:
+                return _pd.DataFrame(), _updated
+            df = _pd.DataFrame(_rows)
+            df["stock_id"] = df["stock_id"].astype(str).str.strip()
+            df["ex_date"]  = _pd.to_datetime(df["ex_date"], errors="coerce")
+            df["cash_div"] = _pd.to_numeric(df["cash_div"], errors="coerce").fillna(0)
+            df["stock_div"]= _pd.to_numeric(df["stock_div"], errors="coerce").fillna(0)
+            df = df.dropna(subset=["ex_date"])
+            return df, _updated
+        except Exception as _e:
+            return _pd.DataFrame(), None
 
 
     def get_stock_price_for_dividend(sid):
@@ -10413,8 +10315,12 @@ with tab9:
     _d9_col1, _d9_col2 = st.columns([2, 6])
     with _d9_col1:
         if st.button("🔄 重新整理", key="tab9_refresh"):
-            fetch_twse_dividend.clear()
+            load_dividend_data.clear()
             st.rerun()
+
+    # ── 載入資料
+    with st.spinner("載入除權息資料中..."):
+        df_div, _data_updated = load_dividend_data()
 
     # ── 計算日期範圍
     _today = datetime.now(ZoneInfo("Asia/Taipei")).date()
@@ -10425,94 +10331,85 @@ with tab9:
         f"<div class='infobox'>"
         f"查詢期間：{_today.strftime('%Y/%m/%d')}～{_end_date.strftime('%Y/%m/%d')}　"
         f"最低現金殖利率：{MIN_CASH_DIVIDEND_YIELD:.2f}%　"
-        f"更新時間：{_update_time}"
+        f"資料更新：{_data_updated or '—'}　"
+        f"頁面時間：{_update_time}"
         f"</div>",
         unsafe_allow_html=True
     )
 
-    # ── 抓取除權息資料
-    with st.spinner("載入除權息資料中..."):
-        df_div = fetch_twse_dividend()
-
     if df_div.empty:
-        st.warning("目前無法取得除權息資料，請稍後重新整理。")
-        # Debug 資訊
-        with st.expander("🔧 Debug 資訊（開發用）", expanded=True):
-            _dbg = st.session_state.get("_div9_debug", {})
-            st.write("API 狀態：", _dbg.get("status", []))
-            st.write("欄位：", _dbg.get("fields", []))
-            st.write("樣本資料：", _dbg.get("sample", []))
-            st.write("總筆數：", st.session_state.get("_div9_row_count", 0))
-        st.stop()
-
-    # ── 篩選未來21天內
-    _today_ts = pd.Timestamp(_today)
-    _end_ts   = pd.Timestamp(_end_date)
-    df_div = df_div[
-        (df_div["ex_date"] >= _today_ts) &
-        (df_div["ex_date"] <= _end_ts)
-    ].copy()
-
-    if df_div.empty:
-        st.info(f"目前沒有找到未來 {DIVIDEND_LOOKAHEAD_DAYS} 天內的除權息標的。")
+        st.warning(
+            "目前無法取得除權息資料。\n\n"
+            "請先在本機執行初始化：\n"
+            "`python fetch_dividend.py --init` 後 push 到 GitHub"
+        )
     else:
-        # ── 篩選有現金股利
-        df_div = df_div[df_div["cash_div"].notna() & (df_div["cash_div"] > 0)].copy()
+        # ── 篩選未來21天內且有現金股利
+        _today_ts = pd.Timestamp(_today)
+        _end_ts   = pd.Timestamp(_end_date)
+        df_div = df_div[
+            (df_div["ex_date"] >= _today_ts) &
+            (df_div["ex_date"] <= _end_ts) &
+            (df_div["cash_div"] > 0)
+        ].copy()
 
-        # ── 取得股價並計算殖利率
-        _qualified = []   # 符合條件
-        _missing   = []   # 資料不足
+        if df_div.empty:
+            st.info(f"目前沒有找到未來 {DIVIDEND_LOOKAHEAD_DAYS} 天內、現金殖利率達 {MIN_CASH_DIVIDEND_YIELD:.2f}% 以上的標的。")
+        else:
+            # ── 取得股價並計算殖利率
+            _qualified = []   # 符合條件
+            _missing   = []   # 資料不足
 
-        for _, _row in df_div.iterrows():
-            _sid   = _row["stock_id"]
-            _price, _pdate = get_stock_price_for_dividend(_sid)
+            for _, _row in df_div.iterrows():
+                _sid   = _row["stock_id"]
+                _price, _pdate = get_stock_price_for_dividend(_sid)
 
-            if _price is None or _price <= 0:
-                _missing.append({
-                    "stock_id": _sid, "name": _row["name"],
-                    "ex_date": _row["ex_date"], "cash_div": _row["cash_div"],
-                    "缺少": "股價"
+                if _price is None or _price <= 0:
+                    _missing.append({
+                        "stock_id": _sid, "name": _row["name"],
+                        "ex_date": _row["ex_date"], "cash_div": _row["cash_div"],
+                        "缺少": "股價"
+                    })
+                    continue
+
+                _yield = _row["cash_div"] / _price * 100
+
+                if _yield < MIN_CASH_DIVIDEND_YIELD:
+                    continue  # 殖利率不足，不進榜
+
+                # ── 套用既有精兵評分（從rex_scores.json讀取）
+                _rex_score = None
+                _rex_class = None
+                try:
+                    import json as _jj, os as _oo
+                    _rpath = _oo.path.join("data", "rex_scores.json")
+                    if _oo.path.exists(_rpath):
+                        with open(_rpath, "r", encoding="utf-8") as _f:
+                            _rcache = _jj.load(_f)
+                        for _rs in _rcache.get("scores", []):
+                            if _rs["stock_id"] == _sid:
+                                _rex_score = _rs.get("base_total", 0)
+                                _rex_class = _rs.get("stock_class", "—")
+                                break
+                except Exception:
+                    pass
+
+                _days_left = (_row["ex_date"].date() - _today).days
+
+                _qualified.append({
+                    "stock_id":   _sid,
+                    "name":       _row["name"],
+                    "market":     _row.get("market", "—"),
+                    "ex_date":    _row["ex_date"],
+                    "days_left":  _days_left,
+                    "cash_div":   _row["cash_div"],
+                    "stock_div":  _row.get("stock_div", 0) or 0,
+                    "price":      _price,
+                    "price_date": _pdate,
+                    "yield_pct":  round(_yield, 2),
+                    "rex_score":  _rex_score,
+                    "rex_class":  _rex_class,
                 })
-                continue
-
-            _yield = _row["cash_div"] / _price * 100
-
-            if _yield < MIN_CASH_DIVIDEND_YIELD:
-                continue  # 殖利率不足，不進榜
-
-            # ── 套用既有精兵評分（從rex_scores.json讀取）
-            _rex_score = None
-            _rex_class = None
-            try:
-                import json as _jj, os as _oo
-                _rpath = _oo.path.join("data", "rex_scores.json")
-                if _oo.path.exists(_rpath):
-                    with open(_rpath, "r", encoding="utf-8") as _f:
-                        _rcache = _jj.load(_f)
-                    for _rs in _rcache.get("scores", []):
-                        if _rs["stock_id"] == _sid:
-                            _rex_score = _rs.get("base_total", 0)
-                            _rex_class = _rs.get("stock_class", "—")
-                            break
-            except Exception:
-                pass
-
-            _days_left = (_row["ex_date"].date() - _today).days
-
-            _qualified.append({
-                "stock_id":   _sid,
-                "name":       _row["name"],
-                "market":     _row.get("market", "—"),
-                "ex_date":    _row["ex_date"],
-                "days_left":  _days_left,
-                "cash_div":   _row["cash_div"],
-                "stock_div":  _row.get("stock_div", 0) or 0,
-                "price":      _price,
-                "price_date": _pdate,
-                "yield_pct":  round(_yield, 2),
-                "rex_score":  _rex_score,
-                "rex_class":  _rex_class,
-            })
 
         # ── 顯示統計
         st.markdown(
