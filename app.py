@@ -10662,22 +10662,22 @@ with tab10:
                 if _eps_df.empty:
                     raise ValueError("無EPS")
                 _eps_df["date"] = pd.to_datetime(_eps_df["date"], errors="coerce")
-                _eps_df = _eps_df.dropna(subset=["date"]).sort_values("date").tail(12)
                 _eps_df["value"] = pd.to_numeric(_eps_df["value"], errors="coerce")
-                # TTM EPS
+                _eps_df = _eps_df.dropna(subset=["date","value"]).sort_values("date").tail(12)
+                # TTM = 滾動4季加總
+                _eps_df = _eps_df.reset_index(drop=True)
                 _eps_df["ttm"] = _eps_df["value"].rolling(4).sum()
-                _quarters = _eps_df["date"].dt.strftime("%Y Q%q") if hasattr(_eps_df["date"].dt, 'quarter') else _eps_df["date"].dt.strftime("%Y-%m")
+                _xlabels = _eps_df["date"].dt.strftime("%Y-Q") + _eps_df["date"].dt.quarter.astype(str)
                 if _PLOTLY_OK:
                     _fig = go.Figure()
-                    _fig.add_bar(x=_eps_df["date"].dt.strftime("%Y-Q%q") if hasattr(_eps_df["date"].dt, "quarter") else _eps_df["date"].astype(str),
-                                 y=_eps_df["value"], name="單季EPS", marker_color="#4fc3f7")
-                    _fig.add_scatter(x=_eps_df["date"].dt.strftime("%Y-Q%q") if hasattr(_eps_df["date"].dt, "quarter") else _eps_df["date"].astype(str),
-                                     y=_eps_df["ttm"], name="TTM EPS", line=dict(color="#ffd54f", width=2))
+                    _fig.add_bar(x=_xlabels, y=_eps_df["value"], name="單季EPS", marker_color="#4fc3f7")
+                    _fig.add_scatter(x=_xlabels, y=_eps_df["ttm"], name="TTM EPS",
+                                     line=dict(color="#ffd54f", width=2), mode="lines+markers")
                     _fig.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                        font_color="#e8f4fd", legend=dict(orientation="h"), margin=dict(l=0,r=0,t=20,b=0))
                     st.plotly_chart(_fig, use_container_width=True)
                 else:
-                    st.line_chart(_eps_df.set_index("date")[["value", "ttm"]])
+                    st.line_chart(_eps_df.set_index("date")[["value","ttm"]])
             except Exception:
                 _no_data_msg("EPS")
 
