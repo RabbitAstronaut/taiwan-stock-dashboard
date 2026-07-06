@@ -10544,60 +10544,150 @@ with tab10:
 
     FINMIND_API = "https://api.finmindtrade.com/api/v4/data"
 
-    # ── 研究清單 session_state 初始化
-    if "rc_watchlist" not in st.session_state:
-        st.session_state["rc_watchlist"] = []
-    if "rc_selected" not in st.session_state:
-        st.session_state["rc_selected"] = None
+    # ── Session State 初始化
+    if "rc_my_research" not in st.session_state:
+        st.session_state["rc_my_research"] = []   # 我的研究 [{id, name}]
+    if "rc_selected_sid" not in st.session_state:
+        st.session_state["rc_selected_sid"] = None
+    if "rc_source" not in st.session_state:
+        st.session_state["rc_source"] = "戰備庫"
 
-    # ══ 左側研究清單 + 右側財報 ══
-    _left, _right = st.columns([1, 3])
+    # ── 讀取各來源清單（唯讀，不修改原始資料）
+    def _get_reserve():
+        return [{"id": r["id"], "name": r.get("name", r["id"])}
+                for r in st.session_state.get("reserve_list", [])]
 
-    with _left:
-        st.markdown("**📋 研究清單**")
+    def _get_king():
+        """從 rex_scores.json 找出 King 類股，與 reserve_list 交叉"""
+        import os as _oo, json as _jj
+        _king_ids = set()
+        try:
+            _path = _oo.path.join("data", "rex_scores.json")
+            if _oo.path.exists(_path):
+                _rs = _jj.load(open(_path, encoding="utf-8"))
+                _king_ids = {r["stock_id"] for r in _rs.get("scores", [])
+                             if r.get("stock_class") == "King"}
+        except Exception:
+            pass
+        # 從 reserve_list 過濾出 King
+        _all = _get_reserve()
+        _kings = [r for r in _all if r["id"] in _king_ids]
+        # 若 reserve_list 沒有但 rex_scores 有，補上
+        _existing = {r["id"] for r in _kings}
+        try:
+            _path = _oo.path.join("data", "rex_scores.json")
+            _rs2 = _jj.load(open(_path, encoding="utf-8"))
+            for _r in _rs2.get("scores", []):
+                if _r.get("stock_class") == "King" and _r["stock_id"] not in _existing:
+                    _kings.append({"id": _r["stock_id"], "name": _r["stock_id"]})
+        except Exception:
+            pass
+        return _kings
 
-        # 加入股票
-        _add_sid = st.text_input("輸入代號", placeholder="如：2330", key="rc_add_input").strip()
-        if st.button("➕ 加入", key="rc_add_btn"):
-            if _add_sid and _add_sid not in st.session_state["rc_watchlist"]:
-                st.session_state["rc_watchlist"].append(_add_sid)
-                st.session_state["rc_selected"] = _add_sid
+    def _get_nova():
+        return [{"id": n["id"], "name": n.get("name", n["id"])}
+                for n in st.session_state.get("nova_pool", [])]
+
+    def _get_my():
+        return st.session_state["rc_my_research"]
+
+    _SOURCE_MAP = {
+        "戰備庫":  _get_reserve,
+        "王者":    _get_king,
+        "新星池":  _get_nova,
+        "我的研究": _get_my,
+    }
+
+    # ── 初始自動選第一檔
+    def _auto_select():
+        for _src in ["戰備庫", "王者", "新星池", "我的研究"]:
+            _lst = _SOURCE_MAP[_src]()
+            if _lst:
+                st.session_state["rc_source"]       = _src
+                st.session_state["rc_selected_sid"] = _lst[0]["id"]
+                return
+
+    if st.session_state["rc_selected_sid"] is None:
+        _auto_select()
+
+    # ══ 三欄版面 ══
+    _col_src, _col_list, _col_dash = st.columns([1, 1.2, 3.8])
+
+    # ════════════════════════════════════════
+    # 左側：研究來源
+    # ════════════════════════════════════════
+    with _col_src:
+        st.markdown("**📂 研究來源**")
+        for _src_name in ["戰備庫", "王者", "新星池", "我的研究"]:
+            _cnt = len(_SOURCE_MAP[_src_name]())
+            _is_active = (st.session_state["rc_source"] == _src_name)
+            _label = f"{'▶ ' if _is_active else ''}{_src_name}（{_cnt}）"
+            if st.button(_label, key=f"rc_src_{_src_name}", use_container_width=True):
+                st.session_state["rc_source"] = _src_name
+                # 自動選第一檔
+                _lst = _SOURCE_MAP[_src_name]()
+                if _lst:
+                    st.session_state["rc_selected_sid"] = _lst[0]["id"]
                 st.rerun()
 
-        st.markdown("---")
+        st.divider()
 
-        # 顯示清單
-        if not st.session_state["rc_watchlist"]:
-            st.caption("尚未加入研究公司。請輸入股票代號，或未來由新星池、戰備庫、王者加入。")
+        # 加入我的研究
+        st.markdown("**➕ 加入我的研究**")
+        _add_id = st.text_input("代號", placeholder="如：2330", key="rc_add_my", label_visibility="collapsed").strip()
+        if st.button("加入", key="rc_add_my_btn", use_container_width=True):
+            if _add_id:
+                _existing_ids = {r["id"] for r in st.session_state["rc_my_research"]}
+                if _add_id not in _existing_ids:
+                    _nm = get_stock_name_map().get(_add_id, _add_id)
+                    st.session_state["rc_my_research"].append({"id": _add_id, "name": _nm})
+                st.session_state["rc_source"] = "我的研究"
+                st.session_state["rc_selected_sid"] = _add_id
+                st.rerun()
+
+    # ════════════════════════════════════════
+    # 中間：研究清單
+    # ════════════════════════════════════════
+    with _col_list:
+        _cur_src  = st.session_state["rc_source"]
+        _cur_list = _SOURCE_MAP[_cur_src]()
+
+        st.markdown(f"**📋 {_cur_src}**")
+
+        # 搜尋框
+        _search = st.text_input("🔍 搜尋", placeholder="代號或名稱", key="rc_search",
+                                label_visibility="collapsed").strip().upper()
+
+        _filtered = [s for s in _cur_list
+                     if not _search or _search in s["id"].upper() or _search in s.get("name","").upper()]
+
+        if not _filtered:
+            if not _cur_list:
+                st.caption(f"{_cur_src} 尚無資料。")
+            else:
+                st.caption("無符合搜尋結果。")
         else:
-            for _s in st.session_state["rc_watchlist"]:
-                _is_sel = (_s == st.session_state["rc_selected"])
-                _bg = "background:rgba(0,120,255,0.25);" if _is_sel else ""
-                if st.button(
-                    f"{'▶ ' if _is_sel else ''}{_s}",
-                    key=f"rc_sel_{_s}",
-                    use_container_width=True
-                ):
-                    st.session_state["rc_selected"] = _s
+            for _item in _filtered:
+                _sid  = _item["id"]
+                _name = _item.get("name", _sid)
+                _is_sel = (_sid == st.session_state["rc_selected_sid"])
+                _btn_label = f"**{_sid}** {_name}" if _is_sel else f"{_sid} {_name}"
+                if st.button(_btn_label, key=f"rc_item_{_cur_src}_{_sid}",
+                             use_container_width=True):
+                    st.session_state["rc_selected_sid"] = _sid
                     st.rerun()
 
-            if st.button("🗑 清空清單", key="rc_clear"):
-                st.session_state["rc_watchlist"] = []
-                st.session_state["rc_selected"] = None
-                st.rerun()
-
-        st.markdown("---")
-        st.caption("未來預留：新星池 / 戰備庫 / 王者 匯入")
-
-    with _right:
-        _sel = st.session_state.get("rc_selected")
+    # ════════════════════════════════════════
+    # 右側：研究 Dashboard
+    # ════════════════════════════════════════
+    with _col_dash:
+        _sel = st.session_state.get("rc_selected_sid")
 
         if not _sel:
             st.markdown(
                 "<div style='text-align:center;padding:60px 20px;color:#7fb3d3;'>"
-                "← 請從左側清單選擇股票，<br>或輸入代號加入研究清單。"
-                "</div>",
-                unsafe_allow_html=True
+                "尚未建立研究清單。<br>請由左側：戰備庫 / 王者 / 新星池 / 我的研究 選擇。"
+                "</div>", unsafe_allow_html=True
             )
         else:
             # ── FinMind 資料抓取
@@ -10617,10 +10707,38 @@ with tab10:
             def _no_data(title, reason="資料不足"):
                 st.markdown(
                     f"<div style='border:1px solid #2a3f5f;border-radius:6px;"
-                    f"padding:12px;text-align:center;color:#7fb3d3;margin:4px 0;'>"
+                    f"padding:10px;text-align:center;color:#7fb3d3;margin:4px 0;font-size:.85rem;'>"
                     f"📭 <b>{title}</b>：{reason}</div>",
                     unsafe_allow_html=True
                 )
+
+            # 標題 + 操作
+            _sel_name = get_stock_name_map().get(_sel, _sel)
+            st.markdown(
+                f"<div style='background:rgba(0,100,200,0.15);border-radius:8px;"
+                f"padding:10px 16px;margin-bottom:8px;'>"
+                f"<b style='font-size:1.05rem;color:#e8f4fd;'>📊 {_sel} {_sel_name}</b>"
+                f"<span style='color:#7fb3d3;font-size:.78rem;margin-left:10px;'>"
+                f"FinMind　{datetime.now(ZoneInfo('Asia/Taipei')).strftime('%Y/%m/%d')}"
+                f"</span></div>",
+                unsafe_allow_html=True
+            )
+
+            _bc = st.columns(5)
+            with _bc[0]:
+                if st.button("➕ 戰備庫", key=f"rc_res_{_sel}"): st.toast("功能開發中", icon="🚧")
+            with _bc[1]:
+                if st.button("👑 王者",   key=f"rc_king_{_sel}"): st.toast("功能開發中", icon="🚧")
+            with _bc[2]:
+                if st.button("📡 監控",   key=f"rc_watch_{_sel}"): st.toast("功能開發中", icon="🚧")
+            with _bc[3]:
+                if st.button("🔄 重載",   key=f"rc_reload_{_sel}"): st.rerun()
+            with _bc[4]:
+                # 加入我的研究
+                if _sel not in {r["id"] for r in st.session_state["rc_my_research"]}:
+                    if st.button("📌 我的研究", key=f"rc_myadd_{_sel}"):
+                        st.session_state["rc_my_research"].append({"id": _sel, "name": _sel_name})
+                        st.toast(f"{_sel} 已加入我的研究")
 
             # 載入資料
             with st.spinner(f"載入 {_sel} 財報資料..."):
@@ -10630,55 +10748,28 @@ with tab10:
                 _df_cf,  _err_cf  = _fm_get("TaiwanStockCashFlowsStatement", _sel, "2018-01-01")
                 _df_div, _err_div = _fm_get("TaiwanStockDividend", _sel, "2015-01-01")
 
-            # 標題
-            st.markdown(
-                f"<div style='background:rgba(0,100,200,0.15);border-radius:8px;"
-                f"padding:10px 16px;margin-bottom:12px;'>"
-                f"<b style='font-size:1.1rem;color:#e8f4fd;'>📊 {_sel}</b>"
-                f"<span style='color:#7fb3d3;font-size:.8rem;margin-left:10px;'>"
-                f"資料來源：FinMind　{datetime.now(ZoneInfo('Asia/Taipei')).strftime('%Y/%m/%d')}"
-                f"</span></div>",
-                unsafe_allow_html=True
-            )
-
-            # 操作按鈕
-            _bc = st.columns(4)
-            with _bc[0]:
-                if st.button("➕ 戰備庫", key=f"rc_res_{_sel}"): st.toast("功能開發中", icon="🚧")
-            with _bc[1]:
-                if st.button("👑 王者", key=f"rc_king_{_sel}"): st.toast("功能開發中", icon="🚧")
-            with _bc[2]:
-                if st.button("📡 監控", key=f"rc_watch_{_sel}"): st.toast("功能開發中", icon="🚧")
-            with _bc[3]:
-                if st.button("🔄 重新載入", key=f"rc_reload_{_sel}"): st.rerun()
-
-            st.divider()
-
-            # plotly 檢查
+            # plotly
             try:
                 import plotly.graph_objects as _go
                 _PLT = True
             except Exception:
                 _PLT = False
 
-            # ── 圖表輔助
+            # ── 圖表輔助函式
             def _prep_fin(type_name):
-                """從財報取出指定type，回傳排序後DataFrame或None"""
                 if _df_fin.empty:
-                    return None, "財報資料載入失敗" if _err_fin else "財報無資料"
+                    return None, _err_fin or "財報無資料"
                 _d = _df_fin[_df_fin["type"] == type_name].copy()
                 if _d.empty:
                     return None, f"找不到欄位 {type_name}"
                 _d["date"]  = pd.to_datetime(_d["date"], errors="coerce")
                 _d["value"] = pd.to_numeric(_d["value"], errors="coerce")
                 _d = _d.dropna(subset=["date","value"]).sort_values("date")
-                if _d.empty:
-                    return None, "日期或數值格式錯誤"
-                return _d, None
+                return (_d, None) if not _d.empty else (None, "日期或數值格式錯誤")
 
             def _prep_bal(type_name):
                 if _df_bal.empty:
-                    return None, "資產負債表載入失敗" if _err_bal else "無資料"
+                    return None, _err_bal or "無資料"
                 _d = _df_bal[_df_bal["type"] == type_name].copy()
                 if _d.empty:
                     return None, f"找不到欄位 {type_name}"
@@ -10689,7 +10780,7 @@ with tab10:
 
             def _prep_cf(type_name):
                 if _df_cf.empty:
-                    return None, "現金流量表載入失敗" if _err_cf else "無資料"
+                    return None, _err_cf or "無資料"
                 _d = _df_cf[_df_cf["type"] == type_name].copy()
                 if _d.empty:
                     return None, f"找不到欄位 {type_name}"
@@ -10698,35 +10789,37 @@ with tab10:
                 _d = _d.dropna(subset=["date","value"]).sort_values("date")
                 return (_d, None) if not _d.empty else (None, "資料筆數不足")
 
-            def _bar_chart(x, y, name, color, height=280):
+            def _bar(x, y, name, color, height=260):
                 if not _PLT:
                     st.bar_chart(pd.Series(y, index=x))
                     return
-                _fig = _go.Figure()
-                _fig.add_bar(x=x, y=y, name=name, marker_color=color)
-                _fig.update_layout(height=height, paper_bgcolor="rgba(0,0,0,0)",
-                                   plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
-                                   margin=dict(l=0,r=0,t=10,b=0))
-                st.plotly_chart(_fig, use_container_width=True)
+                _f = _go.Figure()
+                _f.add_bar(x=x, y=y, name=name,
+                           marker_color=color if isinstance(color, str) else None,
+                           marker_color_array=color if isinstance(color, list) else None)
+                _f.update_layout(height=height, paper_bgcolor="rgba(0,0,0,0)",
+                                 plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
+                                 margin=dict(l=0,r=0,t=6,b=0))
+                st.plotly_chart(_f, use_container_width=True)
 
-            def _line_chart(traces, height=280):
-                """traces = [{"x":..,"y":..,"name":..,"color":..}]"""
+            def _line(traces, height=260):
                 if not _PLT:
                     st.line_chart({t["name"]: pd.Series(t["y"], index=t["x"]) for t in traces})
                     return
-                _fig = _go.Figure()
+                _f = _go.Figure()
                 for _t in traces:
-                    _fig.add_scatter(x=_t["x"], y=_t["y"], name=_t["name"],
-                                     line=dict(color=_t["color"], width=2), mode="lines+markers")
-                _fig.update_layout(height=height, paper_bgcolor="rgba(0,0,0,0)",
-                                   plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
-                                   legend=dict(orientation="h"), margin=dict(l=0,r=0,t=10,b=0))
-                st.plotly_chart(_fig, use_container_width=True)
+                    _f.add_scatter(x=_t["x"], y=_t["y"], name=_t["name"],
+                                   line=dict(color=_t["color"], width=2), mode="lines+markers")
+                _f.update_layout(height=height, paper_bgcolor="rgba(0,0,0,0)",
+                                 plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
+                                 legend=dict(orientation="h"), margin=dict(l=0,r=0,t=6,b=0))
+                st.plotly_chart(_f, use_container_width=True)
 
-            # ════════════════════════════════
-            # 圖1：EPS（近12季）
-            # ════════════════════════════════
-            st.markdown("#### 1｜EPS（近12季）")
+            # ── 10張圖
+            st.markdown("---")
+
+            # 圖1：EPS
+            st.markdown("**1｜EPS（近12季）**")
             try:
                 _eps, _e = _prep_fin("EPS")
                 if _eps is None:
@@ -10736,23 +10829,21 @@ with tab10:
                     _eps["ttm"] = _eps["value"].rolling(4).sum()
                     _xlb = _eps["date"].dt.strftime("%Y-Q") + _eps["date"].dt.quarter.astype(str)
                     if _PLT:
-                        _fig = _go.Figure()
-                        _fig.add_bar(x=_xlb, y=_eps["value"].round(2), name="單季EPS", marker_color="#4fc3f7")
-                        _fig.add_scatter(x=_xlb, y=_eps["ttm"].round(2), name="TTM EPS",
-                                         line=dict(color="#ffd54f", width=2), mode="lines+markers")
-                        _fig.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)",
-                                           plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
-                                           legend=dict(orientation="h"), margin=dict(l=0,r=0,t=10,b=0))
-                        st.plotly_chart(_fig, use_container_width=True)
+                        _f1 = _go.Figure()
+                        _f1.add_bar(x=_xlb, y=_eps["value"].round(2), name="單季EPS", marker_color="#4fc3f7")
+                        _f1.add_scatter(x=_xlb, y=_eps["ttm"].round(2), name="TTM",
+                                        line=dict(color="#ffd54f", width=2), mode="lines+markers")
+                        _f1.update_layout(height=260, paper_bgcolor="rgba(0,0,0,0)",
+                                          plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
+                                          legend=dict(orientation="h"), margin=dict(l=0,r=0,t=6,b=0))
+                        st.plotly_chart(_f1, use_container_width=True)
                     else:
                         st.line_chart(_eps.set_index("date")[["value","ttm"]])
             except Exception as _ex:
                 _no_data("EPS", str(_ex))
 
-            # ════════════════════════════════
-            # 圖2：月營收 YoY（近24個月）
-            # ════════════════════════════════
-            st.markdown("#### 2｜月營收 YoY（近24個月）")
+            # 圖2：月營收 YoY
+            st.markdown("**2｜月營收 YoY（近24個月）**")
             try:
                 if _df_rev.empty:
                     _no_data("月營收 YoY", _err_rev or "無資料")
@@ -10762,35 +10853,33 @@ with tab10:
                     _rev["revenue"] = pd.to_numeric(_rev["revenue"], errors="coerce")
                     _rev = _rev.dropna(subset=["date","revenue"]).sort_values("date")
                     if len(_rev) < 13:
-                        _no_data("月營收 YoY", f"資料筆數不足（{len(_rev)}筆，需13筆以上）")
+                        _no_data("月營收 YoY", f"資料筆數不足（{len(_rev)}筆）")
                     else:
                         _rev = _rev.tail(36).reset_index(drop=True)
                         _rev["yoy"] = _rev["revenue"].pct_change(12) * 100
                         _rev = _rev.dropna(subset=["yoy"]).tail(24)
                         _colors = ["#ef5350" if v < 0 else "#66bb6a" for v in _rev["yoy"]]
                         if _PLT:
-                            _fig2 = _go.Figure()
-                            _fig2.add_bar(x=_rev["date"].dt.strftime("%Y-%m"),
-                                          y=_rev["yoy"].round(1), marker_color=_colors, name="YoY%")
-                            _fig2.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)",
-                                                plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
-                                                margin=dict(l=0,r=0,t=10,b=0))
-                            st.plotly_chart(_fig2, use_container_width=True)
+                            _f2 = _go.Figure()
+                            _f2.add_bar(x=_rev["date"].dt.strftime("%Y-%m"),
+                                        y=_rev["yoy"].round(1), marker_color=_colors, name="YoY%")
+                            _f2.update_layout(height=260, paper_bgcolor="rgba(0,0,0,0)",
+                                              plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
+                                              margin=dict(l=0,r=0,t=6,b=0))
+                            st.plotly_chart(_f2, use_container_width=True)
                         else:
                             st.bar_chart(_rev.set_index("date")["yoy"])
             except Exception as _ex:
                 _no_data("月營收 YoY", str(_ex))
 
-            # ════════════════════════════════
-            # 圖3+4：毛利率 / 營益率（近12季）
-            # ════════════════════════════════
-            st.markdown("#### 3｜毛利率　4｜營益率（近12季）")
+            # 圖3+4：毛利率/營益率
+            st.markdown("**3｜毛利率　4｜營益率（近12季）**")
             try:
                 _gp, _egp = _prep_fin("GrossProfit")
                 _rv, _erv = _prep_fin("Revenue")
                 _op, _eop = _prep_fin("OperatingIncome")
                 if _gp is None or _rv is None:
-                    _no_data("毛利率", _egp or _erv)
+                    _no_data("毛利率／營益率", _egp or _erv)
                 else:
                     _m = _rv[["date","value"]].rename(columns={"value":"rev"}).merge(
                         _gp[["date","value"]].rename(columns={"value":"gp"}), on="date"
@@ -10799,23 +10888,21 @@ with tab10:
                         _m = _m.merge(_op[["date","value"]].rename(columns={"value":"op"}), on="date")
                     _m = _m.dropna().sort_values("date").tail(12)
                     if _m.empty:
-                        _no_data("毛利率／營益率", "日期合併後無資料")
+                        _no_data("毛利率／營益率", "合併後無資料")
                     else:
                         _m["gm"] = (_m["gp"] / _m["rev"] * 100).round(1)
-                        _traces = [{"x": _m["date"].astype(str), "y": _m["gm"].tolist(),
-                                    "name": "毛利率%", "color": "#4fc3f7"}]
+                        _tr = [{"x": _m["date"].astype(str).tolist(), "y": _m["gm"].tolist(),
+                                "name": "毛利率%", "color": "#4fc3f7"}]
                         if "op" in _m.columns:
                             _m["om"] = (_m["op"] / _m["rev"] * 100).round(1)
-                            _traces.append({"x": _m["date"].astype(str), "y": _m["om"].tolist(),
-                                            "name": "營益率%", "color": "#ffd54f"})
-                        _line_chart(_traces)
+                            _tr.append({"x": _m["date"].astype(str).tolist(), "y": _m["om"].tolist(),
+                                        "name": "營益率%", "color": "#ffd54f"})
+                        _line(_tr)
             except Exception as _ex:
                 _no_data("毛利率／營益率", str(_ex))
 
-            # ════════════════════════════════
-            # 圖5：ROE（近5年）
-            # ════════════════════════════════
-            st.markdown("#### 5｜ROE（近5年）")
+            # 圖5：ROE
+            st.markdown("**5｜ROE（近5年）**")
             try:
                 _ni, _eni = _prep_fin("IncomeAfterTaxes")
                 _eq, _eeq = _prep_bal("Equity")
@@ -10826,45 +10913,37 @@ with tab10:
                         _eq[["date","value"]].rename(columns={"value":"eq"}), on="date"
                     ).dropna().sort_values("date").tail(20)
                     if _roe.empty:
-                        _no_data("ROE", "損益表與資產負債表日期無法合併")
+                        _no_data("ROE", "損益表與資產負債表無法合併")
                     else:
                         _roe["roe"] = (_roe["ni"] / _roe["eq"] * 100).round(1)
-                        _bar_chart(_roe["date"].astype(str).tolist(),
-                                   _roe["roe"].tolist(), "ROE%", "#ab47bc")
+                        _bar(_roe["date"].astype(str).tolist(), _roe["roe"].tolist(), "ROE%", "#ab47bc")
             except Exception as _ex:
                 _no_data("ROE", str(_ex))
 
-            # ════════════════════════════════
-            # 圖6：自由現金流（近5年）
-            # ════════════════════════════════
-            st.markdown("#### 6｜自由現金流（近5年）")
+            # 圖6：自由現金流
+            st.markdown("**6｜自由現金流（近5年）**")
             try:
                 _ocf, _eocf = _prep_cf("CashFlowsFromOperatingActivities")
                 if _ocf is None:
                     _no_data("自由現金流", _eocf)
                 else:
-                    _cap, _ecap = _prep_cf("PropertyAndPlantAndEquipment")
+                    _cap, _ = _prep_cf("PropertyAndPlantAndEquipment")
                     if _cap is not None:
                         _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).merge(
                             _cap[["date","value"]].rename(columns={"value":"capex"}), on="date"
                         ).dropna().sort_values("date").tail(20)
                         _fcf["fcf"] = _fcf["ocf"] + _fcf["capex"]
                     else:
-                        _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).tail(20)
+                        _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).tail(20).copy()
                         _fcf["fcf"] = _fcf["ocf"]
-                    if _fcf.empty:
-                        _no_data("自由現金流", "資料筆數不足")
-                    else:
-                        _colors6 = ["#ef5350" if v < 0 else "#66bb6a" for v in _fcf["fcf"]]
-                        _bar_chart(_fcf["date"].astype(str).tolist(),
-                                   (_fcf["fcf"] / 1e8).round(1).tolist(), "自由現金流(億)", _colors6)
+                    _colors6 = ["#ef5350" if v < 0 else "#66bb6a" for v in _fcf["fcf"]]
+                    _bar(_fcf["date"].astype(str).tolist(),
+                         (_fcf["fcf"] / 1e8).round(1).tolist(), "自由現金流(億)", _colors6)
             except Exception as _ex:
                 _no_data("自由現金流", str(_ex))
 
-            # ════════════════════════════════
-            # 圖7：負債比（近5年）
-            # ════════════════════════════════
-            st.markdown("#### 7｜負債比（近5年）")
+            # 圖7：負債比
+            st.markdown("**7｜負債比（近5年）**")
             try:
                 _lb, _elb   = _prep_bal("Liabilities")
                 _ast, _east = _prep_bal("TotalAssets")
@@ -10875,88 +10954,68 @@ with tab10:
                         _ast[["date","value"]].rename(columns={"value":"asset"}), on="date"
                     ).dropna().sort_values("date").tail(20)
                     if _dr.empty:
-                        _no_data("負債比", "日期合併後無資料")
+                        _no_data("負債比", "合併後無資料")
                     else:
                         _dr["dr"] = (_dr["liab"] / _dr["asset"] * 100).round(1)
-                        if _PLT:
-                            _fig7 = _go.Figure()
-                            _fig7.add_scatter(x=_dr["date"].astype(str), y=_dr["dr"],
-                                              fill="tozeroy", line=dict(color="#ff7043"), name="負債比%")
-                            _fig7.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)",
-                                                plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
-                                                margin=dict(l=0,r=0,t=10,b=0))
-                            st.plotly_chart(_fig7, use_container_width=True)
-                        else:
-                            st.line_chart(_dr.set_index("date")["dr"])
+                        _line([{"x": _dr["date"].astype(str).tolist(), "y": _dr["dr"].tolist(),
+                                "name": "負債比%", "color": "#ff7043"}])
             except Exception as _ex:
                 _no_data("負債比", str(_ex))
 
-            # ════════════════════════════════
-            # 圖8：存貨（近12季）
-            # ════════════════════════════════
-            st.markdown("#### 8｜存貨（近12季）")
+            # 圖8：存貨
+            st.markdown("**8｜存貨（近12季）**")
             try:
                 _inv, _einv = _prep_bal("Inventories")
                 if _inv is None:
                     _no_data("存貨", _einv)
                 else:
                     _inv = _inv.tail(12)
-                    _bar_chart(_inv["date"].dt.strftime("%Y-%m").tolist(),
-                               (_inv["value"] / 1e8).round(1).tolist(), "存貨(億)", "#ffd54f")
+                    _bar(_inv["date"].dt.strftime("%Y-%m").tolist(),
+                         (_inv["value"] / 1e8).round(1).tolist(), "存貨(億)", "#ffd54f")
             except Exception as _ex:
                 _no_data("存貨", str(_ex))
 
-            # ════════════════════════════════
-            # 圖9：應收帳款（近12季）
-            # ════════════════════════════════
-            st.markdown("#### 9｜應收帳款（近12季）")
+            # 圖9：應收帳款
+            st.markdown("**9｜應收帳款（近12季）**")
             try:
                 _ar, _ear = _prep_bal("AccountsReceivableNet")
                 if _ar is None:
                     _no_data("應收帳款", _ear)
                 else:
                     _ar = _ar.tail(12)
-                    _bar_chart(_ar["date"].dt.strftime("%Y-%m").tolist(),
-                               (_ar["value"] / 1e8).round(1).tolist(), "應收帳款(億)", "#ef5350")
+                    _bar(_ar["date"].dt.strftime("%Y-%m").tolist(),
+                         (_ar["value"] / 1e8).round(1).tolist(), "應收帳款(億)", "#ef5350")
             except Exception as _ex:
                 _no_data("應收帳款", str(_ex))
 
-            # ════════════════════════════════
-            # 圖10：現金股利（近10年）
-            # ════════════════════════════════
-            st.markdown("#### 10｜現金股利（近10年）")
+            # 圖10：現金股利
+            st.markdown("**10｜現金股利（近10年）**")
             try:
                 if _df_div.empty:
                     _no_data("現金股利", _err_div or "無資料")
                 else:
                     _div = _df_div.copy()
                     _div["date"] = pd.to_datetime(
-                        _div.get("CashExDividendTradingDate", _div.get("date", "")),
-                        errors="coerce"
-                    )
+                        _div.get("CashExDividendTradingDate", _div.get("date", "")), errors="coerce")
                     _div["cash"] = pd.to_numeric(
-                        _div.get("CashEarningsDistribution", _div.get("cash_div", 0)),
-                        errors="coerce"
-                    )
+                        _div.get("CashEarningsDistribution", _div.get("cash_div", 0)), errors="coerce")
                     _div = _div.dropna(subset=["date","cash"]).query("cash > 0")
                     if _div.empty:
                         _no_data("現金股利", "無現金股利記錄")
                     else:
                         _div["year"] = _div["date"].dt.year
                         _dy = _div.groupby("year")["cash"].sum().reset_index().sort_values("year").tail(10)
-                        _bar_chart(_dy["year"].astype(str).tolist(),
-                                   _dy["cash"].round(2).tolist(), "年度現金股利(元)", "#26a69a")
+                        _bar(_dy["year"].astype(str).tolist(), _dy["cash"].round(2).tolist(),
+                             "年度現金股利(元)", "#26a69a")
             except Exception as _ex:
                 _no_data("現金股利", str(_ex))
 
             st.divider()
 
-            # ════════════════════════════════
             # AI 財報分析
-            # ════════════════════════════════
-            st.markdown("#### 🤖 AI 財報分析")
+            st.markdown("**🤖 AI 財報分析**")
             if st.button("▶️ 執行分析", key=f"rc_ai_{_sel}"):
-                _parts = [f"股票代號：{_sel}"]
+                _parts = [f"股票代號：{_sel}　公司：{_sel_name}"]
                 try:
                     _e2, _ = _prep_fin("EPS")
                     if _e2 is not None:
@@ -10968,28 +11027,18 @@ with tab10:
                     _rv2, _ = _prep_fin("Revenue")
                     if _gp2 is not None and _rv2 is not None:
                         _m2 = _rv2[["date","value"]].rename(columns={"value":"rev"}).merge(
-                            _gp2[["date","value"]].rename(columns={"value":"gp"}), on="date"
-                        ).tail(4)
+                            _gp2[["date","value"]].rename(columns={"value":"gp"}), on="date").tail(4)
                         if not _m2.empty:
-                            _gms = (_m2["gp"] / _m2["rev"] * 100).round(1).tolist()
-                            _parts.append(f"近4季毛利率(%)：{_gms}")
+                            _parts.append(f"近4季毛利率(%)：{(_m2['gp']/_m2['rev']*100).round(1).tolist()}")
                 except Exception:
                     pass
 
-                _prompt = f"""你是專業股票財報分析師，以下是台股個股財報摘要，請依固定格式分析。
-
+                _prompt = f"""你是專業台股財報分析師。以下是個股財報摘要，請依固定格式分析。
 {chr(10).join(_parts)}
-
-請依以下格式回覆，禁止提供買進、賣出、目標價或投資建議：
-
-一、財報優點
-（條列說明）
-
-二、財報風險
-（條列說明）
-
-三、AI財報結論
-（3～5句綜合結論，純財務分析）"""
+請依格式回覆，禁止買進/賣出/目標價/投資建議：
+一、財報優點（條列）
+二、財報風險（條列）
+三、AI財報結論（3~5句，純財務分析）"""
 
                 with st.spinner("AI 分析中..."):
                     try:
@@ -11001,28 +11050,20 @@ with tab10:
                                   "messages": [{"role": "user", "content": _prompt}]},
                             timeout=30
                         )
-                        _txt = "".join(c.get("text","") for c in _ar2.json().get("content",[]) if c.get("type")=="text")
+                        _txt = "".join(c.get("text","") for c in _ar2.json().get("content",[])
+                                       if c.get("type")=="text")
                         if _txt:
                             st.markdown(
                                 f"<div style='background:rgba(0,50,100,0.3);border-radius:8px;"
-                                f"padding:16px;white-space:pre-wrap;font-size:.87rem;'>{_txt}</div>",
-                                unsafe_allow_html=True
-                            )
+                                f"padding:14px;white-space:pre-wrap;font-size:.87rem;'>{_txt}</div>",
+                                unsafe_allow_html=True)
                         else:
                             st.warning("AI 未回傳結果")
                     except Exception as _ae:
                         st.error(f"AI 分析失敗：{_ae}")
 
             st.divider()
-
-            # ════════════════════════════════
-            # 同業比較（框架）
-            # ════════════════════════════════
-            st.markdown("#### 📊 同業比較")
             st.markdown(
                 "<div style='border:1px dashed #1e3a5f;border-radius:8px;"
-                "padding:16px;color:#7fb3d3;text-align:center;'>"
-                "🚧 同業比較開發中<br>"
-                "<small>預留：EPS、毛利率、ROE、營益率、月營收YoY</small>"
-                "</div>", unsafe_allow_html=True
-            )
+                "padding:12px;color:#7fb3d3;text-align:center;font-size:.85rem;'>"
+                "🚧 同業比較、研究筆記　開發中</div>", unsafe_allow_html=True)
