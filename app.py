@@ -10744,23 +10744,28 @@ with tab10:
             # ────────────────────────────────────────────────
             st.markdown("#### 5｜ROE（近5年）")
             try:
-                if _df_fin.empty:
+                if _df_fin.empty or _df_bal.empty:
                     raise ValueError("無資料")
-                _roe_df = _df_fin[_df_fin["type"] == "ReturnOnEquity"].copy()
-                if _roe_df.empty:
-                    raise ValueError("無ROE")
-                _roe_df["date"] = pd.to_datetime(_roe_df["date"], errors="coerce")
-                _roe_df["value"] = pd.to_numeric(_roe_df["value"], errors="coerce")
-                _roe_df = _roe_df.dropna().sort_values("date").tail(20)
+                _ni_df  = _df_fin[_df_fin["type"] == "IncomeAfterTaxes"].copy()
+                _eq_df  = _df_bal[_df_bal["type"] == "Equity"].copy()
+                for _t in [_ni_df, _eq_df]:
+                    _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
+                    _t["value"] = pd.to_numeric(_t["value"], errors="coerce")
+                _roe_m = _ni_df[["date","value"]].rename(columns={"value":"ni"}).merge(
+                    _eq_df[["date","value"]].rename(columns={"value":"eq"}), on="date"
+                ).dropna().sort_values("date").tail(20)
+                if _roe_m.empty:
+                    raise ValueError("無ROE資料")
+                _roe_m["roe"] = _roe_m["ni"] / _roe_m["eq"] * 100
                 if _PLOTLY_OK:
                     _fig5 = go.Figure()
-                    _fig5.add_bar(x=_roe_df["date"].astype(str), y=_roe_df["value"],
+                    _fig5.add_bar(x=_roe_m["date"].astype(str), y=_roe_m["roe"].round(1),
                                   marker_color="#ab47bc", name="ROE%")
                     _fig5.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                         font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
                     st.plotly_chart(_fig5, use_container_width=True)
                 else:
-                    st.bar_chart(_roe_df.set_index("date")["value"])
+                    st.bar_chart(_roe_m.set_index("date")["roe"])
             except Exception:
                 _no_data_msg("ROE")
 
@@ -10772,14 +10777,21 @@ with tab10:
                 if _df_cf.empty:
                     raise ValueError("無資料")
                 _ocf = _df_cf[_df_cf["type"] == "CashFlowsFromOperatingActivities"].copy()
-                _cap = _df_cf[_df_cf["type"] == "PurchaseOfPropertyPlantAndEquipment"].copy()
+                _cap = _df_cf[_df_cf["type"] == "PropertyAndPlantAndEquipment"].copy()
                 for _t in [_ocf, _cap]:
                     _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
                     _t["value"] = pd.to_numeric(_t["value"], errors="coerce")
-                _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).merge(
-                    _cap[["date","value"]].rename(columns={"value":"capex"}), on="date"
-                ).dropna().sort_values("date").tail(20)
-                _fcf["fcf"] = _fcf["ocf"] + _fcf["capex"]  # capex通常為負值
+                if _ocf.empty:
+                    raise ValueError("無現金流資料")
+                if _cap.empty:
+                    # 只用營業現金流
+                    _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).dropna().sort_values("date").tail(20)
+                    _fcf["fcf"] = _fcf["ocf"]
+                else:
+                    _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).merge(
+                        _cap[["date","value"]].rename(columns={"value":"capex"}), on="date"
+                    ).dropna().sort_values("date").tail(20)
+                    _fcf["fcf"] = _fcf["ocf"] + _fcf["capex"]
                 if _PLOTLY_OK:
                     _fig6 = go.Figure()
                     _colors6 = ["#ef5350" if v < 0 else "#66bb6a" for v in _fcf["fcf"]]
@@ -10800,7 +10812,7 @@ with tab10:
             try:
                 if _df_bal.empty:
                     raise ValueError("無資料")
-                _debt  = _df_bal[_df_bal["type"] == "TotalLiabilities"].copy()
+                _debt  = _df_bal[_df_bal["type"] == "Liabilities"].copy()
                 _asset = _df_bal[_df_bal["type"] == "TotalAssets"].copy()
                 for _t in [_debt, _asset]:
                     _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
@@ -10829,7 +10841,7 @@ with tab10:
                 if _df_bal.empty:
                     raise ValueError("無資料")
                 _inv = _df_bal[_df_bal["type"] == "Inventories"].copy()
-                _ar  = _df_bal[_df_bal["type"] == "AccountsReceivable"].copy()
+                _ar  = _df_bal[_df_bal["type"] == "AccountsReceivableNet"].copy()
                 for _t in [_inv, _ar]:
                     _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
                     _t["value"] = pd.to_numeric(_t["value"], errors="coerce")
@@ -10995,9 +11007,10 @@ with tab10:
                         _dna_scores["毛利率"] = 5 if _gm_avg > 40 else 4 if _gm_avg > 25 else 3 if _gm_avg > 15 else 2
 
                     # ROE
-                    _roe_v = pd.to_numeric(_df_fin[_df_fin["type"]=="ReturnOnEquity"]["value"], errors="coerce").dropna().tail(4)
-                    if len(_roe_v) >= 2:
-                        _roe_avg = _roe_v.mean()
+                    _ni_dna = pd.to_numeric(_df_fin[_df_fin["type"]=="IncomeAfterTaxes"]["value"], errors="coerce").dropna().tail(4)
+                    _eq_dna = pd.to_numeric(_df_bal[_df_bal["type"]=="Equity"]["value"], errors="coerce").dropna().tail(4)
+                    if len(_ni_dna) >= 2 and len(_eq_dna) >= 2:
+                        _roe_avg = float(_ni_dna.mean()) / float(_eq_dna.mean()) * 100
                         _dna_scores["ROE"] = 5 if _roe_avg > 20 else 4 if _roe_avg > 15 else 3 if _roe_avg > 10 else 2
 
                 if not _df_cf.empty:
