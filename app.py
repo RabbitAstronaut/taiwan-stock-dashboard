@@ -10759,44 +10759,51 @@ with tab10:
             def _prep_fin(type_name):
                 if _df_fin.empty:
                     return None, _err_fin or "財報無資料"
-                _d = _df_fin[_df_fin["type"] == type_name].copy()
-                if _d.empty:
-                    return None, f"找不到欄位 {type_name}"
-                _d["date"]  = pd.to_datetime(_d["date"], errors="coerce")
-                _d["value"] = pd.to_numeric(_d["value"], errors="coerce")
-                _d = _d.dropna(subset=["date","value"]).sort_values("date")
-                return (_d, None) if not _d.empty else (None, "日期或數值格式錯誤")
+                try:
+                    _d = _df_fin[_df_fin["type"] == type_name].copy()
+                    if _d.empty:
+                        return None, f"找不到欄位 {type_name}"
+                    _d["date"]  = pd.to_datetime(_d["date"], errors="coerce")
+                    _d["value"] = pd.to_numeric(_d["value"], errors="coerce")
+                    _d = _d[["date","value"]].dropna().sort_values("date")
+                    return (_d, None) if not _d.empty else (None, "日期或數值格式錯誤")
+                except Exception as _ep:
+                    return None, str(_ep)
 
             def _prep_bal(type_name):
                 if _df_bal.empty:
                     return None, _err_bal or "無資料"
-                _d = _df_bal[_df_bal["type"] == type_name].copy()
-                if _d.empty:
-                    return None, f"找不到欄位 {type_name}"
-                _d["date"]  = pd.to_datetime(_d["date"], errors="coerce")
-                _d["value"] = pd.to_numeric(_d["value"], errors="coerce")
-                _d = _d.dropna(subset=["date","value"]).sort_values("date")
-                return (_d, None) if not _d.empty else (None, "資料筆數不足")
+                try:
+                    _d = _df_bal[_df_bal["type"] == type_name].copy()
+                    if _d.empty:
+                        return None, f"找不到欄位 {type_name}"
+                    _d["date"]  = pd.to_datetime(_d["date"], errors="coerce")
+                    _d["value"] = pd.to_numeric(_d["value"], errors="coerce")
+                    _d = _d[["date","value"]].dropna().sort_values("date")
+                    return (_d, None) if not _d.empty else (None, "資料筆數不足")
+                except Exception as _ep:
+                    return None, str(_ep)
 
             def _prep_cf(type_name):
                 if _df_cf.empty:
                     return None, _err_cf or "無資料"
-                _d = _df_cf[_df_cf["type"] == type_name].copy()
-                if _d.empty:
-                    return None, f"找不到欄位 {type_name}"
-                _d["date"]  = pd.to_datetime(_d["date"], errors="coerce")
-                _d["value"] = pd.to_numeric(_d["value"], errors="coerce")
-                _d = _d.dropna(subset=["date","value"]).sort_values("date")
-                return (_d, None) if not _d.empty else (None, "資料筆數不足")
+                try:
+                    _d = _df_cf[_df_cf["type"] == type_name].copy()
+                    if _d.empty:
+                        return None, f"找不到欄位 {type_name}"
+                    _d["date"]  = pd.to_datetime(_d["date"], errors="coerce")
+                    _d["value"] = pd.to_numeric(_d["value"], errors="coerce")
+                    _d = _d[["date","value"]].dropna().sort_values("date")
+                    return (_d, None) if not _d.empty else (None, "資料筆數不足")
+                except Exception as _ep:
+                    return None, str(_ep)
 
             def _bar(x, y, name, color, height=260):
                 if not _PLT:
                     st.bar_chart(pd.Series(y, index=x))
                     return
                 _f = _go.Figure()
-                _f.add_bar(x=x, y=y, name=name,
-                           marker_color=color if isinstance(color, str) else None,
-                           marker_color_array=color if isinstance(color, list) else None)
+                _f.add_bar(x=x, y=y, name=name, marker_color=color)
                 _f.update_layout(height=height, paper_bgcolor="rgba(0,0,0,0)",
                                  plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
                                  margin=dict(l=0,r=0,t=6,b=0))
@@ -10915,6 +10922,9 @@ with tab10:
                     if _roe.empty:
                         _no_data("ROE", "損益表與資產負債表無法合併")
                     else:
+                        _roe["ni"] = pd.to_numeric(_roe["ni"], errors="coerce")
+                        _roe["eq"] = pd.to_numeric(_roe["eq"], errors="coerce")
+                        _roe = _roe.dropna()
                         _roe["roe"] = (_roe["ni"] / _roe["eq"] * 100).round(1)
                         _bar(_roe["date"].astype(str).tolist(), _roe["roe"].tolist(), "ROE%", "#ab47bc")
             except Exception as _ex:
@@ -10936,9 +10946,14 @@ with tab10:
                     else:
                         _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).tail(20).copy()
                         _fcf["fcf"] = _fcf["ocf"]
-                    _colors6 = ["#ef5350" if v < 0 else "#66bb6a" for v in _fcf["fcf"]]
-                    _bar(_fcf["date"].astype(str).tolist(),
-                         (_fcf["fcf"] / 1e8).round(1).tolist(), "自由現金流(億)", _colors6)
+                    _fcf["fcf"] = pd.to_numeric(_fcf["fcf"], errors="coerce")
+                    _fcf = _fcf.dropna(subset=["fcf"])
+                    if _fcf.empty:
+                        _no_data("自由現金流", "數值轉換失敗")
+                    else:
+                        _colors6 = ["#ef5350" if v < 0 else "#66bb6a" for v in _fcf["fcf"]]
+                        _bar(_fcf["date"].astype(str).tolist(),
+                             (_fcf["fcf"] / 1e8).round(1).tolist(), "自由現金流(億)", _colors6)
             except Exception as _ex:
                 _no_data("自由現金流", str(_ex))
 
