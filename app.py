@@ -10494,6 +10494,27 @@ with tab9:
                     unsafe_allow_html=True
                 )
 
+            # ── 下載
+            _df_export = _df_result[[
+                "stock_id","name","ex_date","days_left","type",
+                "cash_div","stock_div","price","yield_pct","tech_score","price_date"
+            ]].copy()
+            _df_export["ex_date"] = _df_export["ex_date"].dt.strftime("%Y/%m/%d")
+            _df_export.columns = [
+                "代號","名稱","除息日期","距今天數","類型",
+                "現金股利","股票股利(配股率)","股價","殖利率%","技術分(10分)","股價日期"
+            ]
+            import io as _io9
+            _csv9 = _io9.StringIO()
+            _df_export.to_csv(_csv9, index=False, encoding="utf-8-sig")
+            st.download_button(
+                "⬇️ 下載榜單 CSV",
+                data=_csv9.getvalue().encode("utf-8-sig"),
+                file_name=f"除權息精兵榜_{_today_date.strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                key="dl_div9"
+            )
+
             if not _df_today.empty:
                 st.markdown("### 📛 今天除息（今日已無法買進）")
                 for _rank, (_, _r) in enumerate(_df_today.iterrows(), 1):
