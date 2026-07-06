@@ -10297,18 +10297,44 @@ with tab9:
             return _pd.DataFrame(), None
 
 
+
     def get_stock_price_for_dividend(sid):
-        """取得股票現價，優先用prices CSV，備援yfinance"""
+        """取得股票現價 + 技術指標（簡化精兵分10分制）"""
         try:
             df_p, ok_p = load_price_csv(sid)
-            if ok_p and not df_p.empty:
+            if ok_p and len(df_p) >= 20:
                 price = float(pd.to_numeric(df_p["Close"], errors="coerce").dropna().iloc[-1])
-                price_date = str(df_p.index[-1])[:10] if hasattr(df_p.index[-1], 'strftime') else str(df_p.index[-1])[:10]
+                price_date = str(df_p.index[-1])[:10]
                 if price > 0:
-                    return price, price_date
+                    score = 0
+                    try:
+                        closes = df_p["Close"]
+                        ma20 = closes.rolling(20).mean().iloc[-1]
+                        ma60 = closes.rolling(60).mean().iloc[-1] if len(df_p)>=60 else None
+                        # MA結構（3分）
+                        if ma60 and ma20 > ma60:
+                            score += 2
+                            if closes.rolling(20).mean().iloc[-1] > closes.rolling(20).mean().iloc[-3]:
+                                score += 1
+                        # 月乖離（3分）
+                        bias = (price - ma20) / ma20 * 100
+                        if -5 <= bias <= 5:
+                            score += 3
+                        elif -10 <= bias <= 10:
+                            score += 1
+                        # 動能（4分）
+                        if len(df_p) >= 20:
+                            mom20 = (price - float(closes.iloc[-20])) / float(closes.iloc[-20]) * 100
+                            if mom20 > 0: score += 2
+                        if len(df_p) >= 60:
+                            mom60 = (price - float(closes.iloc[-60])) / float(closes.iloc[-60]) * 100
+                            if mom60 > 0: score += 2
+                    except Exception:
+                        score = None
+                    return price, price_date, score
         except Exception:
             pass
-        return None, None
+        return None, None, None
 
 
     # ── 重新整理按鈕（只清Tab9快取）
@@ -10362,7 +10388,7 @@ with tab9:
 
             for _, _row in df_div.iterrows():
                 _sid   = _row["stock_id"]
-                _price, _pdate = get_stock_price_for_dividend(_sid)
+                _price, _pdate, _tech_score = get_stock_price_for_dividend(_sid)
 
                 if _price is None or _price <= 0:
                     _missing.append({
@@ -10377,23 +10403,6 @@ with tab9:
                 if _yield < MIN_CASH_DIVIDEND_YIELD:
                     continue  # 殖利率不足，不進榜
 
-                # ── 套用既有精兵評分（從rex_scores.json讀取）
-                _rex_score = None
-                _rex_class = None
-                try:
-                    import json as _jj, os as _oo
-                    _rpath = _oo.path.join("data", "rex_scores.json")
-                    if _oo.path.exists(_rpath):
-                        with open(_rpath, "r", encoding="utf-8") as _f:
-                            _rcache = _jj.load(_f)
-                        for _rs in _rcache.get("scores", []):
-                            if _rs["stock_id"] == _sid:
-                                _rex_score = _rs.get("base_total", 0)
-                                _rex_class = _rs.get("stock_class", "—")
-                                break
-                except Exception:
-                    pass
-
                 _days_left = (_row["ex_date"].date() - _today).days
 
                 _qualified.append({
@@ -10407,8 +10416,7 @@ with tab9:
                     "price":      _price,
                     "price_date": _pdate,
                     "yield_pct":  round(_yield, 2),
-                    "rex_score":  _rex_score,
-                    "rex_class":  _rex_class,
+                    "tech_score": _tech_score,
                 })
 
         # ── 顯示統計
@@ -10423,58 +10431,63 @@ with tab9:
         if not _qualified:
             st.info(f"目前沒有找到未來 {DIVIDEND_LOOKAHEAD_DAYS} 天內、現金殖利率達 {MIN_CASH_DIVIDEND_YIELD:.2f}% 以上的標的。")
         else:
-            # ── 排序：精兵總分↓ → 殖利率↓ → 日期↑ → 代號↑
+            # ── 殖利率排序
             df_q = pd.DataFrame(_qualified)
-            df_q["_sort_score"] = df_q["rex_score"].fillna(-1)
-            df_q = df_q.sort_values(
-                ["_sort_score", "yield_pct", "ex_date", "stock_id"],
-                ascending=[False, False, True, True]
-            ).reset_index(drop=True)
-            df_q["排名"] = df_q.index + 1
+            df_q = df_q.sort_values("yield_pct", ascending=False).reset_index(drop=True)
 
-            # ── 渲染榜單
-            st.markdown("### 🏆 精兵榜單")
-            for _, _r in df_q.iterrows():
-                _score_str = f"{int(_r['rex_score'])}/100" if _r["rex_score"] is not None else "—"
-                _class_str = _r["rex_class"] or "—"
-                _cls_icon  = {"King": "👑", "Prince": "🛡", "Hunter": "⚔"}.get(_class_str, "")
-                _cls_color = {"King": "#ffd700", "Prince": "#a8d8ea", "Hunter": "#ff9f7f"}.get(_class_str, "#9fb8d4")
-                _yield_color = "#ff5252" if _r["yield_pct"] >= 6 else "#fbbf24" if _r["yield_pct"] >= 4 else "#e8f4fd"
-                _days_str  = f"今天" if _r["days_left"] == 0 else f"{_r['days_left']} 天後"
-                _stock_div_str = f"　股利+{_r['stock_div']:.2f}元" if _r["stock_div"] > 0 else ""
+            # ── 分兩區
+            df_today  = df_q[df_q["days_left"] == 0]
+            df_future = df_q[df_q["days_left"] >  0]
 
+            def _render_card(r, rank):
+                _score_str = f"{int(r['tech_score'])}/10" if r["tech_score"] is not None else "—"
+                _score_color = "#00e676" if r["tech_score"] and r["tech_score"]>=7 else \
+                               "#fbbf24" if r["tech_score"] and r["tech_score"]>=4 else "#9fb8d4"
+                _yield_color = "#ff5252" if r["yield_pct"]>=7 else \
+                               "#fbbf24" if r["yield_pct"]>=5 else "#e8f4fd"
+                _stock_div_str = f"　股利+{r['stock_div']:.2f}元" if r["stock_div"]>0 else ""
+                _days_str = f"今天" if r["days_left"]==0 else f"{r['days_left']} 天後"
                 st.markdown(
                     f"<div style='border:1px solid #1e3a5f;border-radius:8px;"
-                    f"padding:10px 16px;margin:6px 0;background:rgba(255,255,255,0.02);'>"
-                    f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
+                    f"padding:10px 16px;margin:6px 0;background:rgba(255,255,255,0.02);'>" 
+                    f"<div style='display:flex;justify-content:space-between;align-items:center;'>" 
                     f"<span style='font-size:1rem;font-weight:700;color:#e8f4fd;'>"
-                    f"#{int(_r['排名'])}　{_r['stock_id']} {_r['name']}"
-                    f"<span style='color:#7fb3d3;font-size:.8rem;font-weight:400;'>　{_r['market']}</span>"
+                    f"#{rank}　{r['stock_id']} {r['name']}"
+                    f"<span style='color:#7fb3d3;font-size:.8rem;font-weight:400;'>　{r['market']}</span>"
                     f"</span>"
                     f"<span style='color:{_yield_color};font-size:1.1rem;font-weight:700;'>"
-                    f"{_r['yield_pct']:.2f}%</span>"
+                    f"{r['yield_pct']:.2f}%</span>"
                     f"</div>"
                     f"<div style='display:flex;gap:20px;font-size:.82rem;color:#9fb8d4;margin-top:6px;flex-wrap:wrap;'>"
-                    f"<span>📅 除息 {_r['ex_date'].strftime('%m/%d')}（{_days_str}）</span>"
-                    f"<span>💰 現金股利 {_r['cash_div']:.2f} 元{_stock_div_str}</span>"
-                    f"<span>📈 股價 {_r['price']:.1f}（{_r['price_date']}）</span>"
-                    f"<span style='color:{_cls_color};'>{_cls_icon} {_class_str}　精兵分 {_score_str}</span>"
+                    f"<span>📅 除息 {r['ex_date'].strftime('%m/%d')}（{_days_str}）</span>"
+                    f"<span>💰 現金股利 {r['cash_div']:.2f} 元{_stock_div_str}</span>"
+                    f"<span>📈 股價 {r['price']:.1f}（{r['price_date']}）</span>"
+                    f"<span style='color:{_score_color};'>🎯 技術分 {_score_str}</span>"
                     f"</div>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
 
-            # ── 表格下載
-            _df_export = df_q[[
-                "排名", "stock_id", "name", "market",
-                "ex_date", "days_left", "cash_div", "stock_div",
-                "price", "yield_pct", "rex_score", "rex_class", "price_date"
-            ]].copy()
-            _df_export.columns = [
-                "排名", "代號", "名稱", "市場", "除息日期", "距今天數",
-                "現金股利", "股票股利", "股價", "殖利率%", "精兵總分", "精兵等級", "股價日期"
-            ]
-            _df_export["除息日期"] = _df_export["除息日期"].dt.strftime("%Y/%m/%d")
+            # ── 今天除息（已無法買）
+            if not df_today.empty:
+                st.markdown("### 📛 今天除息（今日已無法買進）")
+                st.caption("以下標的今天除息，今日買進已無法領息。")
+                for rank, (_, r) in enumerate(df_today.iterrows(), 1):
+                    _render_card(r, rank)
+
+            # ── 明天起
+            if not df_future.empty:
+                st.markdown("### ✅ 未來除息（還可以買）")
+                for rank, (_, r) in enumerate(df_future.iterrows(), 1):
+                    _render_card(r, rank)
+
+            # ── 下載
+            _df_export = df_q.copy()
+            _df_export["除息日期"] = _df_export["ex_date"].dt.strftime("%Y/%m/%d")
+            _df_export = _df_export[["stock_id","name","market","除息日期","days_left",
+                                     "cash_div","stock_div","price","yield_pct","tech_score","price_date"]]
+            _df_export.columns = ["代號","名稱","市場","除息日期","距今天數",
+                                   "現金股利","股票股利","股價","殖利率%","技術分(10分)","股價日期"]
             import io as _io9
             _csv9 = _io9.StringIO()
             _df_export.to_csv(_csv9, index=False, encoding="utf-8-sig")
