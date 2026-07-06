@@ -3147,7 +3147,7 @@ st.markdown(f"""
 # ══════════════════════════════════════════════════════════════
 # ▌ 三大分頁
 # ══════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
     "📡 大盤預警",
     "🌱 產業趨勢雷達",
     "🌡️ 王者名單溫度",
@@ -3157,6 +3157,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "📊 指揮中心",
     "💰 ETF退休計畫",
     "💰 除權息精兵榜",
+    "🔬 財報研究中心",
 ])
 
 # ══════════════════════════════════════════════════════════════
@@ -10531,3 +10532,512 @@ with tab9:
                         _prev_date = _d
                     _rank += 1
                     _render_card(_r, _rank)
+
+# ══════════════════════════════════════════════════════════════
+# ▌ TAB 10：財報研究中心（Research Center）
+# ══════════════════════════════════════════════════════════════
+with tab10:
+    st.markdown("<div class='sec-title'>🔬 財報研究中心</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='infobox'>深度研究個股財報。輸入股票代號，查詢完整財務資料、AI分析與同業比較。</div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 常數
+    FINMIND_API = "https://api.finmindtrade.com/api/v4/data"
+    FINMIND_HEADERS = {"Content-Type": "application/json"}
+
+    # ── 查詢輸入
+    _rc_col1, _rc_col2, _rc_col3 = st.columns([2, 1, 5])
+    with _rc_col1:
+        _rc_sid = st.text_input("股票代號", placeholder="例：2330", key="rc_stock_id").strip()
+    with _rc_col2:
+        st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
+        _rc_query = st.button("🔍 查詢", key="rc_query_btn")
+
+    if _rc_query and _rc_sid:
+        st.session_state["rc_queried_sid"] = _rc_sid
+
+    _queried = st.session_state.get("rc_queried_sid", "")
+
+    if not _queried:
+        st.info("請輸入股票代號後點擊查詢。")
+    else:
+        # ── FinMind 資料抓取函式
+        def _fm_get(dataset, sid, start="2018-01-01"):
+            try:
+                import requests as _req
+                _r = _req.get(FINMIND_API, params={
+                    "dataset": dataset, "data_id": sid, "start_date": start
+                }, timeout=15)
+                _d = _r.json()
+                if _d.get("status") == 200 and _d.get("data"):
+                    return pd.DataFrame(_d["data"])
+            except Exception:
+                pass
+            return pd.DataFrame()
+
+        # ── 公司基本資料
+        with st.spinner(f"載入 {_queried} 財報資料..."):
+            _df_fin   = _fm_get("TaiwanStockFinancialStatements", _queried)
+            _df_rev   = _fm_get("TaiwanStockMonthRevenue", _queried, "2022-01-01")
+            _df_bal   = _fm_get("TaiwanStockBalanceSheet", _queried)
+            _df_cf    = _fm_get("TaiwanStockCashFlowsStatement", _queried, "2019-01-01")
+            _df_div   = _fm_get("TaiwanStockDividend", _queried, "2015-01-01")
+
+        # ── 取公司名稱
+        _company_name = "—"
+        try:
+            _df_p, _ok = load_price_csv(_queried)
+            if _ok:
+                _company_name = _queried
+        except Exception:
+            pass
+        try:
+            if not _df_fin.empty and "stock_id" in _df_fin.columns:
+                _company_name = _queried
+        except Exception:
+            pass
+
+        # ── 標題列
+        st.markdown(
+            f"<div style='background:rgba(0,100,200,0.15);border-radius:10px;"
+            f"padding:14px 20px;margin:10px 0;'>"
+            f"<span style='font-size:1.3rem;font-weight:700;color:#e8f4fd;'>📊 {_queried}</span>"
+            f"<span style='color:#7fb3d3;font-size:.85rem;margin-left:12px;'>"
+            f"資料來源：FinMind　更新：{datetime.now(ZoneInfo('Asia/Taipei')).strftime('%Y/%m/%d')}</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
+        # ── 操作按鈕
+        _btn_cols = st.columns(5)
+        with _btn_cols[0]:
+            if st.button("➕ 加入戰備庫", key="rc_add_reserve"):
+                st.toast("功能開發中", icon="🚧")
+        with _btn_cols[1]:
+            if st.button("👑 加入王者", key="rc_add_king"):
+                st.toast("功能開發中", icon="🚧")
+        with _btn_cols[2]:
+            if st.button("📡 加入監控", key="rc_add_watch"):
+                st.toast("功能開發中", icon="🚧")
+        with _btn_cols[3]:
+            if st.button("🔄 重新分析", key="rc_reanalyze"):
+                st.rerun()
+        with _btn_cols[4]:
+            if st.button("⬇️ 匯出Excel", key="rc_export_excel"):
+                st.toast("功能開發中", icon="🚧")
+
+        st.divider()
+
+        # ══ 主體：左側圖表 + 右側DNA ══
+        _main_col, _dna_col = st.columns([3, 1])
+
+        with _main_col:
+
+            # ── 圖表輔助：plotly
+            try:
+                import plotly.graph_objects as go
+                import plotly.express as px
+                _PLOTLY_OK = True
+            except Exception:
+                _PLOTLY_OK = False
+
+            def _no_data_msg(title):
+                st.markdown(
+                    f"<div style='border:1px solid #1e3a5f;border-radius:8px;"
+                    f"padding:20px;text-align:center;color:#7fb3d3;margin:8px 0;'>"
+                    f"📭 {title}：資料不足</div>",
+                    unsafe_allow_html=True
+                )
+
+            # ────────────────────────────────────────────────
+            # 圖1：EPS（近12季）
+            # ────────────────────────────────────────────────
+            st.markdown("#### 1｜EPS（近12季）")
+            try:
+                if _df_fin.empty:
+                    raise ValueError("無資料")
+                _eps_df = _df_fin[_df_fin["type"] == "EPS"].copy()
+                if _eps_df.empty:
+                    raise ValueError("無EPS")
+                _eps_df["date"] = pd.to_datetime(_eps_df["date"], errors="coerce")
+                _eps_df = _eps_df.dropna(subset=["date"]).sort_values("date").tail(12)
+                _eps_df["value"] = pd.to_numeric(_eps_df["value"], errors="coerce")
+                # TTM EPS
+                _eps_df["ttm"] = _eps_df["value"].rolling(4).sum()
+                _quarters = _eps_df["date"].dt.strftime("%Y Q%q") if hasattr(_eps_df["date"].dt, 'quarter') else _eps_df["date"].dt.strftime("%Y-%m")
+                if _PLOTLY_OK:
+                    _fig = go.Figure()
+                    _fig.add_bar(x=_eps_df["date"].dt.strftime("%Y-Q%q") if hasattr(_eps_df["date"].dt, "quarter") else _eps_df["date"].astype(str),
+                                 y=_eps_df["value"], name="單季EPS", marker_color="#4fc3f7")
+                    _fig.add_scatter(x=_eps_df["date"].dt.strftime("%Y-Q%q") if hasattr(_eps_df["date"].dt, "quarter") else _eps_df["date"].astype(str),
+                                     y=_eps_df["ttm"], name="TTM EPS", line=dict(color="#ffd54f", width=2))
+                    _fig.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                       font_color="#e8f4fd", legend=dict(orientation="h"), margin=dict(l=0,r=0,t=20,b=0))
+                    st.plotly_chart(_fig, use_container_width=True)
+                else:
+                    st.line_chart(_eps_df.set_index("date")[["value", "ttm"]])
+            except Exception:
+                _no_data_msg("EPS")
+
+            # ────────────────────────────────────────────────
+            # 圖2：月營收 YoY（近24個月）
+            # ────────────────────────────────────────────────
+            st.markdown("#### 2｜月營收 YoY（近24個月）")
+            try:
+                if _df_rev.empty:
+                    raise ValueError("無資料")
+                _rev_df = _df_rev.copy()
+                _rev_df["date"] = pd.to_datetime(_rev_df["date"], errors="coerce")
+                _rev_df = _rev_df.dropna(subset=["date"]).sort_values("date").tail(24)
+                _rev_df["revenue"] = pd.to_numeric(_rev_df["revenue"], errors="coerce")
+                _rev_df["yoy"] = _rev_df["revenue"].pct_change(12) * 100
+                if _PLOTLY_OK:
+                    _fig2 = go.Figure()
+                    _colors = ["#ef5350" if v < 0 else "#66bb6a" for v in _rev_df["yoy"].fillna(0)]
+                    _fig2.add_bar(x=_rev_df["date"].dt.strftime("%Y-%m"), y=_rev_df["yoy"],
+                                  marker_color=_colors, name="YoY%")
+                    _fig2.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                        font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
+                    st.plotly_chart(_fig2, use_container_width=True)
+                else:
+                    st.bar_chart(_rev_df.set_index("date")["yoy"])
+            except Exception:
+                _no_data_msg("月營收 YoY")
+
+            # ────────────────────────────────────────────────
+            # 圖3：毛利率 / 圖4：營益率（近12季，合併顯示）
+            # ────────────────────────────────────────────────
+            st.markdown("#### 3｜毛利率　4｜營益率（近12季）")
+            try:
+                if _df_fin.empty:
+                    raise ValueError("無資料")
+                _gp_df = _df_fin[_df_fin["type"] == "GrossProfit"].copy()
+                _rev2  = _df_fin[_df_fin["type"] == "Revenue"].copy()
+                _op_df = _df_fin[_df_fin["type"] == "OperatingIncome"].copy()
+                for _tmp in [_gp_df, _rev2, _op_df]:
+                    _tmp["date"] = pd.to_datetime(_tmp["date"], errors="coerce")
+                    _tmp["value"] = pd.to_numeric(_tmp["value"], errors="coerce")
+                _merged = _rev2[["date","value"]].rename(columns={"value":"rev"}).merge(
+                    _gp_df[["date","value"]].rename(columns={"value":"gp"}), on="date"
+                ).merge(_op_df[["date","value"]].rename(columns={"value":"op"}), on="date")
+                _merged = _merged.dropna().sort_values("date").tail(12)
+                _merged["gross_margin"] = _merged["gp"] / _merged["rev"] * 100
+                _merged["op_margin"]    = _merged["op"] / _merged["rev"] * 100
+                if _PLOTLY_OK:
+                    _fig3 = go.Figure()
+                    _fig3.add_scatter(x=_merged["date"].astype(str), y=_merged["gross_margin"],
+                                      name="毛利率%", line=dict(color="#4fc3f7", width=2))
+                    _fig3.add_scatter(x=_merged["date"].astype(str), y=_merged["op_margin"],
+                                      name="營益率%", line=dict(color="#ffd54f", width=2))
+                    _fig3.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                        font_color="#e8f4fd", legend=dict(orientation="h"), margin=dict(l=0,r=0,t=20,b=0))
+                    st.plotly_chart(_fig3, use_container_width=True)
+                else:
+                    st.line_chart(_merged.set_index("date")[["gross_margin","op_margin"]])
+            except Exception:
+                _no_data_msg("毛利率／營益率")
+
+            # ────────────────────────────────────────────────
+            # 圖5：ROE（近5年）
+            # ────────────────────────────────────────────────
+            st.markdown("#### 5｜ROE（近5年）")
+            try:
+                if _df_fin.empty:
+                    raise ValueError("無資料")
+                _roe_df = _df_fin[_df_fin["type"] == "ReturnOnEquity"].copy()
+                if _roe_df.empty:
+                    raise ValueError("無ROE")
+                _roe_df["date"] = pd.to_datetime(_roe_df["date"], errors="coerce")
+                _roe_df["value"] = pd.to_numeric(_roe_df["value"], errors="coerce")
+                _roe_df = _roe_df.dropna().sort_values("date").tail(20)
+                if _PLOTLY_OK:
+                    _fig5 = go.Figure()
+                    _fig5.add_bar(x=_roe_df["date"].astype(str), y=_roe_df["value"],
+                                  marker_color="#ab47bc", name="ROE%")
+                    _fig5.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                        font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
+                    st.plotly_chart(_fig5, use_container_width=True)
+                else:
+                    st.bar_chart(_roe_df.set_index("date")["value"])
+            except Exception:
+                _no_data_msg("ROE")
+
+            # ────────────────────────────────────────────────
+            # 圖6：自由現金流（近5年）
+            # ────────────────────────────────────────────────
+            st.markdown("#### 6｜自由現金流（近5年）")
+            try:
+                if _df_cf.empty:
+                    raise ValueError("無資料")
+                _ocf = _df_cf[_df_cf["type"] == "CashFlowsFromOperatingActivities"].copy()
+                _cap = _df_cf[_df_cf["type"] == "PurchaseOfPropertyPlantAndEquipment"].copy()
+                for _t in [_ocf, _cap]:
+                    _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
+                    _t["value"] = pd.to_numeric(_t["value"], errors="coerce")
+                _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).merge(
+                    _cap[["date","value"]].rename(columns={"value":"capex"}), on="date"
+                ).dropna().sort_values("date").tail(20)
+                _fcf["fcf"] = _fcf["ocf"] + _fcf["capex"]  # capex通常為負值
+                if _PLOTLY_OK:
+                    _fig6 = go.Figure()
+                    _colors6 = ["#ef5350" if v < 0 else "#66bb6a" for v in _fcf["fcf"]]
+                    _fig6.add_bar(x=_fcf["date"].astype(str), y=_fcf["fcf"],
+                                  marker_color=_colors6, name="自由現金流")
+                    _fig6.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                        font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
+                    st.plotly_chart(_fig6, use_container_width=True)
+                else:
+                    st.bar_chart(_fcf.set_index("date")["fcf"])
+            except Exception:
+                _no_data_msg("自由現金流")
+
+            # ────────────────────────────────────────────────
+            # 圖7：負債比（近5年）
+            # ────────────────────────────────────────────────
+            st.markdown("#### 7｜負債比（近5年）")
+            try:
+                if _df_bal.empty:
+                    raise ValueError("無資料")
+                _debt  = _df_bal[_df_bal["type"] == "TotalLiabilities"].copy()
+                _asset = _df_bal[_df_bal["type"] == "TotalAssets"].copy()
+                for _t in [_debt, _asset]:
+                    _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
+                    _t["value"] = pd.to_numeric(_t["value"], errors="coerce")
+                _dr = _debt[["date","value"]].rename(columns={"value":"liab"}).merge(
+                    _asset[["date","value"]].rename(columns={"value":"asset"}), on="date"
+                ).dropna().sort_values("date").tail(20)
+                _dr["debt_ratio"] = _dr["liab"] / _dr["asset"] * 100
+                if _PLOTLY_OK:
+                    _fig7 = go.Figure()
+                    _fig7.add_scatter(x=_dr["date"].astype(str), y=_dr["debt_ratio"],
+                                      fill="tozeroy", line=dict(color="#ff7043"), name="負債比%")
+                    _fig7.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                        font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
+                    st.plotly_chart(_fig7, use_container_width=True)
+                else:
+                    st.line_chart(_dr.set_index("date")["debt_ratio"])
+            except Exception:
+                _no_data_msg("負債比")
+
+            # ────────────────────────────────────────────────
+            # 圖8：存貨 / 圖9：應收帳款（近12季）
+            # ────────────────────────────────────────────────
+            st.markdown("#### 8｜存貨　9｜應收帳款（近12季）")
+            try:
+                if _df_bal.empty:
+                    raise ValueError("無資料")
+                _inv = _df_bal[_df_bal["type"] == "Inventories"].copy()
+                _ar  = _df_bal[_df_bal["type"] == "AccountsReceivable"].copy()
+                for _t in [_inv, _ar]:
+                    _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
+                    _t["value"] = pd.to_numeric(_t["value"], errors="coerce")
+                _ia = _inv[["date","value"]].rename(columns={"value":"inv"}).merge(
+                    _ar[["date","value"]].rename(columns={"value":"ar"}), on="date"
+                ).dropna().sort_values("date").tail(12)
+                if _PLOTLY_OK:
+                    _fig8 = go.Figure()
+                    _fig8.add_bar(x=_ia["date"].astype(str), y=_ia["inv"],
+                                  name="存貨", marker_color="#ffd54f", opacity=0.8)
+                    _fig8.add_scatter(x=_ia["date"].astype(str), y=_ia["ar"],
+                                      name="應收帳款", line=dict(color="#ef5350", width=2))
+                    _fig8.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                        font_color="#e8f4fd", legend=dict(orientation="h"), margin=dict(l=0,r=0,t=20,b=0))
+                    st.plotly_chart(_fig8, use_container_width=True)
+                else:
+                    st.line_chart(_ia.set_index("date"))
+            except Exception:
+                _no_data_msg("存貨／應收帳款")
+
+            # ────────────────────────────────────────────────
+            # 圖10：現金股利（近10年）
+            # ────────────────────────────────────────────────
+            st.markdown("#### 10｜現金股利（近10年）")
+            try:
+                if _df_div.empty:
+                    raise ValueError("無資料")
+                _div_df = _df_div.copy()
+                _div_df["date"] = pd.to_datetime(_div_df.get("CashExDividendTradingDate", _div_df.get("date","")), errors="coerce")
+                _div_df["cash"] = pd.to_numeric(_div_df.get("CashEarningsDistribution", _div_df.get("cash_div", 0)), errors="coerce")
+                _div_df = _div_df.dropna(subset=["date","cash"]).query("cash > 0").sort_values("date").tail(10)
+                if _PLOTLY_OK:
+                    _fig10 = go.Figure()
+                    _fig10.add_bar(x=_div_df["date"].dt.strftime("%Y"), y=_div_df["cash"],
+                                   marker_color="#26a69a", name="現金股利(元)")
+                    _fig10.update_layout(height=260, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                         font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
+                    st.plotly_chart(_fig10, use_container_width=True)
+                else:
+                    st.bar_chart(_div_df.set_index("date")["cash"])
+            except Exception:
+                _no_data_msg("現金股利")
+
+            st.divider()
+
+            # ────────────────────────────────────────────────
+            # AI 財報分析
+            # ────────────────────────────────────────────────
+            st.markdown("#### 🤖 AI 財報分析")
+
+            if st.button("▶️ 執行 AI 財報分析", key="rc_ai_btn"):
+                # 整理財報摘要送給 AI
+                _summary_parts = [f"股票代號：{_queried}"]
+
+                try:
+                    if not _df_fin.empty:
+                        _eps_latest = _df_fin[_df_fin["type"]=="EPS"].tail(4)
+                        if not _eps_latest.empty:
+                            _eps_vals = pd.to_numeric(_eps_latest["value"], errors="coerce").tolist()
+                            _summary_parts.append(f"近4季EPS：{_eps_vals}")
+                except Exception:
+                    pass
+
+                try:
+                    if not _df_rev.empty:
+                        _rev_latest = _df_rev.tail(6)
+                        _yoy_vals = pd.to_numeric(_rev_latest.get("revenue", _rev_latest.get("value",[])), errors="coerce").pct_change(12).tail(3).round(3).tolist()
+                        _summary_parts.append(f"近期月營收YoY：{_yoy_vals}")
+                except Exception:
+                    pass
+
+                try:
+                    if not _df_fin.empty:
+                        _gp2 = _df_fin[_df_fin["type"]=="GrossProfit"].tail(4)
+                        _rv2 = _df_fin[_df_fin["type"]=="Revenue"].tail(4)
+                        if not _gp2.empty and not _rv2.empty:
+                            _gm = (pd.to_numeric(_gp2["value"].values, errors="coerce") /
+                                   pd.to_numeric(_rv2["value"].values, errors="coerce") * 100).round(1).tolist()
+                            _summary_parts.append(f"近4季毛利率(%)：{_gm}")
+                except Exception:
+                    pass
+
+                _prompt = f"""
+你是一位專業的股票財報分析師。以下是台股個股的財報資料摘要，請依固定格式進行財報分析。
+
+{chr(10).join(_summary_parts)}
+
+請依以下固定格式回覆，禁止提供買進、賣出、目標價或投資建議：
+
+一、財報優點
+（條列優點，每點一行）
+
+二、財報風險
+（條列風險，每點一行）
+
+三、AI財報結論
+（3～5句綜合結論，純財務分析，不包含投資建議）
+"""
+                with st.spinner("AI 財報分析中..."):
+                    try:
+                        import requests as _req2
+                        _ai_resp = _req2.post(
+                            "https://api.anthropic.com/v1/messages",
+                            headers={"Content-Type": "application/json"},
+                            json={
+                                "model": "claude-sonnet-4-6",
+                                "max_tokens": 1000,
+                                "messages": [{"role": "user", "content": _prompt}]
+                            },
+                            timeout=30
+                        )
+                        _ai_data = _ai_resp.json()
+                        _ai_text = "".join(
+                            c.get("text","") for c in _ai_data.get("content",[])
+                            if c.get("type") == "text"
+                        )
+                        if _ai_text:
+                            st.markdown(
+                                f"<div style='background:rgba(0,50,100,0.3);border-radius:8px;"
+                                f"padding:16px;margin:8px 0;white-space:pre-wrap;font-size:.88rem;'>"
+                                f"{_ai_text}</div>",
+                                unsafe_allow_html=True
+                            )
+                        else:
+                            st.warning("AI 未回傳分析結果。")
+                    except Exception as _ae:
+                        st.error(f"AI 分析失敗：{_ae}")
+
+            st.divider()
+
+            # ── 同業比較（框架）
+            st.markdown("#### 📊 同業比較")
+            st.markdown(
+                "<div style='border:1px dashed #1e3a5f;border-radius:8px;"
+                "padding:16px;color:#7fb3d3;text-align:center;'>"
+                "🚧 同業比較功能開發中<br>"
+                "<small>預留欄位：EPS、毛利率、ROE、營益率、月營收YoY</small>"
+                "</div>",
+                unsafe_allow_html=True
+            )
+
+        # ── 右側 DNA
+        with _dna_col:
+
+            # 財報DNA評分
+            st.markdown("**📋 財報 DNA**")
+            try:
+                _dna_scores = {}
+                if not _df_fin.empty:
+                    # EPS趨勢
+                    _eps_v = pd.to_numeric(_df_fin[_df_fin["type"]=="EPS"]["value"], errors="coerce").dropna().tail(8)
+                    if len(_eps_v) >= 4:
+                        _eps_trend = _eps_v.iloc[-1] > _eps_v.iloc[-4]
+                        _eps_level = _eps_v.mean()
+                        _dna_scores["EPS"] = 5 if (_eps_trend and _eps_level > 5) else 4 if _eps_trend else 3
+
+                    # 毛利率
+                    _gp3 = _df_fin[_df_fin["type"]=="GrossProfit"]["value"]
+                    _rv3 = _df_fin[_df_fin["type"]=="Revenue"]["value"]
+                    if len(_gp3) >= 4 and len(_rv3) >= 4:
+                        _gm_avg = (pd.to_numeric(_gp3, errors="coerce").tail(4).sum() /
+                                   pd.to_numeric(_rv3, errors="coerce").tail(4).sum() * 100)
+                        _dna_scores["毛利率"] = 5 if _gm_avg > 40 else 4 if _gm_avg > 25 else 3 if _gm_avg > 15 else 2
+
+                    # ROE
+                    _roe_v = pd.to_numeric(_df_fin[_df_fin["type"]=="ReturnOnEquity"]["value"], errors="coerce").dropna().tail(4)
+                    if len(_roe_v) >= 2:
+                        _roe_avg = _roe_v.mean()
+                        _dna_scores["ROE"] = 5 if _roe_avg > 20 else 4 if _roe_avg > 15 else 3 if _roe_avg > 10 else 2
+
+                if not _df_cf.empty:
+                    _ocf2 = pd.to_numeric(_df_cf[_df_cf["type"]=="CashFlowsFromOperatingActivities"]["value"], errors="coerce").dropna().tail(4)
+                    if len(_ocf2) >= 2:
+                        _fcf_pos = (_ocf2 > 0).sum()
+                        _dna_scores["自由現金流"] = 5 if _fcf_pos == 4 else 4 if _fcf_pos >= 3 else 3
+
+                if not _df_bal.empty:
+                    _liab2  = pd.to_numeric(_df_bal[_df_bal["type"]=="TotalLiabilities"]["value"], errors="coerce").dropna().tail(1)
+                    _asset2 = pd.to_numeric(_df_bal[_df_bal["type"]=="TotalAssets"]["value"], errors="coerce").dropna().tail(1)
+                    if len(_liab2) and len(_asset2):
+                        _dr2 = float(_liab2.iloc[-1]) / float(_asset2.iloc[-1]) * 100
+                        _dna_scores["負債比"] = 5 if _dr2 < 30 else 4 if _dr2 < 50 else 3 if _dr2 < 65 else 2
+
+                if _dna_scores:
+                    for _item, _score in _dna_scores.items():
+                        _stars = "★" * _score + "☆" * (5 - _score)
+                        _color = "#ffd54f" if _score >= 4 else "#9fb8d4"
+                        st.markdown(
+                            f"<div style='display:flex;justify-content:space-between;"
+                            f"padding:4px 0;font-size:.82rem;'>"
+                            f"<span style='color:#e8f4fd;'>{_item}</span>"
+                            f"<span style='color:{_color};'>{_stars}</span>"
+                            f"</div>",
+                            unsafe_allow_html=True
+                        )
+                else:
+                    st.caption("資料不足，無法評分")
+            except Exception:
+                st.caption("評分計算失敗")
+
+            st.divider()
+
+            # 公司DNA（框架）
+            st.markdown("**🧬 公司 DNA**")
+            st.markdown(
+                "<div style='border:1px dashed #1e3a5f;border-radius:6px;"
+                "padding:10px;color:#7fb3d3;font-size:.8rem;text-align:center;'>"
+                "🚧 開發中<br>未來串接產品線資料"
+                "</div>",
+                unsafe_allow_html=True
+            )
