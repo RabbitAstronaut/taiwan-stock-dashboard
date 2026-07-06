@@ -10292,8 +10292,10 @@ with tab9:
             _data = _r.json()
 
             for _row in _data:
-                _reason = _row.get("Reason", "")
-                if not any(k in _reason for k in ["除息", "除權息", "分配收益"]):
+                _reason = _row.get("Reason", "").strip()
+
+                # 只保留除息/除權/除權息，其他全部排除
+                if _reason not in ["除息", "除權", "除權息"]:
                     continue
 
                 _sid  = str(_row.get("Code", "")).strip()
@@ -10309,9 +10311,15 @@ with tab9:
                 if not _m:
                     continue
                 try:
-                    _ex_date = _pd.Timestamp(
+                    _stop_date = _pd.Timestamp(
                         f"{int(_m.group(1))+1911}-{_m.group(2)}-{_m.group(3)}"
                     )
+                    # 除息日 = 停止過戶開始日前一個交易日（跳過週末）
+                    _offset = 1
+                    _ex_date = _stop_date - _pd.Timedelta(days=_offset)
+                    while _ex_date.weekday() >= 5:
+                        _offset += 1
+                        _ex_date = _stop_date - _pd.Timedelta(days=_offset)
                 except Exception:
                     continue
 
@@ -10380,12 +10388,15 @@ with tab9:
             _cols = st.columns(3)
             for _i, (_, _r) in enumerate(_group.iterrows()):
                 with _cols[_i % 3]:
+                    _reason_color = "#00e676" if _r["reason"]=="除息" else                                     "#fbbf24" if _r["reason"]=="除權息" else "#9fb8d4"
                     st.markdown(
                         f"<div style='border:1px solid #1e3a5f;border-radius:6px;"
                         f"padding:8px 12px;margin:4px 0;background:rgba(255,255,255,0.02);'>"
                         f"<span style='font-size:.95rem;font-weight:700;color:#e8f4fd;'>"
-                        f"{_r['stock_id']} {_r['name']}</span><br>"
-                        f"<span style='font-size:.78rem;color:#7fb3d3;'>{_r['reason']}</span>"
+                        f"{_r['stock_id']} {_r['name']}</span>"
+                        f"<span style='font-size:.75rem;color:{_reason_color};"
+                        f"margin-left:6px;border:1px solid {_reason_color};"
+                        f"border-radius:3px;padding:1px 5px;'>{_r['reason']}</span>"
                         f"</div>",
                         unsafe_allow_html=True
                     )
