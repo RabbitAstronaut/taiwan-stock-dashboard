@@ -10544,6 +10544,21 @@ with tab10:
 
     FINMIND_API = "https://api.finmindtrade.com/api/v4/data"
 
+    # ── FinMind 頂層快取函式（TTL 30分鐘，key=dataset+sid+start）
+    @st.cache_data(ttl=1800, show_spinner=False)
+    def _rc_fm_get(dataset, sid, start="2018-01-01"):
+        try:
+            import requests as _req
+            _r = _req.get(FINMIND_API, params={
+                "dataset": dataset, "data_id": sid, "start_date": start
+            }, timeout=15)
+            _d = _r.json()
+            if _d.get("status") == 200 and _d.get("data"):
+                return pd.DataFrame(_d["data"]), None
+            return pd.DataFrame(), _d.get("msg", "無資料")
+        except Exception as _e:
+            return pd.DataFrame(), str(_e)
+
     # ── Session State 初始化
     if "rc_my_research" not in st.session_state:
         st.session_state["rc_my_research"] = []   # 我的研究 [{id, name}]
@@ -10690,19 +10705,8 @@ with tab10:
                 "</div>", unsafe_allow_html=True
             )
         else:
-            # ── FinMind 資料抓取
-            def _fm_get(dataset, sid, start="2018-01-01"):
-                try:
-                    import requests as _req
-                    _r = _req.get(FINMIND_API, params={
-                        "dataset": dataset, "data_id": sid, "start_date": start
-                    }, timeout=15)
-                    _d = _r.json()
-                    if _d.get("status") == 200 and _d.get("data"):
-                        return pd.DataFrame(_d["data"]), None
-                    return pd.DataFrame(), _d.get("msg", "無資料")
-                except Exception as _e:
-                    return pd.DataFrame(), str(_e)
+            # ── FinMind 資料抓取（使用頂層快取函式 _rc_fm_get）
+            _fm_get = _rc_fm_get
 
             def _no_data(title, reason="資料不足"):
                 st.markdown(
