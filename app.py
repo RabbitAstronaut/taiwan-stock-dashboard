@@ -10872,16 +10872,20 @@ with tab10:
                 _div_df = _df_div.copy()
                 _div_df["date"] = pd.to_datetime(_div_df.get("CashExDividendTradingDate", _div_df.get("date","")), errors="coerce")
                 _div_df["cash"] = pd.to_numeric(_div_df.get("CashEarningsDistribution", _div_df.get("cash_div", 0)), errors="coerce")
-                _div_df = _div_df.dropna(subset=["date","cash"]).query("cash > 0").sort_values("date").tail(10)
+                _div_df = _div_df.dropna(subset=["date","cash"]).query("cash > 0")
+                # 依年份合計（支援季配息）
+                _div_df["year"] = _div_df["date"].dt.year
+                _div_annual = _div_df.groupby("year")["cash"].sum().reset_index()
+                _div_annual = _div_annual.sort_values("year").tail(10)
                 if _PLOTLY_OK:
                     _fig10 = go.Figure()
-                    _fig10.add_bar(x=_div_df["date"].dt.strftime("%Y"), y=_div_df["cash"],
-                                   marker_color="#26a69a", name="現金股利(元)")
+                    _fig10.add_bar(x=_div_annual["year"].astype(str), y=_div_annual["cash"].round(2),
+                                   marker_color="#26a69a", name="年度現金股利(元)")
                     _fig10.update_layout(height=260, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                          font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
                     st.plotly_chart(_fig10, use_container_width=True)
                 else:
-                    st.bar_chart(_div_df.set_index("date")["cash"])
+                    st.bar_chart(_div_annual.set_index("year")["cash"])
             except Exception:
                 _no_data_msg("現金股利")
 
