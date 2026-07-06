@@ -10536,529 +10536,493 @@ with tab9:
 # ══════════════════════════════════════════════════════════════
 # ▌ TAB 10：財報研究中心（Research Center）
 # ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
+# ▌ TAB 10：財報研究中心（Research Center）
+# ══════════════════════════════════════════════════════════════
 with tab10:
     st.markdown("<div class='sec-title'>🔬 財報研究中心</div>", unsafe_allow_html=True)
-    st.markdown(
-        "<div class='infobox'>深度研究個股財報。輸入股票代號，查詢完整財務資料、AI分析與同業比較。</div>",
-        unsafe_allow_html=True
-    )
 
-    # ── 常數
     FINMIND_API = "https://api.finmindtrade.com/api/v4/data"
-    FINMIND_HEADERS = {"Content-Type": "application/json"}
 
-    # ── 查詢輸入
-    _rc_col1, _rc_col2, _rc_col3 = st.columns([2, 1, 5])
-    with _rc_col1:
-        _rc_sid = st.text_input("股票代號", placeholder="例：2330", key="rc_stock_id").strip()
-    with _rc_col2:
-        st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
-        _rc_query = st.button("🔍 查詢", key="rc_query_btn")
+    # ── 研究清單 session_state 初始化
+    if "rc_watchlist" not in st.session_state:
+        st.session_state["rc_watchlist"] = []
+    if "rc_selected" not in st.session_state:
+        st.session_state["rc_selected"] = None
 
-    if _rc_query and _rc_sid:
-        st.session_state["rc_queried_sid"] = _rc_sid
+    # ══ 左側研究清單 + 右側財報 ══
+    _left, _right = st.columns([1, 3])
 
-    _queried = st.session_state.get("rc_queried_sid", "")
+    with _left:
+        st.markdown("**📋 研究清單**")
 
-    if not _queried:
-        st.info("請輸入股票代號後點擊查詢。")
-    else:
-        # ── FinMind 資料抓取函式
-        def _fm_get(dataset, sid, start="2018-01-01"):
-            try:
-                import requests as _req
-                _r = _req.get(FINMIND_API, params={
-                    "dataset": dataset, "data_id": sid, "start_date": start
-                }, timeout=15)
-                _d = _r.json()
-                if _d.get("status") == 200 and _d.get("data"):
-                    return pd.DataFrame(_d["data"])
-            except Exception:
-                pass
-            return pd.DataFrame()
-
-        # ── 公司基本資料
-        with st.spinner(f"載入 {_queried} 財報資料..."):
-            _df_fin   = _fm_get("TaiwanStockFinancialStatements", _queried)
-            _df_rev   = _fm_get("TaiwanStockMonthRevenue", _queried, "2022-01-01")
-            _df_bal   = _fm_get("TaiwanStockBalanceSheet", _queried)
-            _df_cf    = _fm_get("TaiwanStockCashFlowsStatement", _queried, "2019-01-01")
-            _df_div   = _fm_get("TaiwanStockDividend", _queried, "2015-01-01")
-
-        # ── 取公司名稱
-        _company_name = "—"
-        try:
-            _df_p, _ok = load_price_csv(_queried)
-            if _ok:
-                _company_name = _queried
-        except Exception:
-            pass
-        try:
-            if not _df_fin.empty and "stock_id" in _df_fin.columns:
-                _company_name = _queried
-        except Exception:
-            pass
-
-        # ── 標題列
-        st.markdown(
-            f"<div style='background:rgba(0,100,200,0.15);border-radius:10px;"
-            f"padding:14px 20px;margin:10px 0;'>"
-            f"<span style='font-size:1.3rem;font-weight:700;color:#e8f4fd;'>📊 {_queried}</span>"
-            f"<span style='color:#7fb3d3;font-size:.85rem;margin-left:12px;'>"
-            f"資料來源：FinMind　更新：{datetime.now(ZoneInfo('Asia/Taipei')).strftime('%Y/%m/%d')}</span>"
-            f"</div>",
-            unsafe_allow_html=True
-        )
-
-        # ── 操作按鈕
-        _btn_cols = st.columns(5)
-        with _btn_cols[0]:
-            if st.button("➕ 加入戰備庫", key="rc_add_reserve"):
-                st.toast("功能開發中", icon="🚧")
-        with _btn_cols[1]:
-            if st.button("👑 加入王者", key="rc_add_king"):
-                st.toast("功能開發中", icon="🚧")
-        with _btn_cols[2]:
-            if st.button("📡 加入監控", key="rc_add_watch"):
-                st.toast("功能開發中", icon="🚧")
-        with _btn_cols[3]:
-            if st.button("🔄 重新分析", key="rc_reanalyze"):
+        # 加入股票
+        _add_sid = st.text_input("輸入代號", placeholder="如：2330", key="rc_add_input").strip()
+        if st.button("➕ 加入", key="rc_add_btn"):
+            if _add_sid and _add_sid not in st.session_state["rc_watchlist"]:
+                st.session_state["rc_watchlist"].append(_add_sid)
+                st.session_state["rc_selected"] = _add_sid
                 st.rerun()
-        with _btn_cols[4]:
-            if st.button("⬇️ 匯出Excel", key="rc_export_excel"):
-                st.toast("功能開發中", icon="🚧")
 
-        st.divider()
+        st.markdown("---")
 
-        # ══ 主體：左側圖表 + 右側DNA ══
-        _main_col, _dna_col = st.columns([3, 1])
+        # 顯示清單
+        if not st.session_state["rc_watchlist"]:
+            st.caption("尚未加入研究公司。請輸入股票代號，或未來由新星池、戰備庫、王者加入。")
+        else:
+            for _s in st.session_state["rc_watchlist"]:
+                _is_sel = (_s == st.session_state["rc_selected"])
+                _bg = "background:rgba(0,120,255,0.25);" if _is_sel else ""
+                if st.button(
+                    f"{'▶ ' if _is_sel else ''}{_s}",
+                    key=f"rc_sel_{_s}",
+                    use_container_width=True
+                ):
+                    st.session_state["rc_selected"] = _s
+                    st.rerun()
 
-        with _main_col:
+            if st.button("🗑 清空清單", key="rc_clear"):
+                st.session_state["rc_watchlist"] = []
+                st.session_state["rc_selected"] = None
+                st.rerun()
 
-            # ── 圖表輔助：plotly
-            try:
-                import plotly.graph_objects as go
-                import plotly.express as px
-                _PLOTLY_OK = True
-            except Exception:
-                _PLOTLY_OK = False
+        st.markdown("---")
+        st.caption("未來預留：新星池 / 戰備庫 / 王者 匯入")
 
-            def _no_data_msg(title):
+    with _right:
+        _sel = st.session_state.get("rc_selected")
+
+        if not _sel:
+            st.markdown(
+                "<div style='text-align:center;padding:60px 20px;color:#7fb3d3;'>"
+                "← 請從左側清單選擇股票，<br>或輸入代號加入研究清單。"
+                "</div>",
+                unsafe_allow_html=True
+            )
+        else:
+            # ── FinMind 資料抓取
+            def _fm_get(dataset, sid, start="2018-01-01"):
+                try:
+                    import requests as _req
+                    _r = _req.get(FINMIND_API, params={
+                        "dataset": dataset, "data_id": sid, "start_date": start
+                    }, timeout=15)
+                    _d = _r.json()
+                    if _d.get("status") == 200 and _d.get("data"):
+                        return pd.DataFrame(_d["data"]), None
+                    return pd.DataFrame(), _d.get("msg", "無資料")
+                except Exception as _e:
+                    return pd.DataFrame(), str(_e)
+
+            def _no_data(title, reason="資料不足"):
                 st.markdown(
-                    f"<div style='border:1px solid #1e3a5f;border-radius:8px;"
-                    f"padding:20px;text-align:center;color:#7fb3d3;margin:8px 0;'>"
-                    f"📭 {title}：資料不足</div>",
+                    f"<div style='border:1px solid #2a3f5f;border-radius:6px;"
+                    f"padding:12px;text-align:center;color:#7fb3d3;margin:4px 0;'>"
+                    f"📭 <b>{title}</b>：{reason}</div>",
                     unsafe_allow_html=True
                 )
 
-            # ────────────────────────────────────────────────
-            # 圖1：EPS（近12季）
-            # ────────────────────────────────────────────────
-            st.markdown("#### 1｜EPS（近12季）")
-            try:
-                if _df_fin.empty:
-                    raise ValueError("無資料")
-                _eps_df = _df_fin[_df_fin["type"] == "EPS"].copy()
-                if _eps_df.empty:
-                    raise ValueError("無EPS")
-                _eps_df["date"] = pd.to_datetime(_eps_df["date"], errors="coerce")
-                _eps_df["value"] = pd.to_numeric(_eps_df["value"], errors="coerce")
-                _eps_df = _eps_df.dropna(subset=["date","value"]).sort_values("date").tail(12)
-                # TTM = 滾動4季加總
-                _eps_df = _eps_df.reset_index(drop=True)
-                _eps_df["ttm"] = _eps_df["value"].rolling(4).sum()
-                _xlabels = _eps_df["date"].dt.strftime("%Y-Q") + _eps_df["date"].dt.quarter.astype(str)
-                if _PLOTLY_OK:
-                    _fig = go.Figure()
-                    _fig.add_bar(x=_xlabels, y=_eps_df["value"], name="單季EPS", marker_color="#4fc3f7")
-                    _fig.add_scatter(x=_xlabels, y=_eps_df["ttm"], name="TTM EPS",
-                                     line=dict(color="#ffd54f", width=2), mode="lines+markers")
-                    _fig.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                       font_color="#e8f4fd", legend=dict(orientation="h"), margin=dict(l=0,r=0,t=20,b=0))
-                    st.plotly_chart(_fig, use_container_width=True)
-                else:
-                    st.line_chart(_eps_df.set_index("date")[["value","ttm"]])
-            except Exception:
-                _no_data_msg("EPS")
+            # 載入資料
+            with st.spinner(f"載入 {_sel} 財報資料..."):
+                _df_fin, _err_fin = _fm_get("TaiwanStockFinancialStatements", _sel)
+                _df_rev, _err_rev = _fm_get("TaiwanStockMonthRevenue", _sel, "2021-01-01")
+                _df_bal, _err_bal = _fm_get("TaiwanStockBalanceSheet", _sel)
+                _df_cf,  _err_cf  = _fm_get("TaiwanStockCashFlowsStatement", _sel, "2018-01-01")
+                _df_div, _err_div = _fm_get("TaiwanStockDividend", _sel, "2015-01-01")
 
-            # ────────────────────────────────────────────────
-            # 圖2：月營收 YoY（近24個月）
-            # ────────────────────────────────────────────────
-            st.markdown("#### 2｜月營收 YoY（近24個月）")
-            try:
-                if _df_rev.empty:
-                    raise ValueError("無資料")
-                _rev_df = _df_rev.copy()
-                _rev_df["date"] = pd.to_datetime(_rev_df["date"], errors="coerce")
-                _rev_df = _rev_df.dropna(subset=["date"]).sort_values("date").tail(36).reset_index(drop=True)
-                _rev_df["revenue"] = pd.to_numeric(_rev_df["revenue"], errors="coerce")
-                _rev_df["yoy"] = _rev_df["revenue"].pct_change(12) * 100
-                _rev_df = _rev_df.tail(24).dropna(subset=["yoy"])
-                if _PLOTLY_OK:
-                    _fig2 = go.Figure()
-                    _colors = ["#ef5350" if v < 0 else "#66bb6a" for v in _rev_df["yoy"].fillna(0)]
-                    _fig2.add_bar(x=_rev_df["date"].dt.strftime("%Y-%m"), y=_rev_df["yoy"],
-                                  marker_color=_colors, name="YoY%")
-                    _fig2.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                        font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
-                    st.plotly_chart(_fig2, use_container_width=True)
-                else:
-                    st.bar_chart(_rev_df.set_index("date")["yoy"])
-            except Exception:
-                _no_data_msg("月營收 YoY")
+            # 標題
+            st.markdown(
+                f"<div style='background:rgba(0,100,200,0.15);border-radius:8px;"
+                f"padding:10px 16px;margin-bottom:12px;'>"
+                f"<b style='font-size:1.1rem;color:#e8f4fd;'>📊 {_sel}</b>"
+                f"<span style='color:#7fb3d3;font-size:.8rem;margin-left:10px;'>"
+                f"資料來源：FinMind　{datetime.now(ZoneInfo('Asia/Taipei')).strftime('%Y/%m/%d')}"
+                f"</span></div>",
+                unsafe_allow_html=True
+            )
 
-            # ────────────────────────────────────────────────
-            # 圖3：毛利率 / 圖4：營益率（近12季，合併顯示）
-            # ────────────────────────────────────────────────
-            st.markdown("#### 3｜毛利率　4｜營益率（近12季）")
-            try:
-                if _df_fin.empty:
-                    raise ValueError("無資料")
-                _gp_df = _df_fin[_df_fin["type"] == "GrossProfit"].copy()
-                _rev2  = _df_fin[_df_fin["type"] == "Revenue"].copy()
-                _op_df = _df_fin[_df_fin["type"] == "OperatingIncome"].copy()
-                for _tmp in [_gp_df, _rev2, _op_df]:
-                    _tmp["date"] = pd.to_datetime(_tmp["date"], errors="coerce")
-                    _tmp["value"] = pd.to_numeric(_tmp["value"], errors="coerce")
-                _merged = _rev2[["date","value"]].rename(columns={"value":"rev"}).merge(
-                    _gp_df[["date","value"]].rename(columns={"value":"gp"}), on="date"
-                ).merge(_op_df[["date","value"]].rename(columns={"value":"op"}), on="date")
-                _merged = _merged.dropna().sort_values("date").tail(12)
-                _merged["gross_margin"] = _merged["gp"] / _merged["rev"] * 100
-                _merged["op_margin"]    = _merged["op"] / _merged["rev"] * 100
-                if _PLOTLY_OK:
-                    _fig3 = go.Figure()
-                    _fig3.add_scatter(x=_merged["date"].astype(str), y=_merged["gross_margin"],
-                                      name="毛利率%", line=dict(color="#4fc3f7", width=2))
-                    _fig3.add_scatter(x=_merged["date"].astype(str), y=_merged["op_margin"],
-                                      name="營益率%", line=dict(color="#ffd54f", width=2))
-                    _fig3.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                        font_color="#e8f4fd", legend=dict(orientation="h"), margin=dict(l=0,r=0,t=20,b=0))
-                    st.plotly_chart(_fig3, use_container_width=True)
-                else:
-                    st.line_chart(_merged.set_index("date")[["gross_margin","op_margin"]])
-            except Exception:
-                _no_data_msg("毛利率／營益率")
-
-            # ────────────────────────────────────────────────
-            # 圖5：ROE（近5年）
-            # ────────────────────────────────────────────────
-            st.markdown("#### 5｜ROE（近5年）")
-            try:
-                if _df_fin.empty or _df_bal.empty:
-                    raise ValueError("無資料")
-                _ni_df  = _df_fin[_df_fin["type"] == "IncomeAfterTaxes"].copy()
-                _eq_df  = _df_bal[_df_bal["type"] == "Equity"].copy()
-                for _t in [_ni_df, _eq_df]:
-                    _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
-                    _t["value"] = pd.to_numeric(_t["value"], errors="coerce")
-                _roe_m = _ni_df[["date","value"]].rename(columns={"value":"ni"}).merge(
-                    _eq_df[["date","value"]].rename(columns={"value":"eq"}), on="date"
-                ).dropna().sort_values("date").tail(20)
-                if _roe_m.empty:
-                    raise ValueError("無ROE資料")
-                _roe_m["roe"] = _roe_m["ni"] / _roe_m["eq"] * 100
-                if _PLOTLY_OK:
-                    _fig5 = go.Figure()
-                    _fig5.add_bar(x=_roe_m["date"].astype(str), y=_roe_m["roe"].round(1),
-                                  marker_color="#ab47bc", name="ROE%")
-                    _fig5.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                        font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
-                    st.plotly_chart(_fig5, use_container_width=True)
-                else:
-                    st.bar_chart(_roe_m.set_index("date")["roe"])
-            except Exception:
-                _no_data_msg("ROE")
-
-            # ────────────────────────────────────────────────
-            # 圖6：自由現金流（近5年）
-            # ────────────────────────────────────────────────
-            st.markdown("#### 6｜自由現金流（近5年）")
-            try:
-                if _df_cf.empty:
-                    raise ValueError("無資料")
-                _ocf = _df_cf[_df_cf["type"] == "CashFlowsFromOperatingActivities"].copy()
-                _cap = _df_cf[_df_cf["type"] == "PropertyAndPlantAndEquipment"].copy()
-                for _t in [_ocf, _cap]:
-                    _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
-                    _t["value"] = pd.to_numeric(_t["value"], errors="coerce")
-                if _ocf.empty:
-                    raise ValueError("無現金流資料")
-                if _cap.empty:
-                    # 只用營業現金流
-                    _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).dropna().sort_values("date").tail(20)
-                    _fcf["fcf"] = _fcf["ocf"]
-                else:
-                    _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).merge(
-                        _cap[["date","value"]].rename(columns={"value":"capex"}), on="date"
-                    ).dropna().sort_values("date").tail(20)
-                    _fcf["fcf"] = _fcf["ocf"] + _fcf["capex"]
-                if _PLOTLY_OK:
-                    _fig6 = go.Figure()
-                    _colors6 = ["#ef5350" if v < 0 else "#66bb6a" for v in _fcf["fcf"]]
-                    _fig6.add_bar(x=_fcf["date"].astype(str), y=_fcf["fcf"],
-                                  marker_color=_colors6, name="自由現金流")
-                    _fig6.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                        font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
-                    st.plotly_chart(_fig6, use_container_width=True)
-                else:
-                    st.bar_chart(_fcf.set_index("date")["fcf"])
-            except Exception:
-                _no_data_msg("自由現金流")
-
-            # ────────────────────────────────────────────────
-            # 圖7：負債比（近5年）
-            # ────────────────────────────────────────────────
-            st.markdown("#### 7｜負債比（近5年）")
-            try:
-                if _df_bal.empty:
-                    raise ValueError("無資料")
-                _debt  = _df_bal[_df_bal["type"] == "Liabilities"].copy()
-                _asset = _df_bal[_df_bal["type"] == "TotalAssets"].copy()
-                for _t in [_debt, _asset]:
-                    _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
-                    _t["value"] = pd.to_numeric(_t["value"], errors="coerce")
-                _dr = _debt[["date","value"]].rename(columns={"value":"liab"}).merge(
-                    _asset[["date","value"]].rename(columns={"value":"asset"}), on="date"
-                ).dropna().sort_values("date").tail(20)
-                _dr["debt_ratio"] = _dr["liab"] / _dr["asset"] * 100
-                if _PLOTLY_OK:
-                    _fig7 = go.Figure()
-                    _fig7.add_scatter(x=_dr["date"].astype(str), y=_dr["debt_ratio"],
-                                      fill="tozeroy", line=dict(color="#ff7043"), name="負債比%")
-                    _fig7.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                        font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
-                    st.plotly_chart(_fig7, use_container_width=True)
-                else:
-                    st.line_chart(_dr.set_index("date")["debt_ratio"])
-            except Exception:
-                _no_data_msg("負債比")
-
-            # ────────────────────────────────────────────────
-            # 圖8：存貨 / 圖9：應收帳款（近12季）
-            # ────────────────────────────────────────────────
-            st.markdown("#### 8｜存貨　9｜應收帳款（近12季）")
-            try:
-                if _df_bal.empty:
-                    raise ValueError("無資料")
-                _inv = _df_bal[_df_bal["type"] == "Inventories"].copy()
-                _ar  = _df_bal[_df_bal["type"] == "AccountsReceivableNet"].copy()
-                for _t in [_inv, _ar]:
-                    _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
-                    _t["value"] = pd.to_numeric(_t["value"], errors="coerce")
-                _inv_c = _inv.dropna(subset=["date","value"]).sort_values("date").tail(12)
-                _ar_c  = _ar.dropna(subset=["date","value"]).sort_values("date").tail(12)
-                if _inv_c.empty and _ar_c.empty:
-                    raise ValueError("無資料")
-                if _PLOTLY_OK:
-                    _fig8 = go.Figure()
-                    if not _inv_c.empty:
-                        _fig8.add_bar(x=_inv_c["date"].dt.strftime("%Y-%m"), y=(_inv_c["value"]/1e8).round(1),
-                                      name="存貨(億)", marker_color="#ffd54f", opacity=0.8)
-                    if not _ar_c.empty:
-                        _fig8.add_scatter(x=_ar_c["date"].dt.strftime("%Y-%m"), y=(_ar_c["value"]/1e8).round(1),
-                                          name="應收帳款(億)", line=dict(color="#ef5350", width=2), mode="lines+markers")
-                    _fig8.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                        font_color="#e8f4fd", legend=dict(orientation="h"), margin=dict(l=0,r=0,t=20,b=0))
-                    st.plotly_chart(_fig8, use_container_width=True)
-                else:
-                    if not _inv_c.empty:
-                        st.line_chart(_inv_c.set_index("date")["value"])
-            except Exception:
-                _no_data_msg("存貨／應收帳款")
-            # ────────────────────────────────────────────────
-            # 圖10：現金股利（近10年）
-            # ────────────────────────────────────────────────
-            st.markdown("#### 10｜現金股利（近10年）")
-            try:
-                if _df_div.empty:
-                    raise ValueError("無資料")
-                _div_df = _df_div.copy()
-                _div_df["date"] = pd.to_datetime(_div_df.get("CashExDividendTradingDate", _div_df.get("date","")), errors="coerce")
-                _div_df["cash"] = pd.to_numeric(_div_df.get("CashEarningsDistribution", _div_df.get("cash_div", 0)), errors="coerce")
-                _div_df = _div_df.dropna(subset=["date","cash"]).query("cash > 0")
-                # 依年份合計（支援季配息）
-                _div_df["year"] = _div_df["date"].dt.year
-                _div_annual = _div_df.groupby("year")["cash"].sum().reset_index()
-                _div_annual = _div_annual.sort_values("year").tail(10)
-                if _PLOTLY_OK:
-                    _fig10 = go.Figure()
-                    _fig10.add_bar(x=_div_annual["year"].astype(str), y=_div_annual["cash"].round(2),
-                                   marker_color="#26a69a", name="年度現金股利(元)")
-                    _fig10.update_layout(height=260, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                         font_color="#e8f4fd", margin=dict(l=0,r=0,t=20,b=0))
-                    st.plotly_chart(_fig10, use_container_width=True)
-                else:
-                    st.bar_chart(_div_annual.set_index("year")["cash"])
-            except Exception:
-                _no_data_msg("現金股利")
+            # 操作按鈕
+            _bc = st.columns(4)
+            with _bc[0]:
+                if st.button("➕ 戰備庫", key=f"rc_res_{_sel}"): st.toast("功能開發中", icon="🚧")
+            with _bc[1]:
+                if st.button("👑 王者", key=f"rc_king_{_sel}"): st.toast("功能開發中", icon="🚧")
+            with _bc[2]:
+                if st.button("📡 監控", key=f"rc_watch_{_sel}"): st.toast("功能開發中", icon="🚧")
+            with _bc[3]:
+                if st.button("🔄 重新載入", key=f"rc_reload_{_sel}"): st.rerun()
 
             st.divider()
 
-            # ────────────────────────────────────────────────
+            # plotly 檢查
+            try:
+                import plotly.graph_objects as _go
+                _PLT = True
+            except Exception:
+                _PLT = False
+
+            # ── 圖表輔助
+            def _prep_fin(type_name):
+                """從財報取出指定type，回傳排序後DataFrame或None"""
+                if _df_fin.empty:
+                    return None, "財報資料載入失敗" if _err_fin else "財報無資料"
+                _d = _df_fin[_df_fin["type"] == type_name].copy()
+                if _d.empty:
+                    return None, f"找不到欄位 {type_name}"
+                _d["date"]  = pd.to_datetime(_d["date"], errors="coerce")
+                _d["value"] = pd.to_numeric(_d["value"], errors="coerce")
+                _d = _d.dropna(subset=["date","value"]).sort_values("date")
+                if _d.empty:
+                    return None, "日期或數值格式錯誤"
+                return _d, None
+
+            def _prep_bal(type_name):
+                if _df_bal.empty:
+                    return None, "資產負債表載入失敗" if _err_bal else "無資料"
+                _d = _df_bal[_df_bal["type"] == type_name].copy()
+                if _d.empty:
+                    return None, f"找不到欄位 {type_name}"
+                _d["date"]  = pd.to_datetime(_d["date"], errors="coerce")
+                _d["value"] = pd.to_numeric(_d["value"], errors="coerce")
+                _d = _d.dropna(subset=["date","value"]).sort_values("date")
+                return (_d, None) if not _d.empty else (None, "資料筆數不足")
+
+            def _prep_cf(type_name):
+                if _df_cf.empty:
+                    return None, "現金流量表載入失敗" if _err_cf else "無資料"
+                _d = _df_cf[_df_cf["type"] == type_name].copy()
+                if _d.empty:
+                    return None, f"找不到欄位 {type_name}"
+                _d["date"]  = pd.to_datetime(_d["date"], errors="coerce")
+                _d["value"] = pd.to_numeric(_d["value"], errors="coerce")
+                _d = _d.dropna(subset=["date","value"]).sort_values("date")
+                return (_d, None) if not _d.empty else (None, "資料筆數不足")
+
+            def _bar_chart(x, y, name, color, height=280):
+                if not _PLT:
+                    st.bar_chart(pd.Series(y, index=x))
+                    return
+                _fig = _go.Figure()
+                _fig.add_bar(x=x, y=y, name=name, marker_color=color)
+                _fig.update_layout(height=height, paper_bgcolor="rgba(0,0,0,0)",
+                                   plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
+                                   margin=dict(l=0,r=0,t=10,b=0))
+                st.plotly_chart(_fig, use_container_width=True)
+
+            def _line_chart(traces, height=280):
+                """traces = [{"x":..,"y":..,"name":..,"color":..}]"""
+                if not _PLT:
+                    st.line_chart({t["name"]: pd.Series(t["y"], index=t["x"]) for t in traces})
+                    return
+                _fig = _go.Figure()
+                for _t in traces:
+                    _fig.add_scatter(x=_t["x"], y=_t["y"], name=_t["name"],
+                                     line=dict(color=_t["color"], width=2), mode="lines+markers")
+                _fig.update_layout(height=height, paper_bgcolor="rgba(0,0,0,0)",
+                                   plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
+                                   legend=dict(orientation="h"), margin=dict(l=0,r=0,t=10,b=0))
+                st.plotly_chart(_fig, use_container_width=True)
+
+            # ════════════════════════════════
+            # 圖1：EPS（近12季）
+            # ════════════════════════════════
+            st.markdown("#### 1｜EPS（近12季）")
+            try:
+                _eps, _e = _prep_fin("EPS")
+                if _eps is None:
+                    _no_data("EPS", _e)
+                else:
+                    _eps = _eps.tail(12).reset_index(drop=True)
+                    _eps["ttm"] = _eps["value"].rolling(4).sum()
+                    _xlb = _eps["date"].dt.strftime("%Y-Q") + _eps["date"].dt.quarter.astype(str)
+                    if _PLT:
+                        _fig = _go.Figure()
+                        _fig.add_bar(x=_xlb, y=_eps["value"].round(2), name="單季EPS", marker_color="#4fc3f7")
+                        _fig.add_scatter(x=_xlb, y=_eps["ttm"].round(2), name="TTM EPS",
+                                         line=dict(color="#ffd54f", width=2), mode="lines+markers")
+                        _fig.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)",
+                                           plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
+                                           legend=dict(orientation="h"), margin=dict(l=0,r=0,t=10,b=0))
+                        st.plotly_chart(_fig, use_container_width=True)
+                    else:
+                        st.line_chart(_eps.set_index("date")[["value","ttm"]])
+            except Exception as _ex:
+                _no_data("EPS", str(_ex))
+
+            # ════════════════════════════════
+            # 圖2：月營收 YoY（近24個月）
+            # ════════════════════════════════
+            st.markdown("#### 2｜月營收 YoY（近24個月）")
+            try:
+                if _df_rev.empty:
+                    _no_data("月營收 YoY", _err_rev or "無資料")
+                else:
+                    _rev = _df_rev.copy()
+                    _rev["date"] = pd.to_datetime(_rev["date"], errors="coerce")
+                    _rev["revenue"] = pd.to_numeric(_rev["revenue"], errors="coerce")
+                    _rev = _rev.dropna(subset=["date","revenue"]).sort_values("date")
+                    if len(_rev) < 13:
+                        _no_data("月營收 YoY", f"資料筆數不足（{len(_rev)}筆，需13筆以上）")
+                    else:
+                        _rev = _rev.tail(36).reset_index(drop=True)
+                        _rev["yoy"] = _rev["revenue"].pct_change(12) * 100
+                        _rev = _rev.dropna(subset=["yoy"]).tail(24)
+                        _colors = ["#ef5350" if v < 0 else "#66bb6a" for v in _rev["yoy"]]
+                        if _PLT:
+                            _fig2 = _go.Figure()
+                            _fig2.add_bar(x=_rev["date"].dt.strftime("%Y-%m"),
+                                          y=_rev["yoy"].round(1), marker_color=_colors, name="YoY%")
+                            _fig2.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)",
+                                                plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
+                                                margin=dict(l=0,r=0,t=10,b=0))
+                            st.plotly_chart(_fig2, use_container_width=True)
+                        else:
+                            st.bar_chart(_rev.set_index("date")["yoy"])
+            except Exception as _ex:
+                _no_data("月營收 YoY", str(_ex))
+
+            # ════════════════════════════════
+            # 圖3+4：毛利率 / 營益率（近12季）
+            # ════════════════════════════════
+            st.markdown("#### 3｜毛利率　4｜營益率（近12季）")
+            try:
+                _gp, _egp = _prep_fin("GrossProfit")
+                _rv, _erv = _prep_fin("Revenue")
+                _op, _eop = _prep_fin("OperatingIncome")
+                if _gp is None or _rv is None:
+                    _no_data("毛利率", _egp or _erv)
+                else:
+                    _m = _rv[["date","value"]].rename(columns={"value":"rev"}).merge(
+                        _gp[["date","value"]].rename(columns={"value":"gp"}), on="date"
+                    )
+                    if _op is not None:
+                        _m = _m.merge(_op[["date","value"]].rename(columns={"value":"op"}), on="date")
+                    _m = _m.dropna().sort_values("date").tail(12)
+                    if _m.empty:
+                        _no_data("毛利率／營益率", "日期合併後無資料")
+                    else:
+                        _m["gm"] = (_m["gp"] / _m["rev"] * 100).round(1)
+                        _traces = [{"x": _m["date"].astype(str), "y": _m["gm"].tolist(),
+                                    "name": "毛利率%", "color": "#4fc3f7"}]
+                        if "op" in _m.columns:
+                            _m["om"] = (_m["op"] / _m["rev"] * 100).round(1)
+                            _traces.append({"x": _m["date"].astype(str), "y": _m["om"].tolist(),
+                                            "name": "營益率%", "color": "#ffd54f"})
+                        _line_chart(_traces)
+            except Exception as _ex:
+                _no_data("毛利率／營益率", str(_ex))
+
+            # ════════════════════════════════
+            # 圖5：ROE（近5年）
+            # ════════════════════════════════
+            st.markdown("#### 5｜ROE（近5年）")
+            try:
+                _ni, _eni = _prep_fin("IncomeAfterTaxes")
+                _eq, _eeq = _prep_bal("Equity")
+                if _ni is None or _eq is None:
+                    _no_data("ROE", _eni or _eeq)
+                else:
+                    _roe = _ni[["date","value"]].rename(columns={"value":"ni"}).merge(
+                        _eq[["date","value"]].rename(columns={"value":"eq"}), on="date"
+                    ).dropna().sort_values("date").tail(20)
+                    if _roe.empty:
+                        _no_data("ROE", "損益表與資產負債表日期無法合併")
+                    else:
+                        _roe["roe"] = (_roe["ni"] / _roe["eq"] * 100).round(1)
+                        _bar_chart(_roe["date"].astype(str).tolist(),
+                                   _roe["roe"].tolist(), "ROE%", "#ab47bc")
+            except Exception as _ex:
+                _no_data("ROE", str(_ex))
+
+            # ════════════════════════════════
+            # 圖6：自由現金流（近5年）
+            # ════════════════════════════════
+            st.markdown("#### 6｜自由現金流（近5年）")
+            try:
+                _ocf, _eocf = _prep_cf("CashFlowsFromOperatingActivities")
+                if _ocf is None:
+                    _no_data("自由現金流", _eocf)
+                else:
+                    _cap, _ecap = _prep_cf("PropertyAndPlantAndEquipment")
+                    if _cap is not None:
+                        _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).merge(
+                            _cap[["date","value"]].rename(columns={"value":"capex"}), on="date"
+                        ).dropna().sort_values("date").tail(20)
+                        _fcf["fcf"] = _fcf["ocf"] + _fcf["capex"]
+                    else:
+                        _fcf = _ocf[["date","value"]].rename(columns={"value":"ocf"}).tail(20)
+                        _fcf["fcf"] = _fcf["ocf"]
+                    if _fcf.empty:
+                        _no_data("自由現金流", "資料筆數不足")
+                    else:
+                        _colors6 = ["#ef5350" if v < 0 else "#66bb6a" for v in _fcf["fcf"]]
+                        _bar_chart(_fcf["date"].astype(str).tolist(),
+                                   (_fcf["fcf"] / 1e8).round(1).tolist(), "自由現金流(億)", _colors6)
+            except Exception as _ex:
+                _no_data("自由現金流", str(_ex))
+
+            # ════════════════════════════════
+            # 圖7：負債比（近5年）
+            # ════════════════════════════════
+            st.markdown("#### 7｜負債比（近5年）")
+            try:
+                _lb, _elb   = _prep_bal("Liabilities")
+                _ast, _east = _prep_bal("TotalAssets")
+                if _lb is None or _ast is None:
+                    _no_data("負債比", _elb or _east)
+                else:
+                    _dr = _lb[["date","value"]].rename(columns={"value":"liab"}).merge(
+                        _ast[["date","value"]].rename(columns={"value":"asset"}), on="date"
+                    ).dropna().sort_values("date").tail(20)
+                    if _dr.empty:
+                        _no_data("負債比", "日期合併後無資料")
+                    else:
+                        _dr["dr"] = (_dr["liab"] / _dr["asset"] * 100).round(1)
+                        if _PLT:
+                            _fig7 = _go.Figure()
+                            _fig7.add_scatter(x=_dr["date"].astype(str), y=_dr["dr"],
+                                              fill="tozeroy", line=dict(color="#ff7043"), name="負債比%")
+                            _fig7.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)",
+                                                plot_bgcolor="rgba(0,0,0,0)", font_color="#e8f4fd",
+                                                margin=dict(l=0,r=0,t=10,b=0))
+                            st.plotly_chart(_fig7, use_container_width=True)
+                        else:
+                            st.line_chart(_dr.set_index("date")["dr"])
+            except Exception as _ex:
+                _no_data("負債比", str(_ex))
+
+            # ════════════════════════════════
+            # 圖8：存貨（近12季）
+            # ════════════════════════════════
+            st.markdown("#### 8｜存貨（近12季）")
+            try:
+                _inv, _einv = _prep_bal("Inventories")
+                if _inv is None:
+                    _no_data("存貨", _einv)
+                else:
+                    _inv = _inv.tail(12)
+                    _bar_chart(_inv["date"].dt.strftime("%Y-%m").tolist(),
+                               (_inv["value"] / 1e8).round(1).tolist(), "存貨(億)", "#ffd54f")
+            except Exception as _ex:
+                _no_data("存貨", str(_ex))
+
+            # ════════════════════════════════
+            # 圖9：應收帳款（近12季）
+            # ════════════════════════════════
+            st.markdown("#### 9｜應收帳款（近12季）")
+            try:
+                _ar, _ear = _prep_bal("AccountsReceivableNet")
+                if _ar is None:
+                    _no_data("應收帳款", _ear)
+                else:
+                    _ar = _ar.tail(12)
+                    _bar_chart(_ar["date"].dt.strftime("%Y-%m").tolist(),
+                               (_ar["value"] / 1e8).round(1).tolist(), "應收帳款(億)", "#ef5350")
+            except Exception as _ex:
+                _no_data("應收帳款", str(_ex))
+
+            # ════════════════════════════════
+            # 圖10：現金股利（近10年）
+            # ════════════════════════════════
+            st.markdown("#### 10｜現金股利（近10年）")
+            try:
+                if _df_div.empty:
+                    _no_data("現金股利", _err_div or "無資料")
+                else:
+                    _div = _df_div.copy()
+                    _div["date"] = pd.to_datetime(
+                        _div.get("CashExDividendTradingDate", _div.get("date", "")),
+                        errors="coerce"
+                    )
+                    _div["cash"] = pd.to_numeric(
+                        _div.get("CashEarningsDistribution", _div.get("cash_div", 0)),
+                        errors="coerce"
+                    )
+                    _div = _div.dropna(subset=["date","cash"]).query("cash > 0")
+                    if _div.empty:
+                        _no_data("現金股利", "無現金股利記錄")
+                    else:
+                        _div["year"] = _div["date"].dt.year
+                        _dy = _div.groupby("year")["cash"].sum().reset_index().sort_values("year").tail(10)
+                        _bar_chart(_dy["year"].astype(str).tolist(),
+                                   _dy["cash"].round(2).tolist(), "年度現金股利(元)", "#26a69a")
+            except Exception as _ex:
+                _no_data("現金股利", str(_ex))
+
+            st.divider()
+
+            # ════════════════════════════════
             # AI 財報分析
-            # ────────────────────────────────────────────────
+            # ════════════════════════════════
             st.markdown("#### 🤖 AI 財報分析")
-
-            if st.button("▶️ 執行 AI 財報分析", key="rc_ai_btn"):
-                # 整理財報摘要送給 AI
-                _summary_parts = [f"股票代號：{_queried}"]
-
+            if st.button("▶️ 執行分析", key=f"rc_ai_{_sel}"):
+                _parts = [f"股票代號：{_sel}"]
                 try:
-                    if not _df_fin.empty:
-                        _eps_latest = _df_fin[_df_fin["type"]=="EPS"].tail(4)
-                        if not _eps_latest.empty:
-                            _eps_vals = pd.to_numeric(_eps_latest["value"], errors="coerce").tolist()
-                            _summary_parts.append(f"近4季EPS：{_eps_vals}")
+                    _e2, _ = _prep_fin("EPS")
+                    if _e2 is not None:
+                        _parts.append(f"近4季EPS：{_e2.tail(4)['value'].round(2).tolist()}")
+                except Exception:
+                    pass
+                try:
+                    _gp2, _ = _prep_fin("GrossProfit")
+                    _rv2, _ = _prep_fin("Revenue")
+                    if _gp2 is not None and _rv2 is not None:
+                        _m2 = _rv2[["date","value"]].rename(columns={"value":"rev"}).merge(
+                            _gp2[["date","value"]].rename(columns={"value":"gp"}), on="date"
+                        ).tail(4)
+                        if not _m2.empty:
+                            _gms = (_m2["gp"] / _m2["rev"] * 100).round(1).tolist()
+                            _parts.append(f"近4季毛利率(%)：{_gms}")
                 except Exception:
                     pass
 
-                try:
-                    if not _df_rev.empty:
-                        _rev_latest = _df_rev.tail(6)
-                        _yoy_vals = pd.to_numeric(_rev_latest.get("revenue", _rev_latest.get("value",[])), errors="coerce").pct_change(12).tail(3).round(3).tolist()
-                        _summary_parts.append(f"近期月營收YoY：{_yoy_vals}")
-                except Exception:
-                    pass
+                _prompt = f"""你是專業股票財報分析師，以下是台股個股財報摘要，請依固定格式分析。
 
-                try:
-                    if not _df_fin.empty:
-                        _gp2 = _df_fin[_df_fin["type"]=="GrossProfit"].tail(4)
-                        _rv2 = _df_fin[_df_fin["type"]=="Revenue"].tail(4)
-                        if not _gp2.empty and not _rv2.empty:
-                            _gm = (pd.to_numeric(_gp2["value"].values, errors="coerce") /
-                                   pd.to_numeric(_rv2["value"].values, errors="coerce") * 100).round(1).tolist()
-                            _summary_parts.append(f"近4季毛利率(%)：{_gm}")
-                except Exception:
-                    pass
+{chr(10).join(_parts)}
 
-                _prompt = f"""
-你是一位專業的股票財報分析師。以下是台股個股的財報資料摘要，請依固定格式進行財報分析。
-
-{chr(10).join(_summary_parts)}
-
-請依以下固定格式回覆，禁止提供買進、賣出、目標價或投資建議：
+請依以下格式回覆，禁止提供買進、賣出、目標價或投資建議：
 
 一、財報優點
-（條列優點，每點一行）
+（條列說明）
 
 二、財報風險
-（條列風險，每點一行）
+（條列說明）
 
 三、AI財報結論
-（3～5句綜合結論，純財務分析，不包含投資建議）
-"""
-                with st.spinner("AI 財報分析中..."):
+（3～5句綜合結論，純財務分析）"""
+
+                with st.spinner("AI 分析中..."):
                     try:
-                        import requests as _req2
-                        _ai_resp = _req2.post(
+                        import requests as _rq
+                        _ar2 = _rq.post(
                             "https://api.anthropic.com/v1/messages",
                             headers={"Content-Type": "application/json"},
-                            json={
-                                "model": "claude-sonnet-4-6",
-                                "max_tokens": 1000,
-                                "messages": [{"role": "user", "content": _prompt}]
-                            },
+                            json={"model": "claude-sonnet-4-6", "max_tokens": 1000,
+                                  "messages": [{"role": "user", "content": _prompt}]},
                             timeout=30
                         )
-                        _ai_data = _ai_resp.json()
-                        _ai_text = "".join(
-                            c.get("text","") for c in _ai_data.get("content",[])
-                            if c.get("type") == "text"
-                        )
-                        if _ai_text:
+                        _txt = "".join(c.get("text","") for c in _ar2.json().get("content",[]) if c.get("type")=="text")
+                        if _txt:
                             st.markdown(
                                 f"<div style='background:rgba(0,50,100,0.3);border-radius:8px;"
-                                f"padding:16px;margin:8px 0;white-space:pre-wrap;font-size:.88rem;'>"
-                                f"{_ai_text}</div>",
+                                f"padding:16px;white-space:pre-wrap;font-size:.87rem;'>{_txt}</div>",
                                 unsafe_allow_html=True
                             )
                         else:
-                            st.warning("AI 未回傳分析結果。")
+                            st.warning("AI 未回傳結果")
                     except Exception as _ae:
                         st.error(f"AI 分析失敗：{_ae}")
 
             st.divider()
 
-            # ── 同業比較（框架）
+            # ════════════════════════════════
+            # 同業比較（框架）
+            # ════════════════════════════════
             st.markdown("#### 📊 同業比較")
             st.markdown(
                 "<div style='border:1px dashed #1e3a5f;border-radius:8px;"
                 "padding:16px;color:#7fb3d3;text-align:center;'>"
-                "🚧 同業比較功能開發中<br>"
-                "<small>預留欄位：EPS、毛利率、ROE、營益率、月營收YoY</small>"
-                "</div>",
-                unsafe_allow_html=True
-            )
-
-        # ── 右側 DNA
-        with _dna_col:
-
-            # 財報DNA評分
-            st.markdown("**📋 財報 DNA**")
-            try:
-                _dna_scores = {}
-                if not _df_fin.empty:
-                    # EPS趨勢
-                    _eps_v = pd.to_numeric(_df_fin[_df_fin["type"]=="EPS"]["value"], errors="coerce").dropna().tail(8)
-                    if len(_eps_v) >= 4:
-                        _eps_trend = _eps_v.iloc[-1] > _eps_v.iloc[-4]
-                        _eps_level = _eps_v.mean()
-                        _dna_scores["EPS"] = 5 if (_eps_trend and _eps_level > 5) else 4 if _eps_trend else 3
-
-                    # 毛利率
-                    _gp3 = _df_fin[_df_fin["type"]=="GrossProfit"]["value"]
-                    _rv3 = _df_fin[_df_fin["type"]=="Revenue"]["value"]
-                    if len(_gp3) >= 4 and len(_rv3) >= 4:
-                        _gm_avg = (pd.to_numeric(_gp3, errors="coerce").tail(4).sum() /
-                                   pd.to_numeric(_rv3, errors="coerce").tail(4).sum() * 100)
-                        _dna_scores["毛利率"] = 5 if _gm_avg > 40 else 4 if _gm_avg > 25 else 3 if _gm_avg > 15 else 2
-
-                    # ROE
-                    _ni_dna = pd.to_numeric(_df_fin[_df_fin["type"]=="IncomeAfterTaxes"]["value"], errors="coerce").dropna().tail(4)
-                    _eq_dna = pd.to_numeric(_df_bal[_df_bal["type"]=="Equity"]["value"], errors="coerce").dropna().tail(4)
-                    if len(_ni_dna) >= 2 and len(_eq_dna) >= 2:
-                        _roe_avg = float(_ni_dna.mean()) / float(_eq_dna.mean()) * 100
-                        _dna_scores["ROE"] = 5 if _roe_avg > 20 else 4 if _roe_avg > 15 else 3 if _roe_avg > 10 else 2
-
-                if not _df_cf.empty:
-                    _ocf2 = pd.to_numeric(_df_cf[_df_cf["type"]=="CashFlowsFromOperatingActivities"]["value"], errors="coerce").dropna().tail(4)
-                    if len(_ocf2) >= 2:
-                        _fcf_pos = (_ocf2 > 0).sum()
-                        _dna_scores["自由現金流"] = 5 if _fcf_pos == 4 else 4 if _fcf_pos >= 3 else 3
-
-                if not _df_bal.empty:
-                    _liab2  = pd.to_numeric(_df_bal[_df_bal["type"]=="TotalLiabilities"]["value"], errors="coerce").dropna().tail(1)
-                    _asset2 = pd.to_numeric(_df_bal[_df_bal["type"]=="TotalAssets"]["value"], errors="coerce").dropna().tail(1)
-                    if len(_liab2) and len(_asset2):
-                        _dr2 = float(_liab2.iloc[-1]) / float(_asset2.iloc[-1]) * 100
-                        _dna_scores["負債比"] = 5 if _dr2 < 30 else 4 if _dr2 < 50 else 3 if _dr2 < 65 else 2
-
-                if _dna_scores:
-                    for _item, _score in _dna_scores.items():
-                        _stars = "★" * _score + "☆" * (5 - _score)
-                        _color = "#ffd54f" if _score >= 4 else "#9fb8d4"
-                        st.markdown(
-                            f"<div style='display:flex;justify-content:space-between;"
-                            f"padding:4px 0;font-size:.82rem;'>"
-                            f"<span style='color:#e8f4fd;'>{_item}</span>"
-                            f"<span style='color:{_color};'>{_stars}</span>"
-                            f"</div>",
-                            unsafe_allow_html=True
-                        )
-                else:
-                    st.caption("資料不足，無法評分")
-            except Exception:
-                st.caption("評分計算失敗")
-
-            st.divider()
-
-            # 公司DNA（框架）
-            st.markdown("**🧬 公司 DNA**")
-            st.markdown(
-                "<div style='border:1px dashed #1e3a5f;border-radius:6px;"
-                "padding:10px;color:#7fb3d3;font-size:.8rem;text-align:center;'>"
-                "🚧 開發中<br>未來串接產品線資料"
-                "</div>",
-                unsafe_allow_html=True
+                "🚧 同業比較開發中<br>"
+                "<small>預留：EPS、毛利率、ROE、營益率、月營收YoY</small>"
+                "</div>", unsafe_allow_html=True
             )
