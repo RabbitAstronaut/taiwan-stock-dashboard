@@ -10690,9 +10690,10 @@ with tab10:
                     raise ValueError("無資料")
                 _rev_df = _df_rev.copy()
                 _rev_df["date"] = pd.to_datetime(_rev_df["date"], errors="coerce")
-                _rev_df = _rev_df.dropna(subset=["date"]).sort_values("date").tail(24)
+                _rev_df = _rev_df.dropna(subset=["date"]).sort_values("date").tail(36).reset_index(drop=True)
                 _rev_df["revenue"] = pd.to_numeric(_rev_df["revenue"], errors="coerce")
                 _rev_df["yoy"] = _rev_df["revenue"].pct_change(12) * 100
+                _rev_df = _rev_df.tail(24).dropna(subset=["yoy"])
                 if _PLOTLY_OK:
                     _fig2 = go.Figure()
                     _colors = ["#ef5350" if v < 0 else "#66bb6a" for v in _rev_df["yoy"].fillna(0)]
@@ -10845,23 +10846,26 @@ with tab10:
                 for _t in [_inv, _ar]:
                     _t["date"] = pd.to_datetime(_t["date"], errors="coerce")
                     _t["value"] = pd.to_numeric(_t["value"], errors="coerce")
-                _ia = _inv[["date","value"]].rename(columns={"value":"inv"}).merge(
-                    _ar[["date","value"]].rename(columns={"value":"ar"}), on="date"
-                ).dropna().sort_values("date").tail(12)
+                _inv_c = _inv.dropna(subset=["date","value"]).sort_values("date").tail(12)
+                _ar_c  = _ar.dropna(subset=["date","value"]).sort_values("date").tail(12)
+                if _inv_c.empty and _ar_c.empty:
+                    raise ValueError("無資料")
                 if _PLOTLY_OK:
                     _fig8 = go.Figure()
-                    _fig8.add_bar(x=_ia["date"].astype(str), y=_ia["inv"],
-                                  name="存貨", marker_color="#ffd54f", opacity=0.8)
-                    _fig8.add_scatter(x=_ia["date"].astype(str), y=_ia["ar"],
-                                      name="應收帳款", line=dict(color="#ef5350", width=2))
+                    if not _inv_c.empty:
+                        _fig8.add_bar(x=_inv_c["date"].dt.strftime("%Y-%m"), y=(_inv_c["value"]/1e8).round(1),
+                                      name="存貨(億)", marker_color="#ffd54f", opacity=0.8)
+                    if not _ar_c.empty:
+                        _fig8.add_scatter(x=_ar_c["date"].dt.strftime("%Y-%m"), y=(_ar_c["value"]/1e8).round(1),
+                                          name="應收帳款(億)", line=dict(color="#ef5350", width=2), mode="lines+markers")
                     _fig8.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                         font_color="#e8f4fd", legend=dict(orientation="h"), margin=dict(l=0,r=0,t=20,b=0))
                     st.plotly_chart(_fig8, use_container_width=True)
                 else:
-                    st.line_chart(_ia.set_index("date"))
+                    if not _inv_c.empty:
+                        st.line_chart(_inv_c.set_index("date")["value"])
             except Exception:
                 _no_data_msg("存貨／應收帳款")
-
             # ────────────────────────────────────────────────
             # 圖10：現金股利（近10年）
             # ────────────────────────────────────────────────
