@@ -10260,16 +10260,17 @@ with tab8:
 with tab9:
     st.markdown("<div class='sec-title'>🎯 除權息精兵榜</div>", unsafe_allow_html=True)
     st.markdown(
-        "<div class='infobox'>未來三週即將除息的上市個股清單（排除 ETF）。"
-        "股利金額待補充，目前依除息日期排列。</div>",
+        "<div class='infobox'>未來 21 天內即將除權息的個股，含實際股利金額與預估殖利率。"
+        "資料來源：TWSE 除權息預告表（TWT48U）。</div>",
         unsafe_allow_html=True
     )
 
     DIVIDEND_LOOKAHEAD_DAYS = 21
+    MIN_YIELD = 0.0  # 不設門檻，全部顯示
 
     @st.cache_data(ttl=3600, show_spinner=False)
-    def fetch_upcoming_ex_dividend():
-        """從 TWTBAU1 取得未來21天除息個股清單（排除ETF）"""
+    def fetch_twt48u():
+        """從 TWSE TWT48U 抓取除權息預告，含日期和金額"""
         import requests as _req
         import pandas as _pd
         import re as _re
@@ -10279,84 +10280,95 @@ with tab9:
             "Referer": "https://www.twse.com.tw/",
         }
 
-        _today = _pd.Timestamp.today().normalize()
-        _end   = _today + _pd.Timedelta(days=DIVIDEND_LOOKAHEAD_DAYS)
-        _rows  = []
-        _seen  = set()
+        _url = "https://www.twse.com.tw/rwd/zh/exRight/TWT48U?response=json"
 
         try:
-            _r = _req.get(
-                "https://openapi.twse.com.tw/v1/exchangeReport/TWTBAU1",
-                headers=_headers, timeout=15
-            )
+            _r = _req.get(_url, headers=_headers, timeout=15)
+            if _r.status_code != 200:
+                return _pd.DataFrame(), f"HTTP {_r.status_code}"
             _data = _r.json()
+            if _data.get("stat") != "OK":
+                return _pd.DataFrame(), "API stat != OK"
 
-            for _row in _data:
-                _reason = _row.get("Reason", "").strip()
+            _fields = _data.get("fields", [])
+            _rows = []
 
-                # 只保留除息/除權/除權息，其他全部排除
-                if _reason not in ["除息", "除權", "除權息"]:
+            for _row in _data.get("data", []):
+                if len(_row) < 8:
                     continue
 
-                _sid  = str(_row.get("Code", "")).strip()
-                _name = str(_row.get("Name", "")).strip()
+                # 欄位：除權除息日期(0), 股票代號(1), 名稱(2), 除權息(3),
+                #       無償配股率(4), 現金增資配股率(5), 現金增資認購價(6), 現金股利(7)
+                _date_str  = str(_row[0]).strip()
+                _sid       = str(_row[1]).strip()
+                _name      = str(_row[2]).strip()
+                _type      = str(_row[3]).strip()   # 息/權/權息
+                _stock_div = str(_row[4]).strip()   # 無償配股率
+                _cash_str  = str(_row[7]).strip()   # 現金股利
 
-                # 排除 ETF（代號開頭00，或名稱含ETF/基金）
-                if _sid.startswith("00") or "ETF" in _name or "基金" in _name:
+                # 排除 ETF（代號開頭00）
+                if _sid.startswith("00"):
                     continue
 
-                # 解析日期（民國7碼：1150713）
-                _ds = str(_row.get("StartDate", "")).strip()
-                _m = _re.match(r'(\d{3})(\d{2})(\d{2})', _ds)
+                # 只保留 息/權/權息
+                if _type not in ["息", "權", "權息"]:
+                    continue
+
+                # 解析日期（民國年：115年07月09日）
+                _m = _re.match(r'(\d+)年(\d+)月(\d+)日', _date_str)
                 if not _m:
                     continue
                 try:
-                    _stop_date = _pd.Timestamp(
-                        f"{int(_m.group(1))+1911}-{_m.group(2)}-{_m.group(3)}"
+                    _ex_date = _pd.Timestamp(
+                        f"{int(_m.group(1))+1911}-{_m.group(2).zfill(2)}-{_m.group(3).zfill(2)}"
                     )
-                    # 除息日 = 停止過戶開始日前一個交易日（跳過週末）
-                    _offset = 1
-                    _ex_date = _stop_date - _pd.Timedelta(days=_offset)
-                    while _ex_date.weekday() >= 5:
-                        _offset += 1
-                        _ex_date = _stop_date - _pd.Timedelta(days=_offset)
                 except Exception:
                     continue
 
-                if _ex_date < _today or _ex_date > _end:
-                    continue
+                # 解析現金股利（有些是 HTML 字串「待公告」）
+                _cash_div = 0.0
+                if _cash_str and "<" not in _cash_str and "待" not in _cash_str:
+                    try:
+                        _cash_div = float(_cash_str)
+                    except Exception:
+                        _cash_div = 0.0
 
-                _key = (_sid, str(_ex_date.date()))
-                if _key in _seen:
-                    continue
-                _seen.add(_key)
+                # 解析股票股利
+                _stock_div_val = 0.0
+                try:
+                    _stock_div_val = float(_stock_div)
+                except Exception:
+                    pass
 
                 _rows.append({
-                    "stock_id": _sid,
-                    "name":     _name,
-                    "ex_date":  _ex_date,
-                    "reason":   _reason,
+                    "stock_id":  _sid,
+                    "name":      _name,
+                    "ex_date":   _ex_date,
+                    "type":      _type,
+                    "cash_div":  _cash_div,
+                    "stock_div": _stock_div_val,
                 })
 
         except Exception as _e:
             return _pd.DataFrame(), str(_e)
 
         if not _rows:
-            return _pd.DataFrame(), None
+            return _pd.DataFrame(), "無資料"
 
-        _df = _pd.DataFrame(_rows).sort_values("ex_date").reset_index(drop=True)
+        _df = _pd.DataFrame(_rows)
+        _df = _df.drop_duplicates(subset=["stock_id", "ex_date"])
+        _df = _df.sort_values("ex_date").reset_index(drop=True)
         return _df, None
 
-    # ── 重新整理按鈕
-    _col1, _col2 = st.columns([2, 6])
+    # ── 重新整理
+    _col1, _ = st.columns([2, 6])
     with _col1:
         if st.button("🔄 重新整理", key="tab9_refresh"):
-            fetch_upcoming_ex_dividend.clear()
+            fetch_twt48u.clear()
             st.rerun()
 
-    # ── 載入資料
-    with st.spinner("載入除息資料中..."):
-        _df_ex, _err = fetch_upcoming_ex_dividend()
+    with st.spinner("載入除息預告資料..."):
+        _df_ex, _err = fetch_twt48u()
 
     _today_date = datetime.now(ZoneInfo("Asia/Taipei")).date()
     _end_date   = _today_date + timedelta(days=DIVIDEND_LOOKAHEAD_DAYS)
@@ -10369,34 +10381,131 @@ with tab9:
         unsafe_allow_html=True
     )
 
-    if _err:
+    if _err and _df_ex.empty:
         st.warning(f"資料載入失敗：{_err}")
-    elif _df_ex.empty:
-        st.info("目前沒有找到未來 21 天內即將除息的個股。")
     else:
-        st.markdown(f"**共 {len(_df_ex)} 檔**即將除息")
+        # 篩選未來21天
+        _today_ts = pd.Timestamp(_today_date)
+        _end_ts   = pd.Timestamp(_end_date)
+        _df_range = _df_ex[
+            (_df_ex["ex_date"] >= _today_ts) &
+            (_df_ex["ex_date"] <= _end_ts)
+        ].copy()
 
-        # ── 依日期分組顯示
-        for _date, _group in _df_ex.groupby("ex_date"):
-            _d = _date.date()
-            _days_left = (_d - _today_date).days
-            _days_str  = "今天" if _days_left == 0 else f"{_days_left} 天後"
-            _label     = "📛 今天（今日已無法買進）" if _days_left == 0 else f"📅 {_date.strftime('%m/%d')}（{_days_str}）"
+        if _df_range.empty:
+            st.info("目前沒有找到未來 21 天內的除權息個股。")
+        else:
+            # 取得股價計算殖利率
+            _today_ts2 = _today_date
 
-            st.markdown(f"#### {_label}　共 {len(_group)} 檔")
+            _result = []
+            for _, _r in _df_range.iterrows():
+                _sid = _r["stock_id"]
+                _price, _pdate, _tech = None, None, None
+                try:
+                    _dfp, _ok = load_price_csv(_sid)
+                    if _ok and len(_dfp) >= 5:
+                        _price = float(_dfp["Close"].iloc[-1])
+                        _pdate = str(_dfp.index[-1])[:10]
+                        # 技術分
+                        _score = 0
+                        _closes = _dfp["Close"]
+                        _ma20 = _closes.rolling(20).mean().iloc[-1] if len(_dfp)>=20 else None
+                        _ma60 = _closes.rolling(60).mean().iloc[-1] if len(_dfp)>=60 else None
+                        if _ma20 and _ma60 and _ma20 > _ma60:
+                            _score += 2
+                            if _closes.rolling(20).mean().iloc[-1] > _closes.rolling(20).mean().iloc[-3]:
+                                _score += 1
+                        if _ma20:
+                            _bias = (_price - _ma20) / _ma20 * 100
+                            if -5 <= _bias <= 5: _score += 3
+                            elif -10 <= _bias <= 10: _score += 1
+                        if len(_dfp) >= 20:
+                            _m20 = (_price - float(_closes.iloc[-20])) / float(_closes.iloc[-20]) * 100
+                            if _m20 > 0: _score += 2
+                        if len(_dfp) >= 60:
+                            _m60 = (_price - float(_closes.iloc[-60])) / float(_closes.iloc[-60]) * 100
+                            if _m60 > 0: _score += 2
+                        _tech = _score
+                except Exception:
+                    pass
 
-            _cols = st.columns(3)
-            for _i, (_, _r) in enumerate(_group.iterrows()):
-                with _cols[_i % 3]:
-                    _reason_color = "#00e676" if _r["reason"]=="除息" else                                     "#fbbf24" if _r["reason"]=="除權息" else "#9fb8d4"
-                    st.markdown(
-                        f"<div style='border:1px solid #1e3a5f;border-radius:6px;"
-                        f"padding:8px 12px;margin:4px 0;background:rgba(255,255,255,0.02);'>"
-                        f"<span style='font-size:.95rem;font-weight:700;color:#e8f4fd;'>"
-                        f"{_r['stock_id']} {_r['name']}</span>"
-                        f"<span style='font-size:.75rem;color:{_reason_color};"
-                        f"margin-left:6px;border:1px solid {_reason_color};"
-                        f"border-radius:3px;padding:1px 5px;'>{_r['reason']}</span>"
-                        f"</div>",
-                        unsafe_allow_html=True
-                    )
+                _yield_pct = round(_r["cash_div"] / _price * 100, 2) if _price and _r["cash_div"] > 0 else None
+                _days_left = (_r["ex_date"].date() - _today_ts2).days
+
+                _result.append({
+                    "stock_id":  _sid,
+                    "name":      _r["name"],
+                    "ex_date":   _r["ex_date"],
+                    "days_left": _days_left,
+                    "type":      _r["type"],
+                    "cash_div":  _r["cash_div"],
+                    "stock_div": _r["stock_div"],
+                    "price":     _price,
+                    "price_date":_pdate,
+                    "yield_pct": _yield_pct,
+                    "tech_score":_tech,
+                })
+
+            _df_result = pd.DataFrame(_result)
+            _total = len(_df_result)
+            _has_yield = _df_result["yield_pct"].notna().sum()
+
+            st.markdown(
+                f"<div style='font-size:.88rem;color:#9fb8d4;margin:8px 0;'>"
+                f"共 <b style='color:#00e676;'>{_total} 檔</b>　"
+                f"有殖利率資料：<b style='color:#fbbf24;'>{_has_yield} 檔</b>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+
+            # 分兩區：今天 / 明天起（依殖利率排序）
+            _df_today  = _df_result[_df_result["days_left"] == 0].sort_values("yield_pct", ascending=False, na_position="last")
+            _df_future = _df_result[_df_result["days_left"] >  0].sort_values(["ex_date","yield_pct"], ascending=[True, False], na_position="last")
+
+            def _render_card(r, rank):
+                _type_color = {"息": "#00e676", "權息": "#fbbf24", "權": "#9fb8d4"}.get(r["type"], "#9fb8d4")
+                _yield_str  = f"{r['yield_pct']:.2f}%" if r["yield_pct"] else "—"
+                _yield_color= "#ff5252" if r["yield_pct"] and r["yield_pct"]>=7 else                               "#fbbf24" if r["yield_pct"] and r["yield_pct"]>=4 else "#e8f4fd"
+                _score_str  = f"{int(r['tech_score'])}/10" if r["tech_score"] is not None else "—"
+                _score_color= "#00e676" if r["tech_score"] and r["tech_score"]>=7 else                               "#fbbf24" if r["tech_score"] and r["tech_score"]>=4 else "#9fb8d4"
+                _stock_str  = f"+股利{r['stock_div']:.4f}" if r["stock_div"] > 0 else ""
+                _days_str   = "今天" if r["days_left"]==0 else f"{r['days_left']}天後"
+                _price_str  = f"{r['price']:.1f}（{r['price_date']}）" if r["price"] else "—"
+                st.markdown(
+                    f"<div style='border:1px solid #1e3a5f;border-radius:8px;"
+                    f"padding:10px 16px;margin:5px 0;background:rgba(255,255,255,0.02);'>"
+                    f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
+                    f"<span style='font-size:.95rem;font-weight:700;color:#e8f4fd;'>"
+                    f"#{rank}　{r['stock_id']} {r['name']}"
+                    f"<span style='color:{_type_color};font-size:.72rem;border:1px solid {_type_color};"
+                    f"border-radius:3px;padding:1px 5px;margin-left:6px;'>{r['type']}</span>"
+                    f"</span>"
+                    f"<span style='color:{_yield_color};font-size:1.05rem;font-weight:700;'>{_yield_str}</span>"
+                    f"</div>"
+                    f"<div style='display:flex;gap:18px;font-size:.8rem;color:#9fb8d4;margin-top:5px;flex-wrap:wrap;'>"
+                    f"<span>📅 {r['ex_date'].strftime('%m/%d')}（{_days_str}）</span>"
+                    f"<span>💰 現金 {r['cash_div']:.2f}元{_stock_str}</span>"
+                    f"<span>📈 {_price_str}</span>"
+                    f"<span style='color:{_score_color};'>🎯 技術分 {_score_str}</span>"
+                    f"</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+            if not _df_today.empty:
+                st.markdown("### 📛 今天除息（今日已無法買進）")
+                for _rank, (_, _r) in enumerate(_df_today.iterrows(), 1):
+                    _render_card(_r, _rank)
+
+            if not _df_future.empty:
+                st.markdown("### ✅ 未來除息（還可以買）")
+                _prev_date = None
+                _rank = 0
+                for _, _r in _df_future.iterrows():
+                    _d = _r["ex_date"].strftime("%m/%d")
+                    if _d != _prev_date:
+                        st.markdown(f"**📅 {_d}（{_r['days_left']}天後）**")
+                        _prev_date = _d
+                    _rank += 1
+                    _render_card(_r, _rank)
