@@ -10470,6 +10470,7 @@ with tab9:
                 _ts = r["tech_score"] if (r["tech_score"] is not None and str(r["tech_score"]) != "nan") else None
                 _score_str  = f"{int(_ts)}/10" if _ts is not None else "—"
                 _score_color= "#00e676" if _ts and _ts>=7 else "#fbbf24" if _ts and _ts>=4 else "#9fb8d4"
+                _stock_str  = f"+股利{r['stock_div']:.4f}" if r["stock_div"] > 0 else ""
                 _days_str   = "今天" if r["days_left"]==0 else f"{r['days_left']}天後"
                 _price_str  = f"{r['price']:.1f}（{r['price_date']}）" if r["price"] else "—"
                 st.markdown(
