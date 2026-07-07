@@ -11311,7 +11311,15 @@ JSON格式：
                             json={"contents": [{"parts": [{"text": _p2}]}]},
                             timeout=60
                         )
-                        _txt2 = _r2.json().get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
+                        _raw2 = _r2.json()
+                        st.write(f"Gemini status={_r2.status_code}")
+                        if _r2.status_code != 200:
+                            st.error(f"Gemini錯誤：{str(_raw2)[:300]}")
+                            raise Exception(f"HTTP {_r2.status_code}")
+                        _txt2 = _raw2.get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
+                        if not _txt2:
+                            st.error(f"Gemini回傳空白，完整回應：{str(_raw2)[:300]}")
+                            raise Exception("Gemini回傳空白")
                         # 移除 markdown 包裝
                         _txt2 = _txt2.strip()
                         if "```" in _txt2:
@@ -11340,9 +11348,7 @@ JSON格式：
                     except Exception as _be:
                         _status.update(label=f"❌ {_t['name']}：{str(_be)[:50]}", state="error")
                         st.error(f"建構失敗：{_be}")
-        st.rerun()
-
-    elif _submit and not _active_topics:
+        st.button("🔄 重新整理頁面", key="kg_refresh_after_build")
         st.warning("請先勾選至少一個主題")
 
     st.divider()
