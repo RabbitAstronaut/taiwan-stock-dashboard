@@ -11202,9 +11202,12 @@ with tab11:
                     json={"contents": [{"parts": [{"text": _prompt}]}]},
                     timeout=30
                 )
-                _txt = _resp.json().get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
+                _raw = _resp.json()
+                _txt = _raw.get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
+                if not _txt:
+                    st.error(f"Gemini回傳：status={_resp.status_code}, body={str(_raw)[:300]}")
+                    st.stop()
                 _txt = _txt.strip()
-                # 移除可能的markdown包裝
                 if _txt.startswith("```"):
                     _txt = _txt.split("```")[1]
                     if _txt.startswith("json"):
