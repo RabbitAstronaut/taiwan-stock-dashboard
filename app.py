@@ -11063,15 +11063,14 @@ with tab10:
                 with st.spinner("AI 分析中..."):
                     try:
                         import requests as _rq
+                        _gemini_key = st.secrets.get("GEMINI_API_KEY", "")
                         _ar2 = _rq.post(
-                            "https://api.anthropic.com/v1/messages",
+                            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={_gemini_key}",
                             headers={"Content-Type": "application/json"},
-                            json={"model": "claude-sonnet-4-6", "max_tokens": 1000,
-                                  "messages": [{"role": "user", "content": _prompt}]},
+                            json={"contents": [{"parts": [{"text": _prompt}]}]},
                             timeout=30
                         )
-                        _txt = "".join(c.get("text","") for c in _ar2.json().get("content",[])
-                                       if c.get("type")=="text")
+                        _txt = _ar2.json().get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
                         if _txt:
                             st.markdown(
                                 f"<div style='background:rgba(0,50,100,0.3);border-radius:8px;"
@@ -11196,14 +11195,14 @@ with tab11:
 只回傳純JSON陣列，不要任何markdown或說明文字：
 [{"id":"xxx","name":"xxx","desc":"xxx","hot":5},...]
 20個主題以內。"""
+                _gemini_key = st.secrets.get("GEMINI_API_KEY", "")
                 _resp = _kgr.post(
-                    "https://api.anthropic.com/v1/messages",
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={_gemini_key}",
                     headers={"Content-Type": "application/json"},
-                    json={"model": "claude-sonnet-4-6", "max_tokens": 2000,
-                          "messages": [{"role": "user", "content": _prompt}]},
+                    json={"contents": [{"parts": [{"text": _prompt}]}]},
                     timeout=30
                 )
-                _txt = "".join(c.get("text","") for c in _resp.json().get("content",[]) if c.get("type")=="text")
+                _txt = _resp.json().get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
                 _txt = _txt.strip()
                 # 移除可能的markdown包裝
                 if _txt.startswith("```"):
@@ -11282,6 +11281,7 @@ with tab11:
                 with st.status(f"建構「{_t['name']}」中...", expanded=True) as _status:
                     try:
                         import requests as _kgr2
+                        _gemini_key = st.secrets.get("GEMINI_API_KEY", "")
                         _p2 = f"""你是台股產業鏈研究員。請建構「{_t['name']}」的供應鏈知識樹。
 
 規則：
@@ -11303,14 +11303,12 @@ JSON格式：
   ]
 }}"""
                         _r2 = _kgr2.post(
-                            "https://api.anthropic.com/v1/messages",
+                            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={_gemini_key}",
                             headers={"Content-Type": "application/json"},
-                            json={"model": "claude-sonnet-4-6", "max_tokens": 3000,
-                                  "messages": [{"role": "user", "content": _p2}]},
+                            json={"contents": [{"parts": [{"text": _p2}]}]},
                             timeout=60
                         )
-                        _resp_json = _r2.json()
-                        _txt2 = "".join(c.get("text","") for c in _resp_json.get("content",[]) if c.get("type")=="text")
+                        _txt2 = _r2.json().get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
                         # 移除 markdown 包裝
                         _txt2 = _txt2.strip()
                         if "```" in _txt2:
