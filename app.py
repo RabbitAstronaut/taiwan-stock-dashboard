@@ -3149,16 +3149,16 @@ st.markdown(f"""
 # ══════════════════════════════════════════════════════════════
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
     "📡 大盤預警",
-    "🌱 產業趨勢雷達",
-    "🌡️ 王者名單溫度",
-    "🎯 今日行動建議",
+    "🌱 產業趨勢",
+    "🌡️ 王者溫度",
+    "🎯 行動建議",
     "📡 大數據雷達",
     "🔭 新星池",
     "📊 指揮中心",
-    "💰 ETF退休計畫",
-    "💰 除權息精兵榜",
-    "🔬 財報研究中心",
-    "🗺️ 產業知識圖譜",
+    "💰 ETF",
+    "🎯 除權息",
+    "🔬 財報研究",
+    "🗺️ 產業圖譜",
 ])
 
 # ══════════════════════════════════════════════════════════════
@@ -11105,35 +11105,44 @@ with tab11:
         unsafe_allow_html=True
     )
 
-    # ── 讀取/初始化主題池
+    # ── 預設主題池（含低軌衛星等完整版）
+    _DEFAULT_TOPICS = [
+        {"id": "ai_chip",      "name": "AI 晶片與算力",   "desc": "GPU、ASIC、TPU、AI加速器",           "hot": 5},
+        {"id": "ai_server",    "name": "AI 伺服器",       "desc": "GB300、NVL72、ODM整機",              "hot": 5},
+        {"id": "cooling",      "name": "散熱系統",         "desc": "液冷、風冷、VC均熱板、CDU",           "hot": 5},
+        {"id": "packaging",    "name": "先進封裝",         "desc": "CoWoS、HBM、ABF載板",               "hot": 5},
+        {"id": "networking",   "name": "高速傳輸／網通",   "desc": "800G、CPO、矽光子、AOC",             "hot": 4},
+        {"id": "power",        "name": "電源系統",         "desc": "HVDC、Power Shelf、BBU、UPS",       "hot": 4},
+        {"id": "chassis",      "name": "機殼結構件",       "desc": "Server Rail、Rack Chassis、機箱",    "hot": 4},
+        {"id": "connector",    "name": "連接器",           "desc": "High Speed Connector、Cable Assembly","hot": 4},
+        {"id": "pcb",          "name": "PCB／載板",        "desc": "ABF、HDI、軟板、CCL",               "hot": 3},
+        {"id": "memory",       "name": "記憶體",           "desc": "HBM、DRAM、NAND、模組",             "hot": 3},
+        {"id": "robot",        "name": "機器人",           "desc": "人形機器人、工業機器人、感測器",      "hot": 4},
+        {"id": "cpo",          "name": "矽光子／CPO",      "desc": "Silicon Photonics、CoPoS、LPO",     "hot": 4},
+        {"id": "satellite",    "name": "低軌衛星",         "desc": "LEO、星鏈、天線、地面站、射頻元件",   "hot": 4},
+        {"id": "datacenter",   "name": "資料中心基建",     "desc": "PDU、機房空調、能源管理",             "hot": 3},
+        {"id": "ev",           "name": "電動車",           "desc": "電池、馬達控制器、充電樁、IGBT",      "hot": 3},
+        {"id": "semieq",       "name": "半導體設備",       "desc": "蝕刻、薄膜、量測設備",               "hot": 3},
+        {"id": "glass_sub",    "name": "玻璃基板",         "desc": "Glass Substrate、ABF替代、先進封裝",  "hot": 4},
+        {"id": "rubin",        "name": "Rubin 供應鏈",     "desc": "NVIDIA Rubin、Vera CPU、NVLink Fusion","hot": 4},
+        {"id": "biotech",      "name": "生技醫療",         "desc": "AI診斷、新藥、醫材",                 "hot": 2},
+        {"id": "defense",      "name": "國防電子",         "desc": "軍規電子、雷達、無人機",              "hot": 3},
+    ]
+
+    # ── 讀取/初始化
     def _kg_load_topics():
         if _kg_os.path.exists(KG_TOPICS_PATH):
             try:
-                return _kg_json.load(open(KG_TOPICS_PATH, encoding="utf-8"))
+                _d = _kg_json.load(open(KG_TOPICS_PATH, encoding="utf-8"))
+                # 補上新增的預設主題（若 JSON 裡沒有）
+                _existing_ids = {t["id"] for t in _d.get("topics", [])}
+                for _dt in _DEFAULT_TOPICS:
+                    if _dt["id"] not in _existing_ids:
+                        _d["topics"].append({**_dt, "active": False})
+                return _d
             except Exception:
                 pass
-        # 預設初始主題池
-        return {
-            "updated_at": "",
-            "topics": [
-                {"id": "ai_chip",      "name": "AI 晶片與算力",   "desc": "GPU、ASIC、TPU、AI加速器",         "hot": 5, "active": False},
-                {"id": "ai_server",    "name": "AI 伺服器",       "desc": "GB300、NVL72、ODM整機",            "hot": 5, "active": False},
-                {"id": "cooling",      "name": "散熱系統",         "desc": "液冷、風冷、VC均熱板、CDU",         "hot": 5, "active": False},
-                {"id": "packaging",    "name": "先進封裝",         "desc": "CoWoS、HBM、ABF載板",             "hot": 5, "active": False},
-                {"id": "networking",   "name": "高速傳輸／網通",   "desc": "800G、CPO、矽光子、AOC",           "hot": 4, "active": False},
-                {"id": "power",        "name": "電源系統",         "desc": "HVDC、Power Shelf、BBU、UPS",     "hot": 4, "active": False},
-                {"id": "chassis",      "name": "機殼結構件",       "desc": "Server Rail、Rack Chassis、機箱",  "hot": 4, "active": False},
-                {"id": "connector",    "name": "連接器",           "desc": "High Speed Connector、Cable Assembly","hot": 4, "active": False},
-                {"id": "pcb",          "name": "PCB／載板",        "desc": "ABF、HDI、軟板、CCL",             "hot": 3, "active": False},
-                {"id": "memory",       "name": "記憶體",           "desc": "HBM、DRAM、NAND、模組",           "hot": 3, "active": False},
-                {"id": "robot",        "name": "機器人",           "desc": "人形機器人、工業機器人、感測器",    "hot": 3, "active": False},
-                {"id": "cpo",          "name": "矽光子／CPO",      "desc": "Silicon Photonics、CoPoS、LPO",   "hot": 4, "active": False},
-                {"id": "datacenter",   "name": "資料中心基建",     "desc": "PDU、機房空調、能源管理",           "hot": 3, "active": False},
-                {"id": "ev",           "name": "電動車",           "desc": "電池、馬達控制器、充電樁",          "hot": 2, "active": False},
-                {"id": "semieq",       "name": "半導體設備",       "desc": "蝕刻、薄膜、量測設備",             "hot": 3, "active": False},
-                {"id": "biotech",      "name": "生技醫療",         "desc": "AI診斷、新藥、醫材",               "hot": 2, "active": False},
-            ]
-        }
+        return {"updated_at": "", "topics": [{**t, "active": False} for t in _DEFAULT_TOPICS]}
 
     def _kg_save_topics(data):
         _kg_os.makedirs("data", exist_ok=True)
@@ -11153,176 +11162,196 @@ with tab11:
         with open(KG_GRAPH_PATH, "w", encoding="utf-8") as f:
             _kg_json.dump(data, f, ensure_ascii=False, indent=2)
 
+    # ── Session State
     if "kg_topics_data" not in st.session_state:
         st.session_state["kg_topics_data"] = _kg_load_topics()
     if "kg_graph_data" not in st.session_state:
         st.session_state["kg_graph_data"] = _kg_load_graph()
     if "kg_selected_node" not in st.session_state:
         st.session_state["kg_selected_node"] = None
-    if "kg_search_mode" not in st.session_state:
-        st.session_state["kg_search_mode"] = "正向"
 
     _topics_data = st.session_state["kg_topics_data"]
     _graph_data  = st.session_state["kg_graph_data"]
+    _topics      = _topics_data.get("topics", [])
 
     # ════════════════════════════════════════════════════════
     # 上方：主題池
     # ════════════════════════════════════════════════════════
-    with st.container():
-        st.markdown("### 🏭 產業主題池")
+    st.markdown("### 🏭 產業主題池")
+    st.caption("勾選想研究的主題，點「⚡ 建構」後 AI 才開始工作。勾選本身不會打 API。")
 
-        _pool_cols = st.columns([6, 1, 1])
-        with _pool_cols[1]:
-            _updated_at = _topics_data.get("updated_at", "從未更新")
-            st.caption(f"更新：{_updated_at or '從未'}")
-        with _pool_cols[2]:
-            if st.button("🔄 更新主題池", key="kg_update_topics"):
-                with st.spinner("AI 搜尋最新產業主題中..."):
-                    try:
-                        import requests as _kgr
-                        _prompt = """你是台股產業研究員。請列出2026年目前最熱門的台股投資產業主題。
-每個主題需包含：id（英文無空格）、name（中文）、desc（簡短說明含代表技術）、hot（熱度1-5）。
-請特別注意是否有新興主題（如CoPoS、Rubin、Silicon Photonics、Glass Substrate等）。
-只回傳JSON陣列，格式：
+    _hdr_cols = st.columns([5, 1, 1])
+    with _hdr_cols[1]:
+        st.caption(f"池更新：{_topics_data.get('updated_at','從未') or '從未'}")
+    with _hdr_cols[2]:
+        _update_pool_btn = st.button("🔄 更新主題池", key="kg_update_topics")
+
+    # 更新主題池（AI搜尋最新主題）
+    if _update_pool_btn:
+        with st.spinner("AI 搜尋最新產業主題中..."):
+            try:
+                import requests as _kgr
+                _prompt = """你是台股產業研究員。請列出2026年目前最熱門的台股投資產業主題（包含新興主題如低軌衛星、玻璃基板、Rubin、CoPoS等）。
+每個主題：id（英文無空格下底線）、name（中文4-8字）、desc（含代表技術，20字內）、hot（熱度1-5整數）。
+只回傳純JSON陣列，不要任何markdown或說明文字：
 [{"id":"xxx","name":"xxx","desc":"xxx","hot":5},...]
-不超過20個主題。不要markdown格式。"""
-                        _resp = _kgr.post(
-                            "https://api.anthropic.com/v1/messages",
-                            headers={"Content-Type": "application/json"},
-                            json={"model": "claude-sonnet-4-6", "max_tokens": 2000,
-                                  "messages": [{"role": "user", "content": _prompt}]},
-                            timeout=30
-                        )
-                        _txt = "".join(c.get("text","") for c in _resp.json().get("content",[]) if c.get("type")=="text")
-                        _txt = _txt.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
-                        _new_topics = _kg_json.loads(_txt)
-                        # 保留既有的 active 狀態
-                        _existing = {t["id"]: t.get("active", False) for t in _topics_data.get("topics", [])}
-                        for _t in _new_topics:
-                            _t["active"] = _existing.get(_t["id"], False)
-                        _topics_data["topics"] = _new_topics
-                        _topics_data["updated_at"] = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y/%m/%d %H:%M")
-                        st.session_state["kg_topics_data"] = _topics_data
-                        _kg_save_topics(_topics_data)
-                        st.success(f"主題池已更新，共 {len(_new_topics)} 個主題")
-                        st.rerun()
-                    except Exception as _e:
-                        st.error(f"更新失敗：{_e}")
+20個主題以內。"""
+                _resp = _kgr.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={"Content-Type": "application/json"},
+                    json={"model": "claude-sonnet-4-6", "max_tokens": 2000,
+                          "messages": [{"role": "user", "content": _prompt}]},
+                    timeout=30
+                )
+                _txt = "".join(c.get("text","") for c in _resp.json().get("content",[]) if c.get("type")=="text")
+                _txt = _txt.strip()
+                # 移除可能的markdown包裝
+                if _txt.startswith("```"):
+                    _txt = _txt.split("```")[1]
+                    if _txt.startswith("json"):
+                        _txt = _txt[4:]
+                _txt = _txt.strip()
+                _new_list = _kg_json.loads(_txt)
+                # 保留既有的 active 狀態
+                _active_map = {t["id"]: t.get("active", False) for t in _topics}
+                _new_topics = [{**t, "active": _active_map.get(t["id"], False)} for t in _new_list]
+                _topics_data["topics"] = _new_topics
+                _topics_data["updated_at"] = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y/%m/%d %H:%M")
+                st.session_state["kg_topics_data"] = _topics_data
+                _kg_save_topics(_topics_data)
+                _topics = _new_topics
+                st.success(f"主題池已更新，共 {len(_new_topics)} 個主題")
+                st.rerun()
+            except Exception as _ue:
+                st.error(f"更新失敗：{_ue}")
 
-        # 顯示主題勾選框（每行4個）
-        _topics = _topics_data.get("topics", [])
-        _hot_colors = {5: "#ff5252", 4: "#ffa726", 3: "#ffd54f", 2: "#9fb8d4", 1: "#555"}
-
+    # 勾選框（不觸發rerun，只改session_state）
+    # 用 form 讓勾選不立刻重跑
+    with st.form("kg_topic_form"):
         _n_cols = 4
+        _new_active = {}
         for _row_i in range(0, len(_topics), _n_cols):
             _row_topics = _topics[_row_i:_row_i+_n_cols]
             _row_cols = st.columns(_n_cols)
             for _ci, _t in enumerate(_row_topics):
                 with _row_cols[_ci]:
-                    _hot_dot = "🔥" * min(_t.get("hot", 3), 3)
-                    _checked = st.checkbox(
-                        f"**{_t['name']}** {_hot_dot}",
+                    _hot = _t.get("hot", 3)
+                    _hot_str = "🔥" * min(_hot, 3) if _hot >= 4 else ("⭐" if _hot == 3 else "")
+                    _new_active[_t["id"]] = st.checkbox(
+                        f"{_t['name']} {_hot_str}",
                         value=_t.get("active", False),
-                        key=f"kg_topic_{_t['id']}",
-                        help=_t.get("desc", "")
+                        key=f"kgf_{_t['id']}",
+                        help=_t.get("desc","")
                     )
-                    if _checked != _t.get("active", False):
-                        _t["active"] = _checked
-                        st.session_state["kg_topics_data"] = _topics_data
-                        _kg_save_topics(_topics_data)
 
-        # 已選主題 → 建構按鈕
-        _active_topics = [t for t in _topics if t.get("active")]
         st.markdown("---")
-        _btn_cols = st.columns([3, 1, 1])
-        with _btn_cols[0]:
-            if _active_topics:
-                st.markdown(f"已選：**{'　'.join(t['name'] for t in _active_topics)}**")
-            else:
-                st.caption("請勾選上方主題")
-        with _btn_cols[1]:
-            _build_btn = st.button(
-                "⚡ 建構選定主題",
-                key="kg_build_btn",
-                disabled=len(_active_topics) == 0
-            )
-        with _btn_cols[2]:
-            if st.button("🗑 清空圖譜", key="kg_clear"):
-                st.session_state["kg_graph_data"] = {"updated_at": "", "topics": {}}
-                _kg_save_graph(st.session_state["kg_graph_data"])
-                st.rerun()
+        _form_cols = st.columns([4, 1, 1])
+        with _form_cols[1]:
+            _submit = st.form_submit_button("⚡ 建構選定主題", use_container_width=True)
+        with _form_cols[2]:
+            _clear_submit = st.form_submit_button("🗑 清空圖譜", use_container_width=True)
 
-    # ── 建構選定主題的節點樹
-    if _build_btn and _active_topics:
-        _progress = st.progress(0, text="建構中...")
-        for _bi, _t in enumerate(_active_topics):
-            _tid = _t["id"]
-            # 已有資料就跳過（除非強制重建）
-            if _tid in _graph_data.get("topics", {}):
-                _progress.progress((_bi+1)/len(_active_topics), text=f"✅ {_t['name']} 已有資料")
-                continue
-            _progress.progress((_bi+1)/len(_active_topics), text=f"⚡ 建構 {_t['name']}...")
-            try:
-                import requests as _kgr2
-                _p2 = f"""你是台股產業鏈研究員。請建構「{_t['name']}」的供應鏈知識樹。
+    # Form 送出後更新 active 狀態
+    if _submit or _clear_submit:
+        for _t in _topics:
+            _t["active"] = _new_active.get(_t["id"], False)
+        _topics_data["topics"] = _topics
+        st.session_state["kg_topics_data"] = _topics_data
+        _kg_save_topics(_topics_data)
+
+        if _clear_submit:
+            st.session_state["kg_graph_data"] = {"updated_at": "", "topics": {}}
+            _kg_save_graph(st.session_state["kg_graph_data"])
+            st.success("圖譜已清空")
+            st.rerun()
+
+    # ── 建構選定主題
+    _active_topics = [t for t in _topics if t.get("active")]
+
+    if _submit and _active_topics:
+        _graph_data = st.session_state["kg_graph_data"]
+        _to_build = [t for t in _active_topics
+                     if t["id"] not in _graph_data.get("topics", {})]
+
+        if not _to_build:
+            st.info("所有選定主題已有資料，如需重建請先清空圖譜。")
+        else:
+            st.markdown(f"**⚡ 建構 {len(_to_build)} 個主題...**")
+            for _bi, _t in enumerate(_to_build):
+                _tid = _t["id"]
+                with st.status(f"建構「{_t['name']}」中...", expanded=True) as _status:
+                    try:
+                        import requests as _kgr2
+                        _p2 = f"""你是台股產業鏈研究員。請建構「{_t['name']}」的供應鏈知識樹。
+
 規則：
-1. 建立 3-4 層節點樹（從主題往下展開）
-2. 最末層找台灣上市/上櫃公司（代號+名稱）
-3. 說明每個公司的關聯理由（1句）
-4. 只回傳JSON，不要markdown
+1. 建立 3-4 層節點樹（Level 1=子類別，Level 2=技術/產品，Level 3=規格/應用，Level 4可選）
+2. 最末層節點找對應的台灣上市/上櫃公司（需有股票代號）
+3. 每家公司說明關聯理由（1句話）
+4. 只回傳純JSON，不要任何markdown或說明
 
-格式：
+JSON格式：
 {{
   "topic_id": "{_tid}",
   "topic_name": "{_t['name']}",
   "nodes": [
-    {{
-      "id": "node_id",
-      "name": "節點名稱（英中都行）",
-      "parent": "父節點id或null",
-      "level": 1,
-      "type": "category",
-      "desc": "簡短說明"
-    }}
+    {{"id": "n1", "name": "節點名稱", "parent": null, "level": 1, "desc": "簡短說明"}},
+    {{"id": "n2", "name": "子節點", "parent": "n1", "level": 2, "desc": "說明"}}
   ],
   "companies": [
-    {{
-      "stock_id": "2330",
-      "name": "台積電",
-      "node_ids": ["node_id1"],
-      "reason": "關聯理由"
-    }}
+    {{"stock_id": "2330", "name": "台積電", "node_ids": ["n1","n2"], "reason": "關聯理由"}}
   ]
 }}"""
-                _r2 = _kgr2.post(
-                    "https://api.anthropic.com/v1/messages",
-                    headers={"Content-Type": "application/json"},
-                    json={"model": "claude-sonnet-4-6", "max_tokens": 3000,
-                          "messages": [{"role": "user", "content": _p2}]},
-                    timeout=45
-                )
-                _txt2 = "".join(c.get("text","") for c in _r2.json().get("content",[]) if c.get("type")=="text")
-                _txt2 = _txt2.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
-                _tdata = _kg_json.loads(_txt2)
-                if "topics" not in _graph_data:
-                    _graph_data["topics"] = {}
-                _graph_data["topics"][_tid] = _tdata
-                _graph_data["updated_at"] = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y/%m/%d %H:%M")
-                st.session_state["kg_graph_data"] = _graph_data
-                _kg_save_graph(_graph_data)
-            except Exception as _be:
-                st.warning(f"{_t['name']} 建構失敗：{_be}")
-        _progress.empty()
-        st.success("建構完成！")
+                        _r2 = _kgr2.post(
+                            "https://api.anthropic.com/v1/messages",
+                            headers={"Content-Type": "application/json"},
+                            json={"model": "claude-sonnet-4-6", "max_tokens": 3000,
+                                  "messages": [{"role": "user", "content": _p2}]},
+                            timeout=60
+                        )
+                        _resp_json = _r2.json()
+                        _txt2 = "".join(c.get("text","") for c in _resp_json.get("content",[]) if c.get("type")=="text")
+                        # 移除 markdown 包裝
+                        _txt2 = _txt2.strip()
+                        if "```" in _txt2:
+                            _parts = _txt2.split("```")
+                            for _part in _parts:
+                                if _part.startswith("json"):
+                                    _txt2 = _part[4:].strip()
+                                    break
+                                elif _part.strip().startswith("{"):
+                                    _txt2 = _part.strip()
+                                    break
+                        _tdata = _kg_json.loads(_txt2)
+                        _n_nodes = len(_tdata.get("nodes", []))
+                        _n_cos   = len(_tdata.get("companies", []))
+                        if "topics" not in _graph_data:
+                            _graph_data["topics"] = {}
+                        _graph_data["topics"][_tid] = _tdata
+                        _graph_data["updated_at"] = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y/%m/%d %H:%M")
+                        st.session_state["kg_graph_data"] = _graph_data
+                        _kg_save_graph(_graph_data)
+                        _status.update(label=f"✅ {_t['name']}：{_n_nodes} 個節點，{_n_cos} 家公司", state="complete")
+                    except _kg_json.JSONDecodeError as _je:
+                        _status.update(label=f"❌ {_t['name']}：JSON解析失敗", state="error")
+                        st.error(f"AI回傳內容無法解析：{str(_je)[:100]}")
+                        st.code(_txt2[:500] if '_txt2' in dir() else "無內容")
+                    except Exception as _be:
+                        _status.update(label=f"❌ {_t['name']}：{str(_be)[:50]}", state="error")
+                        st.error(f"建構失敗：{_be}")
         st.rerun()
 
-    st.markdown("---")
+    elif _submit and not _active_topics:
+        st.warning("請先勾選至少一個主題")
+
+    st.divider()
 
     # ════════════════════════════════════════════════════════
     # 下方：檔案總管（左）+ 詳情（右）
     # ════════════════════════════════════════════════════════
-    _built_topics = {tid: tdata for tid, tdata in _graph_data.get("topics", {}).items()
-                     if any(t["id"] == tid and t.get("active") for t in _topics)}
+    _graph_data = st.session_state["kg_graph_data"]
+    _active_ids = {t["id"] for t in _topics if t.get("active")}
+    _built_topics = {tid: tdata for tid, tdata in _graph_data.get("topics", {}).items()}
 
     if not _built_topics:
         st.markdown(
@@ -11337,33 +11366,28 @@ with tab11:
         with _fe_col:
             st.markdown("**📁 知識樹**")
 
-            # 搜尋框（正向/反向）
-            _search_mode = st.radio("查詢模式", ["正向", "反向"],
-                                    horizontal=True, key="kg_mode",
-                                    index=0 if st.session_state["kg_search_mode"] == "正向" else 1)
-            st.session_state["kg_search_mode"] = _search_mode
+            _search_mode = st.radio("查詢", ["正向", "反向"],
+                                    horizontal=True, key="kg_mode")
             _search_kw = st.text_input(
-                "🔍 搜尋" if _search_mode == "正向" else "🔍 反向追溯（輸入公司名稱或代號）",
-                key="kg_search", label_visibility="collapsed",
-                placeholder="節點名稱" if _search_mode == "正向" else "如：川湖 或 2059"
+                "搜尋",
+                key="kg_search",
+                label_visibility="collapsed",
+                placeholder="節點名稱" if _search_mode=="正向" else "公司名稱或代號"
             ).strip()
 
-            # 反向查詢結果
+            # 反向查詢
             if _search_mode == "反向" and _search_kw:
-                st.markdown(f"**🔍 追溯：{_search_kw}**")
-                _found = False
+                st.markdown(f"**🔍 {_search_kw} 屬於：**")
+                _found_any = False
                 for _tid, _tdata in _built_topics.items():
                     for _co in _tdata.get("companies", []):
                         if (_search_kw in _co.get("name","") or
-                            _search_kw in _co.get("stock_id","")):
-                            _found = True
-                            # 找到屬於哪些節點
-                            _node_map = {n["id"]: n["name"] for n in _tdata.get("nodes",[])}
+                                _search_kw in _co.get("stock_id","")):
+                            _found_any = True
+                            _nmap = {n["id"]: n["name"] for n in _tdata.get("nodes",[])}
                             for _nid in _co.get("node_ids", []):
-                                _nname = _node_map.get(_nid, _nid)
-                                # 往上追溯父節點
-                                _path = [_nname]
-                                _cur = next((n for n in _tdata.get("nodes",[]) if n["id"]==_nid), None)
+                                _path = [_nmap.get(_nid, _nid)]
+                                _cur  = next((n for n in _tdata.get("nodes",[]) if n["id"]==_nid), None)
                                 while _cur and _cur.get("parent"):
                                     _par = next((n for n in _tdata.get("nodes",[]) if n["id"]==_cur["parent"]), None)
                                     if _par:
@@ -11373,122 +11397,112 @@ with tab11:
                                         break
                                 _path.insert(0, _tdata["topic_name"])
                                 st.markdown(
-                                    f"<div style='font-size:.8rem;color:#7fb3d3;"
-                                    f"padding:4px 8px;border-left:2px solid #4fc3f7;margin:3px 0;'>"
-                                    f"{'　→　'.join(_path)}</div>",
+                                    f"<div style='font-size:.78rem;color:#4fc3f7;"
+                                    f"padding:3px 6px;border-left:2px solid #4fc3f7;margin:2px 0;'>"
+                                    f"{'→'.join(_path)}</div>",
                                     unsafe_allow_html=True
                                 )
-                            st.caption(f"關聯：{_co.get('reason','')}")
-                if not _found:
+                if not _found_any:
                     st.caption("找不到相關公司")
-                st.markdown("---")
+                st.divider()
 
             # 樹狀展開
             for _tid, _tdata in _built_topics.items():
                 _tname = _tdata.get("topic_name", _tid)
                 _nodes = _tdata.get("nodes", [])
+                _n_cos = len(_tdata.get("companies", []))
+                _is_active = _tid in _active_ids
 
-                with st.expander(f"📁 {_tname}", expanded=True):
-                    # 建立節點層級樹
-                    def _render_tree(parent_id, level, nodes, indent=0):
+                with st.expander(f"{'✅ ' if _is_active else ''}📁 {_tname} ({_n_cos}家)", expanded=_is_active):
+                    def _render_tree(parent_id, nodes, indent=0):
                         for _n in [n for n in nodes if n.get("parent") == parent_id]:
                             _nid   = _n["id"]
                             _nname = _n["name"]
-                            _lvl   = _n.get("level", level)
-                            _icon  = "📂" if _lvl <= 2 else "📄"
-                            _is_sel = (st.session_state["kg_selected_node"] == (_tid, _nid))
+                            _icon  = "📂" if _n.get("level",3) <= 2 else "📄"
                             _prefix = "　" * indent
-                            _btn_label = f"{_prefix}{_icon} **{_nname}**" if _is_sel else f"{_prefix}{_icon} {_nname}"
+                            _is_sel = (st.session_state["kg_selected_node"] == (_tid, _nid))
 
-                            # 搜尋過濾
                             if _search_mode == "正向" and _search_kw:
                                 if _search_kw.upper() not in _nname.upper():
-                                    _render_tree(_nid, level+1, nodes, indent+1)
+                                    _render_tree(_nid, nodes, indent+1)
                                     continue
 
-                            if st.button(_btn_label, key=f"kg_node_{_tid}_{_nid}",
-                                         use_container_width=True):
+                            _btn_lbl = f"{_prefix}{_icon} **{_nname}**" if _is_sel else f"{_prefix}{_icon} {_nname}"
+                            if st.button(_btn_lbl, key=f"kg_n_{_tid}_{_nid}", use_container_width=True):
                                 st.session_state["kg_selected_node"] = (_tid, _nid)
                                 st.rerun()
-                            _render_tree(_nid, level+1, nodes, indent+1)
+                            _render_tree(_nid, nodes, indent+1)
 
-                    _render_tree(None, 1, _nodes)
+                    _render_tree(None, _nodes)
 
         # ── 右側：節點詳情
         with _detail_col:
-            _sel_node = st.session_state.get("kg_selected_node")
+            _sel = st.session_state.get("kg_selected_node")
 
-            if not _sel_node:
+            if not _sel:
                 st.markdown(
                     "<div style='text-align:center;padding:40px;color:#7fb3d3;'>"
-                    "← 點選左側節點查看詳情與相關公司"
-                    "</div>", unsafe_allow_html=True
+                    "← 點選左側節點，查看相關台灣公司</div>",
+                    unsafe_allow_html=True
                 )
             else:
-                _sel_tid, _sel_nid = _sel_node
-                _sel_tdata = _built_topics.get(_sel_tid, {})
-                _sel_node_obj = next((n for n in _sel_tdata.get("nodes",[]) if n["id"]==_sel_nid), None)
+                _sel_tid, _sel_nid = _sel
+                _sel_td  = _built_topics.get(_sel_tid, {})
+                _sel_no  = next((n for n in _sel_td.get("nodes",[]) if n["id"]==_sel_nid), None)
 
-                if _sel_node_obj:
+                if _sel_no:
                     st.markdown(
                         f"<div style='background:rgba(0,100,200,0.15);border-radius:8px;"
-                        f"padding:12px 16px;margin-bottom:10px;'>"
-                        f"<b style='font-size:1.1rem;color:#e8f4fd;'>📌 {_sel_node_obj['name']}</b>"
+                        f"padding:10px 16px;margin-bottom:8px;'>"
+                        f"<b style='font-size:1.05rem;color:#e8f4fd;'>📌 {_sel_no['name']}</b>"
                         f"<span style='color:#7fb3d3;font-size:.8rem;margin-left:10px;'>"
-                        f"{_sel_tdata.get('topic_name','')} 供應鏈</span>"
+                        f"{_sel_td.get('topic_name','')}供應鏈</span>"
                         f"</div>", unsafe_allow_html=True
                     )
-                    if _sel_node_obj.get("desc"):
-                        st.caption(_sel_node_obj["desc"])
+                    if _sel_no.get("desc"):
+                        st.caption(_sel_no["desc"])
 
-                    # 相關台灣公司
-                    _rel_cos = [co for co in _sel_tdata.get("companies",[])
-                                if _sel_nid in co.get("node_ids",[])]
+                    # 相關公司
+                    _rel = [co for co in _sel_td.get("companies",[])
+                            if _sel_nid in co.get("node_ids",[])]
 
-                    if _rel_cos:
-                        st.markdown(f"**🏭 相關台灣公司（{len(_rel_cos)} 家）**")
-                        for _co in _rel_cos:
-                            _sid  = _co.get("stock_id","")
+                    if _rel:
+                        st.markdown(f"**🏭 相關台灣公司（{len(_rel)} 家）**")
+                        for _co in _rel:
+                            _sid   = _co.get("stock_id","")
                             _cname = _co.get("name","")
                             _reason = _co.get("reason","")
-                            # 顯示公司卡片
-                            _co_col1, _co_col2 = st.columns([2, 5])
-                            with _co_col1:
+                            _cc1, _cc2 = st.columns([2, 5])
+                            with _cc1:
                                 if st.button(f"📊 {_sid} {_cname}",
                                              key=f"kg_co_{_sid}_{_sel_nid}",
                                              use_container_width=True):
-                                    # 跳到 Tab10 研究
                                     st.session_state["rc_selected_sid"] = _sid
-                                    if _sid not in {r["id"] for r in st.session_state.get("rc_my_research", [])}:
-                                        st.session_state.setdefault("rc_my_research", []).append(
-                                            {"id": _sid, "name": _cname}
-                                        )
+                                    _my = st.session_state.setdefault("rc_my_research", [])
+                                    if _sid not in {r["id"] for r in _my}:
+                                        _my.append({"id": _sid, "name": _cname})
                                     st.toast(f"{_sid} 已加入 Tab10 研究清單", icon="📊")
-                            with _co_col2:
+                            with _cc2:
                                 st.markdown(
-                                    f"<div style='font-size:.82rem;color:#9fb8d4;"
-                                    f"padding:6px 0;'>{_reason}</div>",
-                                    unsafe_allow_html=True
+                                    f"<div style='font-size:.8rem;color:#9fb8d4;padding:5px 0;'>"
+                                    f"{_reason}</div>", unsafe_allow_html=True
                                 )
                     else:
-                        st.caption("此節點尚無相關台灣公司資料")
+                        st.caption("此節點無相關台灣公司")
 
-                    # 子節點清單
-                    _child_nodes = [n for n in _sel_tdata.get("nodes",[])
-                                    if n.get("parent") == _sel_nid]
-                    if _child_nodes:
-                        st.markdown(f"**📂 子節點（{len(_child_nodes)}）**")
-                        for _cn in _child_nodes:
-                            if st.button(f"  └ {_cn['name']}", key=f"kg_child_{_sel_tid}_{_cn['id']}",
-                                         use_container_width=False):
+                    # 子節點
+                    _children = [n for n in _sel_td.get("nodes",[]) if n.get("parent")==_sel_nid]
+                    if _children:
+                        st.markdown(f"**📂 子節點（{len(_children)}）**")
+                        for _cn in _children:
+                            if st.button(f"└ {_cn['name']}", key=f"kg_ch_{_sel_tid}_{_cn['id']}"):
                                 st.session_state["kg_selected_node"] = (_sel_tid, _cn["id"])
                                 st.rerun()
 
-                    # 更新按鈕
-                    st.markdown("---")
-                    if st.button("🔄 重新建構此主題", key=f"kg_rebuild_{_sel_tid}"):
-                        if _sel_tid in _graph_data.get("topics", {}):
-                            del _graph_data["topics"][_sel_tid]
-                            _kg_save_graph(_graph_data)
-                            st.session_state["kg_graph_data"] = _graph_data
-                            st.rerun()
+                    st.divider()
+                    if st.button("🔄 重建此主題", key=f"kg_rb_{_sel_tid}"):
+                        _graph_data["topics"].pop(_sel_tid, None)
+                        _kg_save_graph(_graph_data)
+                        st.session_state["kg_graph_data"] = _graph_data
+                        st.session_state["kg_selected_node"] = None
+                        st.rerun()
