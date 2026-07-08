@@ -11093,6 +11093,9 @@ with tab10:
 # ══════════════════════════════════════════════════════════════
 # ▌ TAB 11：產業知識圖譜 V7.2.0
 # ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
+# ▌ TAB 11：產業知識圖譜 V7.2.1
+# ══════════════════════════════════════════════════════════════
 with tab11:
     import sqlite3 as _sq
     import io as _kg_io
@@ -11100,14 +11103,45 @@ with tab11:
     KG_DB_PATH = os.path.join("data", "kg_v720.db")
 
     st.markdown("<div class='sec-title'>🗺️ 產業知識圖譜</div>", unsafe_allow_html=True)
-    st.markdown(
-        "<div class='infobox'>本地產業知識資料庫。資料由 CSV / Excel 匯入，離線查詢。"
-        "AI 只負責外部產生資料檔，不在系統內即時運作。</div>",
-        unsafe_allow_html=True
-    )
+
+    # ── Node Icon 對照表
+    _NODE_ICONS = {
+        "compute": "🖥", "gpu": "🖥", "asic": "🖥", "cpu": "🖥",
+        "memory": "🧠", "hbm": "🧠", "storage": "💾", "ssd": "💾",
+        "networking": "🌐", "network": "🌐", "800g": "🌐", "1.6t": "🌐", "cpo": "🔦",
+        "optical": "🔦", "silicon photonics": "🔦",
+        "power": "⚡", "busbar": "⚡", "shelf": "⚡",
+        "cooling": "❄", "liquid": "❄", "cold plate": "❄", "thermal": "❄",
+        "rack": "🗄", "rail": "🗄", "chassis": "🗄",
+        "packaging": "📦", "cowos": "📦", "copos": "📦", "glass": "📦",
+        "satellite": "🛰", "space": "🛰", "leo": "🛰",
+        "robot": "🤖", "automation": "🤖", "cobot": "🤖",
+        "connector": "🔌", "cable": "🔌",
+        "energy": "🔋", "ev": "🚗", "mobility": "🚗",
+        "edge": "📱", "device": "📱",
+        "semi": "⚙️", "wafer": "⚙️",
+    }
+
+    def _get_node_icon(name):
+        _n = name.lower()
+        for _k, _v in _NODE_ICONS.items():
+            if _k in _n:
+                return _v
+        return "📄"
+
+    # ── Topic 中文對照
+    _TOPIC_CN = {
+        "AI_DATACENTER":           ("AI 與資料中心",       "AI & Data Center"),
+        "SEMICONDUCTOR_PACKAGING": ("半導體與先進封裝",     "Semiconductor & Advanced Packaging"),
+        "CONNECTIVITY_SPACE":      ("次世代通訊與太空",     "Next-Gen Connectivity & Space"),
+        "ROBOTICS_AUTOMATION":     ("機器人與智慧製造",     "Robotics & Automation"),
+        "ENERGY_GRID":             ("綠能與智慧電網",       "Green Energy & Smart Grid"),
+        "EDGE_AI_DEVICES":         ("邊緣 AI 與終端裝置",   "Edge AI & Devices"),
+        "SMART_MOBILITY":          ("智慧移動",             "Smart Mobility"),
+    }
 
     # ════════════════════════════════════════════════════════
-    # DB 初始化
+    # DB 連線 + 初始化（不動架構）
     # ════════════════════════════════════════════════════════
     def _kg_conn():
         os.makedirs("data", exist_ok=True)
@@ -11116,125 +11150,144 @@ with tab11:
     def _kg_init():
         _c = _kg_conn()
         _cur = _c.cursor()
-
-        # topic_master
         _cur.execute("""
             CREATE TABLE IF NOT EXISTS topic_master (
-                TopicID TEXT PRIMARY KEY,
-                TopicName TEXT NOT NULL,
-                TopicDescription TEXT,
-                DisplayOrder INTEGER DEFAULT 99,
-                IsActive INTEGER DEFAULT 1,
-                UpdateDate TEXT,
-                Remark TEXT
+                TopicID TEXT PRIMARY KEY, TopicName TEXT NOT NULL,
+                TopicDescription TEXT, DisplayOrder INTEGER DEFAULT 99,
+                IsActive INTEGER DEFAULT 1, UpdateDate TEXT, Remark TEXT
             )
         """)
-
-        # node_master
         _cur.execute("""
             CREATE TABLE IF NOT EXISTS node_master (
-                NodeID TEXT PRIMARY KEY,
-                TopicID TEXT NOT NULL,
-                ParentNodeID TEXT,
-                Level INTEGER DEFAULT 1,
-                NodeName TEXT NOT NULL,
-                NodeDescription TEXT,
-                Importance INTEGER DEFAULT 3,
-                FuturePotential INTEGER DEFAULT 3,
-                IsBusinessNode INTEGER DEFAULT 1,
-                IsActive INTEGER DEFAULT 1,
-                DisplayOrder INTEGER DEFAULT 99,
-                UpdateDate TEXT,
-                Remark TEXT,
+                NodeID TEXT PRIMARY KEY, TopicID TEXT NOT NULL,
+                ParentNodeID TEXT, Level INTEGER DEFAULT 1,
+                NodeName TEXT NOT NULL, NodeDescription TEXT,
+                Importance INTEGER DEFAULT 3, FuturePotential INTEGER DEFAULT 3,
+                IsBusinessNode INTEGER DEFAULT 1, IsActive INTEGER DEFAULT 1,
+                DisplayOrder INTEGER DEFAULT 99, UpdateDate TEXT, Remark TEXT,
                 FOREIGN KEY(TopicID) REFERENCES topic_master(TopicID)
             )
         """)
-
-        # company_node_map
         _cur.execute("""
             CREATE TABLE IF NOT EXISTS company_node_map (
                 MapID INTEGER PRIMARY KEY AUTOINCREMENT,
-                NodeID TEXT NOT NULL,
-                TopicID TEXT NOT NULL,
-                StockID TEXT,
-                CompanyName TEXT NOT NULL,
-                CompanyType TEXT,
-                CompanyRole TEXT,
-                DNA1 TEXT,
-                DNA2 TEXT,
-                DNA3 TEXT,
-                RelationStrength INTEGER DEFAULT 3,
-                DiscoveryScore INTEGER DEFAULT 3,
-                TaiwanLeader INTEGER DEFAULT 0,
-                GlobalLeader INTEGER DEFAULT 0,
-                CommercialStatus TEXT,
-                Description TEXT,
-                Evidence TEXT,
-                Reference TEXT,
-                UpdateDate TEXT,
-                Remark TEXT,
+                NodeID TEXT NOT NULL, TopicID TEXT NOT NULL,
+                StockID TEXT, CompanyName TEXT NOT NULL,
+                CompanyType TEXT, CompanyRole TEXT,
+                DNA1 TEXT, DNA2 TEXT, DNA3 TEXT,
+                RelationStrength INTEGER DEFAULT 3, DiscoveryScore INTEGER DEFAULT 3,
+                TaiwanLeader INTEGER DEFAULT 0, GlobalLeader INTEGER DEFAULT 0,
+                CommercialStatus TEXT, Description TEXT,
+                Evidence TEXT, Reference TEXT, UpdateDate TEXT, Remark TEXT,
                 UNIQUE(NodeID, StockID)
             )
         """)
-
         _c.commit()
 
-        # 插入預設 Topic（若不存在）
+        # 預設 Topic
         _default_topics = [
-            ("AI_DATACENTER",          "AI & Data Center",                  "AI 與資料中心",           1),
-            ("SEMICONDUCTOR_PACKAGING","Semiconductor & Advanced Packaging", "半導體與先進封裝",         2),
-            ("CONNECTIVITY_SPACE",     "Next-Gen Connectivity & Space",      "次世代通訊與太空",         3),
-            ("ROBOTICS_AUTOMATION",    "Robotics & Automation",              "機器人與智慧製造",         4),
-            ("ENERGY_GRID",            "Green Energy & Smart Grid",          "綠能與智慧電網",           5),
-            ("EDGE_AI_DEVICES",        "Edge AI & Devices",                  "邊緣 AI 與終端運算",       6),
-            ("SMART_MOBILITY",         "Smart Mobility",                     "智慧移動與車用電子",       7),
+            ("AI_DATACENTER",          "AI & Data Center",                  "AI 與資料中心",     1),
+            ("SEMICONDUCTOR_PACKAGING","Semiconductor & Advanced Packaging", "半導體與先進封裝",  2),
+            ("CONNECTIVITY_SPACE",     "Next-Gen Connectivity & Space",      "次世代通訊與太空",  3),
+            ("ROBOTICS_AUTOMATION",    "Robotics & Automation",              "機器人與智慧製造",  4),
+            ("ENERGY_GRID",            "Green Energy & Smart Grid",          "綠能與智慧電網",    5),
+            ("EDGE_AI_DEVICES",        "Edge AI & Devices",                  "邊緣AI與終端裝置",  6),
+            ("SMART_MOBILITY",         "Smart Mobility",                     "智慧移動",          7),
         ]
         for _tid, _tn, _td, _ord in _default_topics:
-            _cur.execute("""
-                INSERT OR IGNORE INTO topic_master(TopicID,TopicName,TopicDescription,DisplayOrder,IsActive,UpdateDate)
-                VALUES(?,?,?,?,1,?)
-            """, (_tid, _tn, _td, _ord, datetime.now().strftime("%Y-%m-%d")))
+            _cur.execute("INSERT OR IGNORE INTO topic_master(TopicID,TopicName,TopicDescription,DisplayOrder,IsActive,UpdateDate) VALUES(?,?,?,?,1,?)",
+                         (_tid, _tn, _td, _ord, datetime.now().strftime("%Y-%m-%d")))
 
-        # 插入預設 AI_DATACENTER Node Tree（若不存在）
+        # 預設 Node Tree
         _default_nodes = [
-            # (NodeID, TopicID, ParentNodeID, Level, NodeName, NodeDesc, Importance, FuturePotential, DisplayOrder)
-            ("AI_DATACENTER",          "AI_DATACENTER", None,                  1, "AI & Data Center",       "AI 資料中心完整供應鏈",        5, 5,  1),
-            ("AI_DC_COMPUTE",          "AI_DATACENTER", "AI_DATACENTER",       2, "AI Compute",             "AI伺服器核心運算平台",          5, 5,  1),
-            ("AI_DC_MEMORY_STORAGE",   "AI_DATACENTER", "AI_DATACENTER",       2, "AI Memory & Storage",    "AI高速記憶體與企業級儲存",      5, 5,  2),
-            ("AI_DC_NETWORKING",       "AI_DATACENTER", "AI_DATACENTER",       2, "AI Networking",          "AI資料中心高速網路與傳輸",      5, 5,  3),
-            ("AI_DC_POWER",            "AI_DATACENTER", "AI_DATACENTER",       2, "AI Power",               "AI高瓦數供電與配電系統",        5, 5,  4),
-            ("AI_DC_COOLING",          "AI_DATACENTER", "AI_DATACENTER",       2, "AI Cooling",             "AI散熱與液冷系統",              5, 5,  5),
-            ("AI_DC_RACK",             "AI_DATACENTER", "AI_DATACENTER",       2, "AI Rack",                "AI整機櫃與機構系統",            5, 5,  6),
-            ("AI_DC_PACKAGING",        "AI_DATACENTER", "AI_DATACENTER",       2, "AI Advanced Packaging",  "AI晶片先進封裝技術",            5, 5,  7),
-            # Level 3
-            ("AI_DC_GPU",              "AI_DATACENTER", "AI_DC_COMPUTE",       3, "GPU",                    "AI GPU 運算平台",               5, 5,  1),
-            ("AI_DC_ASIC",             "AI_DATACENTER", "AI_DC_COMPUTE",       3, "ASIC",                   "AI ASIC 客製晶片",              5, 5,  2),
-            ("AI_DC_HBM",              "AI_DATACENTER", "AI_DC_MEMORY_STORAGE",3, "HBM",                    "高頻寬記憶體",                  5, 5,  1),
-            ("AI_DC_ENTERPRISE_SSD",   "AI_DATACENTER", "AI_DC_MEMORY_STORAGE",3, "Enterprise SSD",         "企業級 SSD 與 AI 儲存",        4, 4,  2),
-            ("AI_DC_800G",             "AI_DATACENTER", "AI_DC_NETWORKING",    3, "800G",                   "800G 高速網路傳輸",             5, 5,  1),
-            ("AI_DC_1600G",            "AI_DATACENTER", "AI_DC_NETWORKING",    3, "1.6T",                   "1.6T 高速網路傳輸",             5, 5,  2),
-            ("AI_DC_CPO",              "AI_DATACENTER", "AI_DC_NETWORKING",    3, "CPO",                    "共同封裝光學",                  5, 5,  3),
-            ("AI_DC_POWER_SHELF",      "AI_DATACENTER", "AI_DC_POWER",         3, "Power Shelf",            "AI 機櫃供電平台",               5, 5,  1),
-            ("AI_DC_BUSBAR",           "AI_DATACENTER", "AI_DC_POWER",         3, "Busbar",                 "AI 高電流匯流排",               5, 5,  2),
-            ("AI_DC_LIQUID_COOLING",   "AI_DATACENTER", "AI_DC_COOLING",       3, "Liquid Cooling",         "AI 液冷散熱平台",               5, 5,  1),
-            ("AI_DC_COLD_PLATE",       "AI_DATACENTER", "AI_DC_COOLING",       3, "Cold Plate",             "冷板散熱",                      5, 5,  2),
-            ("AI_DC_AI_RACK",          "AI_DATACENTER", "AI_DC_RACK",          3, "AI Rack",                "AI Server Rack 整體平台",       5, 5,  1),
-            ("AI_DC_SERVER_RAIL",      "AI_DATACENTER", "AI_DC_RACK",          3, "Server Rail",            "AI 伺服器滑軌",                 5, 4,  2),
-            ("AI_DC_COWOS",            "AI_DATACENTER", "AI_DC_PACKAGING",     3, "CoWoS",                  "CoWoS 先進封裝",                5, 5,  1),
-            ("AI_DC_COPOS",            "AI_DATACENTER", "AI_DC_PACKAGING",     3, "CoPoS",                  "Panel Level 相關封裝技術",      4, 5,  2),
-            ("AI_DC_GLASS_SUBSTRATE",  "AI_DATACENTER", "AI_DC_PACKAGING",     3, "Glass Substrate",        "玻璃基板",                      4, 5,  3),
+            ("AI_DATACENTER",          "AI_DATACENTER", None,                  1, "AI & Data Center",       "AI 資料中心完整供應鏈",    5, 5,  1),
+            ("AI_DC_COMPUTE",          "AI_DATACENTER", "AI_DATACENTER",       2, "AI Compute",             "AI伺服器核心運算平台",      5, 5,  1),
+            ("AI_DC_MEMORY_STORAGE",   "AI_DATACENTER", "AI_DATACENTER",       2, "AI Memory & Storage",    "AI高速記憶體與企業級儲存",  5, 5,  2),
+            ("AI_DC_NETWORKING",       "AI_DATACENTER", "AI_DATACENTER",       2, "AI Networking",          "AI資料中心高速網路與傳輸",  5, 5,  3),
+            ("AI_DC_POWER",            "AI_DATACENTER", "AI_DATACENTER",       2, "AI Power",               "AI高瓦數供電與配電系統",    5, 5,  4),
+            ("AI_DC_COOLING",          "AI_DATACENTER", "AI_DATACENTER",       2, "AI Cooling",             "AI散熱與液冷系統",          5, 5,  5),
+            ("AI_DC_RACK",             "AI_DATACENTER", "AI_DATACENTER",       2, "AI Rack",                "AI整機櫃與機構系統",        5, 5,  6),
+            ("AI_DC_PACKAGING",        "AI_DATACENTER", "AI_DATACENTER",       2, "AI Advanced Packaging",  "AI晶片先進封裝技術",        5, 5,  7),
+            ("AI_DC_GPU",              "AI_DATACENTER", "AI_DC_COMPUTE",       3, "GPU",                    "AI GPU 運算平台",           5, 5,  1),
+            ("AI_DC_ASIC",             "AI_DATACENTER", "AI_DC_COMPUTE",       3, "ASIC",                   "AI ASIC 客製晶片",          5, 5,  2),
+            ("AI_DC_HBM",              "AI_DATACENTER", "AI_DC_MEMORY_STORAGE",3, "HBM",                    "高頻寬記憶體",              5, 5,  1),
+            ("AI_DC_ENTERPRISE_SSD",   "AI_DATACENTER", "AI_DC_MEMORY_STORAGE",3, "Enterprise SSD",         "企業級SSD與AI儲存",         4, 4,  2),
+            ("AI_DC_800G",             "AI_DATACENTER", "AI_DC_NETWORKING",    3, "800G",                   "800G高速網路傳輸",          5, 5,  1),
+            ("AI_DC_1600G",            "AI_DATACENTER", "AI_DC_NETWORKING",    3, "1.6T",                   "1.6T高速網路傳輸",          5, 5,  2),
+            ("AI_DC_CPO",              "AI_DATACENTER", "AI_DC_NETWORKING",    3, "CPO",                    "共同封裝光學",              5, 5,  3),
+            ("AI_DC_POWER_SHELF",      "AI_DATACENTER", "AI_DC_POWER",         3, "Power Shelf",            "AI機櫃供電平台",            5, 5,  1),
+            ("AI_DC_BUSBAR",           "AI_DATACENTER", "AI_DC_POWER",         3, "Busbar",                 "AI高電流匯流排",            5, 5,  2),
+            ("AI_DC_LIQUID_COOLING",   "AI_DATACENTER", "AI_DC_COOLING",       3, "Liquid Cooling",         "AI液冷散熱平台",            5, 5,  1),
+            ("AI_DC_COLD_PLATE",       "AI_DATACENTER", "AI_DC_COOLING",       3, "Cold Plate",             "冷板散熱",                  5, 5,  2),
+            ("AI_DC_AI_RACK",          "AI_DATACENTER", "AI_DC_RACK",          3, "AI Rack",                "AI Server Rack整體平台",    5, 5,  1),
+            ("AI_DC_SERVER_RAIL",      "AI_DATACENTER", "AI_DC_RACK",          3, "Server Rail",            "AI伺服器滑軌",              5, 4,  2),
+            ("AI_DC_COWOS",            "AI_DATACENTER", "AI_DC_PACKAGING",     3, "CoWoS",                  "CoWoS先進封裝",             5, 5,  1),
+            ("AI_DC_COPOS",            "AI_DATACENTER", "AI_DC_PACKAGING",     3, "CoPoS",                  "Panel Level封裝技術",       4, 5,  2),
+            ("AI_DC_GLASS_SUBSTRATE",  "AI_DATACENTER", "AI_DC_PACKAGING",     3, "Glass Substrate",        "玻璃基板",                  4, 5,  3),
         ]
         for _row in _default_nodes:
             _cur.execute("""
                 INSERT OR IGNORE INTO node_master
-                (NodeID,TopicID,ParentNodeID,Level,NodeName,NodeDescription,Importance,FuturePotential,IsBusinessNode,IsActive,DisplayOrder,UpdateDate)
+                (NodeID,TopicID,ParentNodeID,Level,NodeName,NodeDescription,
+                 Importance,FuturePotential,IsBusinessNode,IsActive,DisplayOrder,UpdateDate)
                 VALUES(?,?,?,?,?,?,?,?,1,1,?,?)
-            """, (_row[0],_row[1],_row[2],_row[3],_row[4],_row[5],_row[6],_row[7],_row[8],datetime.now().strftime("%Y-%m-%d")))
-
+            """, (_row[0],_row[1],_row[2],_row[3],_row[4],_row[5],
+                  _row[6],_row[7],_row[8],datetime.now().strftime("%Y-%m-%d")))
         _c.commit()
         _c.close()
 
     _kg_init()
+
+    # ════════════════════════════════════════════════════════
+    # Memory Cache（啟動時一次載入）
+    # ════════════════════════════════════════════════════════
+    @st.cache_data(ttl=None, show_spinner=False)
+    def _kg_load_all():
+        """一次載入全部資料到 Memory，切換 Topic/Node 時不重查 SQLite"""
+        _c = _kg_conn()
+        _topics = _c.execute(
+            "SELECT TopicID, TopicName, TopicDescription, DisplayOrder FROM topic_master WHERE IsActive=1 ORDER BY DisplayOrder"
+        ).fetchall()
+        _nodes = _c.execute(
+            "SELECT NodeID, TopicID, ParentNodeID, Level, NodeName, NodeDescription, "
+            "Importance, FuturePotential, DisplayOrder FROM node_master WHERE IsActive=1 ORDER BY Level, DisplayOrder"
+        ).fetchall()
+        _companies = _c.execute(
+            "SELECT NodeID, TopicID, StockID, CompanyName, CompanyType, CompanyRole, "
+            "DNA1, DNA2, DNA3, RelationStrength, CommercialStatus, "
+            "Description, Evidence, UpdateDate, TaiwanLeader FROM company_node_map "
+            "ORDER BY RelationStrength DESC"
+        ).fetchall()
+        _upd = _c.execute(
+            "SELECT MAX(UpdateDate) FROM company_node_map"
+        ).fetchone()[0]
+        _c.close()
+        return {
+            "topics":    _topics,
+            "nodes":     _nodes,
+            "companies": _companies,
+            "updated_at": _upd or "",
+        }
+
+    def _kg_refresh_cache():
+        _kg_load_all.clear()
+
+    _cache = _kg_load_all()
+    _all_topics    = _cache["topics"]
+    _all_nodes     = _cache["nodes"]
+    _all_companies = _cache["companies"]
+    _cache_upd     = _cache["updated_at"]
+
+    # ── 快查 map
+    _nodes_by_topic  = {}
+    _nodes_by_id     = {}
+    _cos_by_node     = {}
+    for _n in _all_nodes:
+        _nid, _ntid = _n[0], _n[1]
+        _nodes_by_topic.setdefault(_ntid, []).append(_n)
+        _nodes_by_id[_nid] = _n
+    for _co in _all_companies:
+        _cos_by_node.setdefault(_co[0], []).append(_co)
 
     # ════════════════════════════════════════════════════════
     # Session State
@@ -11243,13 +11296,30 @@ with tab11:
     if "kg3_sel_node"    not in st.session_state: st.session_state["kg3_sel_node"]    = None
     if "kg3_sel_company" not in st.session_state: st.session_state["kg3_sel_company"] = None
     if "kg3_tab"         not in st.session_state: st.session_state["kg3_tab"]         = "browse"
+    if "kg3_exp_nodes"   not in st.session_state: st.session_state["kg3_exp_nodes"]   = set()
 
     # ════════════════════════════════════════════════════════
-    # 上方：工具列
+    # 上方統計列
     # ════════════════════════════════════════════════════════
-    _tc = st.columns([2, 1, 1, 1, 1, 3])
+    _n_topics = len(_all_topics)
+    _n_nodes  = len(_all_nodes)
+    _n_cos    = len(set(c[2] for c in _all_companies if c[2]))
+    st.markdown(
+        f"<div style='background:rgba(0,50,120,0.2);border-radius:8px;padding:8px 16px;margin-bottom:8px;"
+        f"display:flex;gap:24px;flex-wrap:wrap;align-items:center;'>"
+        f"<span style='font-size:.82rem;color:#9fb8d4;'>主題 <b style='color:#e8f4fd;'>{_n_topics}</b></span>"
+        f"<span style='font-size:.82rem;color:#9fb8d4;'>Business Node <b style='color:#e8f4fd;'>{_n_nodes}</b></span>"
+        f"<span style='font-size:.82rem;color:#9fb8d4;'>公司 <b style='color:#00e676;'>{_n_cos}</b></span>"
+        f"<span style='font-size:.82rem;color:#9fb8d4;'>資料版本 <b style='color:#ffd54f;'>Knowledge v1.0</b></span>"
+        f"<span style='font-size:.82rem;color:#9fb8d4;'>更新日期 <b style='color:#e8f4fd;'>{_cache_upd or '—'}</b></span>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 工具列
+    _tc = st.columns([3, 1, 1, 1, 1])
     with _tc[0]:
-        _kw = st.text_input("🔍 搜尋", placeholder="公司名稱、代號、節點、角色、DNA...",
+        _kw = st.text_input("🔍 搜尋", placeholder="主題、節點、公司名稱、代號、公司角色...",
                             key="kg3_search", label_visibility="collapsed")
     with _tc[1]:
         if st.button("📁 瀏覽", key="kg3_browse_btn", use_container_width=True):
@@ -11264,74 +11334,53 @@ with tab11:
             st.session_state["kg3_tab"] = "export"
             st.rerun()
     with _tc[4]:
-        # DB 統計
-        try:
-            _cc = _kg_conn()
-            _n_topics = _cc.execute("SELECT COUNT(*) FROM topic_master WHERE IsActive=1").fetchone()[0]
-            _n_nodes  = _cc.execute("SELECT COUNT(*) FROM node_master WHERE IsActive=1").fetchone()[0]
-            _n_cos    = _cc.execute("SELECT COUNT(DISTINCT StockID) FROM company_node_map").fetchone()[0]
-            _cc.close()
-            st.markdown(
-                f"<div style='font-size:.75rem;color:#7fb3d3;padding:6px 0;'>"
-                f"{_n_topics}主題　{_n_nodes}節點　{_n_cos}公司</div>",
-                unsafe_allow_html=True
-            )
-        except Exception:
-            pass
+        if st.button("🔄 重整", key="kg3_refresh_btn", use_container_width=True):
+            _kg_refresh_cache()
+            st.rerun()
 
     # ── 搜尋模式
     if _kw.strip():
         st.divider()
-        st.markdown(f"**🔍 搜尋「{_kw}」**")
-        try:
-            _sc = _kg_conn()
-            _kw_like = f"%{_kw}%"
-            _results = _sc.execute("""
-                SELECT c.StockID, c.CompanyName, c.CompanyRole, c.CommercialStatus,
-                       c.RelationStrength, n.NodeName, t.TopicName,
-                       c.DNA1, c.DNA2, c.DNA3, c.Description, c.NodeID
-                FROM company_node_map c
-                JOIN node_master n ON c.NodeID = n.NodeID
-                JOIN topic_master t ON c.TopicID = t.TopicID
-                WHERE c.StockID LIKE ? OR c.CompanyName LIKE ?
-                   OR c.CompanyRole LIKE ? OR n.NodeName LIKE ?
-                   OR c.DNA1 LIKE ? OR c.DNA2 LIKE ? OR c.DNA3 LIKE ?
-                ORDER BY c.RelationStrength DESC
-            """, (_kw_like,)*7).fetchall()
-            _sc.close()
-
-            if not _results:
-                st.info("找不到符合的結果")
-            else:
-                st.caption(f"共 {len(_results)} 筆")
-                for _r in _results:
-                    _sid, _sname, _role, _comm, _str, _nname, _tname, _d1, _d2, _d3, _desc, _nid = _r
-                    _str = _str or 3
-                    _stars = "★" * int(_str) + "☆" * (5 - int(_str))
-                    _comm_icon = "✅" if _comm and "已" in _comm else "🔬"
-                    _s1, _s2, _s3 = st.columns([3, 4, 1])
-                    with _s1:
-                        st.markdown(
-                            f"<div style='font-weight:700;color:#e8f4fd;font-size:.9rem;'>{_sid} {_sname}</div>"
-                            f"<div style='font-size:.75rem;color:#7fb3d3;'>{_tname} › {_nname}</div>",
-                            unsafe_allow_html=True
-                        )
-                    with _s2:
-                        st.markdown(
-                            f"<div style='font-size:.78rem;color:#9fb8d4;'>"
-                            f"{_role}　{_comm_icon}　{_stars}</div>",
-                            unsafe_allow_html=True
-                        )
-                    with _s3:
-                        if st.button("📊", key=f"kg3_src_{_sid}_{_nid}", use_container_width=True):
-                            st.session_state["rc_selected_sid"] = _sid
-                            _my = st.session_state.setdefault("rc_my_research", [])
-                            if _sid not in {x["id"] for x in _my}:
-                                _my.append({"id": _sid, "name": _sname})
-                            st.toast(f"{_sid} 已加入 Tab10", icon="📊")
-                    st.divider()
-        except Exception as _se:
-            st.error(f"搜尋失敗：{_se}")
+        _kw_up = _kw.strip().upper()
+        _results = [
+            co for co in _all_companies
+            if _kw_up in str(co[2]).upper()   # StockID
+            or _kw_up in str(co[3]).upper()   # CompanyName
+            or _kw_up in str(co[5]).upper()   # CompanyRole
+            or _kw_up in str(_nodes_by_id.get(co[0], ("","","","",""))[4]).upper()  # NodeName
+            or _kw_up in str(_TOPIC_CN.get(co[1], ("",))[0]).upper()  # TopicName CN
+        ]
+        st.markdown(f"**🔍 「{_kw}」：{len(_results)} 筆**")
+        if not _results:
+            st.info("找不到符合的結果。")
+        else:
+            for _co in _results:
+                _nid, _tid, _sid, _sname, _ctype, _role = _co[0], _co[1], _co[2], _co[3], _co[4], _co[5]
+                _str = int(_co[9] or 3)
+                _stars = "★" * _str + "☆" * (5 - _str)
+                _comm_icon = "✅" if _co[10] and "已" in str(_co[10]) else "🔬"
+                _nname = _nodes_by_id.get(_nid, ("","","","",""))[4]
+                _tname_cn = _TOPIC_CN.get(_tid, (_tid,))[0]
+                _r1, _r2, _r3 = st.columns([3, 4, 1])
+                with _r1:
+                    st.markdown(
+                        f"<div style='font-weight:700;color:#e8f4fd;'>{_sid} {_sname}</div>"
+                        f"<div style='font-size:.75rem;color:#7fb3d3;'>{_tname_cn} › {_nname}</div>",
+                        unsafe_allow_html=True
+                    )
+                with _r2:
+                    st.markdown(
+                        f"<div style='font-size:.78rem;color:#9fb8d4;'>{_role}　{_comm_icon}　{_stars}</div>",
+                        unsafe_allow_html=True
+                    )
+                with _r3:
+                    if st.button("📊", key=f"kg3_src_{_sid}_{_nid}", use_container_width=True):
+                        st.session_state["rc_selected_sid"] = _sid
+                        _my = st.session_state.setdefault("rc_my_research", [])
+                        if _sid not in {x["id"] for x in _my}:
+                            _my.append({"id": _sid, "name": _sname})
+                        st.toast(f"{_sid} 已加入 Tab10", icon="📊")
+                st.divider()
         st.stop()
 
     # ════════════════════════════════════════════════════════
@@ -11340,11 +11389,12 @@ with tab11:
     if st.session_state["kg3_tab"] == "import":
         st.divider()
         st.markdown("### ⬆️ 資料匯入")
-        st.caption("依 ID 判斷新增或更新，不會重複新增。匯入前自動檢查必要欄位。")
+        st.caption("依 ID 判斷新增或更新，不會重複新增。")
 
-        _imp_type = st.radio("匯入類型", ["公司資料 (company_node_map)", "節點 (node_master)", "主題 (topic_master)"],
+        _imp_type = st.radio("匯入類型",
+                             ["公司資料 (company_node_map)", "節點 (node_master)", "主題 (topic_master)"],
                              horizontal=True, key="kg3_imp_type")
-        _imp_file = st.file_uploader("選擇 CSV / Excel / TXT 檔案",
+        _imp_file = st.file_uploader("選擇檔案（CSV / Excel / TXT）",
                                      type=["csv","xlsx","xls","txt"], key="kg3_imp_file")
 
         if _imp_file and st.button("▶️ 執行匯入", key="kg3_do_import"):
@@ -11364,6 +11414,7 @@ with tab11:
                     _df_in = pd.read_excel(_kg_io.BytesIO(_raw), engine="openpyxl")
 
                 _ic = _kg_conn()
+                _new, _upd = 0, 0
 
                 if "公司資料" in _imp_type:
                     _req = ["NodeID","TopicID","CompanyName"]
@@ -11371,13 +11422,10 @@ with tab11:
                     if _miss:
                         st.error(f"缺少必要欄位：{_miss}　現有：{list(_df_in.columns)}")
                     else:
-                        _new, _upd = 0, 0
                         for _, _row in _df_in.iterrows():
                             _d = {c: (str(_row[c]).strip() if pd.notna(_row.get(c)) else "") for c in _df_in.columns}
-                            _exists = _ic.execute(
-                                "SELECT MapID FROM company_node_map WHERE NodeID=? AND StockID=?",
-                                (_d.get("NodeID",""), _d.get("StockID",""))
-                            ).fetchone()
+                            _exists = _ic.execute("SELECT MapID FROM company_node_map WHERE NodeID=? AND StockID=?",
+                                                  (_d.get("NodeID",""), _d.get("StockID",""))).fetchone()
                             if _exists:
                                 _sets = ", ".join(f"{c}=?" for c in _df_in.columns if c not in ["NodeID","StockID"])
                                 _vals = [_d.get(c,"") for c in _df_in.columns if c not in ["NodeID","StockID"]]
@@ -11386,10 +11434,8 @@ with tab11:
                                 _upd += 1
                             else:
                                 _cols = list(_df_in.columns)
-                                _ic.execute(
-                                    f"INSERT OR IGNORE INTO company_node_map ({','.join(_cols)}) VALUES ({','.join(['?']*len(_cols))})",
-                                    [_d.get(c,"") for c in _cols]
-                                )
+                                _ic.execute(f"INSERT OR IGNORE INTO company_node_map ({','.join(_cols)}) VALUES ({','.join(['?']*len(_cols))})",
+                                            [_d.get(c,"") for c in _cols])
                                 _new += 1
                         _ic.commit()
                         st.success(f"✅ 公司資料匯入完成：新增 {_new} 筆，更新 {_upd} 筆")
@@ -11400,7 +11446,6 @@ with tab11:
                     if _miss:
                         st.error(f"缺少必要欄位：{_miss}")
                     else:
-                        _new, _upd = 0, 0
                         for _, _row in _df_in.iterrows():
                             _d = {c: (str(_row[c]).strip() if pd.notna(_row.get(c)) else "") for c in _df_in.columns}
                             _exists = _ic.execute("SELECT NodeID FROM node_master WHERE NodeID=?", (_d.get("NodeID",""),)).fetchone()
@@ -11411,10 +11456,8 @@ with tab11:
                                 _upd += 1
                             else:
                                 _cols = list(_df_in.columns)
-                                _ic.execute(
-                                    f"INSERT OR IGNORE INTO node_master ({','.join(_cols)}) VALUES ({','.join(['?']*len(_cols))})",
-                                    [_d.get(c,"") for c in _cols]
-                                )
+                                _ic.execute(f"INSERT OR IGNORE INTO node_master ({','.join(_cols)}) VALUES ({','.join(['?']*len(_cols))})",
+                                            [_d.get(c,"") for c in _cols])
                                 _new += 1
                         _ic.commit()
                         st.success(f"✅ 節點匯入完成：新增 {_new} 筆，更新 {_upd} 筆")
@@ -11425,7 +11468,6 @@ with tab11:
                     if _miss:
                         st.error(f"缺少必要欄位：{_miss}")
                     else:
-                        _new, _upd = 0, 0
                         for _, _row in _df_in.iterrows():
                             _d = {c: (str(_row[c]).strip() if pd.notna(_row.get(c)) else "") for c in _df_in.columns}
                             _exists = _ic.execute("SELECT TopicID FROM topic_master WHERE TopicID=?", (_d.get("TopicID",""),)).fetchone()
@@ -11436,57 +11478,38 @@ with tab11:
                                 _upd += 1
                             else:
                                 _cols = list(_df_in.columns)
-                                _ic.execute(
-                                    f"INSERT OR IGNORE INTO topic_master ({','.join(_cols)}) VALUES ({','.join(['?']*len(_cols))})",
-                                    [_d.get(c,"") for c in _cols]
-                                )
+                                _ic.execute(f"INSERT OR IGNORE INTO topic_master ({','.join(_cols)}) VALUES ({','.join(['?']*len(_cols))})",
+                                            [_d.get(c,"") for c in _cols])
                                 _new += 1
                         _ic.commit()
                         st.success(f"✅ 主題匯入完成：新增 {_new} 筆，更新 {_upd} 筆")
 
                 _ic.close()
+                _kg_refresh_cache()
+                st.rerun()
 
             except Exception as _ie:
                 st.error(f"❌ 匯入失敗：{_ie}")
 
         # 範本下載
         st.markdown("---")
-        st.markdown("**📋 匯入範本**")
+        st.markdown("**📋 匯入範本下載**")
         _tmpl_cols = st.columns(3)
         with _tmpl_cols[0]:
-            _tmpl_co = pd.DataFrame(columns=[
-                "NodeID","TopicID","StockID","CompanyName","CompanyType","CompanyRole",
-                "DNA1","DNA2","DNA3","RelationStrength","DiscoveryScore",
-                "TaiwanLeader","GlobalLeader","CommercialStatus",
-                "Description","Evidence","Reference","UpdateDate","Remark"
-            ])
-            _buf = _kg_io.BytesIO()
-            _tmpl_co.to_excel(_buf, index=False, engine="openpyxl")
-            st.download_button("📥 公司資料範本", _buf.getvalue(),
-                               "company_node_map_template.xlsx",
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                               key="kg3_tmpl_co")
+            _tmpl_co = pd.DataFrame(columns=["NodeID","TopicID","StockID","CompanyName","CompanyType","CompanyRole","DNA1","DNA2","DNA3","RelationStrength","DiscoveryScore","TaiwanLeader","GlobalLeader","CommercialStatus","Description","Evidence","Reference","UpdateDate","Remark"])
+            _buf = _kg_io.BytesIO(); _tmpl_co.to_excel(_buf, index=False, engine="openpyxl")
+            st.download_button("📥 公司資料範本", _buf.getvalue(), "company_node_map_template.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="kg3_tmpl_co")
         with _tmpl_cols[1]:
-            _tmpl_nd = pd.DataFrame(columns=[
-                "NodeID","TopicID","ParentNodeID","Level","NodeName","NodeDescription",
-                "Importance","FuturePotential","IsBusinessNode","IsActive","DisplayOrder","UpdateDate","Remark"
-            ])
-            _buf2 = _kg_io.BytesIO()
-            _tmpl_nd.to_excel(_buf2, index=False, engine="openpyxl")
-            st.download_button("📥 節點範本", _buf2.getvalue(),
-                               "node_master_template.xlsx",
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                               key="kg3_tmpl_nd")
+            _tmpl_nd = pd.DataFrame(columns=["NodeID","TopicID","ParentNodeID","Level","NodeName","NodeDescription","Importance","FuturePotential","IsBusinessNode","IsActive","DisplayOrder","UpdateDate","Remark"])
+            _buf2 = _kg_io.BytesIO(); _tmpl_nd.to_excel(_buf2, index=False, engine="openpyxl")
+            st.download_button("📥 節點範本", _buf2.getvalue(), "node_master_template.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="kg3_tmpl_nd")
         with _tmpl_cols[2]:
-            _tmpl_tp = pd.DataFrame(columns=[
-                "TopicID","TopicName","TopicDescription","DisplayOrder","IsActive","UpdateDate","Remark"
-            ])
-            _buf3 = _kg_io.BytesIO()
-            _tmpl_tp.to_excel(_buf3, index=False, engine="openpyxl")
-            st.download_button("📥 主題範本", _buf3.getvalue(),
-                               "topic_master_template.xlsx",
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                               key="kg3_tmpl_tp")
+            _tmpl_tp = pd.DataFrame(columns=["TopicID","TopicName","TopicDescription","DisplayOrder","IsActive","UpdateDate","Remark"])
+            _buf3 = _kg_io.BytesIO(); _tmpl_tp.to_excel(_buf3, index=False, engine="openpyxl")
+            st.download_button("📥 主題範本", _buf3.getvalue(), "topic_master_template.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="kg3_tmpl_tp")
         st.stop()
 
     # ════════════════════════════════════════════════════════
@@ -11498,284 +11521,278 @@ with tab11:
         try:
             _ec = _kg_conn()
             _exp_cols = st.columns(4)
-
-            # 匯出主題
+            _df_tp = pd.read_sql("SELECT * FROM topic_master", _ec)
+            _df_nd = pd.read_sql("SELECT * FROM node_master", _ec)
+            _df_co = pd.read_sql("SELECT * FROM company_node_map", _ec)
+            _ec.close()
             with _exp_cols[0]:
-                _df_tp = pd.read_sql("SELECT * FROM topic_master", _ec)
-                _buf_tp = _kg_io.BytesIO()
-                _df_tp.to_excel(_buf_tp, index=False, engine="openpyxl")
-                st.download_button(
-                    f"📥 主題 ({len(_df_tp)}筆)", _buf_tp.getvalue(),
-                    f"topic_master_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="kg3_exp_tp", use_container_width=True
-                )
-
-            # 匯出節點
+                _b = _kg_io.BytesIO(); _df_tp.to_excel(_b, index=False, engine="openpyxl")
+                st.download_button(f"📥 主題 ({len(_df_tp)})", _b.getvalue(),
+                                   f"topic_master_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   key="kg3_exp_tp", use_container_width=True)
             with _exp_cols[1]:
-                _df_nd = pd.read_sql("SELECT * FROM node_master", _ec)
-                _buf_nd = _kg_io.BytesIO()
-                _df_nd.to_excel(_buf_nd, index=False, engine="openpyxl")
-                st.download_button(
-                    f"📥 節點 ({len(_df_nd)}筆)", _buf_nd.getvalue(),
-                    f"node_master_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="kg3_exp_nd", use_container_width=True
-                )
-
-            # 匯出公司
+                _b2 = _kg_io.BytesIO(); _df_nd.to_excel(_b2, index=False, engine="openpyxl")
+                st.download_button(f"📥 節點 ({len(_df_nd)})", _b2.getvalue(),
+                                   f"node_master_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   key="kg3_exp_nd", use_container_width=True)
             with _exp_cols[2]:
-                _df_co = pd.read_sql("SELECT * FROM company_node_map", _ec)
-                _buf_co = _kg_io.BytesIO()
-                _df_co.to_excel(_buf_co, index=False, engine="openpyxl")
-                st.download_button(
-                    f"📥 公司 ({len(_df_co)}筆)", _buf_co.getvalue(),
-                    f"company_node_map_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="kg3_exp_co", use_container_width=True
-                )
-
-            # 匯出全部（合併）
+                _b3 = _kg_io.BytesIO(); _df_co.to_excel(_b3, index=False, engine="openpyxl")
+                st.download_button(f"📥 公司 ({len(_df_co)})", _b3.getvalue(),
+                                   f"company_node_map_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   key="kg3_exp_co", use_container_width=True)
             with _exp_cols[3]:
-                _buf_all = _kg_io.BytesIO()
-                with pd.ExcelWriter(_buf_all, engine="openpyxl") as _wr:
+                _b4 = _kg_io.BytesIO()
+                with pd.ExcelWriter(_b4, engine="openpyxl") as _wr:
                     _df_tp.to_excel(_wr, sheet_name="topic_master", index=False)
                     _df_nd.to_excel(_wr, sheet_name="node_master", index=False)
                     _df_co.to_excel(_wr, sheet_name="company_node_map", index=False)
-                st.download_button(
-                    "📥 全部匯出", _buf_all.getvalue(),
-                    f"kg_全部_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="kg3_exp_all", use_container_width=True
-                )
-            _ec.close()
+                st.download_button("📥 全部匯出", _b4.getvalue(),
+                                   f"kg_全部_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   key="kg3_exp_all", use_container_width=True)
         except Exception as _ee:
             st.error(f"匯出失敗：{_ee}")
         st.stop()
 
     # ════════════════════════════════════════════════════════
-    # 瀏覽模式：三欄版面
+    # 瀏覽：三欄 25% | 35% | 40%
     # ════════════════════════════════════════════════════════
     st.divider()
-    _col_topic, _col_node, _col_detail = st.columns([1, 1.5, 2.5])
+    _col_t, _col_n, _col_d = st.columns([1, 1.4, 1.6])
 
-    # ── 左側：Topic 清單
-    with _col_topic:
+    # ── 左側：Topic Tree（25%）
+    with _col_t:
         st.markdown("**📂 產業主題**")
-        try:
-            _bc = _kg_conn()
-            _topics = _bc.execute(
-                "SELECT TopicID, TopicName, TopicDescription FROM topic_master WHERE IsActive=1 ORDER BY DisplayOrder"
-            ).fetchall()
-            _bc.close()
+        for _tp in _all_topics:
+            _tid, _tname_en, _tdesc, _ = _tp
+            _tname_cn, _tname_en_tt = _TOPIC_CN.get(_tid, (_tname_en, _tname_en))
+            _is_sel = (st.session_state["kg3_sel_topic"] == _tid)
+            _co_cnt = len(set(c[2] for c in _all_companies if c[1] == _tid and c[2]))
+            _node_cnt = len([n for n in _all_nodes if n[1] == _tid])
+            _lbl = f"**▶ {_tname_cn}**" if _is_sel else _tname_cn
+            if st.button(_lbl, key=f"kg3_t_{_tid}", use_container_width=True,
+                         help=_tname_en_tt):
+                st.session_state["kg3_sel_topic"] = _tid
+                st.session_state["kg3_sel_node"]  = None
+                st.session_state["kg3_sel_company"] = None
+                st.session_state["kg3_exp_nodes"] = set()
+                st.rerun()
+            if _is_sel:
+                st.markdown(
+                    f"<div style='font-size:.72rem;color:#7fb3d3;margin:-6px 0 4px 4px;'>"
+                    f"{_node_cnt} 節點　{_co_cnt} 公司</div>",
+                    unsafe_allow_html=True
+                )
 
-            for _tid, _tname, _tdesc in _topics:
-                _is_sel = (st.session_state["kg3_sel_topic"] == _tid)
-                _co_cnt = 0
-                try:
-                    _cc2 = _kg_conn()
-                    _co_cnt = _cc2.execute(
-                        "SELECT COUNT(DISTINCT StockID) FROM company_node_map WHERE TopicID=?", (_tid,)
-                    ).fetchone()[0]
-                    _cc2.close()
-                except Exception:
-                    pass
-
-                _btn_lbl = f"**▶ {_tname}**" if _is_sel else f"{_tname}"
-                if _co_cnt:
-                    _btn_lbl += f" ({_co_cnt})"
-
-                if st.button(_btn_lbl, key=f"kg3_t_{_tid}", use_container_width=True):
-                    st.session_state["kg3_sel_topic"] = _tid
-                    st.session_state["kg3_sel_node"]  = None
-                    st.session_state["kg3_sel_company"] = None
-                    st.rerun()
-
-                if _is_sel and _tdesc:
-                    st.caption(_tdesc)
-
-        except Exception as _te:
-            st.error(f"主題載入失敗：{_te}")
-
-    # ── 中間：Node Tree
-    with _col_node:
+    # ── 中間：Node Tree（35%）
+    with _col_n:
         _sel_tid = st.session_state.get("kg3_sel_topic", "AI_DATACENTER")
-        try:
-            _nc = _kg_conn()
-            _tname_cur = _nc.execute(
-                "SELECT TopicName FROM topic_master WHERE TopicID=?", (_sel_tid,)
-            ).fetchone()
-            _tname_cur = _tname_cur[0] if _tname_cur else _sel_tid
-            _all_nodes = _nc.execute(
-                "SELECT NodeID, ParentNodeID, Level, NodeName, Importance, FuturePotential, NodeDescription, DisplayOrder "
-                "FROM node_master WHERE TopicID=? AND IsActive=1 ORDER BY Level, DisplayOrder",
-                (_sel_tid,)
-            ).fetchall()
-            _nc.close()
+        _tname_cn_cur = _TOPIC_CN.get(_sel_tid, (_sel_tid,))[0]
+        _topic_nodes = _nodes_by_topic.get(_sel_tid, [])
 
-            st.markdown(f"**📋 {_tname_cur}**")
+        st.markdown(f"**📋 {_tname_cn_cur}**")
 
-            def _render_nodes(parent_id, nodes, indent=0):
-                for _n in [x for x in nodes if x[1] == parent_id]:
-                    _nid, _par, _lv, _nname, _imp, _fp, _ndesc, _ = _n
-                    _co_cnt2 = 0
-                    try:
-                        _cc3 = _kg_conn()
-                        _co_cnt2 = _cc3.execute(
-                            "SELECT COUNT(DISTINCT StockID) FROM company_node_map WHERE NodeID=?", (_nid,)
-                        ).fetchone()[0]
-                        _cc3.close()
-                    except Exception:
-                        pass
+        if not _topic_nodes:
+            st.markdown(
+                "<div style='border:1px dashed #2a3f5f;border-radius:6px;"
+                "padding:16px;text-align:center;color:#7fb3d3;font-size:.85rem;'>"
+                "📭 尚未建立 Node。<br>請透過「⬆️ 匯入」加入節點資料。"
+                "</div>", unsafe_allow_html=True
+            )
+        else:
+            _exp_nodes = st.session_state["kg3_exp_nodes"]
 
-                    _icon = "📁" if _lv <= 2 else "📄"
-                    _prefix = "　" * indent
+            def _render_node_tree(parent_id, nodes, indent=0):
+                _children = [n for n in nodes if n[2] == parent_id]
+                for _n in _children:
+                    _nid, _ntid, _par, _lv, _nname, _ndesc, _imp, _fp, _disp = _n
+                    _icon = _get_node_icon(_nname)
+                    _co_cnt2 = len(_cos_by_node.get(_nid, []))
+                    _has_children = any(x[2] == _nid for x in nodes)
                     _is_sel = (st.session_state["kg3_sel_node"] == _nid)
-                    _imp_star = "⭐" * min(int(_imp or 3), 5)
+                    _is_exp = (_nid in _exp_nodes)
+                    _prefix = "　" * indent
 
-                    _lbl = f"{_prefix}{_icon} **{_nname}**" if _is_sel else f"{_prefix}{_icon} {_nname}"
+                    # 展開符號
+                    if _has_children:
+                        _fold = "▼ " if _is_exp else "▶ "
+                    else:
+                        _fold = "　"
+
+                    _lbl = f"{_prefix}{_fold}{_icon} **{_nname}**" if _is_sel else f"{_prefix}{_fold}{_icon} {_nname}"
                     if _co_cnt2:
                         _lbl += f" ({_co_cnt2})"
 
                     if st.button(_lbl, key=f"kg3_n_{_nid}", use_container_width=True):
                         st.session_state["kg3_sel_node"] = _nid
                         st.session_state["kg3_sel_company"] = None
+                        # 切換展開
+                        if _has_children:
+                            if _nid in _exp_nodes:
+                                _exp_nodes.discard(_nid)
+                            else:
+                                _exp_nodes.add(_nid)
+                            st.session_state["kg3_exp_nodes"] = _exp_nodes
                         st.rerun()
 
-                    _render_nodes(_nid, nodes, indent + 1)
+                    # 遞迴顯示子節點
+                    if _is_exp or _is_sel:
+                        _render_node_tree(_nid, nodes, indent + 1)
 
-            # 找 Level 1 根節點（ParentNodeID 為 NULL 或 TopicID）
-            _root_nodes = [x for x in _all_nodes if not x[1] or x[1] == _sel_tid]
-            if _root_nodes:
-                _render_nodes(_root_nodes[0][0] if _root_nodes else None, _all_nodes, 0)
+            # 找根節點（ParentNodeID 為 None 或等於 TopicID）
+            _roots = [n for n in _topic_nodes if not n[2] or n[2] == _sel_tid]
+            if _roots:
+                # 如果根節點就是 Topic 本身，直接顯示其子節點
+                if _roots[0][0] == _sel_tid:
+                    # 自動展開根節點
+                    _exp_nodes = st.session_state["kg3_exp_nodes"]
+                    _exp_nodes.add(_sel_tid)
+                    st.session_state["kg3_exp_nodes"] = _exp_nodes
+                    _render_node_tree(_sel_tid, _topic_nodes, 0)
+                else:
+                    _render_node_tree(None, _topic_nodes, 0)
             else:
-                _render_nodes(None, _all_nodes, 0)
+                _render_node_tree(None, _topic_nodes, 0)
 
-        except Exception as _ne:
-            st.error(f"節點載入失敗：{_ne}")
-
-    # ── 右側：Node Detail + Company List
-    with _col_detail:
+    # ── 右側：Node Detail + Company List（40%）
+    with _col_d:
         _sel_nid = st.session_state.get("kg3_sel_node")
 
         if not _sel_nid:
+            # 預設顯示 Topic 說明
+            _tname_cn_r = _TOPIC_CN.get(_sel_tid, (_sel_tid,))[0]
+            _tname_en_r = _TOPIC_CN.get(_sel_tid, ("",""))[1]
+            _topic_cos = [c for c in _all_companies if c[1] == _sel_tid]
             st.markdown(
-                "<div style='text-align:center;padding:40px;color:#7fb3d3;'>"
-                "← 點選中間節點，查看相關公司</div>",
-                unsafe_allow_html=True
+                f"<div style='background:rgba(0,80,160,0.15);border-radius:8px;"
+                f"padding:12px 16px;margin-bottom:10px;'>"
+                f"<b style='font-size:1.05rem;color:#e8f4fd;'>📂 {_tname_cn_r}</b><br>"
+                f"<span style='font-size:.78rem;color:#7fb3d3;'>{_tname_en_r}</span>"
+                f"</div>", unsafe_allow_html=True
             )
+            _n_cnt = len(_nodes_by_topic.get(_sel_tid, []))
+            _c_cnt = len(set(c[2] for c in _topic_cos if c[2]))
+            st.markdown(
+                f"<div style='font-size:.82rem;color:#9fb8d4;margin-bottom:8px;'>"
+                f"📋 {_n_cnt} 個節點　🏭 {_c_cnt} 家公司"
+                f"</div>", unsafe_allow_html=True
+            )
+            if _n_cnt == 0:
+                st.markdown(
+                    "<div style='border:1px dashed #2a3f5f;border-radius:6px;"
+                    "padding:16px;text-align:center;color:#7fb3d3;font-size:.85rem;'>"
+                    "📭 此主題尚未建立節點。<br>請透過「⬆️ 匯入」加入節點資料。"
+                    "</div>", unsafe_allow_html=True
+                )
+            else:
+                st.caption("← 點選中間節點，查看相關公司")
         else:
-            try:
-                _dc = _kg_conn()
-                _node_info = _dc.execute(
-                    "SELECT NodeName, NodeDescription, Importance, FuturePotential FROM node_master WHERE NodeID=?",
-                    (_sel_nid,)
-                ).fetchone()
+            _node_info = _nodes_by_id.get(_sel_nid)
+            if _node_info:
+                _nid2, _ntid, _par, _lv, _nname, _ndesc, _imp, _fp, _disp = _node_info
+                _icon2 = _get_node_icon(_nname)
+                _imp_stars = "★" * int(_imp or 0) + "☆" * (5 - int(_imp or 0))
+                _fp_stars  = "★" * int(_fp or 0)  + "☆" * (5 - int(_fp or 0))
 
-                if _node_info:
-                    _nn, _nd, _imp, _fp = _node_info
-                    _imp_bar = "⭐" * int(_imp or 0)
-                    _fp_bar  = "🚀" * int(_fp or 0)
+                st.markdown(
+                    f"<div style='background:rgba(0,100,200,0.15);border-radius:8px;"
+                    f"padding:10px 16px;margin-bottom:8px;'>"
+                    f"<b style='font-size:1.05rem;color:#e8f4fd;'>{_icon2} {_nname}</b><br>"
+                    f"<span style='font-size:.78rem;color:#7fb3d3;'>{_ndesc or ''}</span><br>"
+                    f"<div style='font-size:.78rem;margin-top:4px;'>"
+                    f"重要性 <span style='color:#ffd54f;'>{_imp_stars}</span>　"
+                    f"未來潛力 <span style='color:#00e676;'>{_fp_stars}</span>"
+                    f"</div></div>", unsafe_allow_html=True
+                )
+
+            # 相關公司
+            _node_cos = _cos_by_node.get(_sel_nid, [])
+
+            if not _node_cos:
+                st.markdown(
+                    "<div style='border:1px dashed #2a3f5f;border-radius:6px;"
+                    "padding:20px;text-align:center;color:#7fb3d3;'>"
+                    "📭 尚未建立公司資料。<br><br>"
+                    "請透過「⬆️ 匯入」上傳 Company Database。<br>"
+                    "<small>匯入時 NodeID 需填入：<b style='color:#4fc3f7;'>"
+                    f"{_sel_nid}</b></small>"
+                    "</div>", unsafe_allow_html=True
+                )
+            else:
+                st.markdown(f"**🏭 相關公司（{len(_node_cos)} 家）**")
+                for _co in _node_cos:
+                    _nid_c, _tid_c, _sid, _sname, _ctype, _role = _co[0], _co[1], _co[2], _co[3], _co[4], _co[5]
+                    _d1, _d2, _d3 = _co[6], _co[7], _co[8]
+                    _str = int(_co[9] or 3)
+                    _comm = _co[10]
+                    _desc = _co[11]
+                    _ev   = _co[12]
+                    _upd  = _co[13]
+                    _stars = "★" * _str + "☆" * (5 - _str)
+                    _comm_icon = "✅" if _comm and "已" in str(_comm) else "🔬"
+                    _is_sel_co = (st.session_state["kg3_sel_company"] == _sid)
+                    _bg = "background:rgba(0,120,255,0.15);" if _is_sel_co else ""
 
                     st.markdown(
-                        f"<div style='background:rgba(0,100,200,0.15);border-radius:8px;"
-                        f"padding:10px 16px;margin-bottom:10px;'>"
-                        f"<b style='font-size:1.05rem;color:#e8f4fd;'>📌 {_nn}</b><br>"
-                        f"<span style='font-size:.78rem;color:#7fb3d3;'>{_nd or ''}</span><br>"
-                        f"<span style='font-size:.75rem;'>重要性 {_imp_bar}　未來潛力 {_fp_bar}</span>"
-                        f"</div>", unsafe_allow_html=True
+                        f"<div style='border:1px solid #1e3a5f;border-radius:6px;"
+                        f"padding:7px 12px;margin:3px 0;{_bg}'>",
+                        unsafe_allow_html=True
                     )
-
-                # 相關公司
-                _companies = _dc.execute("""
-                    SELECT StockID, CompanyName, CompanyType, CompanyRole,
-                           RelationStrength, CommercialStatus, DNA1, DNA2, DNA3,
-                           Description, Evidence, Reference, UpdateDate, Remark
-                    FROM company_node_map
-                    WHERE NodeID=?
-                    ORDER BY RelationStrength DESC, TaiwanLeader DESC
-                """, (_sel_nid,)).fetchall()
-                _dc.close()
-
-                if not _companies:
-                    st.caption("此節點尚無公司資料，請透過「⬆️ 匯入」加入公司。")
-                else:
-                    st.markdown(f"**🏭 相關公司（{len(_companies)} 家）**")
-
-                    for _co in _companies:
-                        _sid, _sname, _ctype, _role, _str, _comm, _d1, _d2, _d3, _desc, _ev, _ref, _upd, _rmk = _co
-                        _str = int(_str or 3)
-                        _stars = "★" * _str + "☆" * (5 - _str)
-                        _comm_icon = "✅" if _comm and "已" in _comm else "🔬"
-                        _is_sel_co = (st.session_state["kg3_sel_company"] == _sid)
-                        _bg = "background:rgba(0,120,255,0.15);" if _is_sel_co else ""
-
+                    _cc1, _cc2, _cc3 = st.columns([3, 3, 1])
+                    with _cc1:
+                        if st.button(f"**{_sid}** {_sname}",
+                                     key=f"kg3_co_{_sid}_{_sel_nid}",
+                                     use_container_width=True):
+                            st.session_state["kg3_sel_company"] = None if _is_sel_co else _sid
+                            st.rerun()
+                    with _cc2:
                         st.markdown(
-                            f"<div style='border:1px solid #1e3a5f;border-radius:6px;"
-                            f"padding:8px 12px;margin:4px 0;{_bg}'>",
+                            f"<div style='font-size:.73rem;color:#9fb8d4;padding:4px 0;'>{_role or ''}</div>",
                             unsafe_allow_html=True
                         )
-                        _cc1, _cc2, _cc3 = st.columns([3, 3, 1])
-                        with _cc1:
-                            if st.button(f"**{_sid}** {_sname}",
-                                         key=f"kg3_co_{_sid}_{_sel_nid}",
-                                         use_container_width=True):
-                                _sel = None if _is_sel_co else _sid
-                                st.session_state["kg3_sel_company"] = _sel
-                                st.rerun()
-                        with _cc2:
-                            st.markdown(
-                                f"<div style='font-size:.75rem;color:#9fb8d4;padding:4px 0;'>"
-                                f"{_role or ''}</div>",
-                                unsafe_allow_html=True
-                            )
-                        with _cc3:
-                            st.markdown(
-                                f"<div style='font-size:.75rem;color:#ffd54f;text-align:right;'>"
-                                f"{_stars}<br>{_comm_icon}</div>",
-                                unsafe_allow_html=True
-                            )
-                        st.markdown("</div>", unsafe_allow_html=True)
+                    with _cc3:
+                        st.markdown(
+                            f"<div style='font-size:.72rem;color:#ffd54f;text-align:right;'>"
+                            f"{_stars}<br>{_comm_icon}</div>",
+                            unsafe_allow_html=True
+                        )
+                    st.markdown("</div>", unsafe_allow_html=True)
 
-                        # 展開詳情
-                        if _is_sel_co:
-                            with st.container():
-                                if any([_d1, _d2, _d3]):
-                                    st.markdown("**🧬 公司 DNA**")
-                                    for _dna in [_d1, _d2, _d3]:
-                                        if _dna and _dna != "None":
-                                            st.markdown(
-                                                f"<div style='background:rgba(79,195,247,0.1);"
-                                                f"border-radius:4px;padding:3px 10px;margin:2px 0;"
-                                                f"font-size:.82rem;color:#e8f4fd;'>• {_dna}</div>",
-                                                unsafe_allow_html=True
-                                            )
-                                if _desc and _desc != "None":
-                                    st.markdown(
-                                        f"<div style='font-size:.8rem;color:#9fb8d4;"
-                                        f"border-left:2px solid #4fc3f7;padding:5px 10px;margin:4px 0;'>"
-                                        f"{_desc}</div>", unsafe_allow_html=True
-                                    )
-                                _meta = []
-                                if _ctype and _ctype != "None": _meta.append(f"類型：{_ctype}")
-                                if _ev    and _ev    != "None": _meta.append(f"來源：{_ev}")
-                                if _upd   and _upd   != "None": _meta.append(f"更新：{_upd}")
-                                if _rmk   and _rmk   != "None": _meta.append(f"備註：{_rmk}")
-                                if _meta:
-                                    st.markdown(
-                                        f"<div style='font-size:.75rem;color:#7fb3d3;margin:4px 0;'>"
-                                        f"{'　'.join(_meta)}</div>", unsafe_allow_html=True
-                                    )
-                                # 加入 Tab10
-                                if st.button(f"📊 加入 Tab10 研究",
-                                             key=f"kg3_to10_{_sid}_{_sel_nid}",
-                                             use_container_width=False):
-                                    st.session_state["rc_selected_sid"] = _sid
-                                    _my = st.session_state.setdefault("rc_my_research", [])
-                                    if _sid not in {x["id"] for x in _my}:
-                                        _my.append({"id": _sid, "name": _sname})
-                                    st.toast(f"{_sid} 已加入 Tab10 研究清單", icon="📊")
-                                st.markdown("---")
-
-            except Exception as _de:
-                st.error(f"詳情載入失敗：{_de}")
+                    # 展開詳情
+                    if _is_sel_co:
+                        with st.container():
+                            if any(d and d != "None" for d in [_d1, _d2, _d3]):
+                                st.markdown("**🧬 公司 DNA**")
+                                for _dna in [_d1, _d2, _d3]:
+                                    if _dna and _dna not in ("None","nan",""):
+                                        st.markdown(
+                                            f"<div style='background:rgba(79,195,247,0.1);"
+                                            f"border-radius:4px;padding:3px 10px;margin:2px 0;"
+                                            f"font-size:.8rem;color:#e8f4fd;'>• {_dna}</div>",
+                                            unsafe_allow_html=True
+                                        )
+                            if _desc and _desc not in ("None","nan",""):
+                                st.markdown(
+                                    f"<div style='font-size:.78rem;color:#9fb8d4;"
+                                    f"border-left:2px solid #4fc3f7;padding:5px 10px;margin:4px 0;'>"
+                                    f"{_desc}</div>", unsafe_allow_html=True
+                                )
+                            _meta = []
+                            if _ctype and _ctype not in ("None","nan",""): _meta.append(f"類型：{_ctype}")
+                            if _ev    and _ev    not in ("None","nan",""): _meta.append(f"來源：{_ev}")
+                            if _upd   and _upd   not in ("None","nan",""): _meta.append(f"更新：{_upd}")
+                            if _meta:
+                                st.markdown(
+                                    f"<div style='font-size:.73rem;color:#7fb3d3;margin:4px 0;'>"
+                                    f"{'　'.join(_meta)}</div>", unsafe_allow_html=True
+                                )
+                            if st.button(f"📊 加入 Tab10 研究", key=f"kg3_to10_{_sid}_{_sel_nid}"):
+                                st.session_state["rc_selected_sid"] = _sid
+                                _my = st.session_state.setdefault("rc_my_research", [])
+                                if _sid not in {x["id"] for x in _my}:
+                                    _my.append({"id": _sid, "name": _sname})
+                                st.toast(f"{_sid} 已加入 Tab10 研究清單", icon="📊")
+                            st.markdown("---")
