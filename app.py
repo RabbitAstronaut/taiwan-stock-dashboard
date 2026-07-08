@@ -11141,11 +11141,11 @@ with tab11:
 
     with _tool_cols[0]:
         _uploaded = st.file_uploader(
-            "📂 匯入 Excel",
-            type=["xlsx", "xls", "csv"],
+            "📂 匯入 Excel / CSV",
+            type=["xlsx", "xls", "csv", "txt"],
             key="kg2_upload",
             label_visibility="collapsed",
-            help="支援 .xlsx / .xls / .csv"
+            help="支援 .xlsx / .xls / .csv / .txt（CSV格式）"
         )
 
     with _tool_cols[1]:
@@ -11199,8 +11199,14 @@ with tab11:
             _raw_bytes = _uploaded.read()
 
             # 讀取 Excel 或 CSV
-            if _uploaded.name.endswith(".csv"):
-                _df_import = pd.read_csv(_kg2_io2.BytesIO(_raw_bytes), encoding="utf-8-sig")
+            if _uploaded.name.endswith(".csv") or _uploaded.name.endswith(".txt"):
+                # 嘗試多種編碼
+                for _enc in ["utf-8-sig", "utf-8", "big5", "cp950"]:
+                    try:
+                        _df_import = pd.read_csv(_kg2_io2.BytesIO(_raw_bytes), encoding=_enc)
+                        break
+                    except Exception:
+                        continue
             else:
                 _df_import = pd.read_excel(_kg2_io2.BytesIO(_raw_bytes), engine="openpyxl")
 
