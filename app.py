@@ -11130,6 +11130,7 @@ with tab11:
     _TOPIC_CN = {
         "AI_DATACENTER":           ("AI 與資料中心",      "AI & Data Center"),
         "SEMICONDUCTOR_PACKAGING": ("半導體與先進封裝",    "Semiconductor & Advanced Packaging"),
+        "SEMI":                    ("半導體與先進封裝",    "Semiconductor & Advanced Packaging"),
         "CONNECTIVITY_SPACE":      ("次世代通訊與太空",    "Next-Gen Connectivity & Space"),
         "ROBOTICS_AUTOMATION":     ("機器人與智慧製造",    "Robotics & Automation"),
         "ENERGY_GRID":             ("綠能與智慧電網",      "Green Energy & Smart Grid"),
@@ -11141,9 +11142,18 @@ with tab11:
         os.makedirs("data", exist_ok=True)
         return _sq.connect(KG_DB_PATH, check_same_thread=False)
 
+    KG_DB_VERSION = "v7.2.2"  # 版本號，改這裡強制重建DB
+
     def _kg_init():
         _c = _kg_conn()
         _cur = _c.cursor()
+        # 版本控制：版本不符就清除並重建
+        try:
+            _v = _cur.execute("SELECT value FROM kg_meta WHERE key='version'").fetchone()
+            if not _v or _v[0] != KG_DB_VERSION:
+                _cur.executescript("DROP TABLE IF EXISTS topic_master; DROP TABLE IF EXISTS node_master; DROP TABLE IF EXISTS company_node_map; DROP TABLE IF EXISTS kg_meta;")
+        except Exception:
+            pass
         _cur.executescript("""
             CREATE TABLE IF NOT EXISTS topic_master (
                 TopicID TEXT PRIMARY KEY, TopicName TEXT NOT NULL,
@@ -11166,12 +11176,16 @@ with tab11:
                 CommercialStatus TEXT, Description TEXT,
                 Evidence TEXT, Reference TEXT, UpdateDate TEXT, Remark TEXT,
                 UNIQUE(NodeID, StockID));
+            CREATE TABLE IF NOT EXISTS kg_meta (key TEXT PRIMARY KEY, value TEXT);
         """)
+        # 寫入版本號
+        _cur.execute("INSERT OR REPLACE INTO kg_meta(key,value) VALUES('version',?)", (KG_DB_VERSION,))
         _c.commit()
         # 預設Topic
         for _row in [
             ("AI_DATACENTER","AI & Data Center","AI 與資料中心",1),
             ("SEMICONDUCTOR_PACKAGING","Semiconductor & Advanced Packaging","半導體與先進封裝",2),
+            ("SEMI","Semiconductor & Advanced Packaging","半導體與先進封裝",2),
             ("CONNECTIVITY_SPACE","Next-Gen Connectivity & Space","次世代通訊與太空",3),
             ("ROBOTICS_AUTOMATION","Robotics & Automation","機器人與智慧製造",4),
             ("ENERGY_GRID","Green Energy & Smart Grid","綠能與智慧電網",5),
@@ -11206,6 +11220,29 @@ with tab11:
             ("AI_DC_COWOS","AI_DATACENTER","AI_DC_PACKAGING",3,"CoWoS","CoWoS先進封裝",5,5,1),
             ("AI_DC_COPOS","AI_DATACENTER","AI_DC_PACKAGING",3,"CoPoS","Panel Level封裝技術",4,5,2),
             ("AI_DC_GLASS_SUBSTRATE","AI_DATACENTER","AI_DC_PACKAGING",3,"Glass Substrate","玻璃基板",4,5,3),
+            # SEMI Topic Nodes
+            ("SEMI","SEMI",None,1,"半導體與先進封裝","Semiconductor & Advanced Packaging",5,5,1),
+            ("SEMI_FOUNDRY","SEMI","SEMI",2,"Foundry","晶圓代工",5,5,1),
+            ("SEMI_ADV_PACK","SEMI","SEMI",2,"Advanced Packaging","先進封裝",5,5,2),
+            ("SEMI_EQUIPMENT","SEMI","SEMI",2,"Equipment","半導體設備",5,5,3),
+            ("SEMI_ICDESIGN","SEMI","SEMI",2,"IC Design","IC設計",5,5,4),
+            ("SEMI_PCB","SEMI","SEMI",2,"PCB & Carrier","高階PCB與載板",5,4,5),
+            ("SEMI_MATERIAL","SEMI","SEMI",2,"Materials","半導體材料",4,4,6),
+            ("SEMI_ADV_PROCESS","SEMI","SEMI_FOUNDRY",3,"Advanced Process","先進製程",5,5,1),
+            ("SEMI_MATURE_PROCESS","SEMI","SEMI_FOUNDRY",3,"Mature Process","成熟製程",4,3,2),
+            ("SEMI_COWOS","SEMI","SEMI_ADV_PACK",3,"CoWoS","CoWoS先進封裝",5,5,1),
+            ("SEMI_COPOS","SEMI","SEMI_ADV_PACK",3,"CoPoS","CoPoS封裝",5,5,2),
+            ("SEMI_FOPLP","SEMI","SEMI_ADV_PACK",3,"FOPLP","面板級封裝",4,5,3),
+            ("SEMI_GLASS","SEMI","SEMI_ADV_PACK",3,"Glass Substrate","玻璃基板",4,5,4),
+            ("SEMI_WET","SEMI","SEMI_EQUIPMENT",3,"Wet Process","濕製程設備",5,5,1),
+            ("SEMI_TEST","SEMI","SEMI_EQUIPMENT",3,"Testing","測試設備",5,4,2),
+            ("SEMI_AUTOMATION","SEMI","SEMI_EQUIPMENT",3,"Automation","封裝自動化",4,4,3),
+            ("SEMI_ASIC","SEMI","SEMI_ICDESIGN",3,"ASIC","ASIC設計服務",5,5,1),
+            ("SEMI_IP","SEMI","SEMI_ICDESIGN",3,"IP","高速IP",5,5,2),
+            ("SEMI_ABF","SEMI","SEMI_PCB",3,"ABF Substrate","ABF載板",5,5,1),
+            ("SEMI_HLPCB","SEMI","SEMI_PCB",3,"High Layer PCB","高速PCB",5,4,2),
+            ("SEMI_CCL","SEMI","SEMI_MATERIAL",3,"CCL","高速銅箔基板",5,4,1),
+            ("SEMI_CHEMICAL","SEMI","SEMI_MATERIAL",3,"Chemical","半導體化學材料",4,4,2),
         ]:
             _cur.execute("INSERT OR IGNORE INTO node_master(NodeID,TopicID,ParentNodeID,Level,NodeName,NodeDescription,Importance,FuturePotential,IsBusinessNode,IsActive,DisplayOrder,UpdateDate) VALUES(?,?,?,?,?,?,?,?,1,1,?,?)",
                          (_row[0],_row[1],_row[2],_row[3],_row[4],_row[5],_row[6],_row[7],_row[8],"2026-07-09"))
