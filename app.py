@@ -11214,14 +11214,12 @@ with tab11:
 
     _kg_init()
 
-    # ── Memory Cache（一次載入）
-    @st.cache_data(ttl=None, show_spinner=False)
+    # ── Session State Cache（一次載入，切換不重讀）
     def _kg_load_all():
         import requests as _kgr
         _c = _kg_conn()
         _topics    = _c.execute("SELECT TopicID,TopicName,TopicDescription,DisplayOrder FROM topic_master WHERE IsActive=1 ORDER BY DisplayOrder").fetchall()
         _nodes     = _c.execute("SELECT NodeID,TopicID,ParentNodeID,Level,NodeName,NodeDescription,Importance,FuturePotential,DisplayOrder FROM node_master WHERE IsActive=1 ORDER BY Level,DisplayOrder").fetchall()
-        # Company 優先從 GitHub 讀取，再同步到 SQLite
         _companies = []
         _upd = ""
         try:
@@ -11231,19 +11229,8 @@ with tab11:
                 _gh_data = _gr.json()
                 _companies = [tuple(co) for co in _gh_data.get("companies", [])]
                 _upd = _gh_data.get("updated_at", "")
-                # 同步到 SQLite
-                _cur = _c.cursor()
-                for _co in _gh_data.get("companies_dict", []):
-                    try:
-                        _cols = list(_co.keys())
-                        _cur.execute(f"INSERT OR REPLACE INTO company_node_map ({','.join(_cols)}) VALUES ({','.join(['?']*len(_cols))})",
-                                     [_co.get(c,"") for c in _cols])
-                    except Exception:
-                        pass
-                _c.commit()
         except Exception:
             pass
-        # fallback: 從 SQLite 讀
         if not _companies:
             _companies = _c.execute("SELECT NodeID,TopicID,StockID,CompanyName,CompanyType,CompanyRole,DNA1,DNA2,DNA3,RelationStrength,CommercialStatus,Description,Evidence,UpdateDate,TaiwanLeader FROM company_node_map ORDER BY RelationStrength DESC").fetchall()
             _upd = _c.execute("SELECT MAX(UpdateDate) FROM company_node_map").fetchone()[0] or ""
@@ -11262,7 +11249,8 @@ with tab11:
                 "nodes_by_id":_nodes_by_id,"cos_by_node":_cos_by_node}
 
     def _kg_refresh():
-        _kg_load_all.clear()
+        if "kg3_cache" in st.session_state:
+            del st.session_state["kg3_cache"]
 
     def _kg_save_to_github(conn):
         """把 company_node_map 存到 GitHub data/kg_companies.json"""
@@ -11303,7 +11291,11 @@ with tab11:
         except Exception as _ge:
             return False, str(_ge)
 
-    _D = _kg_load_all()
+    # 用 session_state 快取，切換 Topic/Node 不重讀
+    if "kg3_cache" not in st.session_state:
+        with st.spinner("載入產業知識庫..."):
+            st.session_state["kg3_cache"] = _kg_load_all()
+    _D = st.session_state["kg3_cache"]
 
     # ── 統計列
     _n_co = len(set(c[2] for c in _D["companies"] if c[2]))
