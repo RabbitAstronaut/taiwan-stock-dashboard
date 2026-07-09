@@ -11142,7 +11142,7 @@ with tab11:
         os.makedirs("data", exist_ok=True)
         return _sq.connect(KG_DB_PATH, check_same_thread=False)
 
-    KG_DB_VERSION = "v7.4.1"  # 版本號，改這裡強制重建DB
+    KG_DB_VERSION = "v7.4.2"  # 版本號，改這裡強制重建DB
 
     def _kg_init():
         _c = _kg_conn()
@@ -11281,18 +11281,30 @@ with tab11:
             ("CS_OPT_COMPONENT","CONN_SPACE","CS_FIBER",3,"光通訊元件","光學元件",5,5,3),
             # POWER_INFRA Nodes
             ("POWER_INFRA","POWER_INFRA",None,1,"電力基礎建設","AI資料中心與高耗能產業電力基礎建設",5,5,1),
-            ("POWER_HEAVY_EQUIPMENT","POWER_INFRA","POWER_INFRA",2,"重電設備","Heavy Electrical Equipment",5,5,1),
-            ("POWER_CABLE","POWER_INFRA","POWER_INFRA",2,"高壓電纜","High Voltage Cable",5,5,2),
-            ("POWER_UPS","POWER_INFRA","POWER_INFRA",2,"UPS不斷電系統","Uninterruptible Power Supply",5,5,3),
-            ("POWER_ESS","POWER_INFRA","POWER_INFRA",2,"儲能系統ESS","Energy Storage System",5,5,4),
-            ("POWER_EMS","POWER_INFRA","POWER_INFRA",2,"EMS能源管理","Energy Management System",4,5,5),
-            ("POWER_SMART_GRID","POWER_INFRA","POWER_INFRA",2,"智慧電網","Smart Grid",4,5,6),
-            ("POWER_TRANSFORMER","POWER_INFRA","POWER_HEAVY_EQUIPMENT",3,"變壓器","Transformer",5,5,1),
-            ("POWER_SWITCHGEAR","POWER_INFRA","POWER_HEAVY_EQUIPMENT",3,"開關設備","Switchgear",5,5,2),
-            ("POWER_DISTRIBUTION","POWER_INFRA","POWER_HEAVY_EQUIPMENT",3,"配電設備","Power Distribution",5,5,3),
-            ("POWER_BUSWAY","POWER_INFRA","POWER_HEAVY_EQUIPMENT",3,"匯流排Busway","Busway & Busbar",4,4,4),
-            ("POWER_PCS","POWER_INFRA","POWER_ESS",3,"PCS電能轉換","Power Conversion System",5,5,1),
-            ("POWER_MICROGRID","POWER_INFRA","POWER_SMART_GRID",3,"微電網","Microgrid",4,5,1),
+            # Level 2
+            ("POWER_GRID_EQUIPMENT","POWER_INFRA","POWER_INFRA",2,"重電與電網設備","Heavy Power & Grid Equipment",5,5,1),
+            ("POWER_DATACENTER_POWER","POWER_INFRA","POWER_INFRA",2,"資料中心供電","Data Center Power Supply",5,5,2),
+            ("POWER_STORAGE_MANAGEMENT","POWER_INFRA","POWER_INFRA",2,"儲能與能源管理","Energy Storage & Management",5,5,3),
+            ("POWER_CABLE_DISTRIBUTION","POWER_INFRA","POWER_INFRA",2,"電力線纜與配電","Power Cable & Distribution",5,5,4),
+            # Level 3 - 重電與電網設備
+            ("POWER_TRANSFORMER","POWER_INFRA","POWER_GRID_EQUIPMENT",3,"變壓器","Transformer",5,5,1),
+            ("POWER_SWITCHGEAR","POWER_INFRA","POWER_GRID_EQUIPMENT",3,"開關設備","Switchgear",5,5,2),
+            ("POWER_SUBSTATION","POWER_INFRA","POWER_GRID_EQUIPMENT",3,"變電站設備","Substation Equipment",4,5,3),
+            ("POWER_HEAVY_EQUIPMENT","POWER_INFRA","POWER_GRID_EQUIPMENT",3,"重電設備","Heavy Electrical Equipment",5,5,4),
+            # Level 3 - 資料中心供電
+            ("POWER_UPS","POWER_INFRA","POWER_DATACENTER_POWER",3,"UPS不斷電系統","Uninterruptible Power Supply",5,5,1),
+            ("POWER_PCS","POWER_INFRA","POWER_DATACENTER_POWER",3,"PCS電能轉換","Power Conversion System",5,5,2),
+            ("POWER_BUSWAY","POWER_INFRA","POWER_DATACENTER_POWER",3,"匯流排與Busway","Busway & Busbar",4,4,3),
+            ("POWER_DISTRIBUTION","POWER_INFRA","POWER_DATACENTER_POWER",3,"配電設備","Power Distribution",5,5,4),
+            # Level 3 - 儲能與能源管理
+            ("POWER_ESS","POWER_INFRA","POWER_STORAGE_MANAGEMENT",3,"儲能系統ESS","Energy Storage System",5,5,1),
+            ("POWER_EMS","POWER_INFRA","POWER_STORAGE_MANAGEMENT",3,"EMS能源管理","Energy Management System",4,5,2),
+            ("POWER_SMART_GRID","POWER_INFRA","POWER_STORAGE_MANAGEMENT",3,"智慧電網","Smart Grid",4,5,3),
+            ("POWER_MICROGRID","POWER_INFRA","POWER_STORAGE_MANAGEMENT",3,"微電網","Microgrid",4,5,4),
+            # Level 3 - 電力線纜與配電
+            ("POWER_CABLE","POWER_INFRA","POWER_CABLE_DISTRIBUTION",3,"高壓電纜","High Voltage Cable",5,5,1),
+            ("POWER_LOW_VOLTAGE_CABLE","POWER_INFRA","POWER_CABLE_DISTRIBUTION",3,"低壓與配電線纜","Low Voltage Cable",4,4,2),
+            ("POWER_CONTROL_PANEL","POWER_INFRA","POWER_CABLE_DISTRIBUTION",3,"配電盤與控制盤","Control Panel",4,4,3),
         ]:
             _cur.execute("INSERT OR IGNORE INTO node_master(NodeID,TopicID,ParentNodeID,Level,NodeName,NodeDescription,Importance,FuturePotential,IsBusinessNode,IsActive,DisplayOrder,UpdateDate) VALUES(?,?,?,?,?,?,?,?,1,1,?,?)",
                          (_row[0],_row[1],_row[2],_row[3],_row[4],_row[5],_row[6],_row[7],_row[8],"2026-07-09"))
