@@ -3131,7 +3131,7 @@ st.markdown(f"""
      background:linear-gradient(90deg,#0f2027,#203a43,#2c5364);
      padding:18px 26px;margin-bottom:14px;">
     <h1 style="color:#e8f4fd;font-size:1.4rem;font-weight:700;margin:0;letter-spacing:1px;">
-        📊 台股全週期量化交易系統 V6
+        📊 台股全週期量化交易系統 V7
     </h1>
     <p style="color:#7fb3d3;margin:4px 0 0;font-size:.76rem;">
         架構：本機爬蟲 → GitHub CSV → Streamlit Cloud ｜
@@ -11142,7 +11142,7 @@ with tab11:
         os.makedirs("data", exist_ok=True)
         return _sq.connect(KG_DB_PATH, check_same_thread=False)
 
-    KG_DB_VERSION = "v7.2.2"  # 版本號，改這裡強制重建DB
+    KG_DB_VERSION = "v7.3.0"  # 版本號，改這裡強制重建DB
 
     def _kg_init():
         _c = _kg_conn()
@@ -11243,6 +11243,8 @@ with tab11:
             ("SEMI_HLPCB","SEMI","SEMI_PCB",3,"High Layer PCB","高速PCB",5,4,2),
             ("SEMI_CCL","SEMI","SEMI_MATERIAL",3,"CCL","高速銅箔基板",5,4,1),
             ("SEMI_CHEMICAL","SEMI","SEMI_MATERIAL",3,"Chemical","半導體化學材料",4,4,2),
+            ("SEMI_CLEANING","SEMI","SEMI_EQUIPMENT",3,"Cleaning","清洗設備",4,4,4),
+            ("SEMI_INSPECTION","SEMI","SEMI_EQUIPMENT",3,"Inspection","檢測設備",4,4,5),
         ]:
             _cur.execute("INSERT OR IGNORE INTO node_master(NodeID,TopicID,ParentNodeID,Level,NodeName,NodeDescription,Importance,FuturePotential,IsBusinessNode,IsActive,DisplayOrder,UpdateDate) VALUES(?,?,?,?,?,?,?,?,1,1,?,?)",
                          (_row[0],_row[1],_row[2],_row[3],_row[4],_row[5],_row[6],_row[7],_row[8],"2026-07-09"))
