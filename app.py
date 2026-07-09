@@ -11132,6 +11132,7 @@ with tab11:
         "SEMICONDUCTOR_PACKAGING": ("半導體與先進封裝",    "Semiconductor & Advanced Packaging"),
         "SEMI":                    ("半導體與先進封裝",    "Semiconductor & Advanced Packaging"),
         "CONNECTIVITY_SPACE":      ("次世代通訊與太空",    "Next-Gen Connectivity & Space"),
+        "CONN_SPACE":              ("次世代通訊與太空",    "Next-Gen Connectivity & Space"),
         "ROBOTICS_AUTOMATION":     ("機器人與智慧製造",    "Robotics & Automation"),
         "ENERGY_GRID":             ("綠能與智慧電網",      "Green Energy & Smart Grid"),
         "EDGE_AI_DEVICES":         ("邊緣 AI 與終端裝置",  "Edge AI & Devices"),
@@ -11142,7 +11143,7 @@ with tab11:
         os.makedirs("data", exist_ok=True)
         return _sq.connect(KG_DB_PATH, check_same_thread=False)
 
-    KG_DB_VERSION = "v7.3.0"  # 版本號，改這裡強制重建DB
+    KG_DB_VERSION = "v7.3.1"  # 版本號，改這裡強制重建DB
 
     def _kg_init():
         _c = _kg_conn()
@@ -11187,6 +11188,7 @@ with tab11:
             ("SEMICONDUCTOR_PACKAGING","Semiconductor & Advanced Packaging","半導體與先進封裝",2),
             ("SEMI","Semiconductor & Advanced Packaging","半導體與先進封裝",2),
             ("CONNECTIVITY_SPACE","Next-Gen Connectivity & Space","次世代通訊與太空",3),
+            ("CONN_SPACE","Next-Gen Connectivity & Space","次世代通訊與太空",3),
             ("ROBOTICS_AUTOMATION","Robotics & Automation","機器人與智慧製造",4),
             ("ENERGY_GRID","Green Energy & Smart Grid","綠能與智慧電網",5),
             ("EDGE_AI_DEVICES","Edge AI & Devices","邊緣AI與終端裝置",6),
@@ -11245,6 +11247,29 @@ with tab11:
             ("SEMI_CHEMICAL","SEMI","SEMI_MATERIAL",3,"Chemical","半導體化學材料",4,4,2),
             ("SEMI_CLEANING","SEMI","SEMI_EQUIPMENT",3,"Cleaning","清洗設備",4,4,4),
             ("SEMI_INSPECTION","SEMI","SEMI_EQUIPMENT",3,"Inspection","檢測設備",4,4,5),
+            # CONN_SPACE Nodes
+            ("CONN_SPACE","CONN_SPACE",None,1,"次世代通訊與太空","Next-Gen Connectivity & Space",5,5,1),
+            ("CS_OPT_COMM","CONN_SPACE","CONN_SPACE",2,"Optical Communication","光通訊",5,5,1),
+            ("CS_HIGH_NET","CONN_SPACE","CONN_SPACE",2,"High Speed Networking","高速網路",5,5,2),
+            ("CS_RF_MW","CONN_SPACE","CONN_SPACE",2,"RF & Microwave","射頻與微波",5,5,3),
+            ("CS_LEO","CONN_SPACE","CONN_SPACE",2,"Low Earth Orbit (LEO)","低軌衛星",5,5,4),
+            ("CS_FIBER","CONN_SPACE","CONN_SPACE",2,"Fiber Infrastructure","光纖基礎設施",4,4,5),
+            ("CS_800G","CONN_SPACE","CS_OPT_COMM",3,"800G","800G光通訊",5,5,1),
+            ("CS_1600G","CONN_SPACE","CS_OPT_COMM",3,"1.6T","1.6T光通訊",5,5,2),
+            ("CS_CPO","CONN_SPACE","CS_OPT_COMM",3,"CPO","共封裝光學",5,5,3),
+            ("CS_SILICON_PHOTONICS","CONN_SPACE","CS_OPT_COMM",3,"Silicon Photonics","矽光子",5,5,4),
+            ("CS_WB_SWITCH","CONN_SPACE","CS_HIGH_NET",3,"White Box Switch","白牌交換器",5,5,1),
+            ("CS_ETH_SWITCH","CONN_SPACE","CS_HIGH_NET",3,"Ethernet Switch","乙太網路交換器",5,5,2),
+            ("CS_SMART_NIC","CONN_SPACE","CS_HIGH_NET",3,"Smart NIC","智慧網路卡",4,4,3),
+            ("CS_MICROWAVE","CONN_SPACE","CS_RF_MW",3,"Microwave","微波元件",5,5,1),
+            ("CS_MMWAVE","CONN_SPACE","CS_RF_MW",3,"mmWave","毫米波",5,5,2),
+            ("CS_RF_MODULE","CONN_SPACE","CS_RF_MW",3,"RF Module","射頻模組",5,5,3),
+            ("CS_SAT_COMM","CONN_SPACE","CS_LEO",3,"Satellite Communication","衛星通訊",5,5,1),
+            ("CS_GROUND_STATION","CONN_SPACE","CS_LEO",3,"Ground Station","地面站",5,5,2),
+            ("CS_ANTENNA","CONN_SPACE","CS_LEO",3,"Antenna","天線",5,5,3),
+            ("CS_FIBER_CABLE","CONN_SPACE","CS_FIBER",3,"Fiber Cable","光纖電纜",4,4,1),
+            ("CS_FIBER_CONNECTOR","CONN_SPACE","CS_FIBER",3,"Fiber Connector","光纖連接器",4,4,2),
+            ("CS_OPT_COMPONENT","CONN_SPACE","CS_FIBER",3,"Optical Component","光學元件",5,5,3),
         ]:
             _cur.execute("INSERT OR IGNORE INTO node_master(NodeID,TopicID,ParentNodeID,Level,NodeName,NodeDescription,Importance,FuturePotential,IsBusinessNode,IsActive,DisplayOrder,UpdateDate) VALUES(?,?,?,?,?,?,?,?,1,1,?,?)",
                          (_row[0],_row[1],_row[2],_row[3],_row[4],_row[5],_row[6],_row[7],_row[8],"2026-07-09"))
