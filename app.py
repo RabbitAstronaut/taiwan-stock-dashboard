@@ -3139,7 +3139,7 @@ st.markdown(f"""
         監控清單：{len(st.session_state.watchlist)} 檔
     </p>
     <p style="color:#00d4ff;margin:6px 0 0;font-size:.82rem;letter-spacing:.25em;text-align:right;">
-        Rex × Gemini × Claude
+        Rex × Gemini × Claude × ChatGPT
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -3175,7 +3175,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
 # ── 系統簽名
 st.markdown(
     "<div style='text-align:right;color:#546e7a;font-size:.78rem;"
-    "letter-spacing:.2em;padding:4px 12px;'>Rex × Gemini × Claude</div>",
+    "letter-spacing:.2em;padding:4px 12px;'>Rex × Gemini × Claude × ChatGPT</div>",
     unsafe_allow_html=True
 )
 
