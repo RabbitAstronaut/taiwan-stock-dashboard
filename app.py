@@ -11217,11 +11217,36 @@ with tab11:
     # ── Memory Cache（一次載入）
     @st.cache_data(ttl=None, show_spinner=False)
     def _kg_load_all():
+        import requests as _kgr
         _c = _kg_conn()
         _topics    = _c.execute("SELECT TopicID,TopicName,TopicDescription,DisplayOrder FROM topic_master WHERE IsActive=1 ORDER BY DisplayOrder").fetchall()
         _nodes     = _c.execute("SELECT NodeID,TopicID,ParentNodeID,Level,NodeName,NodeDescription,Importance,FuturePotential,DisplayOrder FROM node_master WHERE IsActive=1 ORDER BY Level,DisplayOrder").fetchall()
-        _companies = _c.execute("SELECT NodeID,TopicID,StockID,CompanyName,CompanyType,CompanyRole,DNA1,DNA2,DNA3,RelationStrength,CommercialStatus,Description,Evidence,UpdateDate,TaiwanLeader FROM company_node_map ORDER BY RelationStrength DESC").fetchall()
-        _upd       = _c.execute("SELECT MAX(UpdateDate) FROM company_node_map").fetchone()[0]
+        # Company 優先從 GitHub 讀取，再同步到 SQLite
+        _companies = []
+        _upd = ""
+        try:
+            _gh_url = f"{GITHUB_RAW}/kg_companies.json"
+            _gr = _kgr.get(_gh_url, timeout=10)
+            if _gr.status_code == 200:
+                _gh_data = _gr.json()
+                _companies = [tuple(co) for co in _gh_data.get("companies", [])]
+                _upd = _gh_data.get("updated_at", "")
+                # 同步到 SQLite
+                _cur = _c.cursor()
+                for _co in _gh_data.get("companies_dict", []):
+                    try:
+                        _cols = list(_co.keys())
+                        _cur.execute(f"INSERT OR REPLACE INTO company_node_map ({','.join(_cols)}) VALUES ({','.join(['?']*len(_cols))})",
+                                     [_co.get(c,"") for c in _cols])
+                    except Exception:
+                        pass
+                _c.commit()
+        except Exception:
+            pass
+        # fallback: 從 SQLite 讀
+        if not _companies:
+            _companies = _c.execute("SELECT NodeID,TopicID,StockID,CompanyName,CompanyType,CompanyRole,DNA1,DNA2,DNA3,RelationStrength,CommercialStatus,Description,Evidence,UpdateDate,TaiwanLeader FROM company_node_map ORDER BY RelationStrength DESC").fetchall()
+            _upd = _c.execute("SELECT MAX(UpdateDate) FROM company_node_map").fetchone()[0] or ""
         _c.close()
         # 預建 index
         _nodes_by_tid  = {}
@@ -11238,6 +11263,45 @@ with tab11:
 
     def _kg_refresh():
         _kg_load_all.clear()
+
+    def _kg_save_to_github(conn):
+        """把 company_node_map 存到 GitHub data/kg_companies.json"""
+        if not GITHUB_TOKEN:
+            return False, "未設定 GITHUB_TOKEN"
+        try:
+            import base64 as _b64, json as _jj, requests as _kgr3
+            _cur = conn.cursor()
+            _rows = _cur.execute(
+                "SELECT NodeID,TopicID,StockID,CompanyName,CompanyType,CompanyRole,"
+                "DNA1,DNA2,DNA3,RelationStrength,CommercialStatus,Description,"
+                "Evidence,UpdateDate,TaiwanLeader FROM company_node_map ORDER BY RelationStrength DESC"
+            ).fetchall()
+            _cols = ["NodeID","TopicID","StockID","CompanyName","CompanyType","CompanyRole",
+                     "DNA1","DNA2","DNA3","RelationStrength","CommercialStatus","Description",
+                     "Evidence","UpdateDate","TaiwanLeader"]
+            _dicts = [dict(zip(_cols, r)) for r in _rows]
+            _payload = {
+                "updated_at": datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d"),
+                "count": len(_rows),
+                "companies": [list(r) for r in _rows],
+                "companies_dict": _dicts
+            }
+            _content_str = _jj.dumps(_payload, ensure_ascii=False, indent=2)
+            _api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/data/kg_companies.json"
+            _headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+            _sha = None
+            _r0 = _kgr3.get(_api_url, headers=_headers, timeout=10)
+            if _r0.status_code == 200:
+                _sha = _r0.json().get("sha")
+            _body = {"message": "update kg_companies", "content": _b64.b64encode(_content_str.encode()).decode()}
+            if _sha:
+                _body["sha"] = _sha
+            _r1 = _kgr3.put(_api_url, headers=_headers, json=_body, timeout=15)
+            if _r1.status_code in (200, 201):
+                return True, f"已儲存 {len(_rows)} 筆公司資料到 GitHub"
+            return False, f"GitHub API 錯誤：{_r1.status_code}"
+        except Exception as _ge:
+            return False, str(_ge)
 
     _D = _kg_load_all()
 
@@ -11348,7 +11412,13 @@ with tab11:
                                 _cols=list(_df.columns)
                                 _ic.execute(f"INSERT OR IGNORE INTO company_node_map({','.join(_cols)}) VALUES({','.join(['?']*len(_cols))})",
                                             [_d.get(c,"") for c in _cols]); _new+=1
-                        _ic.commit(); st.success(f"✅ 新增{_new}筆，更新{_upd}筆")
+                        _ic.commit()
+                        _ok, _msg = _kg_save_to_github(_ic)
+                        if _ok:
+                            st.success(f"✅ 新增{_new}筆，更新{_upd}筆　已同步到 GitHub")
+                        else:
+                            st.success(f"✅ 新增{_new}筆，更新{_upd}筆")
+                            st.warning(f"GitHub 同步失敗：{_msg}")
                 elif _itype == "節點":
                     _req=["NodeID","TopicID","NodeName"]
                     _miss=[c for c in _req if c not in _df.columns]
