@@ -11132,6 +11132,10 @@ with tab11:
         "SEMI":                    ("半導體與先進封裝",    "Semiconductor & Advanced Packaging"),
         "CONN_SPACE":              ("次世代通訊與太空",    "Next-Gen Connectivity & Space"),
         "POWER_INFRA":             ("電力基礎建設",        "Power Infrastructure"),
+        "WATER_ENV":               ("水資源與環境工程",     "Water & Environmental Engineering"),
+        "ROBOT_AUTOMATION":        ("機器人與智慧製造",     "Robotics & Automation"),
+        "EDGE_AI_DEVICE":          ("邊緣AI與終端裝置",     "Edge AI & Devices"),
+        "SMART_MOBILITY":          ("智慧移動與車用電子",   "Smart Mobility"),
         "ROBOTICS_AUTOMATION":     ("機器人與智慧製造",    "Robotics & Automation"),
         "ENERGY_GRID":             ("綠能與智慧電網",      "Green Energy & Smart Grid"),
         "EDGE_AI_DEVICES":         ("邊緣 AI 與終端裝置",  "Edge AI & Devices"),
@@ -11142,7 +11146,7 @@ with tab11:
         os.makedirs("data", exist_ok=True)
         return _sq.connect(KG_DB_PATH, check_same_thread=False)
 
-    KG_DB_VERSION = "v7.4.2"  # 版本號，改這裡強制重建DB
+    KG_DB_VERSION = "v7.5.0"  # 版本號，改這裡強制重建DB
 
     def _kg_init():
         _c = _kg_conn()
@@ -11187,6 +11191,10 @@ with tab11:
             ("SEMI","Semiconductor & Advanced Packaging","半導體與先進封裝",2),
             ("CONN_SPACE","Next-Gen Connectivity & Space","次世代通訊與太空",3),
             ("POWER_INFRA","電力基礎建設","AI資料中心與高耗能產業電力基礎建設",4),
+            ("WATER_ENV","水資源與環境工程","AI資料中心、半導體廠與高耗能產業之水資源工程",5),
+            ("ROBOT_AUTOMATION","機器人與智慧製造","AI實體化、人形機器人與工業自動化供應鏈",6),
+            ("EDGE_AI_DEVICE","邊緣AI與終端裝置","AI PC、AI手機、邊緣推論與端側AI運算供應鏈",7),
+            ("SMART_MOBILITY","智慧移動與車用電子","智慧車、車用電子、ADAS與電動車供應鏈",8),
             ("ROBOTICS_AUTOMATION","Robotics & Automation","機器人與智慧製造",4),
             ("ENERGY_GRID","Green Energy & Smart Grid","綠能與智慧電網",5),
             ("EDGE_AI_DEVICES","Edge AI & Devices","邊緣AI與終端裝置",6),
@@ -11305,6 +11313,51 @@ with tab11:
             ("POWER_CABLE","POWER_INFRA","POWER_CABLE_DISTRIBUTION",3,"高壓電纜","High Voltage Cable",5,5,1),
             ("POWER_LOW_VOLTAGE_CABLE","POWER_INFRA","POWER_CABLE_DISTRIBUTION",3,"低壓與配電線纜","Low Voltage Cable",4,4,2),
             ("POWER_CONTROL_PANEL","POWER_INFRA","POWER_CABLE_DISTRIBUTION",3,"配電盤與控制盤","Control Panel",4,4,3),
+            # WATER_ENV Nodes
+            ("WATER_ENV","WATER_ENV",None,1,"水資源與環境工程","Water & Environmental Engineering",4,4,1),
+            ("WATER_UPW","WATER_ENV","WATER_ENV",2,"超純水系統","Ultra Pure Water",5,5,1),
+            ("WATER_TREATMENT","WATER_ENV","WATER_ENV",2,"水處理","Water Treatment",5,5,2),
+            ("WATER_RECYCLING","WATER_ENV","WATER_ENV",2,"水回收","Water Recycling",4,5,3),
+            ("WATER_EPC","WATER_ENV","WATER_ENV",2,"水務工程","Water EPC",4,4,4),
+            ("WATER_MONITORING","WATER_ENV","WATER_ENV",2,"水質監控","Water Quality Monitoring",4,4,5),
+            ("WATER_DESALINATION","WATER_ENV","WATER_ENV",2,"海水淡化","Desalination",3,4,6),
+            ("WATER_PUMP_VALVE","WATER_ENV","WATER_ENV",2,"泵浦與閥件","Pump & Valve",3,3,7),
+            # ROBOT_AUTOMATION Nodes
+            ("ROBOT_AUTOMATION","ROBOT_AUTOMATION",None,1,"機器人與智慧製造","Robotics & Automation",5,5,1),
+            ("ROBOT_CONTROLLER","ROBOT_AUTOMATION","ROBOT_AUTOMATION",2,"控制器","Robot Controller",5,5,1),
+            ("ROBOT_SERVO","ROBOT_AUTOMATION","ROBOT_AUTOMATION",2,"伺服馬達","Servo Motor",5,5,2),
+            ("ROBOT_REDUCER","ROBOT_AUTOMATION","ROBOT_AUTOMATION",2,"減速機","Reducer",5,5,3),
+            ("ROBOT_VISION","ROBOT_AUTOMATION","ROBOT_AUTOMATION",2,"機器視覺","Machine Vision",5,5,4),
+            ("ROBOT_SENSOR","ROBOT_AUTOMATION","ROBOT_AUTOMATION",2,"感測器","Sensor",4,4,5),
+            ("ROBOT_COBOT","ROBOT_AUTOMATION","ROBOT_AUTOMATION",2,"協作機器人","Collaborative Robot",5,5,6),
+            ("ROBOT_HUMANOID","ROBOT_AUTOMATION","ROBOT_AUTOMATION",2,"人形機器人","Humanoid Robot",4,5,7),
+            ("ROBOT_AUTO","ROBOT_AUTOMATION","ROBOT_AUTOMATION",2,"工廠自動化","Factory Automation",5,5,8),
+            ("ROBOT_IPC","ROBOT_AUTOMATION","ROBOT_AUTOMATION",2,"工業電腦","Industrial PC",5,5,9),
+            ("ROBOT_AMR","ROBOT_AUTOMATION","ROBOT_AUTOMATION",2,"AMR與自動搬運","AMR",4,5,10),
+            # EDGE_AI_DEVICE Nodes
+            ("EDGE_AI_DEVICE","EDGE_AI_DEVICE",None,1,"邊緣AI與終端裝置","Edge AI & Devices",5,5,1),
+            ("EDGE_AI_PC","EDGE_AI_DEVICE","EDGE_AI_DEVICE",2,"AI PC","AI Personal Computer",5,5,1),
+            ("EDGE_AI_PHONE","EDGE_AI_DEVICE","EDGE_AI_DEVICE",2,"AI手機","AI Smartphone",5,5,2),
+            ("EDGE_NPU","EDGE_AI_DEVICE","EDGE_AI_DEVICE",2,"NPU與端側AI晶片","Edge NPU",5,5,3),
+            ("EDGE_CAMERA","EDGE_AI_DEVICE","EDGE_AI_DEVICE",2,"AI影像與鏡頭","AI Camera",5,5,4),
+            ("EDGE_SENSOR","EDGE_AI_DEVICE","EDGE_AI_DEVICE",2,"感測器","Edge Sensor",4,4,5),
+            ("EDGE_MODULE","EDGE_AI_DEVICE","EDGE_AI_DEVICE",2,"AI模組","AI Module",4,4,6),
+            ("EDGE_IPC","EDGE_AI_DEVICE","EDGE_AI_DEVICE",2,"邊緣運算","Edge Computing",5,5,7),
+            ("EDGE_WEARABLE","EDGE_AI_DEVICE","EDGE_AI_DEVICE",2,"穿戴裝置","Wearable",3,4,8),
+            ("EDGE_THERMAL","EDGE_AI_DEVICE","EDGE_AI_DEVICE",2,"終端散熱","Edge Thermal",4,4,9),
+            ("EDGE_BATTERY","EDGE_AI_DEVICE","EDGE_AI_DEVICE",2,"終端電源與電池","Edge Battery",4,4,10),
+            # SMART_MOBILITY Nodes
+            ("SMART_MOBILITY","SMART_MOBILITY",None,1,"智慧移動與車用電子","Smart Mobility",5,5,1),
+            ("MOBILITY_ADAS","SMART_MOBILITY","SMART_MOBILITY",2,"ADAS","Advanced Driver Assistance",5,5,1),
+            ("MOBILITY_HPC","SMART_MOBILITY","SMART_MOBILITY",2,"車載高效能運算","Automotive HPC",5,5,2),
+            ("MOBILITY_COCKPIT","SMART_MOBILITY","SMART_MOBILITY",2,"智慧座艙","Smart Cockpit",5,5,3),
+            ("MOBILITY_POWER","SMART_MOBILITY","SMART_MOBILITY",2,"車用電源","Automotive Power",5,5,4),
+            ("MOBILITY_CHARGING","SMART_MOBILITY","SMART_MOBILITY",2,"充電系統","EV Charging",5,5,5),
+            ("MOBILITY_BATTERY","SMART_MOBILITY","SMART_MOBILITY",2,"電池與電池模組","EV Battery",5,5,6),
+            ("MOBILITY_CONNECTOR","SMART_MOBILITY","SMART_MOBILITY",2,"車用連接器","Automotive Connector",5,5,7),
+            ("MOBILITY_SENSOR","SMART_MOBILITY","SMART_MOBILITY",2,"車用感測器","Automotive Sensor",4,4,8),
+            ("MOBILITY_LENS","SMART_MOBILITY","SMART_MOBILITY",2,"車用鏡頭","Automotive Lens",5,5,9),
+            ("MOBILITY_THERMAL","SMART_MOBILITY","SMART_MOBILITY",2,"車用散熱","Automotive Thermal",4,4,10),
         ]:
             _cur.execute("INSERT OR IGNORE INTO node_master(NodeID,TopicID,ParentNodeID,Level,NodeName,NodeDescription,Importance,FuturePotential,IsBusinessNode,IsActive,DisplayOrder,UpdateDate) VALUES(?,?,?,?,?,?,?,?,1,1,?,?)",
                          (_row[0],_row[1],_row[2],_row[3],_row[4],_row[5],_row[6],_row[7],_row[8],"2026-07-09"))
