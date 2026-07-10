@@ -11841,3 +11841,101 @@ with tab11:
                         if _sid not in {x["id"] for x in _my}:
                             _my.append({"id":_sid,"name":_sname})
                         st.toast(f"{_sid} 已加入 Tab10",icon="📊")
+
+        # ── Node AI 分析（節點選定後顯示）
+        if _sel_nid:
+            st.divider()
+            _ni_ai = _D["nodes_by_id"].get(_sel_nid)
+            _nname_ai = _ni_ai[4] if _ni_ai else _sel_nid
+            _tname_ai = _TOPIC_CN.get(st.session_state.get("kg3_sel_topic",""), ("",""))[0]
+
+            st.markdown(f"**🤖 AI 產業分析：{_nname_ai}**")
+            _ai_cols = st.columns([1,1,2])
+            with _ai_cols[0]:
+                _do_node_ai = st.button("🔍 產業動態分析", key=f"kg3ai_node_{_sel_nid}", use_container_width=True)
+            with _ai_cols[1]:
+                _do_co_ai = st.button("🏭 台廠最新動態", key=f"kg3ai_co_{_sel_nid}", use_container_width=True)
+
+            if _do_node_ai:
+                _cos_list = ", ".join(f"{c[2]}{c[3]}" for c in _D["cos_by_node"].get(_sel_nid,[])[:8])
+                _prompt_node = f"""你是台股產業研究員。請針對「{_nname_ai}」（屬於{_tname_ai}產業）進行最新產業動態分析。
+
+相關台灣上市公司：{_cos_list}
+
+請用繁體中文，簡潔回答以下三點：
+
+一、產業現況（2-3句）
+目前{_nname_ai}的市場狀況、需求趨勢、主要驅動力。
+
+二、近期重要發展（條列2-3點）
+最新技術突破、重要客戶動態、供應鏈變化。
+
+三、台灣廠商觀察（條列2-3點）
+台灣廠商在此節點的競爭優勢與近期動態。
+
+禁止：買進/賣出/目標價/投資建議。"""
+
+                with st.spinner(f"AI 分析「{_nname_ai}」產業動態中..."):
+                    try:
+                        import requests as _air
+                        _gkey = st.secrets.get("GEMINI_API_KEY","")
+                        _ar = _air.post(
+                            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={_gkey}",
+                            headers={"Content-Type":"application/json"},
+                            json={"contents":[{"parts":[{"text":_prompt_node}]}]},
+                            timeout=30
+                        )
+                        _raw = _ar.json()
+                        _txt = _raw.get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
+                        if _ar.status_code == 429:
+                            st.warning("Gemini 配額暫時超限，請稍後再試（約1分鐘）")
+                        elif _txt:
+                            st.markdown(
+                                f"<div style='background:rgba(0,50,100,0.3);border-radius:8px;"
+                                f"padding:14px;white-space:pre-wrap;font-size:.85rem;line-height:1.6;'>"
+                                f"{_txt}</div>", unsafe_allow_html=True
+                            )
+                        else:
+                            st.error(f"AI 回傳空白：{str(_raw)[:200]}")
+                    except Exception as _aie:
+                        st.error(f"AI 分析失敗：{_aie}")
+
+            if _do_co_ai:
+                _cos_detail = []
+                for _c in _D["cos_by_node"].get(_sel_nid,[])[:8]:
+                    _cos_detail.append(f"{_c[2]} {_c[3]}（{_c[5]}）")
+                _prompt_co = f"""你是台股產業研究員。請針對「{_nname_ai}」節點的台灣上市公司進行最新動態分析。
+
+公司清單：
+{chr(10).join(_cos_detail)}
+
+請用繁體中文，針對每家公司簡述：
+- 在{_nname_ai}的產品/服務定位
+- 近期重要訂單、客戶或法說會重點（1-2句）
+
+禁止：買進/賣出/目標價/投資建議。"""
+
+                with st.spinner(f"AI 分析台廠動態中..."):
+                    try:
+                        import requests as _air2
+                        _gkey2 = st.secrets.get("GEMINI_API_KEY","")
+                        _ar2 = _air2.post(
+                            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={_gkey2}",
+                            headers={"Content-Type":"application/json"},
+                            json={"contents":[{"parts":[{"text":_prompt_co}]}]},
+                            timeout=30
+                        )
+                        _raw2 = _ar2.json()
+                        _txt2 = _raw2.get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
+                        if _ar2.status_code == 429:
+                            st.warning("Gemini 配額暫時超限，請稍後再試（約1分鐘）")
+                        elif _txt2:
+                            st.markdown(
+                                f"<div style='background:rgba(0,80,50,0.3);border-radius:8px;"
+                                f"padding:14px;white-space:pre-wrap;font-size:.85rem;line-height:1.6;'>"
+                                f"{_txt2}</div>", unsafe_allow_html=True
+                            )
+                        else:
+                            st.error(f"AI 回傳空白：{str(_raw2)[:200]}")
+                    except Exception as _aie2:
+                        st.error(f"AI 分析失敗：{_aie2}")
