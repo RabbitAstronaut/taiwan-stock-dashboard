@@ -11364,7 +11364,12 @@ with tab11:
         _c.commit()
         _c.close()
 
-    _kg_init()
+    # _kg_init 只執行一次（DB版本不符時才重建）
+    if st.session_state.get("kg3_db_version") != KG_DB_VERSION:
+        _kg_init()
+        st.session_state["kg3_db_version"] = KG_DB_VERSION
+        if "kg3_cache" in st.session_state:
+            del st.session_state["kg3_cache"]
 
     # ── Session State Cache（一次載入，切換不重讀）
     def _kg_load_all():
