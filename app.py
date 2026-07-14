@@ -23,6 +23,9 @@ import time, warnings, json, os
 from zoneinfo import ZoneInfo
 warnings.filterwarnings("ignore")
 
+import attack_engine  # V7 攻擊引擎核心計算層（第一階段，見 attack_engine.py）
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
 # ══════════════════════════════════════════════════════════════
 # ▌ 頁面基礎設定
 # ══════════════════════════════════════════════════════════════
@@ -3249,6 +3252,165 @@ with tab1:
         )
     except Exception:
         st.caption("市場溫度計載入中，請稍候...")
+
+    # ══════════════════════════════════════════════════════════════
+    # ▌ 攻擊引擎證據來源：大盤估值 / 技術風險 / 市場籌碼（V7 第二階段）
+    #   本區塊只負責產出並登記證據（register_evidence）到
+    #   evidence_registry.json，供 attack_engine 統一計算「市場攻擊
+    #   分數」使用；Tab1 本身不輸出最終買進建議（禁止事項見規格書）。
+    # ══════════════════════════════════════════════════════════════
+    st.markdown("<div class='sec-title'>🗡️ 大盤估值 · 技術風險 · 市場籌碼（攻擊引擎證據）</div>",
+                unsafe_allow_html=True)
+    _today_ae = datetime.now().strftime("%Y-%m-%d")
+
+    # ── 1. 大盤估值模組
+    with st.expander("📐 大盤估值模組", expanded=True):
+        st.caption("TWSE官方大盤本益比無穩定公開API，此處手動輸入，避免用不可靠來源硬寫死估值位置。")
+        _val_col1, _val_col2 = st.columns(2)
+        with _val_col1:
+            _ae_twii_now = None
+            try:
+                import yfinance as _yf_ae
+                _twii_hist_q = _yf_ae.Ticker("^TWII").history(period="5d")
+                if _twii_hist_q is not None and not _twii_hist_q.empty:
+                    _ae_twii_now = float(_twii_hist_q["Close"].iloc[-1])
+            except Exception:
+                pass
+            _ae_index_now = st.number_input(
+                "目前加權指數", min_value=0.0,
+                value=float(_ae_twii_now) if _ae_twii_now else 0.0,
+                step=10.0, key="ae_index_now"
+            )
+        with _val_col2:
+            _ae_pe_now = st.number_input(
+                "官方大盤本益比（TWSE公布）", min_value=0.0, value=0.0, step=0.1,
+                key="ae_pe_now", help="查詢：台灣證券交易所 > 統計資料 > 本益比、殖利率"
+            )
+
+        if _ae_index_now > 0 and _ae_pe_now > 0:
+            _ae_earnings_base = _ae_index_now / _ae_pe_now
+            _ae_scenarios = [("盈餘+10%", 0.10), ("盈餘不變", 0.0), ("盈餘下修4%", -0.04),
+                              ("盈餘下修10%", -0.10), ("盈餘下修15%", -0.15)]
+            _ae_pe_targets = [29, 28, 26, 24]
+            _ae_val_rows = []
+            for _ae_sc_name, _ae_sc_delta in _ae_scenarios:
+                _ae_row = {"情境": _ae_sc_name}
+                _ae_adj_base = _ae_earnings_base * (1 + _ae_sc_delta)
+                for _ae_pe_t in _ae_pe_targets:
+                    _ae_row[f"{_ae_pe_t}倍位置"] = round(_ae_adj_base * _ae_pe_t, 0)
+                _ae_val_rows.append(_ae_row)
+            st.dataframe(pd.DataFrame(_ae_val_rows), use_container_width=True, hide_index=True)
+
+            # 估值風險釋放比例：現價距「盈餘不變、26倍」中性位置的相對位置
+            _ae_neutral_target = _ae_earnings_base * 26
+            _ae_val_gap_pct = ((_ae_index_now - _ae_neutral_target) / _ae_neutral_target * 100
+                                if _ae_neutral_target else 0)
+            _ae_val_ratio = max(0.0, min(1.0, 1 - (_ae_val_gap_pct / 20)))
+            st.caption(f"現價距 26倍(中性)位置 {_ae_val_gap_pct:+.1f}%　→　估值風險釋放比例約 {_ae_val_ratio*100:.0f}%")
+
+            attack_engine.register_evidence(
+                "market", "valuation_pe_scenario", category="valuation",
+                value={"score_ratio": round(_ae_val_ratio, 2), "index_now": _ae_index_now,
+                       "pe_now": _ae_pe_now, "gap_to_26x_pct": round(_ae_val_gap_pct, 1)},
+                source="TWSE官方本益比（人工輸入）", date=_today_ae, grade="B", ttl_days=1,
+                note="Rex手動輸入官方本益比，29/28/26/24倍位置動態計算，不寫死數字"
+            )
+        else:
+            st.info("請輸入官方大盤本益比以啟用估值情境計算（每日手動輸入一次）。")
+
+    # ── 2. 技術風險模組（取自 ^TWII 實際日K，非硬寫死數字）
+    with st.expander("📉 技術風險模組", expanded=True):
+        try:
+            import yfinance as _yf_ae2
+            _twii_ohlc = _yf_ae2.Ticker("^TWII").history(period="6mo")
+            if _twii_ohlc is None or _twii_ohlc.empty or len(_twii_ohlc) < 25:
+                st.info("台股加權指數歷史資料不足，無法計算布林通道。")
+            else:
+                _twii_ind = calc_indicators(_twii_ohlc.reset_index())
+                _ae_last = _twii_ind.iloc[-1]
+                _ae_close_now = float(_ae_last["Close"])
+                _ae_bb_mid = float(_ae_last["BB_MID"])
+                _ae_lb2 = float(_ae_last["LB2"])
+                _ae_lb4 = float(_ae_last["LB4"])
+                # 前波低點：近60個交易日、排除最後5日（避免抓到當下正測試的低點）
+                _ae_lookback = (_twii_ind.iloc[-65:-5] if len(_twii_ind) > 70
+                                 else _twii_ind.iloc[:-5])
+                _ae_recent_low = (float(_ae_lookback["Close"].min())
+                                   if not _ae_lookback.empty else _ae_close_now)
+                _ae_below_lb2 = _ae_close_now < _ae_lb2
+
+                _tr_c1, _tr_c2, _tr_c3, _tr_c4 = st.columns(4)
+                _tr_c1.metric("布林中軌(BB_MID)", f"{_ae_bb_mid:,.0f}")
+                _tr_c2.metric("第一布林下軌(中軌-2σ)", f"{_ae_lb2:,.0f}",
+                              f"{(_ae_close_now-_ae_lb2)/_ae_lb2*100:+.1f}%")
+                _tr_c3.metric("第二布林下軌(中軌-4σ)", f"{_ae_lb4:,.0f}",
+                              f"{(_ae_close_now-_ae_lb4)/_ae_lb4*100:+.1f}%")
+                _tr_c4.metric("近期重要低點", f"{_ae_recent_low:,.0f}",
+                              f"{(_ae_close_now-_ae_recent_low)/_ae_recent_low*100:+.1f}%")
+
+                if _ae_below_lb2:
+                    st.warning(f"⚠️ 收盤價 {_ae_close_now:,.0f} 已跌破第一布林下軌 {_ae_lb2:,.0f}。")
+                else:
+                    st.success(f"✅ 收盤價 {_ae_close_now:,.0f} 尚未跌破第一布林下軌 {_ae_lb2:,.0f}。")
+
+                _ae_dist_to_lb2 = (_ae_close_now - _ae_lb2) / _ae_lb2
+                _ae_price_ratio = (max(0.0, min(1.0, 1 - abs(_ae_dist_to_lb2) / 0.1))
+                                    if not _ae_below_lb2 else 0.2)
+                _ae_tech_veto = _ae_close_now < _ae_lb4  # 跌破第二布林下軌 → 技術面重度惡化
+
+                _ae_price_value = {
+                    "score_ratio": round(_ae_price_ratio, 2), "close": _ae_close_now,
+                    "bb_mid": _ae_bb_mid, "lb2": _ae_lb2, "lb4": _ae_lb4,
+                    "recent_low": _ae_recent_low, "below_lb2": _ae_below_lb2,
+                }
+                if _ae_tech_veto:
+                    _ae_price_value["veto"] = True
+                    _ae_price_value["veto_reason"] = (
+                        f"加權指數收盤 {_ae_close_now:,.0f} 已跌破第二布林下軌 {_ae_lb4:,.0f}"
+                    )
+
+                attack_engine.register_evidence(
+                    "market", "price_bollinger", category="price", value=_ae_price_value,
+                    source="^TWII 日K（yfinance）", date=_today_ae, grade="C", ttl_days=1,
+                    note="系統自動計算，C級證據（衍生指標，非官方直接發布數字）"
+                )
+        except Exception as _ae_tr_e:
+            st.caption(f"技術風險模組暫時無法取得資料（{_ae_tr_e}）")
+
+    # ── 3. 市場籌碼（沿用既有大台外資／小台散戶／融資餘額函式，皆為既有真實資料）
+    with st.expander("💰 市場籌碼", expanded=True):
+        _mc_tx = get_tx_foreign_position()
+        _mc_retail = get_mtx_retail_position()
+        _mc_margin = get_total_margin_balance()
+        _mc_margin_bal = _mc_margin["balance"] if _mc_margin else None
+
+        _mc_c1, _mc_c2, _mc_c3 = st.columns(3)
+        _mc_c1.metric("外資大台淨留倉", f"{_mc_tx:+,}口")
+        _mc_c2.metric("小台散戶淨留倉", f"{_mc_retail:+,}口")
+        _mc_c3.metric("全市場融資餘額", f"{_mc_margin_bal:,.0f}億" if _mc_margin_bal is not None else "—")
+
+        _ae_chips_ratio = 0.5
+        if _mc_tx is not None:
+            _ae_chips_ratio += 0.25 if _mc_tx > -10000 else -0.25
+        if _mc_retail is not None:
+            _ae_chips_ratio += 0.15 if _mc_retail < 8000 else -0.15
+        if _mc_margin_bal is not None:
+            _ae_chips_ratio += 0.1 if _mc_margin_bal < 4500 else -0.1
+        _ae_chips_ratio = max(0.0, min(1.0, _ae_chips_ratio))
+
+        attack_engine.register_evidence(
+            "market", "chips_futures_margin", category="chips",
+            value={"score_ratio": round(_ae_chips_ratio, 2), "tx_net": _mc_tx,
+                   "mtx_retail": _mc_retail, "margin_balance_yi": _mc_margin_bal},
+            source="期交所三大法人期貨部位＋證交所信用交易統計（daily_scan排程）",
+            date=_today_ae, grade="A", ttl_days=1,
+            note="沿用既有 get_tx_foreign_position / get_mtx_retail_position / get_total_margin_balance"
+        )
+
+    st.caption(
+        "以上三個模組的證據已寫入攻擊引擎（evidence_registry），"
+        "市場攻擊分數會反映在 Tab7 指揮中心的「🗡️ 攻擊引擎總覽」（下次切換到該頁或重新整理時更新）。"
+    )
 
     st.markdown("---")
     st.markdown(
@@ -6595,6 +6757,10 @@ with tab4:
                     _ab_action = "👁️ 持續追蹤，等待更好的切入點"
                     _ab_ac     = "#7fb3d3"
 
+                _ab_flag_html = (
+                    "　<span style='color:#ff4444;font-size:.8rem;'>" + _ab_flag + "</span>"
+                    if _ab_flag else ""
+                )
                 st.markdown(
                     f"<div style='border:1px solid #1e3a5f;border-left:3px solid {_ab_ac};"
                     f"border-radius:6px;padding:10px 14px;margin:6px 0;"
@@ -6602,7 +6768,7 @@ with tab4:
                     f"<b style='color:#e8f4fd;'>#{_ab_rank} {_ab_sid} {_ab_name}</b>"
                     f"　<span style='color:#9fb8d4;font-size:.85rem;'>"
                     f"Rex分數 {_ab_tot}/100</span>"
-                    f"{'　<span style="color:#ff4444;font-size:.8rem;">'+_ab_flag+'</span>' if _ab_flag else ''}"
+                    f"{_ab_flag_html}"
                     f"<br><span style='color:{_ab_ac};font-size:.88rem;'>{_ab_action}</span>"
                     f"</div>",
                     unsafe_allow_html=True
@@ -7995,6 +8161,116 @@ with tab7:
     _pf      = load_portfolio()
     _trd     = load_trades()
     _nm_map  = get_stock_name_map()  # {stock_id: stock_name}
+
+    # ══════════════════════════════════════════════════════════
+    # ▌ 攻擊引擎主畫面（第一階段骨架，見 attack_engine.py）
+    #   證據來源（Tab1大盤估值/技術/籌碼、Tab2產業、Tab10財報、
+    #   Tab11產業圖譜）尚未串接，這裡是「誠實的空狀態」骨架：
+    #   分數會隨 Phase 4/5 陸續接上真實證據而自動變化，
+    #   不需要再改這段 UI 程式碼。
+    # ══════════════════════════════════════════════════════════
+    st.markdown("<div class='sec-title'>🗡️ 攻擊引擎總覽</div>", unsafe_allow_html=True)
+
+    _ae_market = attack_engine.refresh_attack_score("market")
+    _ae_chg7   = attack_engine.get_score_change("market", 7)
+    _ae_chg30  = attack_engine.get_score_change("market", 30)
+
+    if not _ae_market["data_sufficient"]:
+        st.warning(
+            "⚠️ 攻擊引擎尚未接收任何證據（Tab1/Tab2/Tab10/Tab11 證據串接為後續階段工作），"
+            "目前市場攻擊狀態固定顯示為『防守 · 0分』，這是預期中的空狀態，不是錯誤。"
+        )
+
+    # ── 區塊一：市場攻擊狀態
+    _ae_m1, _ae_m2, _ae_m3, _ae_m4 = st.columns(4)
+    _ae_m1.metric("市場攻擊總分", f"{_ae_market['total_score']:.0f} / 100", _ae_market["stage"])
+    _ae_m2.metric("今日", _ae_market["stage"])
+    _ae_m3.metric("7日變化", "—" if _ae_chg7 is None else f"{_ae_chg7:+.1f}")
+    _ae_m4.metric("30日變化", "—" if _ae_chg30 is None else f"{_ae_chg30:+.1f}")
+
+    # ── 區塊二：四大分數卡
+    _ae_bd = _ae_market["breakdown"]
+    _ae_c1, _ae_c2, _ae_c3, _ae_c4 = st.columns(4)
+    for _ae_col, _ae_key, _ae_label in zip(
+        (_ae_c1, _ae_c2, _ae_c3, _ae_c4),
+        ("fundamental", "valuation", "price", "chips"),
+        ("基本面完整度", "估值風險釋放", "價格確認", "籌碼改善"),
+    ):
+        _ae_item = _ae_bd[_ae_key]
+        with _ae_col:
+            st.metric(_ae_label, f"{_ae_item['score']:.0f} / {_ae_item['max']}")
+            with st.expander("明細"):
+                if _ae_item["evidence"]:
+                    for _ae_eid in _ae_item["evidence"]:
+                        st.caption(f"• {_ae_eid}")
+                else:
+                    st.caption("尚無證據（待後續階段串接真實資料來源）")
+
+    # ── 區塊三：硬性否決
+    if _ae_market["hard_veto"]:
+        st.error("🚫 市場層級硬性否決已觸發，攻擊分數上限鎖定為 49 分，禁止進入第一擊以上階段。")
+        for _ae_r in _ae_market["veto_reasons"]:
+            st.caption(f"　└ {_ae_r['category']}：{_ae_r['reason']}（{_ae_r['source']}, {_ae_r['date']}）")
+    else:
+        st.success("✅ 目前無市場層級硬性否決。")
+
+    st.markdown("---")
+
+    # ── 區塊四：持倉攻擊矩陣
+    st.markdown("#### 🧭 持倉攻擊矩陣")
+    if not _pf:
+        st.info("📭 目前無持倉，無法產生持倉攻擊矩陣。")
+    else:
+        try:
+            _ae_rex = json.load(open(os.path.join(DATA_DIR, "rex_scores.json"), encoding="utf-8"))
+            _ae_rex_map = {s["stock_id"]: s for s in _ae_rex.get("scores", [])}
+        except Exception:
+            _ae_rex_map = {}
+
+        _ae_rows = []
+        for _ae_sid, _ae_pos in _pf.items():
+            _ae_qty = int(_ae_pos.get("qty", 0))
+            if _ae_qty <= 0:
+                continue
+            _ae_stock_score = attack_engine.calculate_stock_attack_state(_ae_sid)
+            _ae_king = _ae_rex_map.get(_ae_sid, {})
+            if _ae_stock_score["hard_veto"]:
+                _ae_bucket = "硬性否決禁止抄底"
+            elif not _ae_stock_score["data_sufficient"]:
+                _ae_bucket = "資料不足"
+            elif _ae_stock_score["stage"] in ("第一擊", "確認進攻", "趨勢攻擊"):
+                _ae_bucket = "長期王者且可攻擊" if _ae_king.get("stock_class") == "King" else "非核心持股"
+            else:
+                _ae_bucket = "長期王者但尚未到買點" if _ae_king.get("stock_class") == "King" else "基本面未壞但價格未止穩"
+            _ae_rows.append({
+                "代號": _ae_sid,
+                "名稱": _nm_map.get(_ae_sid, "—"),
+                "分類": _ae_bucket,
+                "王者評分": _ae_king.get("king_total", "—"),
+                "攻擊分數": _ae_stock_score["total_score"],
+                "攻擊階段": _ae_stock_score["stage"],
+                "建議動作": "資料不足，暫不建議" if not _ae_stock_score["data_sufficient"] else "—",
+            })
+        if _ae_rows:
+            st.dataframe(pd.DataFrame(_ae_rows), use_container_width=True, hide_index=True)
+
+    # ── 區塊五：今日攻擊候選（需 Tab6 新星池 + 完整證據後才會有真正候選）
+    st.markdown("#### 🎯 今日攻擊候選")
+    st.caption("尚無候選：候選名單需等待證據串接（Tab2/Tab10/Tab11）與 Tab6 新星池升級邏輯完成後才會產生，避免用不完整資料誤導。")
+
+    # ── 區塊六：證據衝突（僅對目前持倉檢查）
+    if _pf:
+        _ae_conflicts = []
+        for _ae_sid in _pf.keys():
+            _ae_conf, _ae_msg = attack_engine.detect_evidence_conflict(_ae_sid)
+            if _ae_conf:
+                _ae_conflicts.append((_ae_sid, _ae_msg))
+        if _ae_conflicts:
+            st.markdown("#### ⚖️ 證據衝突")
+            for _ae_sid, _ae_msg in _ae_conflicts:
+                st.warning(f"{_ae_sid} {_nm_map.get(_ae_sid, '')}：{_ae_msg}")
+
+    st.markdown("---")
 
     # ── 初始資金設定（若尚未設定，顯示輸入框）
     if _acct.get("initial_capital", 0) == 0:
