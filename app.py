@@ -4703,6 +4703,140 @@ with tab1:
 # ▌ TAB 6：每日作戰總部（MTFA 專屬報告）
 # ──────────────────────────────────────────────────────────────
 with tab2:
+    # ══════════════════════════════════════════════════════════════
+    # ▌ 產業基本面燈號（V7 攻擊引擎 · 產業趨勢證據來源）
+    #   發現：本Tab（UI標籤「🌱 產業趨勢」）原本畫面內容其實是舊版
+    #   「MTFA 狙擊報告」（個股層級的日內警示），並非產業層級判斷。
+    #   保留原內容於下方，這裡新增真正的產業層級模組，沿用 Tab11
+    #   知識圖譜既有的 8 大 Topic 分類（AI_DC/CS/EDGE/MOBILITY/
+    #   POWER/ROBOT/SEMI/WATER），不另建一套新分類。
+    #   TAM/CAPEX/訂單能見度/庫存/產能利用率/客戶展望等屬於分析師
+    #   判斷，無官方即時API，故採人工評估＋證據登記，非全自動。
+    # ══════════════════════════════════════════════════════════════
+    st.markdown("<div class='sec-title'>🌱 產業基本面燈號</div>", unsafe_allow_html=True)
+    st.caption(
+        "每個 Topic 每次更新都會登記一筆『industry』類證據到攻擊引擎，"
+        "供之後 Tab3/Tab11 串接個股基本面分數使用（本階段先建立資料結構與登記機制）。"
+    )
+
+    _IT_PATH = os.path.join(DATA_DIR, "industry_trend.json")
+    _IT_TOPICS = ["AI_DC", "CS", "EDGE", "MOBILITY", "POWER", "ROBOT", "SEMI", "WATER"]
+    _IT_LABELS = {
+        "AI_DC": "AI 資料中心", "CS": "通訊／連接", "EDGE": "邊緣運算",
+        "MOBILITY": "移動載具", "POWER": "電力設備", "ROBOT": "機器人自動化",
+        "SEMI": "半導體／先進封裝", "WATER": "水資源／純水",
+    }
+    _IT_STATUS_OPTIONS = ["需求加速", "需求成長", "成長減速", "估值修正", "景氣反轉", "證據不足"]
+    _IT_CAPEX_OPTIONS = ["真正擴產", "產線轉換", "製程升級", "維持性資本支出", "新產品導入", "折舊壓力", "不適用"]
+
+    def _it_load():
+        if os.path.exists(_IT_PATH):
+            try:
+                with open(_IT_PATH, "r", encoding="utf-8") as _f:
+                    return json.load(_f)
+            except Exception:
+                return {}
+        return {}
+
+    def _it_save(data):
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(_IT_PATH, "w", encoding="utf-8") as _f:
+            json.dump(data, _f, ensure_ascii=False, indent=2)
+
+    _it_data = _it_load()
+
+    _it_pick = st.selectbox(
+        "選擇要評估／更新的產業 Topic",
+        _IT_TOPICS, format_func=lambda t: f"{t}（{_IT_LABELS.get(t, t)}）", key="it_topic_pick"
+    )
+    _it_cur = _it_data.get(_it_pick, {})
+
+    with st.form(key=f"it_form_{_it_pick}"):
+        _it_c1, _it_c2 = st.columns(2)
+        with _it_c1:
+            _it_status = st.selectbox(
+                "產業狀態", _IT_STATUS_OPTIONS,
+                index=_IT_STATUS_OPTIONS.index(_it_cur.get("status", "證據不足"))
+                if _it_cur.get("status") in _IT_STATUS_OPTIONS else 5,
+                key="it_status_input",
+                help="估值修正≠景氣反轉：股價跌不代表產業真的變差，請分開判斷"
+            )
+        with _it_c2:
+            _it_capex = st.selectbox(
+                "CAPEX雷達分類", _IT_CAPEX_OPTIONS,
+                index=_IT_CAPEX_OPTIONS.index(_it_cur.get("capex_class", "不適用"))
+                if _it_cur.get("capex_class") in _IT_CAPEX_OPTIONS else 6,
+                key="it_capex_input",
+                help="CAPEX增加不等於正面，要分辨是真擴產還是維持性支出"
+            )
+
+        _it_demand = st.text_input("需求成長率／TAM趨勢", value=_it_cur.get("demand_note", ""), key="it_demand_input")
+        _it_order = st.text_input("訂單能見度", value=_it_cur.get("order_visibility", ""), key="it_order_input")
+        _it_inv_util = st.columns(2)
+        _it_inventory = _it_inv_util[0].text_input("庫存風險", value=_it_cur.get("inventory_risk", ""), key="it_inv_input")
+        _it_utilization = _it_inv_util[1].text_input("產能利用率", value=_it_cur.get("utilization", ""), key="it_util_input")
+        _it_outlook = st.text_input("客戶展望", value=_it_cur.get("customer_outlook", ""), key="it_outlook_input")
+        _it_support = st.text_area("主要支持證據", value=_it_cur.get("support_evidence", ""), key="it_support_input", height=60)
+        _it_counter = st.text_area("主要反證", value=_it_cur.get("counter_evidence", ""), key="it_counter_input", height=60)
+        _it_expiry_days = st.number_input("證據有效天數", min_value=1, max_value=180,
+                                           value=int(_it_cur.get("ttl_days", 30)), key="it_ttl_input")
+
+        _it_submitted = st.form_submit_button("💾 儲存本產業評估")
+
+    if _it_submitted:
+        _today_it = datetime.now().strftime("%Y-%m-%d")
+        _it_data[_it_pick] = {
+            "status": _it_status, "capex_class": _it_capex,
+            "demand_note": _it_demand, "order_visibility": _it_order,
+            "inventory_risk": _it_inventory, "utilization": _it_utilization,
+            "customer_outlook": _it_outlook, "support_evidence": _it_support,
+            "counter_evidence": _it_counter, "ttl_days": int(_it_expiry_days),
+            "updated_at": _today_it,
+        }
+        _it_save(_it_data)
+
+        # 狀態 → score_ratio 對照（估值修正與景氣反轉分開處理，不可混為一談）
+        _it_ratio_map = {
+            "需求加速": 1.0, "需求成長": 0.8, "成長減速": 0.5,
+            "估值修正": 0.5, "景氣反轉": 0.15, "證據不足": 0.3,
+        }
+        _it_value = {
+            "score_ratio": _it_ratio_map.get(_it_status, 0.3),
+            "status": _it_status, "capex_class": _it_capex,
+            "demand_note": _it_demand, "order_visibility": _it_order,
+        }
+        if _it_status == "景氣反轉":
+            _it_value["veto"] = True
+            _it_value["veto_reason"] = f"{_IT_LABELS.get(_it_pick, _it_pick)} 產業判斷為景氣反轉"
+
+        attack_engine.register_evidence(
+            f"industry:{_it_pick}", "manual_assessment", category="industry",
+            value=_it_value, source="Rex人工評估", date=_today_it,
+            grade="D", ttl_days=int(_it_expiry_days),
+            note="人工判斷，尚待Tab3/Tab11串接個股基本面分數時使用"
+        )
+        st.success(f"已儲存 {_it_pick} 的產業評估，並登記為攻擊引擎證據（D級，{_it_expiry_days}天後過期）。")
+        st.rerun()
+
+    # 現況總覽表
+    if _it_data:
+        _it_rows = []
+        for _t in _IT_TOPICS:
+            _rec = _it_data.get(_t)
+            if not _rec:
+                continue
+            _it_rows.append({
+                "Topic": _t, "產業": _IT_LABELS.get(_t, _t),
+                "狀態": _rec.get("status", "—"), "CAPEX分類": _rec.get("capex_class", "—"),
+                "更新日期": _rec.get("updated_at", "—"),
+            })
+        if _it_rows:
+            st.dataframe(pd.DataFrame(_it_rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("尚無任何產業評估紀錄，請從上方選一個 Topic 開始評估。")
+
+    st.markdown("---")
+
     st.markdown("<div class='sec-title'>📝 每日作戰總部 · MTFA 狙擊報告</div>",
                 unsafe_allow_html=True)
 
