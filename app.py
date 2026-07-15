@@ -3365,6 +3365,8 @@ with tab1:
                     "中位數算法權重相等會被中小型股拉低，通常比真正的加權指數本益比低一截，"
                     "不能直接當「官方大盤本益比」用，請查TWSE正式數字手動輸入。"
                 )
+            else:
+                st.caption(f"⚠️ TWSE OpenAPI自動抓取失敗（{_pe_proxy.get('status','—')}），僅供參考的中位數暫時無法顯示。")
 
             if st.button("🔄 自動抓取目前大盤本益比", key="btn_ai_search_pe"):
                 with st.spinner("抓取中..."):
@@ -3393,8 +3395,6 @@ with tab1:
                         st.warning(f"AI搜尋也未能取得明確數字：{_ai_pe_result.get('status', '—')}"
                                    + (f"（AI回覆：{_ai_pe_result.get('raw_text','')[:100]}）"
                                       if _ai_pe_result.get("raw_text") else ""))
-            else:
-                st.caption(f"⚠️ TWSE OpenAPI自動抓取失敗（{_pe_proxy.get('status','—')}），請手動輸入。")
 
         if _ae_index_now > 0 and _ae_pe_now > 0:
             _ae_earnings_base = _ae_index_now / _ae_pe_now
