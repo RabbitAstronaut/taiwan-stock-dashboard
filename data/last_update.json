@@ -3,6 +3,11 @@
   "stock_count": 2147,
   "mode": "每日更新（增量）",
   "modules": [
-    "chips"
+    "info",
+    "chips",
+    "financials",
+    "futures",
+    "shareholder",
+    "prices"
   ]
 }
