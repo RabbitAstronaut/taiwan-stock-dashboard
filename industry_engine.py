@@ -195,9 +195,11 @@ def fetch_monthly_revenue_yoy(stock_id, force=False):
     try:
         import requests
         start = (datetime.now() - timedelta(days=450)).strftime("%Y-%m-%d")
+        _fm_token = os.environ.get("FINMIND_TOKEN", "")
+        _headers = {"Authorization": f"Bearer {_fm_token}"} if _fm_token else {}
         r = requests.get(FINMIND_API, params={
             "dataset": "TaiwanStockMonthRevenue", "data_id": stock_id, "start_date": start
-        }, timeout=10)
+        }, headers=_headers, timeout=10)
         d = r.json()
         rows = d.get("data") if d.get("status") == 200 else None
         if not rows:

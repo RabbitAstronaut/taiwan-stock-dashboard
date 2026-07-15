@@ -26,6 +26,7 @@ warnings.filterwarnings("ignore")
 import attack_engine  # V7 攻擊引擎核心計算層（第一階段，見 attack_engine.py）
 import market_events   # V7 攻擊引擎：盤中價格行為/布林擴張/期貨曝險/證據衝突（見 market_events.py）
 import industry_engine  # V7 攻擊引擎：自動產業情報層（見 industry_engine.py）
+import stock_decision   # V7 統一決策資料結構：王者品質/研究優先分/攻擊時機分分開（見 stock_decision.py）
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 
@@ -40,6 +41,16 @@ def get_secret(key, default=""):
         return st.secrets.get(key, default)
     except Exception:
         return default
+
+
+# 把FINMIND_TOKEN從Streamlit secrets注入os.environ，讓industry_engine.py這種
+# 沒有st.secrets存取權的純Python模組也能讀到同一把Token（600次/小時額度），
+# 不用每個模組各自處理secrets讀取邏輯。若os.environ已經有值（例如本機用
+# set FINMIND_TOKEN=... 設定過）則不覆蓋，保留本機測試時的手動設定優先。
+if not os.environ.get("FINMIND_TOKEN"):
+    _fm_token_from_secrets = get_secret("FINMIND_TOKEN", "")
+    if _fm_token_from_secrets:
+        os.environ["FINMIND_TOKEN"] = _fm_token_from_secrets
 
 
 def get_stock_topics_map():
@@ -493,7 +504,7 @@ def check_anomaly_variant(
 
 
 # ══════════════════════════════════════════════════════════════
-# ▌ Rex Priority Score 排序引擎
+# ▌ Rex Research Priority 排序引擎
 # ──────────────────────────────────────────────────────────────
 # 設計說明：
 #   本模組是「注意力分配工具」，不是買進訊號。
@@ -888,7 +899,7 @@ def calc_rex_priority_scores(reserve_ids: tuple, market_signal: str = "🟡",
     results.sort(key=lambda x: (-x["total"], x["stock_id"]))
     return results
     """
-    對戰略儲備庫全部標的計算 Rex Priority Score。
+    對戰略儲備庫全部標的計算 Rex Research Priority。
     依股票分級（King/Prince/Hunter）套用不同評分權重。
     快取30分鐘，避免每次刷新都重算。
 
@@ -5792,12 +5803,12 @@ with tab3:
                 unsafe_allow_html=True)
     st.markdown(
         "<div class='infobox'>存放值得長期等待的優質標的。"
-        "Rex Priority Score 每日自動排名，告訴你今天最值得關注哪幾檔。</div>",
+        "Rex Research Priority 每日自動排名，告訴你今天最值得關注哪幾檔。</div>",
         unsafe_allow_html=True
     )
 
     # ══════════════════════════════════════════════════════════════
-    # ▌ Phase 3：產業景氣燈號（手動標記，影響 Rex Priority Score）
+    # ▌ Phase 3：產業景氣燈號（手動標記，影響 Rex Research Priority）
     # 每月更新一次，反映你對產業週期的主觀判斷
     # ══════════════════════════════════════════════════════════════
     with st.expander("🌐 產業景氣燈號（每月人工標記一次）", expanded=False):
@@ -5850,17 +5861,18 @@ with tab3:
     st.markdown("---")
 
     # ══════════════════════════════════════════════════════════════
-    # ▌ Rex Priority Score — 今日優先研究 TOP 5
+    # ▌ Rex Research Priority — 今日優先研究 TOP 5
     # 注意力排序工具，不是買進訊號。
     # 回答：「今天我應該把研究時間花在哪幾檔？」
     # ══════════════════════════════════════════════════════════════
     # ══════════════════════════════════════════════════════════════
     # ▌ King Discount Monitor（王者折扣監視器）
-    # 每天只需掃一眼：哪些王者開始打折？
-    # 不是找最低點，而是知道哪些王者值得重新研究
+    # 定位：重新研究與重新估值觸發器。只能提升研究優先度、建立重新
+    # 估值事件、提供攻擊引擎部分估值資料，不得直接產生買進建議。
     # ══════════════════════════════════════════════════════════════
-    with st.expander("👑 King Discount Monitor｜王者折扣監視器", expanded=True):
-        st.caption("追蹤 King 類股距離近期高點的折扣幅度。打折不代表可以買，代表值得重新研究。")
+    with st.expander("👑 King Discount Monitor｜重新研究與重新估值觸發器", expanded=True):
+        st.caption("追蹤 King 類股距離近期高點的折扣幅度。折扣只會觸發「重新研究」或「重新估值」，"
+                   "不會直接產生買進建議——買進判斷一律以Tab7攻擊引擎的攻擊時機分與硬性否決為準。")
 
         # 取得King類股清單
         _kdm_kings = [
@@ -5925,6 +5937,28 @@ with tab3:
                         else "rgba(255,165,0,0.08)" if _kr["signal"] == "🟠"
                         else "rgba(255,200,0,0.05)" if _kr["signal"] == "🟡"
                         else "rgba(255,255,255,0.02)")
+
+                # 規格第六節要求的四個欄位：只對進入重新研究/重新估值(🟠/🔴)的股票才查，
+                # 避免每檔都重算攻擊分數拖慢頁面
+                _extra_html = ""
+                if _kr["signal"] in ("🟠", "🔴"):
+                    try:
+                        _kdm_decision = stock_decision.build_stock_decision(_kr["id"])
+                        _in_attack = _kdm_decision["attack_stage"] not in ("防守", "攻擊準備")
+                        _attack_note = (f"已進入攻擊條件（{_kdm_decision['attack_stage']}，見Tab7）"
+                                       if _in_attack else "僅為研究事件，尚未進入攻擊條件")
+                        _val_evs = attack_engine.get_valid_evidence(_kr["id"], category="valuation")
+                        _val_note = "估值資料可用" if _val_evs else "本益比/估值資料尚未接入，需靠Tab10財報研究補齊"
+                        _extra_html = (
+                            f"<div style='font-size:.78rem;color:#7fb3d3;margin-top:4px;"
+                            f"border-top:1px dashed rgba(255,255,255,0.1);padding-top:4px;'>"
+                            f"觸發原因：距高點{_kr['discount']:+.1f}%　｜　{_attack_note}<br>"
+                            f"{_val_note}　｜　尚缺確認條件：{_kdm_decision['next_trigger']}"
+                            f"</div>"
+                        )
+                    except Exception:
+                        pass
+
                 _col.markdown(
                     f"<div style='padding:8px 12px;margin:4px 0;border-radius:6px;"
                     f"background:{_bg};border:1px solid #1e3a5f;'>"
@@ -5935,7 +5969,7 @@ with tab3:
                     f"<span style='font-size:.85rem;'>{_kr['signal']} {_kr['label']}</span>"
                     f"　<span style='color:#9fb8d4;font-size:.8rem;'>"
                     f"距高點 {_kr['discount']:+.1f}%　月乖離 {_kr['bias']:+.1f}%"
-                    f"</span></div>",
+                    f"</span>{_extra_html}</div>",
                     unsafe_allow_html=True
                 )
 
@@ -5948,10 +5982,9 @@ with tab3:
 
     st.markdown("---")
 
-    with st.expander("🏆 Rex Priority Score｜今日優先研究排行榜", expanded=True):
+    with st.expander("🏆 Rex Research Priority｜今日研究優先分排行榜", expanded=True):
         st.caption(
-            "⚠️ Rex Priority Score 是注意力排序工具，不是買進訊號。"
-            "告訴你「今天最值得研究哪幾檔」，不告訴你「今天要買哪幾檔」。"
+            f"⚠️ {stock_decision.RESEARCH_PRIORITY_DISCLAIMER}"
         )
 
         if not st.session_state.get("reserve_list"):
@@ -5988,7 +6021,7 @@ with tab3:
             _rex_nm  = {item["id"]: item.get("name", item["id"])
                         for item in st.session_state.reserve_list}
 
-            with st.spinner("計算 Rex Priority Score 中..."):
+            with st.spinner("計算 Rex Research Priority 中..."):
                 _rex_class_map = tuple(
                     (item["id"], item.get("class", "Prince"))
                     for item in st.session_state.reserve_list
@@ -6000,15 +6033,16 @@ with tab3:
             if not _rex_scores:
                 st.warning("資料不足，無法計算評分。請確認 K線/財報/籌碼資料已更新。")
             else:
-                # ── 市場環境燈號顯示
+                # ── 市場環境燈號顯示（整個TOP5清單只顯示一次，不逐檔重複）
                 _rex_mkt_txt = {"🟢": "適合布局", "🟡": "謹慎觀望", "🔴": "縮手防守"}
                 st.markdown(
-                    f"<div style='font-size:.85rem;color:#9fb8d4;margin-bottom:12px;'>"
+                    f"<div style='font-size:.85rem;color:#9fb8d4;margin-bottom:4px;'>"
                     f"市場環境：{_rex_mkt_sig} {_rex_mkt_txt.get(_rex_mkt_sig,'—')}"
-                    f"　｜　環境分：{_rex_market_score(_rex_mkt_sig)}/20"
+                    f"　｜　共同市場條件分：{_rex_market_score(_rex_mkt_sig)}/20"
                     f"　｜　共 {len(_rex_scores)} 檔參與排名</div>",
                     unsafe_allow_html=True
                 )
+                st.caption(f"⚠️ {stock_decision.RESEARCH_PRIORITY_DISCLAIMER}")
 
                 # ── TOP 5 卡片
                 _top5 = _rex_scores[:5]
@@ -6021,10 +6055,10 @@ with tab3:
                     _cls_icon = {"King": "👑", "Prince": "🛡", "Hunter": "⚔"}.get(_cls, "🛡")
                     _cls_color = {"King": "#ffd700", "Prince": "#a8d8ea", "Hunter": "#ff9f7f"}.get(_cls, "#a8d8ea")
 
-                    # 總分燈號
-                    if _tot >= 75:   _tc, _tl = "#ff6b6b", "🔴 高度優先"
-                    elif _tot >= 60: _tc, _tl = "#fbbf24", "🟡 次要優先"
-                    else:            _tc, _tl = "#7fb3d3", "⚪ 觀察中"
+                    # 總分燈號（改名：高度優先/次要優先 → 優先研究/次序研究，避免被誤解為買進優先度）
+                    if _tot >= 75:   _tc, _tl = "#ff6b6b", "🔴 優先研究"
+                    elif _tot >= 60: _tc, _tl = "#fbbf24", "🟡 次序研究"
+                    else:            _tc, _tl = "#7fb3d3", "⚪ 正常追蹤"
 
                     # 旗標樣式
                     _flag_html = ""
@@ -6054,11 +6088,10 @@ with tab3:
                         f"</div>"
                         f"{_flag_html}"
 
-                        # 三層分數條
+                        # 兩層分數條（王者品質 + 價格機會；市場環境分已在上方顯示一次，不重複列在每張卡片）
                         f"<div style='display:flex;gap:16px;margin:10px 0 6px;font-size:.82rem;'>"
-                        f"<span style='color:#a8d8ea;'>👑 王者 {_rs['king_total']}/40</span>"
-                        f"<span style='color:#ffd700;'>⚔️ 攻擊 {_rs['attack_total']}/40</span>"
-                        f"<span style='color:#90ee90;'>🌡️ 環境 {_rs['mkt_score']}/20</span>"
+                        f"<span style='color:#a8d8ea;'>👑 王者品質 {_rs['king_total']}/40</span>"
+                        f"<span style='color:#ffd700;'>💰 價格機會 {_rs['attack_total']}/40</span>"
                         f"</div>"
 
                         # 王者分數明細
@@ -6074,10 +6107,10 @@ with tab3:
                         f"大戶趨勢 {_rs['holder_score']}/5（{_rs['holder_trend']}）"
                         f"</div>"
 
-                        # 攻擊分數明細
+                        # 價格機會分數明細（舊稱「攻擊分數」，正式更名避免與100分制攻擊引擎衝突）
                         f"<div style='font-size:.78rem;color:#9fb8d4;line-height:1.8;"
                         f"margin-top:4px;'>"
-                        f"<b style='color:#ffd700;'>⚔️ 攻擊分數</b>　"
+                        f"<b style='color:#ffd700;'>💰 價格機會分數</b>　"
                         f"支撐位置 {_rs['support_score']}/10（{_rs['support_detail']}）　"
                         f"MA結構 {_rs['ma_score']}/10（{_rs['ma_detail']}）　"
                         f"MOM動能 {_rs['mom_score']}/10（{_rs['mom_detail'][:25]}...）　"
@@ -7037,7 +7070,7 @@ with tab4:
     st.markdown("<div class='sec-title'>🎯 今日行動建議</div>", unsafe_allow_html=True)
     st.markdown(
         "<div class='infobox'>"
-        "整合市場溫度計 × Rex Priority Score × 持倉現況，"
+        "整合市場溫度計 × Rex Research Priority × 持倉現況，"
         "回答今天最值得行動的事。"
         "<br><b>這不是買進訊號，是今天應該把注意力放在哪裡的行動清單。</b>"
         "</div>",
@@ -7046,7 +7079,7 @@ with tab4:
 
     # ══════════════════════════════════════════════════════════════
     # ▌ 市場層級攻擊引擎提醒（Part A）：單日V形反彈不得直接視為進場訊號
-    #   下方既有的個股 Today's Focus / Rex Priority Score 邏輯不受影響，
+    #   下方既有的個股 Today's Focus / Rex Research Priority 邏輯不受影響，
     #   這裡只加一個市場層級的守門提醒。
     # ══════════════════════════════════════════════════════════════
     try:
@@ -7068,7 +7101,49 @@ with tab4:
         pass
 
     # ══════════════════════════════════════════════════════════════
-    # ▌ Today's Focus（每天只看這裡，3檔，30秒決定今天研究誰）
+    # ▌ B. 攻擊候選（只依正式攻擊時機分排序，不與研究佇列混在一起）
+    # ══════════════════════════════════════════════════════════════
+    st.markdown("#### ⚔️ 攻擊候選")
+    st.caption("只依攻擊引擎的100分制攻擊時機分排序，跟下面的「研究佇列」是兩回事——"
+               "研究佇列告訴你今天先看誰，這裡才是真正有機會進場的候選名單。")
+    try:
+        _t4_reserve_ids = [item["id"] for item in st.session_state.get("reserve_list", [])]
+        _t4_candidates = []
+        for _t4_sid in _t4_reserve_ids:
+            _t4_dec = stock_decision.build_stock_decision(_t4_sid)
+            if _t4_dec["attack_score"] >= 40 and not _t4_dec["hard_veto"]:
+                _t4_candidates.append(_t4_dec)
+        _t4_candidates.sort(key=lambda d: -d["attack_score"])
+
+        if not _t4_candidates:
+            st.info("目前沒有股票的攻擊時機分達到40分（攻擊準備）以上，暫無攻擊候選。"
+                    "這是誠實的空狀態——攻擊引擎的個股基本面證據仍主要來自Tab10已研究過的股票。")
+        else:
+            for _t4_c in _t4_candidates[:5]:
+                _t4_stage_color = {
+                    "攻擊準備": "#fbbf24", "第一擊": "#00d4ff",
+                    "確認進攻": "#00e676", "趨勢攻擊": "#ffd700",
+                }.get(_t4_c["attack_stage"], "#7fb3d3")
+                st.markdown(
+                    f"<div style='border-left:4px solid {_t4_stage_color};border-radius:6px;"
+                    f"padding:10px 14px;margin:6px 0;background:rgba(255,255,255,0.02);'>"
+                    f"<b style='color:#e8f4fd;'>{_t4_c['ticker']} {_t4_c['name']}</b>　"
+                    f"<span style='color:{_t4_stage_color};font-weight:600;'>"
+                    f"{_t4_c['attack_score']:.0f}/100　{_t4_c['attack_stage']}</span>　"
+                    f"<span style='color:#00e676;'>建議動作：{_t4_c['recommended_action']}</span><br>"
+                    f"<span style='color:#9fb8d4;font-size:.82rem;'>"
+                    f"建議部位：{_t4_c['position_limit']}　｜　"
+                    f"下一觸發：{_t4_c['next_trigger']}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+    except Exception as _t4_e:
+        st.caption(f"攻擊候選計算時發生問題：{_t4_e}")
+
+    st.markdown("---")
+
+    # ══════════════════════════════════════════════════════════════
+    # ▌ C. 今日優先研究佇列（原名 Today's Focus，每天只看這裡，3檔，30秒決定今天研究誰）
     # ══════════════════════════════════════════════════════════════
     try:
         _tf_reserve = st.session_state.get("reserve_list", [])
@@ -7081,7 +7156,7 @@ with tab4:
                 pass
 
         if _tf_reserve:
-            # 計算 Rex Priority Score（用快取結果）
+            # 計算 Rex Research Priority（用快取結果）
             _tf_ids = tuple(i["id"] for i in _tf_reserve)
             _tf_nm  = {i["id"]: i.get("name", i["id"]) for i in _tf_reserve}
             _tf_cls = {i["id"]: i.get("class", "Prince") for i in _tf_reserve}
@@ -7125,17 +7200,18 @@ with tab4:
                 if len(_tf_focus) >= 3:
                     break
 
-            # 渲染 Today's Focus
+            # 渲染「今日優先研究佇列」（原名 Today's Focus，改名避免與攻擊候選混淆）
             _tf_date = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d")
             st.markdown(
                 f"<div style='background:linear-gradient(135deg,#0b3d5c,#0d4a6e);"
                 f"border-radius:10px;padding:16px 20px;margin:12px 0;'>"
                 f"<div style='font-size:1.15rem;font-weight:700;color:#e8f4fd;"
-                f"margin-bottom:12px;'>📌 Today's Focus　"
+                f"margin-bottom:12px;'>📌 今日優先研究佇列　"
                 f"<span style='font-size:.85rem;color:#7fb3d3;font-weight:400;'>"
-                f"{_tf_date}　今天值得研究的股票</span></div>",
+                f"{_tf_date}　今天值得研究的股票（不是買進清單）</span></div>",
                 unsafe_allow_html=True
             )
+            st.caption(f"⚠️ {stock_decision.RESEARCH_PRIORITY_DISCLAIMER}")
 
             for _tf_rank, _tfs in enumerate(_tf_focus, 1):
                 _tf_sid  = _tfs["stock_id"]
@@ -7154,7 +7230,7 @@ with tab4:
                     _tf_why   = f"王者開始回落 {_tf_bias:+.1f}%，值得開始追蹤"
                 elif _tfs.get("attack_total", 0) >= 28:
                     _tf_stage = "🎯 技術面就位"
-                    _tf_why   = f"攻擊分 {_tfs['attack_total']}/40，位置接近布局區"
+                    _tf_why   = f"價格機會分 {_tfs['attack_total']}/40，位置接近布局區"
                 else:
                     _tf_stage = "👀 持續追蹤"
                     _tf_why   = f"Priority Score {_tf_tot}分，今日排名靠前"
@@ -7179,7 +7255,7 @@ with tab4:
         pass
 
     st.markdown("---")
-    # 邏輯：市場溫度計 × Rex Priority Score TOP5 × 持倉異常警示
+    # 邏輯：市場溫度計 × Rex Research Priority TOP5 × 持倉異常警示
     # ══════════════════════════════════════════════════════════════
     try:
         # ── 市場環境
@@ -7219,7 +7295,7 @@ with tab4:
             unsafe_allow_html=True
         )
 
-        # ── Rex Priority Score TOP5
+        # ── Rex Research Priority TOP5
         if st.session_state.get("reserve_list"):
             _ab_ids   = tuple(i["id"] for i in st.session_state.reserve_list)
             _ab_nm    = {i["id"]: i.get("name", i["id"]) for i in st.session_state.reserve_list}
@@ -7329,14 +7405,14 @@ with tab4:
         st.markdown(
             "<div style='color:#7fb3d3;font-size:.88rem;padding:8px 0;'>"
             "持倉中無異常警示的標的，維持原計畫，不需要任何操作。<br>"
-            "Rex Priority Score 排名後段的標的，今天不需要花時間研究。"
+            "Rex Research Priority 排名後段的標的，今天不需要花時間研究。"
             "</div>",
             unsafe_allow_html=True
         )
 
         st.markdown("---")
         st.caption(f"更新時間：{datetime.now(ZoneInfo('Asia/Taipei')).strftime('%H:%M')}　｜　"
-                   f"Rex Priority Score 快取30分鐘，市場環境即時計算")
+                   f"Rex Research Priority 快取30分鐘，市場環境即時計算")
 
     except Exception as _ab_err:
         st.error(f"今日行動建議計算中，請稍候... ({_ab_err})")
@@ -11500,15 +11576,19 @@ with tab10:
     st.markdown("<div class='sec-title'>🔬 財報研究中心</div>", unsafe_allow_html=True)
 
     FINMIND_API = "https://api.finmindtrade.com/api/v4/data"
+    # 【修正】原本呼叫FinMind完全沒帶Token，即使Rex已經有Token也只能用
+    # 免費版300次/小時額度。改成有Token就帶上，額度提升到600次/小時。
+    _fm_token_rc = get_secret("FINMIND_TOKEN", "") or os.environ.get("FINMIND_TOKEN", "")
 
     # ── FinMind 頂層快取函式（TTL 30分鐘，key=dataset+sid+start）
     @st.cache_data(ttl=1800, show_spinner=False)
     def _rc_fm_get(dataset, sid, start="2018-01-01"):
         try:
             import requests as _req
+            _headers = {"Authorization": f"Bearer {_fm_token_rc}"} if _fm_token_rc else {}
             _r = _req.get(FINMIND_API, params={
                 "dataset": dataset, "data_id": sid, "start_date": start
-            }, timeout=15)
+            }, headers=_headers, timeout=15)
             _d = _r.json()
             if _d.get("status") == 200 and _d.get("data"):
                 return pd.DataFrame(_d["data"]), None
