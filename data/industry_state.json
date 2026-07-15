@@ -1,0 +1,106 @@
+{
+  "AI_DATACENTER": {
+    "topic_id": "AI_DATACENTER",
+    "auto_state": "需求加速",
+    "display_state": "需求加速",
+    "confidence": "high",
+    "reasons": [
+      "營收年增中位數 17.59%，正成長比例 75%，符合需求加速門檻"
+    ],
+    "evidence_quality": 99,
+    "manual_override": null,
+    "prev_state": "需求加速",
+    "updated_at": "2026-07-15 15:06:19"
+  },
+  "SEMI": {
+    "topic_id": "SEMI",
+    "auto_state": "需求加速",
+    "display_state": "需求加速",
+    "confidence": "high",
+    "reasons": [
+      "營收年增中位數 27.85%，正成長比例 86%，符合需求加速門檻"
+    ],
+    "evidence_quality": 96,
+    "manual_override": null,
+    "prev_state": "需求加速",
+    "updated_at": "2026-07-15 15:06:19"
+  },
+  "CONN_SPACE": {
+    "topic_id": "CONN_SPACE",
+    "auto_state": "需求成長",
+    "display_state": "需求成長",
+    "confidence": "medium",
+    "reasons": [
+      "營收年增中位數 12.23%（正成長），但未達加速門檻（15.0%）"
+    ],
+    "evidence_quality": 100,
+    "manual_override": null,
+    "prev_state": "需求成長",
+    "updated_at": "2026-07-15 15:06:20"
+  },
+  "POWER_INFRA": {
+    "topic_id": "POWER_INFRA",
+    "auto_state": "需求成長",
+    "display_state": "需求成長",
+    "confidence": "medium",
+    "reasons": [
+      "營收年增中位數 8.31%（正成長），但未達加速門檻（15.0%）"
+    ],
+    "evidence_quality": 100,
+    "manual_override": null,
+    "prev_state": "需求成長",
+    "updated_at": "2026-07-15 15:06:20"
+  },
+  "WATER_ENV": {
+    "topic_id": "WATER_ENV",
+    "auto_state": "需求加速",
+    "display_state": "需求加速",
+    "confidence": "high",
+    "reasons": [
+      "營收年增中位數 18.1%，正成長比例 67%，符合需求加速門檻"
+    ],
+    "evidence_quality": 100,
+    "manual_override": null,
+    "prev_state": "需求加速",
+    "updated_at": "2026-07-15 15:06:20"
+  },
+  "ROBOT_AUTOMATION": {
+    "topic_id": "ROBOT_AUTOMATION",
+    "auto_state": "需求加速",
+    "display_state": "需求加速",
+    "confidence": "high",
+    "reasons": [
+      "營收年增中位數 45.25%，正成長比例 100%，符合需求加速門檻"
+    ],
+    "evidence_quality": 100,
+    "manual_override": null,
+    "prev_state": "需求加速",
+    "updated_at": "2026-07-15 15:06:20"
+  },
+  "EDGE_AI_DEVICE": {
+    "topic_id": "EDGE_AI_DEVICE",
+    "auto_state": "需求加速",
+    "display_state": "需求加速",
+    "confidence": "high",
+    "reasons": [
+      "營收年增中位數 28.78%，正成長比例 70%，符合需求加速門檻"
+    ],
+    "evidence_quality": 100,
+    "manual_override": null,
+    "prev_state": "需求加速",
+    "updated_at": "2026-07-15 15:06:20"
+  },
+  "SMART_MOBILITY": {
+    "topic_id": "SMART_MOBILITY",
+    "auto_state": "需求成長",
+    "display_state": "需求成長",
+    "confidence": "medium",
+    "reasons": [
+      "營收年增中位數 13.48%（正成長），但未達加速門檻（15.0%）"
+    ],
+    "evidence_quality": 100,
+    "manual_override": null,
+    "prev_state": "需求成長",
+    "updated_at": "2026-07-15 15:06:20"
+  }
+}

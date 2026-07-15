@@ -1,0 +1,62 @@
+{
+  "2026-07-15": {
+    "recovery": {
+      "score_ratio": 0.2,
+      "close": 45631.58984375,
+      "bb_mid": 46053.3880859375,
+      "lb2": 44481.88750314253,
+      "lb4": 42910.38692034756,
+      "recent_low": 35417.828125,
+      "below_lb2": false,
+      "intraday_reversal_state": "盤中完全反轉",
+      "bollinger_event_state": "通道內正常波動",
+      "lower_band_expanding": false,
+      "recovery_ratio": 147.4,
+      "close_location_value": 0.757,
+      "provisional_score_20": 4,
+      "is_provisional": true,
+      "price_score_detail": {
+        "intraday_acceptance": 3,
+        "back_inside_band": 1,
+        "low_confirmation": 0,
+        "trend_repair": 0,
+        "breadth_leaders": 0
+      }
+    },
+    "futures": {
+      "large_net_lots": -83390,
+      "small_net_lots": null,
+      "micro_net_lots": null,
+      "large_value_ntd": -761043655414.0625,
+      "small_value_ntd": null,
+      "micro_value_ntd": null,
+      "total_value_ntd": -761043655414.0625,
+      "large_equivalent_lots": -83390.0,
+      "large_change_lots": 0,
+      "small_change_lots": null,
+      "micro_change_lots": null,
+      "posture": "與前日持平",
+      "micro_available": false
+    },
+    "conflict": {
+      "state": "無明顯衝突",
+      "conflicts": [],
+      "settlement_day_flag": true
+    },
+    "price_score": {
+      "total": 4,
+      "is_provisional": true,
+      "detail": {
+        "intraday_acceptance": 3,
+        "back_inside_band": 1,
+        "low_confirmation": 0,
+        "trend_repair": 0,
+        "breadth_leaders": 0
+      }
+    },
+    "settlement": {
+      "date": "2026-07-15",
+      "weight": 0.6
+    }
+  }
+}

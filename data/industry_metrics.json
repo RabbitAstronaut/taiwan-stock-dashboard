@@ -1,0 +1,6468 @@
+{
+  "AI_DATACENTER": {
+    "topic_id": "AI_DATACENTER",
+    "total_count": 74,
+    "fundamental_sample": 73,
+    "revenue_yoy_median": 17.59,
+    "revenue_yoy_positive_ratio": 0.75,
+    "revenue_yoy_above10_ratio": 0.55,
+    "eps_yoy_median": 13.3,
+    "eps_yoy_positive_ratio": 0.73,
+    "gm_improve_ratio": 0.57,
+    "price_sample": 73,
+    "price_median_ret20": 0.1,
+    "price_median_ret60": 19.21,
+    "price_median_ret120": 34.33,
+    "dist_from_high_median": -18.26,
+    "above_ma20_ratio": 0.37,
+    "new_low_ratio_60d": 0.11,
+    "up20_ratio": 0.51,
+    "twii_ret60": 22.89,
+    "relative_strength_60d": -3.68,
+    "latest_price_date": "2026-07-14",
+    "is_price_stale": false,
+    "fund_rows": [
+      {
+        "stock_id": "2330",
+        "name": "台積電",
+        "revenue_yoy": 8.4,
+        "eps_yoy": 13.3,
+        "gm_direction": "up",
+        "king_total": 23,
+        "attack_total": 27,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "6669",
+        "name": "緯穎",
+        "revenue_yoy": -5.4,
+        "eps_yoy": 2.3,
+        "gm_direction": "up",
+        "king_total": 18,
+        "attack_total": 11,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2317",
+        "name": "鴻海",
+        "revenue_yoy": -18.7,
+        "eps_yoy": 6.2,
+        "gm_direction": "up",
+        "king_total": 13,
+        "attack_total": 19,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3037",
+        "name": "欣興",
+        "revenue_yoy": 7.9,
+        "eps_yoy": 37.4,
+        "gm_direction": "up",
+        "king_total": 29,
+        "attack_total": 17,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2454",
+        "name": "聯發科",
+        "revenue_yoy": -0.7,
+        "eps_yoy": 5.6,
+        "gm_direction": "up",
+        "king_total": 16,
+        "attack_total": 19,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "8299",
+        "name": "群聯",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 15,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "5289",
+        "name": "宜鼎",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 23,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2345",
+        "name": "智邦",
+        "revenue_yoy": -2.6,
+        "eps_yoy": -0.2,
+        "gm_direction": "up",
+        "king_total": 15,
+        "attack_total": 11,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2308",
+        "name": "台達電",
+        "revenue_yoy": -1.4,
+        "eps_yoy": 21.4,
+        "gm_direction": "up",
+        "king_total": 16,
+        "attack_total": 10,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2301",
+        "name": "光寶科",
+        "revenue_yoy": -2.1,
+        "eps_yoy": -2.2,
+        "gm_direction": "flat",
+        "king_total": 7,
+        "attack_total": 15,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3017",
+        "name": "奇鋐",
+        "revenue_yoy": 2.6,
+        "eps_yoy": 19.5,
+        "gm_direction": "up",
+        "king_total": 26,
+        "attack_total": 14,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3665",
+        "name": "貿聯-KY",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 9,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "8210",
+        "name": "勤誠",
+        "revenue_yoy": 5.4,
+        "eps_yoy": 23.1,
+        "gm_direction": "up",
+        "king_total": 20,
+        "attack_total": 22,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2059",
+        "name": "川湖",
+        "revenue_yoy": 10.1,
+        "eps_yoy": -0.8,
+        "gm_direction": "up",
+        "king_total": 16,
+        "attack_total": 25,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3131",
+        "name": "弘塑",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 21,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "6510",
+        "name": "精測",
+        "revenue_yoy": 13.5,
+        "eps_yoy": 19.7,
+        "gm_direction": "up",
+        "king_total": 25,
+        "attack_total": 20,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2383",
+        "name": "台光電",
+        "revenue_yoy": 32.7,
+        "eps_yoy": 42.9,
+        "gm_direction": "up",
+        "king_total": 32,
+        "attack_total": 21,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2404",
+        "name": "漢唐",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 7,
+        "attack_total": 21,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3533",
+        "name": "嘉澤",
+        "revenue_yoy": 0.7,
+        "eps_yoy": -5.4,
+        "gm_direction": "down",
+        "king_total": 11,
+        "attack_total": 2,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "6285",
+        "name": "啟碁",
+        "revenue_yoy": 7.9,
+        "eps_yoy": 14.7,
+        "gm_direction": "flat",
+        "king_total": 15,
+        "attack_total": 18,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "6187",
+        "name": "萬潤",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 10,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2382",
+        "name": "廣達",
+        "revenue_yoy": 102.87,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2356",
+        "name": "英業達",
+        "revenue_yoy": 61.62,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3711",
+        "name": "日月光投控",
+        "revenue_yoy": 32.86,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3443",
+        "name": "創意",
+        "revenue_yoy": 103.72,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3035",
+        "name": "智原",
+        "revenue_yoy": 26.57,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3661",
+        "name": "世芯-KY",
+        "revenue_yoy": 15.39,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "8046",
+        "name": "南電",
+        "revenue_yoy": 50.03,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2428",
+        "name": "興旺",
+        "revenue_yoy": 46.62,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3450",
+        "name": "聯鈞",
+        "revenue_yoy": 88.18,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4979",
+        "name": "華星光",
+        "revenue_yoy": 27.68,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3163",
+        "name": "波若威",
+        "revenue_yoy": -11.53,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3363",
+        "name": "上詮",
+        "revenue_yoy": -15.7,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2603",
+        "name": "長榮海",
+        "revenue_yoy": 29.99,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6282",
+        "name": "康舒",
+        "revenue_yoy": 28.28,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3672",
+        "name": "康舒",
+        "revenue_yoy": 0.67,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6409",
+        "name": "旭隼",
+        "revenue_yoy": 5.72,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3518",
+        "name": "柏騰",
+        "revenue_yoy": -42.36,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3003",
+        "name": "健和興",
+        "revenue_yoy": 36.15,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1516",
+        "name": "川飛",
+        "revenue_yoy": 59.91,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3324",
+        "name": "雙鴻",
+        "revenue_yoy": 62.13,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6230",
+        "name": "超眾",
+        "revenue_yoy": -3.16,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3013",
+        "name": "晟銘電",
+        "revenue_yoy": 26.51,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3062",
+        "name": "建碁",
+        "revenue_yoy": -34.39,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2377",
+        "name": "微星",
+        "revenue_yoy": -9.23,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2392",
+        "name": "正崴",
+        "revenue_yoy": -42.48,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3583",
+        "name": "辛耘",
+        "revenue_yoy": -2.67,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6640",
+        "name": "均華",
+        "revenue_yoy": 0.33,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4977",
+        "name": "眾達",
+        "revenue_yoy": 8.08,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6944",
+        "name": "兆聯",
+        "revenue_yoy": 29.98,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "5536",
+        "name": "聖暉",
+        "revenue_yoy": 24.9,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6196",
+        "name": "帆宣",
+        "revenue_yoy": 120.99,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "9933",
+        "name": "中鼎",
+        "revenue_yoy": -16.64,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "8473",
+        "name": "山林水",
+        "revenue_yoy": 18.1,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2395",
+        "name": "研華",
+        "revenue_yoy": 73.39,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6414",
+        "name": "樺漢",
+        "revenue_yoy": 56.97,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3022",
+        "name": "威強電",
+        "revenue_yoy": 79.97,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2421",
+        "name": "建準",
+        "revenue_yoy": 18.65,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3653",
+        "name": "健策",
+        "revenue_yoy": 57.64,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6412",
+        "name": "群電",
+        "revenue_yoy": -0.77,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3015",
+        "name": "全漢",
+        "revenue_yoy": -14.01,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3032",
+        "name": "偉訓",
+        "revenue_yoy": 45.35,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3023",
+        "name": "信邦",
+        "revenue_yoy": 17.59,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "5388",
+        "name": "中磊",
+        "revenue_yoy": 70.81,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3380",
+        "name": "明泰",
+        "revenue_yoy": 5.46,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3217",
+        "name": "優群",
+        "revenue_yoy": 2.42,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3231",
+        "name": "緯創",
+        "revenue_yoy": 53.85,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3706",
+        "name": "神達",
+        "revenue_yoy": 80.93,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3680",
+        "name": "家登",
+        "revenue_yoy": 37.93,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3413",
+        "name": "京鼎",
+        "revenue_yoy": 39.75,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6442",
+        "name": "光聖",
+        "revenue_yoy": 1.64,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4908",
+        "name": "前鼎",
+        "revenue_yoy": 29.72,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3081",
+        "name": "聯亞",
+        "revenue_yoy": 128.14,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      }
+    ],
+    "price_rows": [
+      {
+        "stock_id": "2330",
+        "last_date": "2026-07-14",
+        "last_close": 2420.0,
+        "ret20": 1.89,
+        "ret60": 19.21,
+        "ret120": 44.52,
+        "dist_from_high": -3.59,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "台積電"
+      },
+      {
+        "stock_id": "2382",
+        "last_date": "2026-07-14",
+        "last_close": 380.0,
+        "ret20": 2.7,
+        "ret60": 17.65,
+        "ret120": 34.28,
+        "dist_from_high": -8.87,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "廣達"
+      },
+      {
+        "stock_id": "6669",
+        "last_date": "2026-07-14",
+        "last_close": 4905.0,
+        "ret20": 0.1,
+        "ret60": 28.91,
+        "ret120": 15.68,
+        "dist_from_high": -15.28,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "緯穎"
+      },
+      {
+        "stock_id": "2317",
+        "last_date": "2026-07-14",
+        "last_close": 235.5,
+        "ret20": -11.96,
+        "ret60": 14.32,
+        "ret120": 2.17,
+        "dist_from_high": -23.79,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "鴻海"
+      },
+      {
+        "stock_id": "2356",
+        "last_date": "2026-07-14",
+        "last_close": 63.70000076293945,
+        "ret20": -5.07,
+        "ret60": 39.23,
+        "ret120": 48.48,
+        "dist_from_high": -25.41,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "英業達"
+      },
+      {
+        "stock_id": "3711",
+        "last_date": "2026-07-14",
+        "last_close": 641.0,
+        "ret20": 8.64,
+        "ret60": 45.02,
+        "ret120": 135.66,
+        "dist_from_high": -11.83,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "日月光投控"
+      },
+      {
+        "stock_id": "3443",
+        "last_date": "2026-07-14",
+        "last_close": 4020.0,
+        "ret20": -16.51,
+        "ret60": 23.5,
+        "ret120": 69.98,
+        "dist_from_high": -29.84,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "創意"
+      },
+      {
+        "stock_id": "3035",
+        "last_date": "2026-07-14",
+        "last_close": 207.0,
+        "ret20": 2.48,
+        "ret60": 30.19,
+        "ret120": 23.58,
+        "dist_from_high": -11.16,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "智原"
+      },
+      {
+        "stock_id": "3661",
+        "last_date": "2026-07-14",
+        "last_close": 3725.0,
+        "ret20": -12.35,
+        "ret60": 5.97,
+        "ret120": 4.34,
+        "dist_from_high": -30.7,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "世芯-KY"
+      },
+      {
+        "stock_id": "3037",
+        "last_date": "2026-07-14",
+        "last_close": 874.0,
+        "ret20": -8.96,
+        "ret60": 35.93,
+        "ret120": 287.58,
+        "dist_from_high": -19.45,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "欣興"
+      },
+      {
+        "stock_id": "8046",
+        "last_date": "2026-05-29",
+        "last_close": 844.0,
+        "ret20": -16.02,
+        "ret60": 68.8,
+        "ret120": 237.6,
+        "dist_from_high": -16.02,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "南電"
+      },
+      {
+        "stock_id": "2454",
+        "last_date": "2026-07-14",
+        "last_close": 3660.0,
+        "ret20": -18.12,
+        "ret60": 90.13,
+        "ret120": 157.75,
+        "dist_from_high": -21.12,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "聯發科"
+      },
+      {
+        "stock_id": "8299",
+        "last_date": "2026-07-14",
+        "last_close": 2050.0,
+        "ret20": -11.64,
+        "ret60": 30.57,
+        "ret120": 25.77,
+        "dist_from_high": -28.82,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "群聯"
+      },
+      {
+        "stock_id": "5289",
+        "last_date": "2026-07-14",
+        "last_close": 1445.0,
+        "ret20": -24.74,
+        "ret60": 43.78,
+        "ret120": 133.82,
+        "dist_from_high": -27.39,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "宜鼎"
+      },
+      {
+        "stock_id": "2428",
+        "last_date": "2026-05-29",
+        "last_close": 297.0,
+        "ret20": 70.69,
+        "ret60": 65.92,
+        "ret120": 59.68,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "興旺"
+      },
+      {
+        "stock_id": "2345",
+        "last_date": "2026-07-14",
+        "last_close": 2280.0,
+        "ret20": -6.17,
+        "ret60": 10.14,
+        "ret120": 87.65,
+        "dist_from_high": -17.09,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "智邦"
+      },
+      {
+        "stock_id": "3450",
+        "last_date": "2026-05-29",
+        "last_close": 483.0,
+        "ret20": 59.93,
+        "ret60": 44.61,
+        "ret120": 104.23,
+        "dist_from_high": -8.87,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "聯鈞"
+      },
+      {
+        "stock_id": "4979",
+        "last_date": "2026-05-29",
+        "last_close": 627.0,
+        "ret20": 2.96,
+        "ret60": 34.98,
+        "ret120": 208.87,
+        "dist_from_high": -12.67,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "華星光"
+      },
+      {
+        "stock_id": "3163",
+        "last_date": "2026-05-29",
+        "last_close": 1020.0,
+        "ret20": -10.92,
+        "ret60": 27.66,
+        "ret120": 305.57,
+        "dist_from_high": -21.24,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "波若威"
+      },
+      {
+        "stock_id": "3363",
+        "last_date": "2026-05-29",
+        "last_close": 795.0,
+        "ret20": 3.38,
+        "ret60": 28.02,
+        "ret120": 122.69,
+        "dist_from_high": -19.7,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "上詮"
+      },
+      {
+        "stock_id": "2603",
+        "last_date": "2026-05-29",
+        "last_close": 214.5,
+        "ret20": 6.19,
+        "ret60": -0.92,
+        "ret120": 18.84,
+        "dist_from_high": -2.15,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "長榮海"
+      },
+      {
+        "stock_id": "2308",
+        "last_date": "2026-07-14",
+        "last_close": 1855.0,
+        "ret20": -16.06,
+        "ret60": 0.82,
+        "ret120": 82.76,
+        "dist_from_high": -26.39,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "台達電"
+      },
+      {
+        "stock_id": "2301",
+        "last_date": "2026-07-14",
+        "last_close": 212.5,
+        "ret20": 2.41,
+        "ret60": 31.17,
+        "ret120": 35.2,
+        "dist_from_high": -15.0,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "光寶科"
+      },
+      {
+        "stock_id": "6282",
+        "last_date": "2026-05-29",
+        "last_close": 58.0,
+        "ret20": 22.49,
+        "ret60": 18.25,
+        "ret120": 51.44,
+        "dist_from_high": -9.09,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "康舒"
+      },
+      {
+        "stock_id": "3672",
+        "last_date": "2026-05-29",
+        "last_close": 11.0,
+        "ret20": -7.95,
+        "ret60": -3.93,
+        "ret120": -12.35,
+        "dist_from_high": -40.7,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "康舒"
+      },
+      {
+        "stock_id": "6409",
+        "last_date": "2026-07-14",
+        "last_close": 1080.0,
+        "ret20": 15.26,
+        "ret60": 38.28,
+        "ret120": 5.37,
+        "dist_from_high": -16.28,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "旭隼"
+      },
+      {
+        "stock_id": "3518",
+        "last_date": "2026-07-14",
+        "last_close": 29.149999618530277,
+        "ret20": 5.05,
+        "ret60": 7.76,
+        "ret120": 34.33,
+        "dist_from_high": -25.06,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "柏騰"
+      },
+      {
+        "stock_id": "3003",
+        "last_date": "2026-06-12",
+        "last_close": 63.900001525878906,
+        "ret20": 9.04,
+        "ret60": 25.29,
+        "ret120": 34.38,
+        "dist_from_high": -4.63,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "健和興"
+      },
+      {
+        "stock_id": "1516",
+        "last_date": "2026-06-12",
+        "last_close": 21.5,
+        "ret20": -1.83,
+        "ret60": -6.11,
+        "ret120": 7.5,
+        "dist_from_high": -15.69,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "川飛"
+      },
+      {
+        "stock_id": "3017",
+        "last_date": "2026-07-14",
+        "last_close": 2120.0,
+        "ret20": -12.03,
+        "ret60": -11.67,
+        "ret120": 54.18,
+        "dist_from_high": -28.01,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "奇鋐"
+      },
+      {
+        "stock_id": "3324",
+        "last_date": "2026-06-16",
+        "last_close": 1050.0,
+        "ret20": 8.7,
+        "ret60": -1.87,
+        "ret120": 13.51,
+        "dist_from_high": -17.97,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "雙鴻"
+      },
+      {
+        "stock_id": "3665",
+        "last_date": "2026-07-14",
+        "last_close": 1775.0,
+        "ret20": -21.63,
+        "ret60": -24.95,
+        "ret120": 24.56,
+        "dist_from_high": -39.63,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "貿聯-KY"
+      },
+      {
+        "stock_id": "6230",
+        "last_date": "2026-07-14",
+        "last_close": 117.0,
+        "ret20": -14.91,
+        "ret60": -27.33,
+        "ret120": 4.0,
+        "dist_from_high": -35.89,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "超眾"
+      },
+      {
+        "stock_id": "8210",
+        "last_date": "2026-07-14",
+        "last_close": 1110.0,
+        "ret20": -22.38,
+        "ret60": 8.82,
+        "ret120": 21.98,
+        "dist_from_high": -28.62,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "勤誠"
+      },
+      {
+        "stock_id": "3013",
+        "last_date": "2026-06-12",
+        "last_close": 107.5,
+        "ret20": 4.37,
+        "ret60": 8.59,
+        "ret120": -22.66,
+        "dist_from_high": -23.21,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "晟銘電"
+      },
+      {
+        "stock_id": "3062",
+        "last_date": "2026-07-14",
+        "last_close": 23.200000762939453,
+        "ret20": -10.77,
+        "ret60": -22.8,
+        "ret120": -0.22,
+        "dist_from_high": -28.83,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "建碁"
+      },
+      {
+        "stock_id": "2377",
+        "last_date": "2026-05-29",
+        "last_close": 129.5,
+        "ret20": 32.55,
+        "ret60": 34.9,
+        "ret120": 20.47,
+        "dist_from_high": -11.91,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "微星"
+      },
+      {
+        "stock_id": "2059",
+        "last_date": "2026-07-14",
+        "last_close": 7995.0,
+        "ret20": 14.87,
+        "ret60": 119.64,
+        "ret120": 141.18,
+        "dist_from_high": -3.21,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "川湖"
+      },
+      {
+        "stock_id": "2392",
+        "last_date": "2026-05-29",
+        "last_close": 38.900001525878906,
+        "ret20": 5.14,
+        "ret60": 3.6,
+        "ret120": 1.43,
+        "dist_from_high": -36.23,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "正崴"
+      },
+      {
+        "stock_id": "3131",
+        "last_date": "2026-07-14",
+        "last_close": 3045.0,
+        "ret20": -5.29,
+        "ret60": -6.45,
+        "ret120": 70.11,
+        "dist_from_high": -22.02,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "弘塑"
+      },
+      {
+        "stock_id": "3583",
+        "last_date": "2026-07-14",
+        "last_close": 766.0,
+        "ret20": -6.24,
+        "ret60": 0.79,
+        "ret120": 122.67,
+        "dist_from_high": -20.7,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "辛耘"
+      },
+      {
+        "stock_id": "6640",
+        "last_date": "2026-05-29",
+        "last_close": 1400.0,
+        "ret20": -4.11,
+        "ret60": 76.77,
+        "ret120": 157.35,
+        "dist_from_high": -20.45,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "均華"
+      },
+      {
+        "stock_id": "6510",
+        "last_date": "2026-07-14",
+        "last_close": 2700.0,
+        "ret20": -24.9,
+        "ret60": -27.81,
+        "ret120": 23.57,
+        "dist_from_high": -35.71,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "精測"
+      },
+      {
+        "stock_id": "2383",
+        "last_date": "2026-07-14",
+        "last_close": 4970.0,
+        "ret20": -1.19,
+        "ret60": 30.79,
+        "ret120": 217.57,
+        "dist_from_high": -18.26,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "台光電"
+      },
+      {
+        "stock_id": "4977",
+        "last_date": "2026-05-29",
+        "last_close": 210.0,
+        "ret20": -3.45,
+        "ret60": 22.09,
+        "ret120": 95.35,
+        "dist_from_high": -22.37,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "眾達"
+      },
+      {
+        "stock_id": "6944",
+        "last_date": "2026-05-29",
+        "last_close": 945.0,
+        "ret20": 4.65,
+        "ret60": 31.62,
+        "ret120": 70.27,
+        "dist_from_high": -4.16,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "兆聯"
+      },
+      {
+        "stock_id": "5536",
+        "last_date": "2026-07-14",
+        "last_close": 1155.0,
+        "ret20": -7.97,
+        "ret60": 40.0,
+        "ret120": 51.62,
+        "dist_from_high": -19.51,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "聖暉"
+      },
+      {
+        "stock_id": "2404",
+        "last_date": "2026-07-14",
+        "last_close": 1185.0,
+        "ret20": -14.13,
+        "ret60": 15.61,
+        "ret120": 19.22,
+        "dist_from_high": -14.44,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "漢唐"
+      },
+      {
+        "stock_id": "6196",
+        "last_date": "2026-05-29",
+        "last_close": 516.0,
+        "ret20": 36.51,
+        "ret60": 78.24,
+        "ret120": 127.31,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "帆宣"
+      },
+      {
+        "stock_id": "9933",
+        "last_date": "2026-05-29",
+        "last_close": 39.34999847412109,
+        "ret20": 7.07,
+        "ret60": 25.32,
+        "ret120": 22.97,
+        "dist_from_high": -3.08,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "中鼎"
+      },
+      {
+        "stock_id": "8473",
+        "last_date": "2026-05-29",
+        "last_close": 47.59999847412109,
+        "ret20": 32.59,
+        "ret60": 27.1,
+        "ret120": 32.04,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "山林水"
+      },
+      {
+        "stock_id": "2395",
+        "last_date": "2026-05-29",
+        "last_close": 506.0,
+        "ret20": 40.75,
+        "ret60": 53.33,
+        "ret120": 77.54,
+        "dist_from_high": -0.78,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "研華"
+      },
+      {
+        "stock_id": "6414",
+        "last_date": "2026-06-12",
+        "last_close": 375.5,
+        "ret20": 17.53,
+        "ret60": 36.05,
+        "ret120": 30.61,
+        "dist_from_high": -6.36,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "樺漢"
+      },
+      {
+        "stock_id": "3022",
+        "last_date": "2026-05-29",
+        "last_close": 74.19999694824219,
+        "ret20": 7.54,
+        "ret60": 25.55,
+        "ret120": 16.3,
+        "dist_from_high": -6.96,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "威強電"
+      },
+      {
+        "stock_id": "2421",
+        "last_date": "2026-07-14",
+        "last_close": 133.5,
+        "ret20": -6.64,
+        "ret60": -8.87,
+        "ret120": -14.7,
+        "dist_from_high": -29.55,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "建準"
+      },
+      {
+        "stock_id": "3653",
+        "last_date": "2026-07-14",
+        "last_close": 3070.0,
+        "ret20": -19.95,
+        "ret60": -32.75,
+        "ret120": 19.69,
+        "dist_from_high": -43.62,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "健策"
+      },
+      {
+        "stock_id": "6412",
+        "last_date": "2026-05-29",
+        "last_close": 101.0,
+        "ret20": 24.69,
+        "ret60": 4.45,
+        "ret120": 12.22,
+        "dist_from_high": -19.2,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "群電"
+      },
+      {
+        "stock_id": "3015",
+        "last_date": "2026-05-29",
+        "last_close": 51.900001525878906,
+        "ret20": 4.64,
+        "ret60": -3.17,
+        "ret120": 0.19,
+        "dist_from_high": -15.61,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "全漢"
+      },
+      {
+        "stock_id": "3032",
+        "last_date": "2026-06-12",
+        "last_close": 82.19999694824219,
+        "ret20": 2.24,
+        "ret60": 24.92,
+        "ret120": 3.66,
+        "dist_from_high": -29.54,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "偉訓"
+      },
+      {
+        "stock_id": "3023",
+        "last_date": "2026-07-14",
+        "last_close": 314.5,
+        "ret20": -1.41,
+        "ret60": 11.52,
+        "ret120": 62.95,
+        "dist_from_high": -6.54,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "信邦"
+      },
+      {
+        "stock_id": "3533",
+        "last_date": "2026-07-14",
+        "last_close": 1925.0,
+        "ret20": -16.3,
+        "ret60": -22.69,
+        "ret120": 36.52,
+        "dist_from_high": -32.46,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "嘉澤"
+      },
+      {
+        "stock_id": "5388",
+        "last_date": "2026-05-29",
+        "last_close": 85.9000015258789,
+        "ret20": 12.29,
+        "ret60": 8.33,
+        "ret120": 9.13,
+        "dist_from_high": -16.79,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "中磊"
+      },
+      {
+        "stock_id": "6285",
+        "last_date": "2026-07-14",
+        "last_close": 247.5,
+        "ret20": -9.84,
+        "ret60": -6.43,
+        "ret120": 139.13,
+        "dist_from_high": -21.18,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "啟碁"
+      },
+      {
+        "stock_id": "3380",
+        "last_date": "2026-05-29",
+        "last_close": 38.09999847412109,
+        "ret20": 13.39,
+        "ret60": 7.48,
+        "ret120": 33.68,
+        "dist_from_high": -8.3,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "明泰"
+      },
+      {
+        "stock_id": "3217",
+        "last_date": "2026-05-29",
+        "last_close": 189.5,
+        "ret20": 13.81,
+        "ret60": 23.45,
+        "ret120": 14.85,
+        "dist_from_high": -8.45,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "優群"
+      },
+      {
+        "stock_id": "3231",
+        "last_date": "2026-07-14",
+        "last_close": 142.5,
+        "ret20": -11.76,
+        "ret60": 4.4,
+        "ret120": -4.36,
+        "dist_from_high": -26.55,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "緯創"
+      },
+      {
+        "stock_id": "3706",
+        "last_date": "2026-07-14",
+        "last_close": 89.69999694824219,
+        "ret20": 4.79,
+        "ret60": 6.66,
+        "ret120": 1.01,
+        "dist_from_high": -16.17,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "神達"
+      },
+      {
+        "stock_id": "6187",
+        "last_date": "2026-07-14",
+        "last_close": 985.0,
+        "ret20": -12.83,
+        "ret60": -18.93,
+        "ret120": 166.22,
+        "dist_from_high": -29.14,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "萬潤"
+      },
+      {
+        "stock_id": "3680",
+        "last_date": "2026-05-29",
+        "last_close": 551.0,
+        "ret20": 3.49,
+        "ret60": 37.38,
+        "ret120": 60.12,
+        "dist_from_high": -9.79,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "家登"
+      },
+      {
+        "stock_id": "3413",
+        "last_date": "2026-05-29",
+        "last_close": 320.0,
+        "ret20": 6.78,
+        "ret60": 9.25,
+        "ret120": 12.8,
+        "dist_from_high": -10.92,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "京鼎"
+      },
+      {
+        "stock_id": "6442",
+        "last_date": "2026-07-14",
+        "last_close": 1315.0,
+        "ret20": -31.51,
+        "ret60": -38.98,
+        "ret120": -6.07,
+        "dist_from_high": -44.51,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "光聖"
+      },
+      {
+        "stock_id": "4908",
+        "last_date": "2026-05-29",
+        "last_close": 233.0,
+        "ret20": 8.88,
+        "ret60": 121.9,
+        "ret120": 219.18,
+        "dist_from_high": -20.61,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "前鼎"
+      },
+      {
+        "stock_id": "3081",
+        "last_date": "2026-05-29",
+        "last_close": 2630.0,
+        "ret20": -0.38,
+        "ret60": 78.31,
+        "ret120": 447.92,
+        "dist_from_high": -16.77,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "聯亞"
+      }
+    ],
+    "all_companies": [
+      {
+        "stock_id": "2330",
+        "name": "台積電"
+      },
+      {
+        "stock_id": "2382",
+        "name": "廣達"
+      },
+      {
+        "stock_id": "6669",
+        "name": "緯穎"
+      },
+      {
+        "stock_id": "2317",
+        "name": "鴻海"
+      },
+      {
+        "stock_id": "2356",
+        "name": "英業達"
+      },
+      {
+        "stock_id": "3711",
+        "name": "日月光投控"
+      },
+      {
+        "stock_id": "3443",
+        "name": "創意"
+      },
+      {
+        "stock_id": "3035",
+        "name": "智原"
+      },
+      {
+        "stock_id": "3661",
+        "name": "世芯-KY"
+      },
+      {
+        "stock_id": "3037",
+        "name": "欣興"
+      },
+      {
+        "stock_id": "8046",
+        "name": "南電"
+      },
+      {
+        "stock_id": "2454",
+        "name": "聯發科"
+      },
+      {
+        "stock_id": "8299",
+        "name": "群聯"
+      },
+      {
+        "stock_id": "5289",
+        "name": "宜鼎"
+      },
+      {
+        "stock_id": "2428",
+        "name": "興旺"
+      },
+      {
+        "stock_id": "2345",
+        "name": "智邦"
+      },
+      {
+        "stock_id": "3450",
+        "name": "聯鈞"
+      },
+      {
+        "stock_id": "4979",
+        "name": "華星光"
+      },
+      {
+        "stock_id": "3163",
+        "name": "波若威"
+      },
+      {
+        "stock_id": "3363",
+        "name": "上詮"
+      },
+      {
+        "stock_id": "2603",
+        "name": "長榮海"
+      },
+      {
+        "stock_id": "2308",
+        "name": "台達電"
+      },
+      {
+        "stock_id": "2301",
+        "name": "光寶科"
+      },
+      {
+        "stock_id": "6282",
+        "name": "康舒"
+      },
+      {
+        "stock_id": "3672",
+        "name": "康舒"
+      },
+      {
+        "stock_id": "6409",
+        "name": "旭隼"
+      },
+      {
+        "stock_id": "3518",
+        "name": "柏騰"
+      },
+      {
+        "stock_id": "3003",
+        "name": "健和興"
+      },
+      {
+        "stock_id": "1516",
+        "name": "川飛"
+      },
+      {
+        "stock_id": "3017",
+        "name": "奇鋐"
+      },
+      {
+        "stock_id": "3324",
+        "name": "雙鴻"
+      },
+      {
+        "stock_id": "3665",
+        "name": "貿聯-KY"
+      },
+      {
+        "stock_id": "3519",
+        "name": "熱映光電"
+      },
+      {
+        "stock_id": "6230",
+        "name": "超眾"
+      },
+      {
+        "stock_id": "8210",
+        "name": "勤誠"
+      },
+      {
+        "stock_id": "3013",
+        "name": "晟銘電"
+      },
+      {
+        "stock_id": "3062",
+        "name": "建碁"
+      },
+      {
+        "stock_id": "2377",
+        "name": "微星"
+      },
+      {
+        "stock_id": "2059",
+        "name": "川湖"
+      },
+      {
+        "stock_id": "2392",
+        "name": "正崴"
+      },
+      {
+        "stock_id": "3131",
+        "name": "弘塑"
+      },
+      {
+        "stock_id": "3583",
+        "name": "辛耘"
+      },
+      {
+        "stock_id": "6640",
+        "name": "均華"
+      },
+      {
+        "stock_id": "6510",
+        "name": "精測"
+      },
+      {
+        "stock_id": "2383",
+        "name": "台光電"
+      },
+      {
+        "stock_id": "4977",
+        "name": "眾達"
+      },
+      {
+        "stock_id": "6944",
+        "name": "兆聯"
+      },
+      {
+        "stock_id": "5536",
+        "name": "聖暉"
+      },
+      {
+        "stock_id": "2404",
+        "name": "漢唐"
+      },
+      {
+        "stock_id": "6196",
+        "name": "帆宣"
+      },
+      {
+        "stock_id": "9933",
+        "name": "中鼎"
+      },
+      {
+        "stock_id": "8473",
+        "name": "山林水"
+      },
+      {
+        "stock_id": "2395",
+        "name": "研華"
+      },
+      {
+        "stock_id": "6414",
+        "name": "樺漢"
+      },
+      {
+        "stock_id": "3022",
+        "name": "威強電"
+      },
+      {
+        "stock_id": "2421",
+        "name": "建準"
+      },
+      {
+        "stock_id": "3653",
+        "name": "健策"
+      },
+      {
+        "stock_id": "6412",
+        "name": "群電"
+      },
+      {
+        "stock_id": "3015",
+        "name": "全漢"
+      },
+      {
+        "stock_id": "3032",
+        "name": "偉訓"
+      },
+      {
+        "stock_id": "3023",
+        "name": "信邦"
+      },
+      {
+        "stock_id": "3533",
+        "name": "嘉澤"
+      },
+      {
+        "stock_id": "5388",
+        "name": "中磊"
+      },
+      {
+        "stock_id": "6285",
+        "name": "啟碁"
+      },
+      {
+        "stock_id": "3380",
+        "name": "明泰"
+      },
+      {
+        "stock_id": "3217",
+        "name": "優群"
+      },
+      {
+        "stock_id": "3231",
+        "name": "緯創"
+      },
+      {
+        "stock_id": "3706",
+        "name": "神達"
+      },
+      {
+        "stock_id": "6187",
+        "name": "萬潤"
+      },
+      {
+        "stock_id": "3680",
+        "name": "家登"
+      },
+      {
+        "stock_id": "3413",
+        "name": "京鼎"
+      },
+      {
+        "stock_id": "6442",
+        "name": "光聖"
+      },
+      {
+        "stock_id": "4908",
+        "name": "前鼎"
+      },
+      {
+        "stock_id": "3081",
+        "name": "聯亞"
+      }
+    ],
+    "capex_csp": {
+      "lines": [
+        "Microsoft：最新申報季度CAPEX約 $30.9B（截至2026-03-31，10-Q），較上季持平（+3.3%）",
+        "Alphabet：最新申報季度CAPEX約 $35.7B（截至2026-03-31，10-Q），較上季下修（-61.0%）",
+        "Amazon：最新申報季度CAPEX約 $1.9B（截至2017-03-31，10-Q），較上季下修（-72.4%）",
+        "Meta：最新申報季度CAPEX約 $19.0B（截至2026-03-31，10-Q），較上季下修（-72.7%）"
+      ],
+      "success": true,
+      "fetched_at": "2026-07-15 10:25:00",
+      "grade": "A"
+    },
+    "capex_tsmc": "尚未接入（台積電CAPEX無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "export_stats": "尚未接入（官方出口統計無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "calculated_at": "2026-07-15 15:06:19"
+  },
+  "SEMI": {
+    "topic_id": "SEMI",
+    "total_count": 57,
+    "fundamental_sample": 55,
+    "revenue_yoy_median": 27.85,
+    "revenue_yoy_positive_ratio": 0.86,
+    "revenue_yoy_above10_ratio": 0.72,
+    "eps_yoy_median": 18.05,
+    "eps_yoy_positive_ratio": 1.0,
+    "gm_improve_ratio": 0.55,
+    "price_sample": 55,
+    "price_median_ret20": -1.15,
+    "price_median_ret60": 30.79,
+    "price_median_ret120": 69.98,
+    "dist_from_high_median": -17.46,
+    "above_ma20_ratio": 0.35,
+    "new_low_ratio_60d": 0.07,
+    "up20_ratio": 0.47,
+    "twii_ret60": 22.89,
+    "relative_strength_60d": 7.9,
+    "latest_price_date": "2026-07-14",
+    "is_price_stale": false,
+    "fund_rows": [
+      {
+        "stock_id": "2330",
+        "name": "台積電",
+        "revenue_yoy": 8.4,
+        "eps_yoy": 13.3,
+        "gm_direction": "up",
+        "king_total": 23,
+        "attack_total": 27,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3131",
+        "name": "弘塑",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 21,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "6510",
+        "name": "精測",
+        "revenue_yoy": 13.5,
+        "eps_yoy": 19.7,
+        "gm_direction": "up",
+        "king_total": 25,
+        "attack_total": 20,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3037",
+        "name": "欣興",
+        "revenue_yoy": 7.9,
+        "eps_yoy": 37.4,
+        "gm_direction": "up",
+        "king_total": 29,
+        "attack_total": 17,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2383",
+        "name": "台光電",
+        "revenue_yoy": 32.7,
+        "eps_yoy": 42.9,
+        "gm_direction": "up",
+        "king_total": 32,
+        "attack_total": 21,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2404",
+        "name": "漢唐",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 7,
+        "attack_total": 21,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "6187",
+        "name": "萬潤",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 10,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2454",
+        "name": "聯發科",
+        "revenue_yoy": -0.7,
+        "eps_yoy": 5.6,
+        "gm_direction": "up",
+        "king_total": 16,
+        "attack_total": 19,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "6274",
+        "name": "台燿",
+        "revenue_yoy": 10.2,
+        "eps_yoy": 16.4,
+        "gm_direction": "up",
+        "king_total": 23,
+        "attack_total": 23,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "8299",
+        "name": "群聯",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 15,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "5289",
+        "name": "宜鼎",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 23,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2303",
+        "name": "聯電",
+        "revenue_yoy": 22.85,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "5347",
+        "name": "世界先進",
+        "revenue_yoy": 33.57,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2408",
+        "name": "南亞科",
+        "revenue_yoy": 621.34,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3711",
+        "name": "日月光投控",
+        "revenue_yoy": 32.86,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3583",
+        "name": "辛耘",
+        "revenue_yoy": -2.67,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6640",
+        "name": "均華",
+        "revenue_yoy": 0.33,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "8046",
+        "name": "南電",
+        "revenue_yoy": 50.03,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3189",
+        "name": "景碩",
+        "revenue_yoy": 32.27,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "5388",
+        "name": "中砂",
+        "revenue_yoy": 70.81,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3669",
+        "name": "圓展",
+        "revenue_yoy": 2.95,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3169",
+        "name": "亞信",
+        "revenue_yoy": 31.41,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3443",
+        "name": "創意",
+        "revenue_yoy": 103.72,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3035",
+        "name": "智原",
+        "revenue_yoy": 26.57,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3661",
+        "name": "世芯-KY",
+        "revenue_yoy": 15.39,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6643",
+        "name": "M31",
+        "revenue_yoy": -23.52,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4966",
+        "name": "新達",
+        "revenue_yoy": 12.23,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6269",
+        "name": "台郡",
+        "revenue_yoy": -0.99,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3060",
+        "name": "銘異",
+        "revenue_yoy": 48.98,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1809",
+        "name": "中玻",
+        "revenue_yoy": 4.54,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4770",
+        "name": "上品",
+        "revenue_yoy": -6.95,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1603",
+        "name": "華電",
+        "revenue_yoy": 4.3,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4916",
+        "name": "事欣科",
+        "revenue_yoy": 80.52,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6770",
+        "name": "力積電",
+        "revenue_yoy": 68.75,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2449",
+        "name": "京元電子",
+        "revenue_yoy": 28.64,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6223",
+        "name": "旺矽",
+        "revenue_yoy": 65.07,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2360",
+        "name": "致茂",
+        "revenue_yoy": 73.02,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3264",
+        "name": "欣銓",
+        "revenue_yoy": 36.56,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6147",
+        "name": "頎邦",
+        "revenue_yoy": 27.06,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2441",
+        "name": "超豐",
+        "revenue_yoy": 33.15,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3587",
+        "name": "閎康",
+        "revenue_yoy": 11.01,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3413",
+        "name": "京鼎",
+        "revenue_yoy": 39.75,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "5443",
+        "name": "均豪",
+        "revenue_yoy": -10.09,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6533",
+        "name": "晶心科",
+        "revenue_yoy": 247.04,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3529",
+        "name": "力旺",
+        "revenue_yoy": 47.05,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6488",
+        "name": "環球晶",
+        "revenue_yoy": -1.63,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3532",
+        "name": "台勝科",
+        "revenue_yoy": 23.71,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "8028",
+        "name": "昇陽半導體",
+        "revenue_yoy": 33.62,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1560",
+        "name": "中砂",
+        "revenue_yoy": 16.39,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2344",
+        "name": "華邦電",
+        "revenue_yoy": 189.88,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2337",
+        "name": "旺宏",
+        "revenue_yoy": 216.09,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1711",
+        "name": "永光",
+        "revenue_yoy": 15.49,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1723",
+        "name": "中碳",
+        "revenue_yoy": 32.12,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2338",
+        "name": "光罩",
+        "revenue_yoy": 0.08,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3680",
+        "name": "家登",
+        "revenue_yoy": 37.93,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      }
+    ],
+    "price_rows": [
+      {
+        "stock_id": "2330",
+        "last_date": "2026-07-14",
+        "last_close": 2420.0,
+        "ret20": 1.89,
+        "ret60": 19.21,
+        "ret120": 44.52,
+        "dist_from_high": -3.59,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "台積電"
+      },
+      {
+        "stock_id": "2303",
+        "last_date": "2026-07-14",
+        "last_close": 151.0,
+        "ret20": 6.71,
+        "ret60": 106.85,
+        "ret120": 174.05,
+        "dist_from_high": -15.41,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "聯電"
+      },
+      {
+        "stock_id": "5347",
+        "last_date": "2026-07-14",
+        "last_close": 174.0,
+        "ret20": -0.29,
+        "ret60": 31.82,
+        "ret120": 60.37,
+        "dist_from_high": -20.91,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "世界先進"
+      },
+      {
+        "stock_id": "2408",
+        "last_date": "2026-07-14",
+        "last_close": 448.0,
+        "ret20": 13.27,
+        "ret60": 113.33,
+        "ret120": 105.98,
+        "dist_from_high": -11.29,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "南亞科"
+      },
+      {
+        "stock_id": "3711",
+        "last_date": "2026-07-14",
+        "last_close": 641.0,
+        "ret20": 8.64,
+        "ret60": 45.02,
+        "ret120": 135.66,
+        "dist_from_high": -11.83,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "日月光投控"
+      },
+      {
+        "stock_id": "3131",
+        "last_date": "2026-07-14",
+        "last_close": 3045.0,
+        "ret20": -5.29,
+        "ret60": -6.45,
+        "ret120": 70.11,
+        "dist_from_high": -22.02,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "弘塑"
+      },
+      {
+        "stock_id": "3583",
+        "last_date": "2026-07-14",
+        "last_close": 766.0,
+        "ret20": -6.24,
+        "ret60": 0.79,
+        "ret120": 122.67,
+        "dist_from_high": -20.7,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "辛耘"
+      },
+      {
+        "stock_id": "6640",
+        "last_date": "2026-05-29",
+        "last_close": 1400.0,
+        "ret20": -4.11,
+        "ret60": 76.77,
+        "ret120": 157.35,
+        "dist_from_high": -20.45,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "均華"
+      },
+      {
+        "stock_id": "6510",
+        "last_date": "2026-07-14",
+        "last_close": 2700.0,
+        "ret20": -24.9,
+        "ret60": -27.81,
+        "ret120": 23.57,
+        "dist_from_high": -35.71,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "精測"
+      },
+      {
+        "stock_id": "3037",
+        "last_date": "2026-07-14",
+        "last_close": 874.0,
+        "ret20": -8.96,
+        "ret60": 35.93,
+        "ret120": 287.58,
+        "dist_from_high": -19.45,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "欣興"
+      },
+      {
+        "stock_id": "8046",
+        "last_date": "2026-05-29",
+        "last_close": 844.0,
+        "ret20": -16.02,
+        "ret60": 68.8,
+        "ret120": 237.6,
+        "dist_from_high": -16.02,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "南電"
+      },
+      {
+        "stock_id": "3189",
+        "last_date": "2026-07-14",
+        "last_close": 805.0,
+        "ret20": 21.97,
+        "ret60": 105.62,
+        "ret120": 377.74,
+        "dist_from_high": -9.65,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "景碩"
+      },
+      {
+        "stock_id": "2383",
+        "last_date": "2026-07-14",
+        "last_close": 4970.0,
+        "ret20": -1.19,
+        "ret60": 30.79,
+        "ret120": 217.57,
+        "dist_from_high": -18.26,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "台光電"
+      },
+      {
+        "stock_id": "5388",
+        "last_date": "2026-05-29",
+        "last_close": 85.9000015258789,
+        "ret20": 12.29,
+        "ret60": 8.33,
+        "ret120": 9.13,
+        "dist_from_high": -16.79,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "中砂"
+      },
+      {
+        "stock_id": "3669",
+        "last_date": "2026-05-29",
+        "last_close": 38.75,
+        "ret20": -1.15,
+        "ret60": 16.37,
+        "ret120": 38.89,
+        "dist_from_high": -10.09,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "圓展"
+      },
+      {
+        "stock_id": "2404",
+        "last_date": "2026-07-14",
+        "last_close": 1185.0,
+        "ret20": -14.13,
+        "ret60": 15.61,
+        "ret120": 19.22,
+        "dist_from_high": -14.44,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "漢唐"
+      },
+      {
+        "stock_id": "3169",
+        "last_date": "2026-05-29",
+        "last_close": 119.0,
+        "ret20": 15.53,
+        "ret60": 13.33,
+        "ret120": 39.18,
+        "dist_from_high": -2.46,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "亞信"
+      },
+      {
+        "stock_id": "6187",
+        "last_date": "2026-07-14",
+        "last_close": 985.0,
+        "ret20": -12.83,
+        "ret60": -18.93,
+        "ret120": 166.22,
+        "dist_from_high": -29.14,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "萬潤"
+      },
+      {
+        "stock_id": "3443",
+        "last_date": "2026-07-14",
+        "last_close": 4020.0,
+        "ret20": -16.51,
+        "ret60": 23.5,
+        "ret120": 69.98,
+        "dist_from_high": -29.84,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "創意"
+      },
+      {
+        "stock_id": "3035",
+        "last_date": "2026-07-14",
+        "last_close": 207.0,
+        "ret20": 2.48,
+        "ret60": 30.19,
+        "ret120": 23.58,
+        "dist_from_high": -11.16,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "智原"
+      },
+      {
+        "stock_id": "3661",
+        "last_date": "2026-07-14",
+        "last_close": 3725.0,
+        "ret20": -12.35,
+        "ret60": 5.97,
+        "ret120": 4.34,
+        "dist_from_high": -30.7,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "世芯-KY"
+      },
+      {
+        "stock_id": "2454",
+        "last_date": "2026-07-14",
+        "last_close": 3660.0,
+        "ret20": -18.12,
+        "ret60": 90.13,
+        "ret120": 157.75,
+        "dist_from_high": -21.12,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "聯發科"
+      },
+      {
+        "stock_id": "6643",
+        "last_date": "2026-07-14",
+        "last_close": 420.5,
+        "ret20": -14.71,
+        "ret60": -16.9,
+        "ret120": -2.32,
+        "dist_from_high": -39.67,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "M31"
+      },
+      {
+        "stock_id": "4966",
+        "last_date": "2026-07-14",
+        "last_close": 628.0,
+        "ret20": -6.96,
+        "ret60": 15.02,
+        "ret120": 1.08,
+        "dist_from_high": -29.83,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "新達"
+      },
+      {
+        "stock_id": "6269",
+        "last_date": "2026-07-14",
+        "last_close": 60.0,
+        "ret20": -18.48,
+        "ret60": -7.26,
+        "ret120": 6.01,
+        "dist_from_high": -31.43,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "台郡"
+      },
+      {
+        "stock_id": "3060",
+        "last_date": "2026-05-29",
+        "last_close": 29.5,
+        "ret20": 5.17,
+        "ret60": -7.23,
+        "ret120": 5.73,
+        "dist_from_high": -20.81,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "銘異"
+      },
+      {
+        "stock_id": "6274",
+        "last_date": "2026-07-14",
+        "last_close": 1395.0,
+        "ret20": -11.15,
+        "ret60": 47.46,
+        "ret120": 201.75,
+        "dist_from_high": -26.58,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "台燿"
+      },
+      {
+        "stock_id": "1809",
+        "last_date": "2026-05-29",
+        "last_close": 42.400001525878906,
+        "ret20": 64.98,
+        "ret60": 55.03,
+        "ret120": 144.38,
+        "dist_from_high": -14.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "中玻"
+      },
+      {
+        "stock_id": "4770",
+        "last_date": "2026-05-29",
+        "last_close": 256.0,
+        "ret20": 15.58,
+        "ret60": 11.8,
+        "ret120": 27.2,
+        "dist_from_high": -17.46,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "上品"
+      },
+      {
+        "stock_id": "1603",
+        "last_date": "2026-07-14",
+        "last_close": 29.149999618530277,
+        "ret20": -8.76,
+        "ret60": -11.13,
+        "ret120": -23.99,
+        "dist_from_high": -32.13,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "華電"
+      },
+      {
+        "stock_id": "4916",
+        "last_date": "2026-05-29",
+        "last_close": 107.5,
+        "ret20": 74.51,
+        "ret60": 78.87,
+        "ret120": 133.7,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "事欣科"
+      },
+      {
+        "stock_id": "6770",
+        "last_date": "2026-07-14",
+        "last_close": 69.19999694824219,
+        "ret20": -5.59,
+        "ret60": 31.56,
+        "ret120": 45.68,
+        "dist_from_high": -20.46,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "力積電"
+      },
+      {
+        "stock_id": "2449",
+        "last_date": "2026-07-14",
+        "last_close": 291.5,
+        "ret20": 3.74,
+        "ret60": 6.0,
+        "ret120": 10.63,
+        "dist_from_high": -17.66,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "京元電子"
+      },
+      {
+        "stock_id": "6223",
+        "last_date": "2026-05-29",
+        "last_close": 5975.0,
+        "ret20": 21.32,
+        "ret60": 109.28,
+        "ret120": 190.05,
+        "dist_from_high": -6.49,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "旺矽"
+      },
+      {
+        "stock_id": "2360",
+        "last_date": "2026-05-29",
+        "last_close": 2500.0,
+        "ret20": 17.92,
+        "ret60": 79.21,
+        "ret120": 201.57,
+        "dist_from_high": -4.76,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "致茂"
+      },
+      {
+        "stock_id": "3264",
+        "last_date": "2026-05-29",
+        "last_close": 244.5,
+        "ret20": 25.38,
+        "ret60": 72.18,
+        "ret120": 180.71,
+        "dist_from_high": -1.61,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "欣銓"
+      },
+      {
+        "stock_id": "6147",
+        "last_date": "2026-07-14",
+        "last_close": 186.0,
+        "ret20": -20.68,
+        "ret60": 61.74,
+        "ret120": 243.81,
+        "dist_from_high": -39.12,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "頎邦"
+      },
+      {
+        "stock_id": "2441",
+        "last_date": "2026-07-14",
+        "last_close": 129.0,
+        "ret20": 1.57,
+        "ret60": 45.93,
+        "ret120": 40.98,
+        "dist_from_high": -11.03,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "超豐"
+      },
+      {
+        "stock_id": "3587",
+        "last_date": "2026-05-29",
+        "last_close": 332.0,
+        "ret20": 0.15,
+        "ret60": 54.78,
+        "ret120": 79.46,
+        "dist_from_high": -16.16,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "閎康"
+      },
+      {
+        "stock_id": "3413",
+        "last_date": "2026-05-29",
+        "last_close": 320.0,
+        "ret20": 6.78,
+        "ret60": 9.25,
+        "ret120": 12.8,
+        "dist_from_high": -10.92,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "京鼎"
+      },
+      {
+        "stock_id": "5443",
+        "last_date": "2026-05-29",
+        "last_close": 124.5,
+        "ret20": -3.86,
+        "ret60": 35.47,
+        "ret120": 52.76,
+        "dist_from_high": -9.45,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "均豪"
+      },
+      {
+        "stock_id": "6533",
+        "last_date": "2026-07-14",
+        "last_close": 225.0,
+        "ret20": 8.96,
+        "ret60": -4.26,
+        "ret120": -8.91,
+        "dist_from_high": -30.88,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "晶心科"
+      },
+      {
+        "stock_id": "3529",
+        "last_date": "2026-05-29",
+        "last_close": 3475.0,
+        "ret20": -10.78,
+        "ret60": 48.82,
+        "ret120": 74.62,
+        "dist_from_high": -26.14,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "力旺"
+      },
+      {
+        "stock_id": "6488",
+        "last_date": "2026-07-14",
+        "last_close": 1515.0,
+        "ret20": 59.47,
+        "ret60": 200.0,
+        "ret120": 252.74,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "環球晶"
+      },
+      {
+        "stock_id": "3532",
+        "last_date": "2026-07-14",
+        "last_close": 510.0,
+        "ret20": 42.06,
+        "ret60": 170.56,
+        "ret120": 361.54,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "台勝科"
+      },
+      {
+        "stock_id": "8028",
+        "last_date": "2026-05-29",
+        "last_close": 335.5,
+        "ret20": 36.94,
+        "ret60": 84.34,
+        "ret120": 117.86,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "昇陽半導體"
+      },
+      {
+        "stock_id": "1560",
+        "last_date": "2026-07-14",
+        "last_close": 675.0,
+        "ret20": -3.98,
+        "ret60": 26.64,
+        "ret120": 64.84,
+        "dist_from_high": -12.22,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "中砂"
+      },
+      {
+        "stock_id": "2344",
+        "last_date": "2026-07-14",
+        "last_close": 164.5,
+        "ret20": -12.96,
+        "ret60": 87.36,
+        "ret120": 69.08,
+        "dist_from_high": -25.9,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "華邦電"
+      },
+      {
+        "stock_id": "2337",
+        "last_date": "2026-07-14",
+        "last_close": 139.5,
+        "ret20": -12.26,
+        "ret60": 6.49,
+        "ret120": 139.28,
+        "dist_from_high": -24.8,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "旺宏"
+      },
+      {
+        "stock_id": "8299",
+        "last_date": "2026-07-14",
+        "last_close": 2050.0,
+        "ret20": -11.64,
+        "ret60": 30.57,
+        "ret120": 25.77,
+        "dist_from_high": -28.82,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "群聯"
+      },
+      {
+        "stock_id": "5289",
+        "last_date": "2026-07-14",
+        "last_close": 1445.0,
+        "ret20": -24.74,
+        "ret60": 43.78,
+        "ret120": 133.82,
+        "dist_from_high": -27.39,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "宜鼎"
+      },
+      {
+        "stock_id": "1711",
+        "last_date": "2026-07-14",
+        "last_close": 41.84999847412109,
+        "ret20": -6.17,
+        "ret60": -12.72,
+        "ret120": 98.81,
+        "dist_from_high": -32.5,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "永光"
+      },
+      {
+        "stock_id": "1723",
+        "last_date": "2026-06-12",
+        "last_close": 87.0,
+        "ret20": 9.71,
+        "ret60": 16.0,
+        "ret120": 27.19,
+        "dist_from_high": -5.13,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "中碳"
+      },
+      {
+        "stock_id": "2338",
+        "last_date": "2026-05-29",
+        "last_close": 57.70000076293945,
+        "ret20": 22.77,
+        "ret60": 7.05,
+        "ret120": 69.21,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "光罩"
+      },
+      {
+        "stock_id": "3680",
+        "last_date": "2026-05-29",
+        "last_close": 551.0,
+        "ret20": 3.49,
+        "ret60": 37.38,
+        "ret120": 60.12,
+        "dist_from_high": -9.79,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "家登"
+      }
+    ],
+    "all_companies": [
+      {
+        "stock_id": "2330",
+        "name": "台積電"
+      },
+      {
+        "stock_id": "2303",
+        "name": "聯電"
+      },
+      {
+        "stock_id": "5347",
+        "name": "世界先進"
+      },
+      {
+        "stock_id": "2408",
+        "name": "南亞科"
+      },
+      {
+        "stock_id": "3711",
+        "name": "日月光投控"
+      },
+      {
+        "stock_id": "3131",
+        "name": "弘塑"
+      },
+      {
+        "stock_id": "3583",
+        "name": "辛耘"
+      },
+      {
+        "stock_id": "6640",
+        "name": "均華"
+      },
+      {
+        "stock_id": "6510",
+        "name": "精測"
+      },
+      {
+        "stock_id": "3037",
+        "name": "欣興"
+      },
+      {
+        "stock_id": "8046",
+        "name": "南電"
+      },
+      {
+        "stock_id": "3189",
+        "name": "景碩"
+      },
+      {
+        "stock_id": "2383",
+        "name": "台光電"
+      },
+      {
+        "stock_id": "5388",
+        "name": "中砂"
+      },
+      {
+        "stock_id": "3669",
+        "name": "圓展"
+      },
+      {
+        "stock_id": "3584",
+        "name": "萬潤"
+      },
+      {
+        "stock_id": "3698",
+        "name": "隆達"
+      },
+      {
+        "stock_id": "2404",
+        "name": "漢唐"
+      },
+      {
+        "stock_id": "3169",
+        "name": "亞信"
+      },
+      {
+        "stock_id": "6187",
+        "name": "萬潤"
+      },
+      {
+        "stock_id": "3443",
+        "name": "創意"
+      },
+      {
+        "stock_id": "3035",
+        "name": "智原"
+      },
+      {
+        "stock_id": "3661",
+        "name": "世芯-KY"
+      },
+      {
+        "stock_id": "2454",
+        "name": "聯發科"
+      },
+      {
+        "stock_id": "6643",
+        "name": "M31"
+      },
+      {
+        "stock_id": "4966",
+        "name": "新達"
+      },
+      {
+        "stock_id": "6269",
+        "name": "台郡"
+      },
+      {
+        "stock_id": "3060",
+        "name": "銘異"
+      },
+      {
+        "stock_id": "6274",
+        "name": "台燿"
+      },
+      {
+        "stock_id": "1809",
+        "name": "中玻"
+      },
+      {
+        "stock_id": "4770",
+        "name": "上品"
+      },
+      {
+        "stock_id": "1603",
+        "name": "華電"
+      },
+      {
+        "stock_id": "4916",
+        "name": "事欣科"
+      },
+      {
+        "stock_id": "6770",
+        "name": "力積電"
+      },
+      {
+        "stock_id": "2449",
+        "name": "京元電子"
+      },
+      {
+        "stock_id": "6223",
+        "name": "旺矽"
+      },
+      {
+        "stock_id": "2360",
+        "name": "致茂"
+      },
+      {
+        "stock_id": "3264",
+        "name": "欣銓"
+      },
+      {
+        "stock_id": "6147",
+        "name": "頎邦"
+      },
+      {
+        "stock_id": "2441",
+        "name": "超豐"
+      },
+      {
+        "stock_id": "3587",
+        "name": "閎康"
+      },
+      {
+        "stock_id": "3413",
+        "name": "京鼎"
+      },
+      {
+        "stock_id": "5443",
+        "name": "均豪"
+      },
+      {
+        "stock_id": "6533",
+        "name": "晶心科"
+      },
+      {
+        "stock_id": "3529",
+        "name": "力旺"
+      },
+      {
+        "stock_id": "6488",
+        "name": "環球晶"
+      },
+      {
+        "stock_id": "3532",
+        "name": "台勝科"
+      },
+      {
+        "stock_id": "8028",
+        "name": "昇陽半導體"
+      },
+      {
+        "stock_id": "1560",
+        "name": "中砂"
+      },
+      {
+        "stock_id": "2344",
+        "name": "華邦電"
+      },
+      {
+        "stock_id": "2337",
+        "name": "旺宏"
+      },
+      {
+        "stock_id": "8299",
+        "name": "群聯"
+      },
+      {
+        "stock_id": "5289",
+        "name": "宜鼎"
+      },
+      {
+        "stock_id": "1711",
+        "name": "永光"
+      },
+      {
+        "stock_id": "1723",
+        "name": "中碳"
+      },
+      {
+        "stock_id": "2338",
+        "name": "光罩"
+      },
+      {
+        "stock_id": "3680",
+        "name": "家登"
+      }
+    ],
+    "capex_csp": {
+      "lines": [
+        "Microsoft：最新申報季度CAPEX約 $30.9B（截至2026-03-31，10-Q），較上季持平（+3.3%）",
+        "Alphabet：最新申報季度CAPEX約 $35.7B（截至2026-03-31，10-Q），較上季下修（-61.0%）",
+        "Amazon：最新申報季度CAPEX約 $1.9B（截至2017-03-31，10-Q），較上季下修（-72.4%）",
+        "Meta：最新申報季度CAPEX約 $19.0B（截至2026-03-31，10-Q），較上季下修（-72.7%）"
+      ],
+      "success": true,
+      "fetched_at": "2026-07-15 10:25:00",
+      "grade": "A"
+    },
+    "capex_tsmc": "尚未接入（台積電CAPEX無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "export_stats": "尚未接入（官方出口統計無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "calculated_at": "2026-07-15 15:06:19"
+  },
+  "CONN_SPACE": {
+    "topic_id": "CONN_SPACE",
+    "total_count": 24,
+    "fundamental_sample": 24,
+    "revenue_yoy_median": 12.23,
+    "revenue_yoy_positive_ratio": 0.77,
+    "revenue_yoy_above10_ratio": 0.5,
+    "eps_yoy_median": 4.25,
+    "eps_yoy_positive_ratio": 0.67,
+    "gm_improve_ratio": 0.5,
+    "price_sample": 24,
+    "price_median_ret20": -0.14,
+    "price_median_ret60": 15.98,
+    "price_median_ret120": 58.08,
+    "dist_from_high_median": -16.94,
+    "above_ma20_ratio": 0.29,
+    "new_low_ratio_60d": 0.21,
+    "up20_ratio": 0.5,
+    "twii_ret60": 22.89,
+    "relative_strength_60d": -6.91,
+    "latest_price_date": "2026-07-14",
+    "is_price_stale": false,
+    "fund_rows": [
+      {
+        "stock_id": "2345",
+        "name": "智邦",
+        "revenue_yoy": -2.6,
+        "eps_yoy": -0.2,
+        "gm_direction": "up",
+        "king_total": 15,
+        "attack_total": 11,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2330",
+        "name": "台積電",
+        "revenue_yoy": 8.4,
+        "eps_yoy": 13.3,
+        "gm_direction": "up",
+        "king_total": 23,
+        "attack_total": 27,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "6285",
+        "name": "啟碁",
+        "revenue_yoy": 7.9,
+        "eps_yoy": 14.7,
+        "gm_direction": "flat",
+        "king_total": 15,
+        "attack_total": 18,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "6669",
+        "name": "緯穎",
+        "revenue_yoy": -5.4,
+        "eps_yoy": 2.3,
+        "gm_direction": "up",
+        "king_total": 18,
+        "attack_total": 11,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2317",
+        "name": "鴻海",
+        "revenue_yoy": -18.7,
+        "eps_yoy": 6.2,
+        "gm_direction": "up",
+        "king_total": 13,
+        "attack_total": 19,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3491",
+        "name": "昇達科",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 7,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3665",
+        "name": "貿聯-KY",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 9,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3533",
+        "name": "嘉澤",
+        "revenue_yoy": 0.7,
+        "eps_yoy": -5.4,
+        "gm_direction": "down",
+        "king_total": 11,
+        "attack_total": 2,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3450",
+        "name": "聯鈞",
+        "revenue_yoy": 88.18,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4979",
+        "name": "華星光",
+        "revenue_yoy": 27.68,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3163",
+        "name": "波若威",
+        "revenue_yoy": -11.53,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3363",
+        "name": "上詮",
+        "revenue_yoy": -15.7,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6442",
+        "name": "光聖",
+        "revenue_yoy": 1.64,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4908",
+        "name": "前鼎",
+        "revenue_yoy": 29.72,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3081",
+        "name": "聯亞",
+        "revenue_yoy": 128.14,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3711",
+        "name": "日月光投控",
+        "revenue_yoy": 32.86,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "5388",
+        "name": "中磊",
+        "revenue_yoy": 70.81,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3380",
+        "name": "明泰",
+        "revenue_yoy": 5.46,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2382",
+        "name": "廣達",
+        "revenue_yoy": 102.87,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3231",
+        "name": "緯創",
+        "revenue_yoy": 53.85,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "8086",
+        "name": "宏捷科",
+        "revenue_yoy": 16.05,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3105",
+        "name": "穩懋",
+        "revenue_yoy": 29.55,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3023",
+        "name": "信邦",
+        "revenue_yoy": 17.59,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3217",
+        "name": "優群",
+        "revenue_yoy": 2.42,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      }
+    ],
+    "price_rows": [
+      {
+        "stock_id": "2345",
+        "last_date": "2026-07-14",
+        "last_close": 2280.0,
+        "ret20": -6.17,
+        "ret60": 10.14,
+        "ret120": 87.65,
+        "dist_from_high": -17.09,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "智邦"
+      },
+      {
+        "stock_id": "3450",
+        "last_date": "2026-05-29",
+        "last_close": 483.0,
+        "ret20": 59.93,
+        "ret60": 44.61,
+        "ret120": 104.23,
+        "dist_from_high": -8.87,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "聯鈞"
+      },
+      {
+        "stock_id": "4979",
+        "last_date": "2026-05-29",
+        "last_close": 627.0,
+        "ret20": 2.96,
+        "ret60": 34.98,
+        "ret120": 208.87,
+        "dist_from_high": -12.67,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "華星光"
+      },
+      {
+        "stock_id": "3163",
+        "last_date": "2026-05-29",
+        "last_close": 1020.0,
+        "ret20": -10.92,
+        "ret60": 27.66,
+        "ret120": 305.57,
+        "dist_from_high": -21.24,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "波若威"
+      },
+      {
+        "stock_id": "3363",
+        "last_date": "2026-05-29",
+        "last_close": 795.0,
+        "ret20": 3.38,
+        "ret60": 28.02,
+        "ret120": 122.69,
+        "dist_from_high": -19.7,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "上詮"
+      },
+      {
+        "stock_id": "6442",
+        "last_date": "2026-07-14",
+        "last_close": 1315.0,
+        "ret20": -31.51,
+        "ret60": -38.98,
+        "ret120": -6.07,
+        "dist_from_high": -44.51,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "光聖"
+      },
+      {
+        "stock_id": "4908",
+        "last_date": "2026-05-29",
+        "last_close": 233.0,
+        "ret20": 8.88,
+        "ret60": 121.9,
+        "ret120": 219.18,
+        "dist_from_high": -20.61,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "前鼎"
+      },
+      {
+        "stock_id": "3081",
+        "last_date": "2026-05-29",
+        "last_close": 2630.0,
+        "ret20": -0.38,
+        "ret60": 78.31,
+        "ret120": 447.92,
+        "dist_from_high": -16.77,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "聯亞"
+      },
+      {
+        "stock_id": "2330",
+        "last_date": "2026-07-14",
+        "last_close": 2420.0,
+        "ret20": 1.89,
+        "ret60": 19.21,
+        "ret120": 44.52,
+        "dist_from_high": -3.59,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "台積電"
+      },
+      {
+        "stock_id": "3711",
+        "last_date": "2026-07-14",
+        "last_close": 641.0,
+        "ret20": 8.64,
+        "ret60": 45.02,
+        "ret120": 135.66,
+        "dist_from_high": -11.83,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "日月光投控"
+      },
+      {
+        "stock_id": "5388",
+        "last_date": "2026-05-29",
+        "last_close": 85.9000015258789,
+        "ret20": 12.29,
+        "ret60": 8.33,
+        "ret120": 9.13,
+        "dist_from_high": -16.79,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "中磊"
+      },
+      {
+        "stock_id": "3380",
+        "last_date": "2026-05-29",
+        "last_close": 38.09999847412109,
+        "ret20": 13.39,
+        "ret60": 7.48,
+        "ret120": 33.68,
+        "dist_from_high": -8.3,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "明泰"
+      },
+      {
+        "stock_id": "6285",
+        "last_date": "2026-07-14",
+        "last_close": 247.5,
+        "ret20": -9.84,
+        "ret60": -6.43,
+        "ret120": 139.13,
+        "dist_from_high": -21.18,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "啟碁"
+      },
+      {
+        "stock_id": "2382",
+        "last_date": "2026-07-14",
+        "last_close": 380.0,
+        "ret20": 2.7,
+        "ret60": 17.65,
+        "ret120": 34.28,
+        "dist_from_high": -8.87,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "廣達"
+      },
+      {
+        "stock_id": "6669",
+        "last_date": "2026-07-14",
+        "last_close": 4905.0,
+        "ret20": 0.1,
+        "ret60": 28.91,
+        "ret120": 15.68,
+        "dist_from_high": -15.28,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "緯穎"
+      },
+      {
+        "stock_id": "3231",
+        "last_date": "2026-07-14",
+        "last_close": 142.5,
+        "ret20": -11.76,
+        "ret60": 4.4,
+        "ret120": -4.36,
+        "dist_from_high": -26.55,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "緯創"
+      },
+      {
+        "stock_id": "2317",
+        "last_date": "2026-07-14",
+        "last_close": 235.5,
+        "ret20": -11.96,
+        "ret60": 14.32,
+        "ret120": 2.17,
+        "dist_from_high": -23.79,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "鴻海"
+      },
+      {
+        "stock_id": "3491",
+        "last_date": "2026-07-14",
+        "last_close": 1195.0,
+        "ret20": -23.15,
+        "ret60": -28.44,
+        "ret120": 53.21,
+        "dist_from_high": -45.06,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "昇達科"
+      },
+      {
+        "stock_id": "8086",
+        "last_date": "2026-05-29",
+        "last_close": 167.5,
+        "ret20": 16.32,
+        "ret60": 22.26,
+        "ret120": 68.68,
+        "dist_from_high": -6.42,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "宏捷科"
+      },
+      {
+        "stock_id": "3105",
+        "last_date": "2026-07-14",
+        "last_close": 378.5,
+        "ret20": -25.93,
+        "ret60": -29.78,
+        "ret120": 74.83,
+        "dist_from_high": -38.65,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "穩懋"
+      },
+      {
+        "stock_id": "3665",
+        "last_date": "2026-07-14",
+        "last_close": 1775.0,
+        "ret20": -21.63,
+        "ret60": -24.95,
+        "ret120": 24.56,
+        "dist_from_high": -39.63,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "貿聯-KY"
+      },
+      {
+        "stock_id": "3023",
+        "last_date": "2026-07-14",
+        "last_close": 314.5,
+        "ret20": -1.41,
+        "ret60": 11.52,
+        "ret120": 62.95,
+        "dist_from_high": -6.54,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "信邦"
+      },
+      {
+        "stock_id": "3217",
+        "last_date": "2026-05-29",
+        "last_close": 189.5,
+        "ret20": 13.81,
+        "ret60": 23.45,
+        "ret120": 14.85,
+        "dist_from_high": -8.45,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "優群"
+      },
+      {
+        "stock_id": "3533",
+        "last_date": "2026-07-14",
+        "last_close": 1925.0,
+        "ret20": -16.3,
+        "ret60": -22.69,
+        "ret120": 36.52,
+        "dist_from_high": -32.46,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "嘉澤"
+      }
+    ],
+    "all_companies": [
+      {
+        "stock_id": "2345",
+        "name": "智邦"
+      },
+      {
+        "stock_id": "3450",
+        "name": "聯鈞"
+      },
+      {
+        "stock_id": "4979",
+        "name": "華星光"
+      },
+      {
+        "stock_id": "3163",
+        "name": "波若威"
+      },
+      {
+        "stock_id": "3363",
+        "name": "上詮"
+      },
+      {
+        "stock_id": "6442",
+        "name": "光聖"
+      },
+      {
+        "stock_id": "4908",
+        "name": "前鼎"
+      },
+      {
+        "stock_id": "3081",
+        "name": "聯亞"
+      },
+      {
+        "stock_id": "2330",
+        "name": "台積電"
+      },
+      {
+        "stock_id": "3711",
+        "name": "日月光投控"
+      },
+      {
+        "stock_id": "5388",
+        "name": "中磊"
+      },
+      {
+        "stock_id": "3380",
+        "name": "明泰"
+      },
+      {
+        "stock_id": "6285",
+        "name": "啟碁"
+      },
+      {
+        "stock_id": "2382",
+        "name": "廣達"
+      },
+      {
+        "stock_id": "6669",
+        "name": "緯穎"
+      },
+      {
+        "stock_id": "3231",
+        "name": "緯創"
+      },
+      {
+        "stock_id": "2317",
+        "name": "鴻海"
+      },
+      {
+        "stock_id": "3491",
+        "name": "昇達科"
+      },
+      {
+        "stock_id": "8086",
+        "name": "宏捷科"
+      },
+      {
+        "stock_id": "3105",
+        "name": "穩懋"
+      },
+      {
+        "stock_id": "3665",
+        "name": "貿聯-KY"
+      },
+      {
+        "stock_id": "3023",
+        "name": "信邦"
+      },
+      {
+        "stock_id": "3217",
+        "name": "優群"
+      },
+      {
+        "stock_id": "3533",
+        "name": "嘉澤"
+      }
+    ],
+    "capex_csp": {
+      "lines": [
+        "Microsoft：最新申報季度CAPEX約 $30.9B（截至2026-03-31，10-Q），較上季持平（+3.3%）",
+        "Alphabet：最新申報季度CAPEX約 $35.7B（截至2026-03-31，10-Q），較上季下修（-61.0%）",
+        "Amazon：最新申報季度CAPEX約 $1.9B（截至2017-03-31，10-Q），較上季下修（-72.4%）",
+        "Meta：最新申報季度CAPEX約 $19.0B（截至2026-03-31，10-Q），較上季下修（-72.7%）"
+      ],
+      "success": true,
+      "fetched_at": "2026-07-15 10:25:00",
+      "grade": "A"
+    },
+    "capex_tsmc": "尚未接入（台積電CAPEX無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "export_stats": "尚未接入（官方出口統計無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "calculated_at": "2026-07-15 15:06:20"
+  },
+  "POWER_INFRA": {
+    "topic_id": "POWER_INFRA",
+    "total_count": 14,
+    "fundamental_sample": 14,
+    "revenue_yoy_median": 8.31,
+    "revenue_yoy_positive_ratio": 0.62,
+    "revenue_yoy_above10_ratio": 0.46,
+    "eps_yoy_median": 9.6,
+    "eps_yoy_positive_ratio": 0.5,
+    "gm_improve_ratio": 0.33,
+    "price_sample": 14,
+    "price_median_ret20": 8.31,
+    "price_median_ret60": 6.3,
+    "price_median_ret120": 14.26,
+    "dist_from_high_median": -16.4,
+    "above_ma20_ratio": 0.64,
+    "new_low_ratio_60d": 0.14,
+    "up20_ratio": 0.71,
+    "twii_ret60": 22.89,
+    "relative_strength_60d": -16.59,
+    "latest_price_date": "2026-07-14",
+    "is_price_stale": false,
+    "fund_rows": [
+      {
+        "stock_id": "1519",
+        "name": "華城",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 3,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2308",
+        "name": "台達電",
+        "revenue_yoy": -1.4,
+        "eps_yoy": 21.4,
+        "gm_direction": "up",
+        "king_total": 16,
+        "attack_total": 10,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2301",
+        "name": "光寶科",
+        "revenue_yoy": -2.1,
+        "eps_yoy": -2.2,
+        "gm_direction": "flat",
+        "king_total": 7,
+        "attack_total": 15,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "1503",
+        "name": "士電",
+        "revenue_yoy": -10.58,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1513",
+        "name": "中興電",
+        "revenue_yoy": 8.31,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1609",
+        "name": "大亞",
+        "revenue_yoy": 22.67,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1608",
+        "name": "華榮",
+        "revenue_yoy": 13.35,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1618",
+        "name": "合機",
+        "revenue_yoy": -37.72,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6412",
+        "name": "群電",
+        "revenue_yoy": -0.77,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4931",
+        "name": "新盛力",
+        "revenue_yoy": 145.09,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6806",
+        "name": "森崴能源",
+        "revenue_yoy": 8.17,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2395",
+        "name": "研華",
+        "revenue_yoy": 73.39,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6414",
+        "name": "樺漢",
+        "revenue_yoy": 56.97,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3022",
+        "name": "威強電",
+        "revenue_yoy": 79.97,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      }
+    ],
+    "price_rows": [
+      {
+        "stock_id": "1519",
+        "last_date": "2026-07-14",
+        "last_close": 692.0,
+        "ret20": -12.29,
+        "ret60": -20.64,
+        "ret120": -11.96,
+        "dist_from_high": -35.93,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "華城"
+      },
+      {
+        "stock_id": "1503",
+        "last_date": "2026-06-15",
+        "last_close": 225.5,
+        "ret20": 21.24,
+        "ret60": 8.15,
+        "ret120": 31.49,
+        "dist_from_high": -15.86,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "士電"
+      },
+      {
+        "stock_id": "1513",
+        "last_date": "2026-06-12",
+        "last_close": 167.0,
+        "ret20": 11.33,
+        "ret60": 3.09,
+        "ret120": 11.33,
+        "dist_from_high": -10.7,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "中興電"
+      },
+      {
+        "stock_id": "1609",
+        "last_date": "2026-07-14",
+        "last_close": 38.650001525878906,
+        "ret20": 0.91,
+        "ret60": 11.87,
+        "ret120": 1.44,
+        "dist_from_high": -18.29,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "大亞"
+      },
+      {
+        "stock_id": "1608",
+        "last_date": "2026-07-14",
+        "last_close": 32.70000076293945,
+        "ret20": -7.23,
+        "ret60": -1.36,
+        "ret120": -12.33,
+        "dist_from_high": -19.36,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "華榮"
+      },
+      {
+        "stock_id": "1618",
+        "last_date": "2026-05-29",
+        "last_close": 42.0,
+        "ret20": 9.09,
+        "ret60": -7.08,
+        "ret120": 2.44,
+        "dist_from_high": -16.94,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "合機"
+      },
+      {
+        "stock_id": "2308",
+        "last_date": "2026-07-14",
+        "last_close": 1855.0,
+        "ret20": -16.06,
+        "ret60": 0.82,
+        "ret120": 82.76,
+        "dist_from_high": -26.39,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "台達電"
+      },
+      {
+        "stock_id": "2301",
+        "last_date": "2026-07-14",
+        "last_close": 212.5,
+        "ret20": 2.41,
+        "ret60": 31.17,
+        "ret120": 35.2,
+        "dist_from_high": -15.0,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "光寶科"
+      },
+      {
+        "stock_id": "6412",
+        "last_date": "2026-05-29",
+        "last_close": 101.0,
+        "ret20": 24.69,
+        "ret60": 4.45,
+        "ret120": 12.22,
+        "dist_from_high": -19.2,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "群電"
+      },
+      {
+        "stock_id": "4931",
+        "last_date": "2026-05-29",
+        "last_close": 229.5,
+        "ret20": 44.34,
+        "ret60": 62.19,
+        "ret120": 85.08,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "新盛力"
+      },
+      {
+        "stock_id": "6806",
+        "last_date": "2026-05-29",
+        "last_close": 5.489999771118164,
+        "ret20": -75.76,
+        "ret60": -87.16,
+        "ret120": -85.72,
+        "dist_from_high": -93.9,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "森崴能源"
+      },
+      {
+        "stock_id": "2395",
+        "last_date": "2026-05-29",
+        "last_close": 506.0,
+        "ret20": 40.75,
+        "ret60": 53.33,
+        "ret120": 77.54,
+        "dist_from_high": -0.78,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "研華"
+      },
+      {
+        "stock_id": "6414",
+        "last_date": "2026-06-12",
+        "last_close": 375.5,
+        "ret20": 17.53,
+        "ret60": 36.05,
+        "ret120": 30.61,
+        "dist_from_high": -6.36,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "樺漢"
+      },
+      {
+        "stock_id": "3022",
+        "last_date": "2026-05-29",
+        "last_close": 74.19999694824219,
+        "ret20": 7.54,
+        "ret60": 25.55,
+        "ret120": 16.3,
+        "dist_from_high": -6.96,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "威強電"
+      }
+    ],
+    "all_companies": [
+      {
+        "stock_id": "1519",
+        "name": "華城"
+      },
+      {
+        "stock_id": "1503",
+        "name": "士電"
+      },
+      {
+        "stock_id": "1513",
+        "name": "中興電"
+      },
+      {
+        "stock_id": "1609",
+        "name": "大亞"
+      },
+      {
+        "stock_id": "1608",
+        "name": "華榮"
+      },
+      {
+        "stock_id": "1618",
+        "name": "合機"
+      },
+      {
+        "stock_id": "2308",
+        "name": "台達電"
+      },
+      {
+        "stock_id": "2301",
+        "name": "光寶科"
+      },
+      {
+        "stock_id": "6412",
+        "name": "群電"
+      },
+      {
+        "stock_id": "4931",
+        "name": "新盛力"
+      },
+      {
+        "stock_id": "6806",
+        "name": "森崴能源"
+      },
+      {
+        "stock_id": "2395",
+        "name": "研華"
+      },
+      {
+        "stock_id": "6414",
+        "name": "樺漢"
+      },
+      {
+        "stock_id": "3022",
+        "name": "威強電"
+      }
+    ],
+    "capex_csp": {
+      "lines": [
+        "Microsoft：最新申報季度CAPEX約 $30.9B（截至2026-03-31，10-Q），較上季持平（+3.3%）",
+        "Alphabet：最新申報季度CAPEX約 $35.7B（截至2026-03-31，10-Q），較上季下修（-61.0%）",
+        "Amazon：最新申報季度CAPEX約 $1.9B（截至2017-03-31，10-Q），較上季下修（-72.4%）",
+        "Meta：最新申報季度CAPEX約 $19.0B（截至2026-03-31，10-Q），較上季下修（-72.7%）"
+      ],
+      "success": true,
+      "fetched_at": "2026-07-15 10:25:00",
+      "grade": "A"
+    },
+    "capex_tsmc": "尚未接入（台積電CAPEX無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "export_stats": "尚未接入（官方出口統計無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "calculated_at": "2026-07-15 15:06:20"
+  },
+  "WATER_ENV": {
+    "topic_id": "WATER_ENV",
+    "total_count": 10,
+    "fundamental_sample": 10,
+    "revenue_yoy_median": 18.1,
+    "revenue_yoy_positive_ratio": 0.67,
+    "revenue_yoy_above10_ratio": 0.56,
+    "eps_yoy_median": null,
+    "eps_yoy_positive_ratio": null,
+    "gm_improve_ratio": 0.0,
+    "price_sample": 10,
+    "price_median_ret20": 5.86,
+    "price_median_ret60": 26.21,
+    "price_median_ret120": 26.79,
+    "dist_from_high_median": -5.26,
+    "above_ma20_ratio": 0.6,
+    "new_low_ratio_60d": 0.1,
+    "up20_ratio": 0.7,
+    "twii_ret60": 22.89,
+    "relative_strength_60d": 3.32,
+    "latest_price_date": "2026-07-14",
+    "is_price_stale": false,
+    "fund_rows": [
+      {
+        "stock_id": "2404",
+        "name": "漢唐",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 7,
+        "attack_total": 21,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "6944",
+        "name": "兆聯",
+        "revenue_yoy": 29.98,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6196",
+        "name": "帆宣",
+        "revenue_yoy": 120.99,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "9933",
+        "name": "中鼎",
+        "revenue_yoy": -16.64,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "8473",
+        "name": "山林水",
+        "revenue_yoy": 18.1,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3703",
+        "name": "欣陸",
+        "revenue_yoy": -5.55,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6803",
+        "name": "崑鼎",
+        "revenue_yoy": -2.1,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "8341",
+        "name": "日友",
+        "revenue_yoy": 6.99,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2395",
+        "name": "研華",
+        "revenue_yoy": 73.39,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6414",
+        "name": "樺漢",
+        "revenue_yoy": 56.97,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      }
+    ],
+    "price_rows": [
+      {
+        "stock_id": "6944",
+        "last_date": "2026-05-29",
+        "last_close": 945.0,
+        "ret20": 4.65,
+        "ret60": 31.62,
+        "ret120": 70.27,
+        "dist_from_high": -4.16,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "兆聯"
+      },
+      {
+        "stock_id": "6196",
+        "last_date": "2026-05-29",
+        "last_close": 516.0,
+        "ret20": 36.51,
+        "ret60": 78.24,
+        "ret120": 127.31,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "帆宣"
+      },
+      {
+        "stock_id": "2404",
+        "last_date": "2026-07-14",
+        "last_close": 1185.0,
+        "ret20": -14.13,
+        "ret60": 15.61,
+        "ret120": 19.22,
+        "dist_from_high": -14.44,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "漢唐"
+      },
+      {
+        "stock_id": "9933",
+        "last_date": "2026-05-29",
+        "last_close": 39.34999847412109,
+        "ret20": 7.07,
+        "ret60": 25.32,
+        "ret120": 22.97,
+        "dist_from_high": -3.08,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "中鼎"
+      },
+      {
+        "stock_id": "8473",
+        "last_date": "2026-05-29",
+        "last_close": 47.59999847412109,
+        "ret20": 32.59,
+        "ret60": 27.1,
+        "ret120": 32.04,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "山林水"
+      },
+      {
+        "stock_id": "3703",
+        "last_date": "2026-05-29",
+        "last_close": 20.25,
+        "ret20": -2.41,
+        "ret60": -9.19,
+        "ret120": -8.99,
+        "dist_from_high": -17.01,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "欣陸"
+      },
+      {
+        "stock_id": "6803",
+        "last_date": "2026-07-14",
+        "last_close": 270.5,
+        "ret20": -6.24,
+        "ret60": -6.56,
+        "ret120": -10.13,
+        "dist_from_high": -12.6,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "崑鼎"
+      },
+      {
+        "stock_id": "8341",
+        "last_date": "2026-05-29",
+        "last_close": 75.0,
+        "ret20": 0.4,
+        "ret60": -5.42,
+        "ret120": -5.9,
+        "dist_from_high": -18.03,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "日友"
+      },
+      {
+        "stock_id": "2395",
+        "last_date": "2026-05-29",
+        "last_close": 506.0,
+        "ret20": 40.75,
+        "ret60": 53.33,
+        "ret120": 77.54,
+        "dist_from_high": -0.78,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "研華"
+      },
+      {
+        "stock_id": "6414",
+        "last_date": "2026-06-12",
+        "last_close": 375.5,
+        "ret20": 17.53,
+        "ret60": 36.05,
+        "ret120": 30.61,
+        "dist_from_high": -6.36,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "樺漢"
+      }
+    ],
+    "all_companies": [
+      {
+        "stock_id": "6944",
+        "name": "兆聯"
+      },
+      {
+        "stock_id": "6196",
+        "name": "帆宣"
+      },
+      {
+        "stock_id": "2404",
+        "name": "漢唐"
+      },
+      {
+        "stock_id": "9933",
+        "name": "中鼎"
+      },
+      {
+        "stock_id": "8473",
+        "name": "山林水"
+      },
+      {
+        "stock_id": "3703",
+        "name": "欣陸"
+      },
+      {
+        "stock_id": "6803",
+        "name": "崑鼎"
+      },
+      {
+        "stock_id": "8341",
+        "name": "日友"
+      },
+      {
+        "stock_id": "2395",
+        "name": "研華"
+      },
+      {
+        "stock_id": "6414",
+        "name": "樺漢"
+      }
+    ],
+    "capex_csp": {
+      "lines": [
+        "Microsoft：最新申報季度CAPEX約 $30.9B（截至2026-03-31，10-Q），較上季持平（+3.3%）",
+        "Alphabet：最新申報季度CAPEX約 $35.7B（截至2026-03-31，10-Q），較上季下修（-61.0%）",
+        "Amazon：最新申報季度CAPEX約 $1.9B（截至2017-03-31，10-Q），較上季下修（-72.4%）",
+        "Meta：最新申報季度CAPEX約 $19.0B（截至2026-03-31，10-Q），較上季下修（-72.7%）"
+      ],
+      "success": true,
+      "fetched_at": "2026-07-15 10:25:00",
+      "grade": "A"
+    },
+    "capex_tsmc": "尚未接入（台積電CAPEX無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "export_stats": "尚未接入（官方出口統計無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "calculated_at": "2026-07-15 15:06:20"
+  },
+  "ROBOT_AUTOMATION": {
+    "topic_id": "ROBOT_AUTOMATION",
+    "total_count": 16,
+    "fundamental_sample": 16,
+    "revenue_yoy_median": 45.25,
+    "revenue_yoy_positive_ratio": 1.0,
+    "revenue_yoy_above10_ratio": 0.93,
+    "eps_yoy_median": null,
+    "eps_yoy_positive_ratio": null,
+    "gm_improve_ratio": 0.0,
+    "price_sample": 16,
+    "price_median_ret20": 12.8,
+    "price_median_ret60": 30.8,
+    "price_median_ret120": 34.01,
+    "dist_from_high_median": -7.83,
+    "above_ma20_ratio": 0.62,
+    "new_low_ratio_60d": 0.06,
+    "up20_ratio": 0.81,
+    "twii_ret60": 22.89,
+    "relative_strength_60d": 7.91,
+    "latest_price_date": "2026-07-14",
+    "is_price_stale": false,
+    "fund_rows": [
+      {
+        "stock_id": "2359",
+        "name": "所羅門",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 11,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2049",
+        "name": "上銀",
+        "revenue_yoy": 31.62,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1590",
+        "name": "亞德客-KY",
+        "revenue_yoy": 44.88,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2395",
+        "name": "研華",
+        "revenue_yoy": 73.39,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6414",
+        "name": "樺漢",
+        "revenue_yoy": 56.97,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3022",
+        "name": "威強電",
+        "revenue_yoy": 79.97,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3416",
+        "name": "融程電",
+        "revenue_yoy": 24.3,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2465",
+        "name": "麗臺",
+        "revenue_yoy": 543.89,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3019",
+        "name": "亞光",
+        "revenue_yoy": 13.14,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6206",
+        "name": "飛捷",
+        "revenue_yoy": 26.29,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2417",
+        "name": "圓剛",
+        "revenue_yoy": 4.96,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6416",
+        "name": "瑞祺電通",
+        "revenue_yoy": 58.62,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3088",
+        "name": "艾訊",
+        "revenue_yoy": 48.37,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1597",
+        "name": "直得",
+        "revenue_yoy": 45.25,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4576",
+        "name": "大銀微系統",
+        "revenue_yoy": 62.58,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "1514",
+        "name": "亞力",
+        "revenue_yoy": 39.69,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      }
+    ],
+    "price_rows": [
+      {
+        "stock_id": "2049",
+        "last_date": "2026-07-14",
+        "last_close": 317.0,
+        "ret20": -3.79,
+        "ret60": 8.93,
+        "ret120": 60.91,
+        "dist_from_high": -22.59,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "上銀"
+      },
+      {
+        "stock_id": "1590",
+        "last_date": "2026-07-14",
+        "last_close": 1290.0,
+        "ret20": -1.53,
+        "ret60": 2.79,
+        "ret120": 29.0,
+        "dist_from_high": -16.77,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "亞德客-KY"
+      },
+      {
+        "stock_id": "2359",
+        "last_date": "2026-07-14",
+        "last_close": 142.5,
+        "ret20": 3.64,
+        "ret60": 23.91,
+        "ret120": 9.62,
+        "dist_from_high": -14.41,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "所羅門"
+      },
+      {
+        "stock_id": "2395",
+        "last_date": "2026-05-29",
+        "last_close": 506.0,
+        "ret20": 40.75,
+        "ret60": 53.33,
+        "ret120": 77.54,
+        "dist_from_high": -0.78,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "研華"
+      },
+      {
+        "stock_id": "6414",
+        "last_date": "2026-06-12",
+        "last_close": 375.5,
+        "ret20": 17.53,
+        "ret60": 36.05,
+        "ret120": 30.61,
+        "dist_from_high": -6.36,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "樺漢"
+      },
+      {
+        "stock_id": "3022",
+        "last_date": "2026-05-29",
+        "last_close": 74.19999694824219,
+        "ret20": 7.54,
+        "ret60": 25.55,
+        "ret120": 16.3,
+        "dist_from_high": -6.96,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "威強電"
+      },
+      {
+        "stock_id": "3416",
+        "last_date": "2026-05-29",
+        "last_close": 182.5,
+        "ret20": 15.87,
+        "ret60": 24.15,
+        "ret120": 25.0,
+        "dist_from_high": -10.1,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "融程電"
+      },
+      {
+        "stock_id": "2465",
+        "last_date": "2026-05-29",
+        "last_close": 82.80000305175781,
+        "ret20": 11.89,
+        "ret60": 59.85,
+        "ret120": 58.02,
+        "dist_from_high": -7.49,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "麗臺"
+      },
+      {
+        "stock_id": "3019",
+        "last_date": "2026-05-29",
+        "last_close": 157.5,
+        "ret20": 13.72,
+        "ret60": 9.76,
+        "ret120": 16.24,
+        "dist_from_high": -8.16,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "亞光"
+      },
+      {
+        "stock_id": "6206",
+        "last_date": "2026-05-29",
+        "last_close": 138.5,
+        "ret20": 28.24,
+        "ret60": 49.41,
+        "ret120": 46.41,
+        "dist_from_high": -3.82,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "飛捷"
+      },
+      {
+        "stock_id": "2417",
+        "last_date": "2026-05-29",
+        "last_close": 48.84999847412109,
+        "ret20": 3.61,
+        "ret60": 37.8,
+        "ret120": 37.41,
+        "dist_from_high": -14.15,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "圓剛"
+      },
+      {
+        "stock_id": "6416",
+        "last_date": "2026-05-29",
+        "last_close": 89.0,
+        "ret20": 9.88,
+        "ret60": 10.83,
+        "ret120": 15.14,
+        "dist_from_high": -5.39,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "瑞祺電通"
+      },
+      {
+        "stock_id": "3088",
+        "last_date": "2026-05-29",
+        "last_close": 139.0,
+        "ret20": 28.7,
+        "ret60": 73.97,
+        "ret120": 89.89,
+        "dist_from_high": -3.81,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "艾訊"
+      },
+      {
+        "stock_id": "1597",
+        "last_date": "2026-05-29",
+        "last_close": 181.5,
+        "ret20": 26.48,
+        "ret60": 135.71,
+        "ret120": 152.08,
+        "dist_from_high": -17.87,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "直得"
+      },
+      {
+        "stock_id": "4576",
+        "last_date": "2026-05-29",
+        "last_close": 270.5,
+        "ret20": 21.85,
+        "ret60": 119.03,
+        "ret120": 169.15,
+        "dist_from_high": -4.92,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "大銀微系統"
+      },
+      {
+        "stock_id": "1514",
+        "last_date": "2026-07-14",
+        "last_close": 109.5,
+        "ret20": -9.5,
+        "ret60": -3.95,
+        "ret120": 11.96,
+        "dist_from_high": -26.76,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "亞力"
+      }
+    ],
+    "all_companies": [
+      {
+        "stock_id": "2049",
+        "name": "上銀"
+      },
+      {
+        "stock_id": "1590",
+        "name": "亞德客-KY"
+      },
+      {
+        "stock_id": "2359",
+        "name": "所羅門"
+      },
+      {
+        "stock_id": "2395",
+        "name": "研華"
+      },
+      {
+        "stock_id": "6414",
+        "name": "樺漢"
+      },
+      {
+        "stock_id": "3022",
+        "name": "威強電"
+      },
+      {
+        "stock_id": "3416",
+        "name": "融程電"
+      },
+      {
+        "stock_id": "2465",
+        "name": "麗臺"
+      },
+      {
+        "stock_id": "3019",
+        "name": "亞光"
+      },
+      {
+        "stock_id": "6206",
+        "name": "飛捷"
+      },
+      {
+        "stock_id": "2417",
+        "name": "圓剛"
+      },
+      {
+        "stock_id": "6416",
+        "name": "瑞祺電通"
+      },
+      {
+        "stock_id": "3088",
+        "name": "艾訊"
+      },
+      {
+        "stock_id": "1597",
+        "name": "直得"
+      },
+      {
+        "stock_id": "4576",
+        "name": "大銀微系統"
+      },
+      {
+        "stock_id": "1514",
+        "name": "亞力"
+      }
+    ],
+    "capex_csp": {
+      "lines": [
+        "Microsoft：最新申報季度CAPEX約 $30.9B（截至2026-03-31，10-Q），較上季持平（+3.3%）",
+        "Alphabet：最新申報季度CAPEX約 $35.7B（截至2026-03-31，10-Q），較上季下修（-61.0%）",
+        "Amazon：最新申報季度CAPEX約 $1.9B（截至2017-03-31，10-Q），較上季下修（-72.4%）",
+        "Meta：最新申報季度CAPEX約 $19.0B（截至2026-03-31，10-Q），較上季下修（-72.7%）"
+      ],
+      "success": true,
+      "fetched_at": "2026-07-15 10:25:00",
+      "grade": "A"
+    },
+    "capex_tsmc": "尚未接入（台積電CAPEX無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "export_stats": "尚未接入（官方出口統計無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "calculated_at": "2026-07-15 15:06:20"
+  },
+  "EDGE_AI_DEVICE": {
+    "topic_id": "EDGE_AI_DEVICE",
+    "total_count": 20,
+    "fundamental_sample": 20,
+    "revenue_yoy_median": 28.78,
+    "revenue_yoy_positive_ratio": 0.7,
+    "revenue_yoy_above10_ratio": 0.6,
+    "eps_yoy_median": 19.5,
+    "eps_yoy_positive_ratio": 1.0,
+    "gm_improve_ratio": 1.0,
+    "price_sample": 20,
+    "price_median_ret20": -4.29,
+    "price_median_ret60": 17.5,
+    "price_median_ret120": 29.67,
+    "dist_from_high_median": -17.93,
+    "above_ma20_ratio": 0.35,
+    "new_low_ratio_60d": 0.1,
+    "up20_ratio": 0.45,
+    "twii_ret60": 22.89,
+    "relative_strength_60d": -5.39,
+    "latest_price_date": "2026-07-14",
+    "is_price_stale": false,
+    "fund_rows": [
+      {
+        "stock_id": "6669",
+        "name": "緯穎",
+        "revenue_yoy": -5.4,
+        "eps_yoy": 2.3,
+        "gm_direction": "up",
+        "king_total": 18,
+        "attack_total": 11,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2454",
+        "name": "聯發科",
+        "revenue_yoy": -0.7,
+        "eps_yoy": 5.6,
+        "gm_direction": "up",
+        "king_total": 16,
+        "attack_total": 19,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2379",
+        "name": "瑞昱",
+        "revenue_yoy": 38.6,
+        "eps_yoy": 63.1,
+        "gm_direction": "up",
+        "king_total": 32,
+        "attack_total": 21,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3017",
+        "name": "奇鋐",
+        "revenue_yoy": 2.6,
+        "eps_yoy": 19.5,
+        "gm_direction": "up",
+        "king_total": 26,
+        "attack_total": 14,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2308",
+        "name": "台達電",
+        "revenue_yoy": -1.4,
+        "eps_yoy": 21.4,
+        "gm_direction": "up",
+        "king_total": 16,
+        "attack_total": 10,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2357",
+        "name": "華碩",
+        "revenue_yoy": 55.63,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2377",
+        "name": "微星",
+        "revenue_yoy": -9.23,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2324",
+        "name": "仁寶",
+        "revenue_yoy": 58.38,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2356",
+        "name": "英業達",
+        "revenue_yoy": 61.62,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3231",
+        "name": "緯創",
+        "revenue_yoy": 53.85,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2382",
+        "name": "廣達",
+        "revenue_yoy": 102.87,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3034",
+        "name": "聯詠",
+        "revenue_yoy": 18.96,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3019",
+        "name": "亞光",
+        "revenue_yoy": 13.14,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3406",
+        "name": "玉晶光",
+        "revenue_yoy": 4.51,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3008",
+        "name": "大立光",
+        "revenue_yoy": -10.46,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2395",
+        "name": "研華",
+        "revenue_yoy": 73.39,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6414",
+        "name": "樺漢",
+        "revenue_yoy": 56.97,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3022",
+        "name": "威強電",
+        "revenue_yoy": 79.97,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6230",
+        "name": "尼得科超眾",
+        "revenue_yoy": -3.16,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3324",
+        "name": "雙鴻",
+        "revenue_yoy": 62.13,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      }
+    ],
+    "price_rows": [
+      {
+        "stock_id": "2357",
+        "last_date": "2026-07-14",
+        "last_close": 703.0,
+        "ret20": -11.24,
+        "ret60": 17.36,
+        "ret120": 32.89,
+        "dist_from_high": -24.49,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "華碩"
+      },
+      {
+        "stock_id": "2377",
+        "last_date": "2026-05-29",
+        "last_close": 129.5,
+        "ret20": 32.55,
+        "ret60": 34.9,
+        "ret120": 20.47,
+        "dist_from_high": -11.91,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "微星"
+      },
+      {
+        "stock_id": "2324",
+        "last_date": "2026-07-14",
+        "last_close": 35.54999923706055,
+        "ret20": -6.08,
+        "ret60": 17.13,
+        "ret120": 24.66,
+        "dist_from_high": -24.44,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "仁寶"
+      },
+      {
+        "stock_id": "2356",
+        "last_date": "2026-07-14",
+        "last_close": 63.70000076293945,
+        "ret20": -5.07,
+        "ret60": 39.23,
+        "ret120": 48.48,
+        "dist_from_high": -25.41,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "英業達"
+      },
+      {
+        "stock_id": "3231",
+        "last_date": "2026-07-14",
+        "last_close": 142.5,
+        "ret20": -11.76,
+        "ret60": 4.4,
+        "ret120": -4.36,
+        "dist_from_high": -26.55,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "緯創"
+      },
+      {
+        "stock_id": "2382",
+        "last_date": "2026-07-14",
+        "last_close": 380.0,
+        "ret20": 2.7,
+        "ret60": 17.65,
+        "ret120": 34.28,
+        "dist_from_high": -8.87,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "廣達"
+      },
+      {
+        "stock_id": "6669",
+        "last_date": "2026-07-14",
+        "last_close": 4905.0,
+        "ret20": 0.1,
+        "ret60": 28.91,
+        "ret120": 15.68,
+        "dist_from_high": -15.28,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "緯穎"
+      },
+      {
+        "stock_id": "2454",
+        "last_date": "2026-07-14",
+        "last_close": 3660.0,
+        "ret20": -18.12,
+        "ret60": 90.13,
+        "ret120": 157.75,
+        "dist_from_high": -21.12,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "聯發科"
+      },
+      {
+        "stock_id": "3034",
+        "last_date": "2026-07-14",
+        "last_close": 468.0,
+        "ret20": -5.45,
+        "ret60": 12.77,
+        "ret120": 23.16,
+        "dist_from_high": -17.46,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "聯詠"
+      },
+      {
+        "stock_id": "2379",
+        "last_date": "2026-07-14",
+        "last_close": 754.0,
+        "ret20": 18.93,
+        "ret60": 42.0,
+        "ret120": 47.84,
+        "dist_from_high": -16.22,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "瑞昱"
+      },
+      {
+        "stock_id": "3019",
+        "last_date": "2026-05-29",
+        "last_close": 157.5,
+        "ret20": 13.72,
+        "ret60": 9.76,
+        "ret120": 16.24,
+        "dist_from_high": -8.16,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "亞光"
+      },
+      {
+        "stock_id": "3406",
+        "last_date": "2026-07-14",
+        "last_close": 587.0,
+        "ret20": -19.37,
+        "ret60": 16.7,
+        "ret120": 28.73,
+        "dist_from_high": -24.16,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "玉晶光"
+      },
+      {
+        "stock_id": "3008",
+        "last_date": "2026-07-14",
+        "last_close": 4265.0,
+        "ret20": -3.51,
+        "ret60": 63.72,
+        "ret120": 72.25,
+        "dist_from_high": -17.9,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "大立光"
+      },
+      {
+        "stock_id": "2395",
+        "last_date": "2026-05-29",
+        "last_close": 506.0,
+        "ret20": 40.75,
+        "ret60": 53.33,
+        "ret120": 77.54,
+        "dist_from_high": -0.78,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "研華"
+      },
+      {
+        "stock_id": "6414",
+        "last_date": "2026-06-12",
+        "last_close": 375.5,
+        "ret20": 17.53,
+        "ret60": 36.05,
+        "ret120": 30.61,
+        "dist_from_high": -6.36,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "樺漢"
+      },
+      {
+        "stock_id": "3022",
+        "last_date": "2026-05-29",
+        "last_close": 74.19999694824219,
+        "ret20": 7.54,
+        "ret60": 25.55,
+        "ret120": 16.3,
+        "dist_from_high": -6.96,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "威強電"
+      },
+      {
+        "stock_id": "6230",
+        "last_date": "2026-07-14",
+        "last_close": 117.0,
+        "ret20": -14.91,
+        "ret60": -27.33,
+        "ret120": 4.0,
+        "dist_from_high": -35.89,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "尼得科超眾"
+      },
+      {
+        "stock_id": "3017",
+        "last_date": "2026-07-14",
+        "last_close": 2120.0,
+        "ret20": -12.03,
+        "ret60": -11.67,
+        "ret120": 54.18,
+        "dist_from_high": -28.01,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "奇鋐"
+      },
+      {
+        "stock_id": "3324",
+        "last_date": "2026-06-16",
+        "last_close": 1050.0,
+        "ret20": 8.7,
+        "ret60": -1.87,
+        "ret120": 13.51,
+        "dist_from_high": -17.97,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "雙鴻"
+      },
+      {
+        "stock_id": "2308",
+        "last_date": "2026-07-14",
+        "last_close": 1855.0,
+        "ret20": -16.06,
+        "ret60": 0.82,
+        "ret120": 82.76,
+        "dist_from_high": -26.39,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "台達電"
+      }
+    ],
+    "all_companies": [
+      {
+        "stock_id": "2357",
+        "name": "華碩"
+      },
+      {
+        "stock_id": "2377",
+        "name": "微星"
+      },
+      {
+        "stock_id": "2324",
+        "name": "仁寶"
+      },
+      {
+        "stock_id": "2356",
+        "name": "英業達"
+      },
+      {
+        "stock_id": "3231",
+        "name": "緯創"
+      },
+      {
+        "stock_id": "2382",
+        "name": "廣達"
+      },
+      {
+        "stock_id": "6669",
+        "name": "緯穎"
+      },
+      {
+        "stock_id": "2454",
+        "name": "聯發科"
+      },
+      {
+        "stock_id": "3034",
+        "name": "聯詠"
+      },
+      {
+        "stock_id": "2379",
+        "name": "瑞昱"
+      },
+      {
+        "stock_id": "3019",
+        "name": "亞光"
+      },
+      {
+        "stock_id": "3406",
+        "name": "玉晶光"
+      },
+      {
+        "stock_id": "3008",
+        "name": "大立光"
+      },
+      {
+        "stock_id": "2395",
+        "name": "研華"
+      },
+      {
+        "stock_id": "6414",
+        "name": "樺漢"
+      },
+      {
+        "stock_id": "3022",
+        "name": "威強電"
+      },
+      {
+        "stock_id": "6230",
+        "name": "尼得科超眾"
+      },
+      {
+        "stock_id": "3017",
+        "name": "奇鋐"
+      },
+      {
+        "stock_id": "3324",
+        "name": "雙鴻"
+      },
+      {
+        "stock_id": "2308",
+        "name": "台達電"
+      }
+    ],
+    "capex_csp": {
+      "lines": [
+        "Microsoft：最新申報季度CAPEX約 $30.9B（截至2026-03-31，10-Q），較上季持平（+3.3%）",
+        "Alphabet：最新申報季度CAPEX約 $35.7B（截至2026-03-31，10-Q），較上季下修（-61.0%）",
+        "Amazon：最新申報季度CAPEX約 $1.9B（截至2017-03-31，10-Q），較上季下修（-72.4%）",
+        "Meta：最新申報季度CAPEX約 $19.0B（截至2026-03-31，10-Q），較上季下修（-72.7%）"
+      ],
+      "success": true,
+      "fetched_at": "2026-07-15 10:25:00",
+      "grade": "A"
+    },
+    "capex_tsmc": "尚未接入（台積電CAPEX無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "export_stats": "尚未接入（官方出口統計無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "calculated_at": "2026-07-15 15:06:20"
+  },
+  "SMART_MOBILITY": {
+    "topic_id": "SMART_MOBILITY",
+    "total_count": 23,
+    "fundamental_sample": 23,
+    "revenue_yoy_median": 13.48,
+    "revenue_yoy_positive_ratio": 0.73,
+    "revenue_yoy_above10_ratio": 0.55,
+    "eps_yoy_median": 12.85,
+    "eps_yoy_positive_ratio": 0.83,
+    "gm_improve_ratio": 0.71,
+    "price_sample": 23,
+    "price_median_ret20": 7.24,
+    "price_median_ret60": 16.7,
+    "price_median_ret120": 44.15,
+    "dist_from_high_median": -17.9,
+    "above_ma20_ratio": 0.26,
+    "new_low_ratio_60d": 0.17,
+    "up20_ratio": 0.52,
+    "twii_ret60": 22.89,
+    "relative_strength_60d": -6.19,
+    "latest_price_date": "2026-07-14",
+    "is_price_stale": false,
+    "fund_rows": [
+      {
+        "stock_id": "2308",
+        "name": "台達電",
+        "revenue_yoy": -1.4,
+        "eps_yoy": 21.4,
+        "gm_direction": "up",
+        "king_total": 16,
+        "attack_total": 10,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2317",
+        "name": "鴻海",
+        "revenue_yoy": -18.7,
+        "eps_yoy": 6.2,
+        "gm_direction": "up",
+        "king_total": 13,
+        "attack_total": 19,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3665",
+        "name": "貿聯-KY",
+        "revenue_yoy": null,
+        "eps_yoy": null,
+        "gm_direction": "flat",
+        "king_total": 2,
+        "attack_total": 9,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3533",
+        "name": "嘉澤",
+        "revenue_yoy": 0.7,
+        "eps_yoy": -5.4,
+        "gm_direction": "down",
+        "king_total": 11,
+        "attack_total": 2,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2454",
+        "name": "聯發科",
+        "revenue_yoy": -0.7,
+        "eps_yoy": 5.6,
+        "gm_direction": "up",
+        "king_total": 16,
+        "attack_total": 19,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "2379",
+        "name": "瑞昱",
+        "revenue_yoy": 38.6,
+        "eps_yoy": 63.1,
+        "gm_direction": "up",
+        "king_total": 32,
+        "attack_total": 21,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3017",
+        "name": "奇鋐",
+        "revenue_yoy": 2.6,
+        "eps_yoy": 19.5,
+        "gm_direction": "up",
+        "king_total": 26,
+        "attack_total": 14,
+        "source": "戰略儲備庫評分"
+      },
+      {
+        "stock_id": "3023",
+        "name": "信邦",
+        "revenue_yoy": 17.59,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3217",
+        "name": "優群",
+        "revenue_yoy": 2.42,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3019",
+        "name": "亞光",
+        "revenue_yoy": 13.14,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3406",
+        "name": "玉晶光",
+        "revenue_yoy": 4.51,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3008",
+        "name": "大立光",
+        "revenue_yoy": -10.46,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3034",
+        "name": "聯詠",
+        "revenue_yoy": 18.96,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2409",
+        "name": "友達",
+        "revenue_yoy": 13.83,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3481",
+        "name": "群創",
+        "revenue_yoy": 17.25,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3324",
+        "name": "雙鴻",
+        "revenue_yoy": 62.13,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6230",
+        "name": "尼得科超眾",
+        "revenue_yoy": -3.16,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "2497",
+        "name": "怡利電",
+        "revenue_yoy": 52.52,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "3526",
+        "name": "凡甲",
+        "revenue_yoy": 29.72,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4739",
+        "name": "康普",
+        "revenue_yoy": 113.79,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4721",
+        "name": "美琪瑪",
+        "revenue_yoy": -19.35,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "6781",
+        "name": "AES-KY",
+        "revenue_yoy": 25.58,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      },
+      {
+        "stock_id": "4931",
+        "name": "新盛力",
+        "revenue_yoy": 145.09,
+        "eps_yoy": null,
+        "gm_direction": null,
+        "king_total": null,
+        "attack_total": null,
+        "source": "FinMind補充(僅營收)"
+      }
+    ],
+    "price_rows": [
+      {
+        "stock_id": "2308",
+        "last_date": "2026-07-14",
+        "last_close": 1855.0,
+        "ret20": -16.06,
+        "ret60": 0.82,
+        "ret120": 82.76,
+        "dist_from_high": -26.39,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "台達電"
+      },
+      {
+        "stock_id": "2317",
+        "last_date": "2026-07-14",
+        "last_close": 235.5,
+        "ret20": -11.96,
+        "ret60": 14.32,
+        "ret120": 2.17,
+        "dist_from_high": -23.79,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "鴻海"
+      },
+      {
+        "stock_id": "3665",
+        "last_date": "2026-07-14",
+        "last_close": 1775.0,
+        "ret20": -21.63,
+        "ret60": -24.95,
+        "ret120": 24.56,
+        "dist_from_high": -39.63,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "貿聯-KY"
+      },
+      {
+        "stock_id": "3023",
+        "last_date": "2026-07-14",
+        "last_close": 314.5,
+        "ret20": -1.41,
+        "ret60": 11.52,
+        "ret120": 62.95,
+        "dist_from_high": -6.54,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "信邦"
+      },
+      {
+        "stock_id": "3533",
+        "last_date": "2026-07-14",
+        "last_close": 1925.0,
+        "ret20": -16.3,
+        "ret60": -22.69,
+        "ret120": 36.52,
+        "dist_from_high": -32.46,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "嘉澤"
+      },
+      {
+        "stock_id": "3217",
+        "last_date": "2026-05-29",
+        "last_close": 189.5,
+        "ret20": 13.81,
+        "ret60": 23.45,
+        "ret120": 14.85,
+        "dist_from_high": -8.45,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "優群"
+      },
+      {
+        "stock_id": "3019",
+        "last_date": "2026-05-29",
+        "last_close": 157.5,
+        "ret20": 13.72,
+        "ret60": 9.76,
+        "ret120": 16.24,
+        "dist_from_high": -8.16,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "亞光"
+      },
+      {
+        "stock_id": "3406",
+        "last_date": "2026-07-14",
+        "last_close": 587.0,
+        "ret20": -19.37,
+        "ret60": 16.7,
+        "ret120": 28.73,
+        "dist_from_high": -24.16,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "玉晶光"
+      },
+      {
+        "stock_id": "3008",
+        "last_date": "2026-07-14",
+        "last_close": 4265.0,
+        "ret20": -3.51,
+        "ret60": 63.72,
+        "ret120": 72.25,
+        "dist_from_high": -17.9,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "大立光"
+      },
+      {
+        "stock_id": "2454",
+        "last_date": "2026-07-14",
+        "last_close": 3660.0,
+        "ret20": -18.12,
+        "ret60": 90.13,
+        "ret120": 157.75,
+        "dist_from_high": -21.12,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "聯發科"
+      },
+      {
+        "stock_id": "2379",
+        "last_date": "2026-07-14",
+        "last_close": 754.0,
+        "ret20": 18.93,
+        "ret60": 42.0,
+        "ret120": 47.84,
+        "dist_from_high": -16.22,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "瑞昱"
+      },
+      {
+        "stock_id": "3034",
+        "last_date": "2026-07-14",
+        "last_close": 468.0,
+        "ret20": -5.45,
+        "ret60": 12.77,
+        "ret120": 23.16,
+        "dist_from_high": -17.46,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "聯詠"
+      },
+      {
+        "stock_id": "2409",
+        "last_date": "2026-07-14",
+        "last_close": 27.549999237060547,
+        "ret20": 14.32,
+        "ret60": 38.79,
+        "ret120": 90.0,
+        "dist_from_high": -15.75,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "友達"
+      },
+      {
+        "stock_id": "3481",
+        "last_date": "2026-07-14",
+        "last_close": 57.20000076293945,
+        "ret20": 11.28,
+        "ret60": 120.85,
+        "ret120": 186.0,
+        "dist_from_high": -19.32,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "群創"
+      },
+      {
+        "stock_id": "3017",
+        "last_date": "2026-07-14",
+        "last_close": 2120.0,
+        "ret20": -12.03,
+        "ret60": -11.67,
+        "ret120": 54.18,
+        "dist_from_high": -28.01,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "奇鋐"
+      },
+      {
+        "stock_id": "3324",
+        "last_date": "2026-06-16",
+        "last_close": 1050.0,
+        "ret20": 8.7,
+        "ret60": -1.87,
+        "ret120": 13.51,
+        "dist_from_high": -17.97,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "雙鴻"
+      },
+      {
+        "stock_id": "6230",
+        "last_date": "2026-07-14",
+        "last_close": 117.0,
+        "ret20": -14.91,
+        "ret60": -27.33,
+        "ret120": 4.0,
+        "dist_from_high": -35.89,
+        "above_ma20": false,
+        "is_new_low_60": true,
+        "name": "尼得科超眾"
+      },
+      {
+        "stock_id": "2497",
+        "last_date": "2026-05-29",
+        "last_close": 60.400001525878906,
+        "ret20": 9.62,
+        "ret60": 35.58,
+        "ret120": 44.15,
+        "dist_from_high": -1.47,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "怡利電"
+      },
+      {
+        "stock_id": "3526",
+        "last_date": "2026-05-29",
+        "last_close": 369.5,
+        "ret20": 11.97,
+        "ret60": 35.46,
+        "ret120": 64.43,
+        "dist_from_high": -6.46,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "凡甲"
+      },
+      {
+        "stock_id": "4739",
+        "last_date": "2026-05-29",
+        "last_close": 108.0,
+        "ret20": 27.36,
+        "ret60": 45.16,
+        "ret120": 68.49,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "康普"
+      },
+      {
+        "stock_id": "4721",
+        "last_date": "2026-05-29",
+        "last_close": 92.3000030517578,
+        "ret20": 10.54,
+        "ret60": 37.97,
+        "ret120": 39.22,
+        "dist_from_high": -5.62,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "美琪瑪"
+      },
+      {
+        "stock_id": "6781",
+        "last_date": "2026-05-29",
+        "last_close": 1185.0,
+        "ret20": 7.24,
+        "ret60": 5.8,
+        "ret120": -3.66,
+        "dist_from_high": -21.0,
+        "above_ma20": false,
+        "is_new_low_60": false,
+        "name": "AES-KY"
+      },
+      {
+        "stock_id": "4931",
+        "last_date": "2026-05-29",
+        "last_close": 229.5,
+        "ret20": 44.34,
+        "ret60": 62.19,
+        "ret120": 85.08,
+        "dist_from_high": 0.0,
+        "above_ma20": true,
+        "is_new_low_60": false,
+        "name": "新盛力"
+      }
+    ],
+    "all_companies": [
+      {
+        "stock_id": "2308",
+        "name": "台達電"
+      },
+      {
+        "stock_id": "2317",
+        "name": "鴻海"
+      },
+      {
+        "stock_id": "3665",
+        "name": "貿聯-KY"
+      },
+      {
+        "stock_id": "3023",
+        "name": "信邦"
+      },
+      {
+        "stock_id": "3533",
+        "name": "嘉澤"
+      },
+      {
+        "stock_id": "3217",
+        "name": "優群"
+      },
+      {
+        "stock_id": "3019",
+        "name": "亞光"
+      },
+      {
+        "stock_id": "3406",
+        "name": "玉晶光"
+      },
+      {
+        "stock_id": "3008",
+        "name": "大立光"
+      },
+      {
+        "stock_id": "2454",
+        "name": "聯發科"
+      },
+      {
+        "stock_id": "2379",
+        "name": "瑞昱"
+      },
+      {
+        "stock_id": "3034",
+        "name": "聯詠"
+      },
+      {
+        "stock_id": "2409",
+        "name": "友達"
+      },
+      {
+        "stock_id": "3481",
+        "name": "群創"
+      },
+      {
+        "stock_id": "3017",
+        "name": "奇鋐"
+      },
+      {
+        "stock_id": "3324",
+        "name": "雙鴻"
+      },
+      {
+        "stock_id": "6230",
+        "name": "尼得科超眾"
+      },
+      {
+        "stock_id": "2497",
+        "name": "怡利電"
+      },
+      {
+        "stock_id": "3526",
+        "name": "凡甲"
+      },
+      {
+        "stock_id": "4739",
+        "name": "康普"
+      },
+      {
+        "stock_id": "4721",
+        "name": "美琪瑪"
+      },
+      {
+        "stock_id": "6781",
+        "name": "AES-KY"
+      },
+      {
+        "stock_id": "4931",
+        "name": "新盛力"
+      }
+    ],
+    "capex_csp": {
+      "lines": [
+        "Microsoft：最新申報季度CAPEX約 $30.9B（截至2026-03-31，10-Q），較上季持平（+3.3%）",
+        "Alphabet：最新申報季度CAPEX約 $35.7B（截至2026-03-31，10-Q），較上季下修（-61.0%）",
+        "Amazon：最新申報季度CAPEX約 $1.9B（截至2017-03-31，10-Q），較上季下修（-72.4%）",
+        "Meta：最新申報季度CAPEX約 $19.0B（截至2026-03-31，10-Q），較上季下修（-72.7%）"
+      ],
+      "success": true,
+      "fetched_at": "2026-07-15 10:25:00",
+      "grade": "A"
+    },
+    "capex_tsmc": "尚未接入（台積電CAPEX無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "export_stats": "尚未接入（官方出口統計無結構化官方API，需人工每季登錄一次，見Tab2「進階人工覆核」）",
+    "calculated_at": "2026-07-15 15:06:20"
+  }
+}

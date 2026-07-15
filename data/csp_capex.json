@@ -1,0 +1,153 @@
+{
+  "companies": {
+    "MSFT": {
+      "name": "Microsoft",
+      "status": "已更新",
+      "quarters": [
+        {
+          "end": "2024-12-31",
+          "val": 15804000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2025-03-31",
+          "val": 16745000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2025-06-30",
+          "val": 64551000000,
+          "form": "10-K"
+        },
+        {
+          "end": "2025-09-30",
+          "val": 19394000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2025-12-31",
+          "val": 29876000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2026-03-31",
+          "val": 30876000000,
+          "form": "10-Q"
+        }
+      ],
+      "tag_used": "PaymentsToAcquirePropertyPlantAndEquipment"
+    },
+    "GOOGL": {
+      "name": "Alphabet",
+      "status": "已更新",
+      "quarters": [
+        {
+          "end": "2024-12-31",
+          "val": 52535000000,
+          "form": "10-K"
+        },
+        {
+          "end": "2025-03-31",
+          "val": 17197000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2025-06-30",
+          "val": 39643000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2025-09-30",
+          "val": 63596000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2025-12-31",
+          "val": 91447000000,
+          "form": "10-K"
+        },
+        {
+          "end": "2026-03-31",
+          "val": 35674000000,
+          "form": "10-Q"
+        }
+      ],
+      "tag_used": "PaymentsToAcquirePropertyPlantAndEquipment"
+    },
+    "AMZN": {
+      "name": "Amazon",
+      "status": "已更新",
+      "quarters": [
+        {
+          "end": "2015-12-31",
+          "val": 4589000000,
+          "form": "10-K"
+        },
+        {
+          "end": "2016-03-31",
+          "val": 1179000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2016-06-30",
+          "val": 1711000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2016-09-30",
+          "val": 1841000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2016-12-31",
+          "val": 6737000000,
+          "form": "10-K"
+        },
+        {
+          "end": "2017-03-31",
+          "val": 1861000000,
+          "form": "10-Q"
+        }
+      ],
+      "tag_used": "PaymentsToAcquirePropertyPlantAndEquipment"
+    },
+    "META": {
+      "name": "Meta",
+      "status": "已更新",
+      "quarters": [
+        {
+          "end": "2024-12-31",
+          "val": 37256000000,
+          "form": "10-K"
+        },
+        {
+          "end": "2025-03-31",
+          "val": 12941000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2025-06-30",
+          "val": 29479000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2025-09-30",
+          "val": 48308000000,
+          "form": "10-Q"
+        },
+        {
+          "end": "2025-12-31",
+          "val": 69691000000,
+          "form": "10-K"
+        },
+        {
+          "end": "2026-03-31",
+          "val": 18997000000,
+          "form": "10-Q"
+        }
+      ],
+      "tag_used": "PaymentsToAcquirePropertyPlantAndEquipment"
+    }
+  },
+  "fetched_at": "2026-07-15 10:25:00"
+}

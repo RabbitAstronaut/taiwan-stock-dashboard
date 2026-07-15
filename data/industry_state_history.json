@@ -1,0 +1,58 @@
+{
+  "AI_DATACENTER": [
+    {
+      "date": "2026-07-15",
+      "state": "需求加速",
+      "evidence_quality": 99
+    }
+  ],
+  "SEMI": [
+    {
+      "date": "2026-07-15",
+      "state": "需求加速",
+      "evidence_quality": 96
+    }
+  ],
+  "CONN_SPACE": [
+    {
+      "date": "2026-07-15",
+      "state": "需求成長",
+      "evidence_quality": 100
+    }
+  ],
+  "POWER_INFRA": [
+    {
+      "date": "2026-07-15",
+      "state": "需求成長",
+      "evidence_quality": 100
+    }
+  ],
+  "WATER_ENV": [
+    {
+      "date": "2026-07-15",
+      "state": "需求加速",
+      "evidence_quality": 100
+    }
+  ],
+  "ROBOT_AUTOMATION": [
+    {
+      "date": "2026-07-15",
+      "state": "需求加速",
+      "evidence_quality": 100
+    }
+  ],
+  "EDGE_AI_DEVICE": [
+    {
+      "date": "2026-07-15",
+      "state": "需求加速",
+      "evidence_quality": 100
+    }
+  ],
+  "SMART_MOBILITY": [
+    {
+      "date": "2026-07-15",
+      "state": "需求成長",
+      "evidence_quality": 100
+    }
+  ]
+}

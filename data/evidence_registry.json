@@ -1,0 +1,110 @@
+{
+  "market": {
+    "price_bollinger": {
+      "category": "price",
+      "value": {
+        "score_ratio": 0.2,
+        "close": 45631.58984375,
+        "bb_mid": 46053.3880859375,
+        "lb2": 44481.88750314253,
+        "lb4": 42910.38692034756,
+        "recent_low": 35417.828125,
+        "below_lb2": false,
+        "intraday_reversal_state": "盤中完全反轉",
+        "bollinger_event_state": "通道內正常波動",
+        "lower_band_expanding": false,
+        "recovery_ratio": 147.4,
+        "close_location_value": 0.757,
+        "provisional_score_20": 4,
+        "is_provisional": true,
+        "price_score_detail": {
+          "intraday_acceptance": 3,
+          "back_inside_band": 1,
+          "low_confirmation": 0,
+          "trend_repair": 0,
+          "breadth_leaders": 0
+        }
+      },
+      "source": "^TWII 日K（yfinance）＋盤中OHLC",
+      "date": "2026-07-15",
+      "grade": "C",
+      "expiry": "2026-07-16",
+      "verified": false,
+      "note": "系統自動計算，C級證據（衍生指標，非官方直接發布數字）；價格確認分數依market_events.calculate_price_confirmation_score()拆解",
+      "registered_at": "2026-07-15 15:11:39"
+    },
+    "chips_futures_margin": {
+      "category": "chips",
+      "value": {
+        "score_ratio": 0.38,
+        "tx_net": -83390,
+        "mtx_retail": 6888,
+        "margin_balance_yi": 6040.0,
+        "large_equivalent_lots": -83390.0,
+        "posture": "與前日持平",
+        "settlement_weight": 0.6,
+        "near_settlement": true
+      },
+      "source": "期交所三大法人期貨部位＋證交所信用交易統計（daily_scan排程）",
+      "date": "2026-07-15",
+      "grade": "A",
+      "expiry": "2026-07-16",
+      "verified": false,
+      "note": "沿用既有 get_tx_foreign_position / get_mtx_retail_position / get_total_margin_balance，本輪新增契約等值換算與結算日降權",
+      "registered_at": "2026-07-15 15:11:39"
+    },
+    "evidence_conflict": {
+      "category": "conflict",
+      "value": {
+        "state": "無明顯衝突",
+        "conflicts": [],
+        "near_settlement": true,
+        "settlement_weight": 0.6
+      },
+      "source": "market_events.evaluate_market_evidence_conflict()",
+      "date": "2026-07-15",
+      "grade": "C",
+      "expiry": "2026-07-16",
+      "verified": false,
+      "note": "交叉比對用，不計入四大分項分數",
+      "registered_at": "2026-07-15 15:11:39"
+    },
+    "valuation_pe_scenario": {
+      "category": "valuation",
+      "value": {
+        "score_ratio": 1.0,
+        "index_now": 45767.1796875,
+        "pe_now": 19.57,
+        "gap_to_26x_pct": -24.7
+      },
+      "source": "TWSE官方本益比（人工輸入）",
+      "date": "2026-07-15",
+      "grade": "B",
+      "expiry": "2026-07-16",
+      "verified": false,
+      "note": "Rex手動輸入官方本益比，29/28/26/24倍位置動態計算，不寫死數字",
+      "registered_at": "2026-07-15 13:21:57"
+    }
+  },
+  "7769": {
+    "company_fundamental": {
+      "category": "fundamental",
+      "value": {
+        "score_ratio": 0.7,
+        "revenue_yoy_latest": null,
+        "eps_yoy_latest": 61.74,
+        "gm_direction": "up",
+        "ocf_sign": "positive",
+        "inventory_anomaly": false,
+        "receivable_anomaly": false
+      },
+      "source": "FinMind官方財報/月營收（公開資訊觀測站轉載）",
+      "date": "2026-07-15",
+      "grade": "A",
+      "expiry": "2026-08-29",
+      "verified": false,
+      "note": "個股直接證據（唯一合法基本面來源），非產業背景／不受Tab2產業判斷影響",
+      "registered_at": "2026-07-15 13:38:30"
+    }
+  }
+}

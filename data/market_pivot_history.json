@@ -1,0 +1,19 @@
+[
+  {
+    "event_date": "2026-07-15",
+    "event_type": "恐慌低點候選",
+    "intraday_low": 44850.69140625,
+    "close_price": 45402.890625,
+    "previous_close": 45380.51953125,
+    "recovery_ratio": 104.2,
+    "lower_shadow_ratio": 0.0,
+    "bollinger_state": "通道內正常波動",
+    "foreign_futures_state": null,
+    "confirmation_status": "pending",
+    "days_without_new_low": 0,
+    "formed_higher_low": false,
+    "_higher_low_low": 44850.69140625,
+    "invalidated": false,
+    "invalidated_date": null
+  }
+]

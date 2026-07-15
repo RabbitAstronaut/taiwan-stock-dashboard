@@ -1,0 +1,16 @@
+{
+  "market": [
+    {
+      "date": "2026-07-14",
+      "total_score": 13.6,
+      "stage": "防守",
+      "hard_veto": false
+    },
+    {
+      "date": "2026-07-15",
+      "total_score": 26.45,
+      "stage": "防守",
+      "hard_veto": false
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "market": {
+    "subject": "market",
+    "total_score": 26.45,
+    "stage": "防守",
+    "hard_veto": false,
+    "veto_reasons": [],
+    "data_sufficient": true,
+    "breakdown": {
+      "fundamental": {
+        "score": 0.0,
+        "max": 40,
+        "evidence": []
+      },
+      "valuation": {
+        "score": 18.75,
+        "max": 25,
+        "evidence": [
+          "valuation_pe_scenario"
+        ]
+      },
+      "price": {
+        "score": 2.0,
+        "max": 20,
+        "evidence": [
+          "price_bollinger"
+        ]
+      },
+      "chips": {
+        "score": 5.7,
+        "max": 15,
+        "evidence": [
+          "chips_futures_margin"
+        ]
+      }
+    },
+    "calculated_at": "2026-07-15 15:11:55"
+  },
+  "stocks": {},
+  "updated_at": "2026-07-15 15:11:55"
+}

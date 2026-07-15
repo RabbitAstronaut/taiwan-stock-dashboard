@@ -1,0 +1,390 @@
+{
+  "AI_DATACENTER": {
+    "sources": [
+      {
+        "title": "個股月營收/EPS年增率（既有戰略儲備庫評分）",
+        "grade": "A",
+        "source": "FinMind官方財報（data/rex_scores.json）",
+        "date": "2026-07-15",
+        "sample": 73
+      },
+      {
+        "title": "個股價格趨勢（20/60/120日）",
+        "grade": "A",
+        "source": "TWSE/OTC日K（data/prices/*.csv）",
+        "date": "2026-07-14",
+        "sample": 73
+      },
+      {
+        "title": "產業狀態分類（依上述A級數字計算之衍生結果）",
+        "grade": "C",
+        "source": "classify_industry_state()",
+        "date": "2026-07-15",
+        "sample": null
+      }
+    ],
+    "summary": {
+      "topic_id": "AI_DATACENTER",
+      "state": "需求加速",
+      "why": "營收年增中位數 17.59%，正成長比例 75%，符合需求加速門檻",
+      "price_or_fundamental": "—",
+      "top_support_evidence": [
+        "營收年增中位數 17.59%（樣本73檔）",
+        "正成長公司比例 75%",
+        "60日股價中位數報酬 19.21%"
+      ],
+      "top_counter_evidence": [
+        "僅 73/74 家公司有財報數字可查（其餘不在戰略儲備庫評分名單）",
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "data_gaps": [
+        "僅 73/74 家公司有財報數字可查（其餘不在戰略儲備庫評分名單）",
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "next_trigger": [
+        "若下一期營收年增中位數轉負或正成長比例跌破50%，判斷可能轉為成長減速"
+      ]
+    },
+    "updated_at": "2026-07-15 15:06:19"
+  },
+  "SEMI": {
+    "sources": [
+      {
+        "title": "個股月營收/EPS年增率（既有戰略儲備庫評分）",
+        "grade": "A",
+        "source": "FinMind官方財報（data/rex_scores.json）",
+        "date": "2026-07-15",
+        "sample": 55
+      },
+      {
+        "title": "個股價格趨勢（20/60/120日）",
+        "grade": "A",
+        "source": "TWSE/OTC日K（data/prices/*.csv）",
+        "date": "2026-07-14",
+        "sample": 55
+      },
+      {
+        "title": "產業狀態分類（依上述A級數字計算之衍生結果）",
+        "grade": "C",
+        "source": "classify_industry_state()",
+        "date": "2026-07-15",
+        "sample": null
+      }
+    ],
+    "summary": {
+      "topic_id": "SEMI",
+      "state": "需求加速",
+      "why": "營收年增中位數 27.85%，正成長比例 86%，符合需求加速門檻",
+      "price_or_fundamental": "—",
+      "top_support_evidence": [
+        "營收年增中位數 27.85%（樣本55檔）",
+        "正成長公司比例 86%",
+        "60日股價中位數報酬 30.79%"
+      ],
+      "top_counter_evidence": [
+        "僅 55/57 家公司有財報數字可查（其餘不在戰略儲備庫評分名單）",
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "data_gaps": [
+        "僅 55/57 家公司有財報數字可查（其餘不在戰略儲備庫評分名單）",
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "next_trigger": [
+        "若下一期營收年增中位數轉負或正成長比例跌破50%，判斷可能轉為成長減速"
+      ]
+    },
+    "updated_at": "2026-07-15 15:06:19"
+  },
+  "CONN_SPACE": {
+    "sources": [
+      {
+        "title": "個股月營收/EPS年增率（既有戰略儲備庫評分）",
+        "grade": "A",
+        "source": "FinMind官方財報（data/rex_scores.json）",
+        "date": "2026-07-15",
+        "sample": 24
+      },
+      {
+        "title": "個股價格趨勢（20/60/120日）",
+        "grade": "A",
+        "source": "TWSE/OTC日K（data/prices/*.csv）",
+        "date": "2026-07-14",
+        "sample": 24
+      },
+      {
+        "title": "產業狀態分類（依上述A級數字計算之衍生結果）",
+        "grade": "C",
+        "source": "classify_industry_state()",
+        "date": "2026-07-15",
+        "sample": null
+      }
+    ],
+    "summary": {
+      "topic_id": "CONN_SPACE",
+      "state": "需求成長",
+      "why": "營收年增中位數 12.23%（正成長），但未達加速門檻（15.0%）",
+      "price_or_fundamental": "—",
+      "top_support_evidence": [
+        "營收年增中位數 12.23%（樣本24檔）",
+        "正成長公司比例 77%",
+        "60日股價中位數報酬 15.98%"
+      ],
+      "top_counter_evidence": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "data_gaps": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "next_trigger": [
+        "若下一期營收年增中位數轉負或正成長比例跌破50%，判斷可能轉為成長減速"
+      ]
+    },
+    "updated_at": "2026-07-15 15:06:20"
+  },
+  "POWER_INFRA": {
+    "sources": [
+      {
+        "title": "個股月營收/EPS年增率（既有戰略儲備庫評分）",
+        "grade": "A",
+        "source": "FinMind官方財報（data/rex_scores.json）",
+        "date": "2026-07-15",
+        "sample": 14
+      },
+      {
+        "title": "個股價格趨勢（20/60/120日）",
+        "grade": "A",
+        "source": "TWSE/OTC日K（data/prices/*.csv）",
+        "date": "2026-07-14",
+        "sample": 14
+      },
+      {
+        "title": "產業狀態分類（依上述A級數字計算之衍生結果）",
+        "grade": "C",
+        "source": "classify_industry_state()",
+        "date": "2026-07-15",
+        "sample": null
+      }
+    ],
+    "summary": {
+      "topic_id": "POWER_INFRA",
+      "state": "需求成長",
+      "why": "營收年增中位數 8.31%（正成長），但未達加速門檻（15.0%）",
+      "price_or_fundamental": "—",
+      "top_support_evidence": [
+        "營收年增中位數 8.31%（樣本14檔）",
+        "正成長公司比例 62%",
+        "60日股價中位數報酬 6.3%"
+      ],
+      "top_counter_evidence": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "data_gaps": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "next_trigger": [
+        "若下一期營收年增中位數轉負或正成長比例跌破50%，判斷可能轉為成長減速"
+      ]
+    },
+    "updated_at": "2026-07-15 15:06:20"
+  },
+  "WATER_ENV": {
+    "sources": [
+      {
+        "title": "個股月營收/EPS年增率（既有戰略儲備庫評分）",
+        "grade": "A",
+        "source": "FinMind官方財報（data/rex_scores.json）",
+        "date": "2026-07-15",
+        "sample": 10
+      },
+      {
+        "title": "個股價格趨勢（20/60/120日）",
+        "grade": "A",
+        "source": "TWSE/OTC日K（data/prices/*.csv）",
+        "date": "2026-07-14",
+        "sample": 10
+      },
+      {
+        "title": "產業狀態分類（依上述A級數字計算之衍生結果）",
+        "grade": "C",
+        "source": "classify_industry_state()",
+        "date": "2026-07-15",
+        "sample": null
+      }
+    ],
+    "summary": {
+      "topic_id": "WATER_ENV",
+      "state": "需求加速",
+      "why": "營收年增中位數 18.1%，正成長比例 67%，符合需求加速門檻",
+      "price_or_fundamental": "—",
+      "top_support_evidence": [
+        "營收年增中位數 18.1%（樣本10檔）",
+        "正成長公司比例 67%",
+        "60日股價中位數報酬 26.21%"
+      ],
+      "top_counter_evidence": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "data_gaps": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "next_trigger": [
+        "若下一期營收年增中位數轉負或正成長比例跌破50%，判斷可能轉為成長減速"
+      ]
+    },
+    "updated_at": "2026-07-15 15:06:20"
+  },
+  "ROBOT_AUTOMATION": {
+    "sources": [
+      {
+        "title": "個股月營收/EPS年增率（既有戰略儲備庫評分）",
+        "grade": "A",
+        "source": "FinMind官方財報（data/rex_scores.json）",
+        "date": "2026-07-15",
+        "sample": 16
+      },
+      {
+        "title": "個股價格趨勢（20/60/120日）",
+        "grade": "A",
+        "source": "TWSE/OTC日K（data/prices/*.csv）",
+        "date": "2026-07-14",
+        "sample": 16
+      },
+      {
+        "title": "產業狀態分類（依上述A級數字計算之衍生結果）",
+        "grade": "C",
+        "source": "classify_industry_state()",
+        "date": "2026-07-15",
+        "sample": null
+      }
+    ],
+    "summary": {
+      "topic_id": "ROBOT_AUTOMATION",
+      "state": "需求加速",
+      "why": "營收年增中位數 45.25%，正成長比例 100%，符合需求加速門檻",
+      "price_or_fundamental": "—",
+      "top_support_evidence": [
+        "營收年增中位數 45.25%（樣本16檔）",
+        "正成長公司比例 100%",
+        "60日股價中位數報酬 30.8%"
+      ],
+      "top_counter_evidence": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "data_gaps": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "next_trigger": [
+        "若下一期營收年增中位數轉負或正成長比例跌破50%，判斷可能轉為成長減速"
+      ]
+    },
+    "updated_at": "2026-07-15 15:06:20"
+  },
+  "EDGE_AI_DEVICE": {
+    "sources": [
+      {
+        "title": "個股月營收/EPS年增率（既有戰略儲備庫評分）",
+        "grade": "A",
+        "source": "FinMind官方財報（data/rex_scores.json）",
+        "date": "2026-07-15",
+        "sample": 20
+      },
+      {
+        "title": "個股價格趨勢（20/60/120日）",
+        "grade": "A",
+        "source": "TWSE/OTC日K（data/prices/*.csv）",
+        "date": "2026-07-14",
+        "sample": 20
+      },
+      {
+        "title": "產業狀態分類（依上述A級數字計算之衍生結果）",
+        "grade": "C",
+        "source": "classify_industry_state()",
+        "date": "2026-07-15",
+        "sample": null
+      }
+    ],
+    "summary": {
+      "topic_id": "EDGE_AI_DEVICE",
+      "state": "需求加速",
+      "why": "營收年增中位數 28.78%，正成長比例 70%，符合需求加速門檻",
+      "price_or_fundamental": "—",
+      "top_support_evidence": [
+        "營收年增中位數 28.78%（樣本20檔）",
+        "正成長公司比例 70%",
+        "60日股價中位數報酬 17.5%"
+      ],
+      "top_counter_evidence": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "data_gaps": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "next_trigger": [
+        "若下一期營收年增中位數轉負或正成長比例跌破50%，判斷可能轉為成長減速"
+      ]
+    },
+    "updated_at": "2026-07-15 15:06:20"
+  },
+  "SMART_MOBILITY": {
+    "sources": [
+      {
+        "title": "個股月營收/EPS年增率（既有戰略儲備庫評分）",
+        "grade": "A",
+        "source": "FinMind官方財報（data/rex_scores.json）",
+        "date": "2026-07-15",
+        "sample": 23
+      },
+      {
+        "title": "個股價格趨勢（20/60/120日）",
+        "grade": "A",
+        "source": "TWSE/OTC日K（data/prices/*.csv）",
+        "date": "2026-07-14",
+        "sample": 23
+      },
+      {
+        "title": "產業狀態分類（依上述A級數字計算之衍生結果）",
+        "grade": "C",
+        "source": "classify_industry_state()",
+        "date": "2026-07-15",
+        "sample": null
+      }
+    ],
+    "summary": {
+      "topic_id": "SMART_MOBILITY",
+      "state": "需求成長",
+      "why": "營收年增中位數 13.48%（正成長），但未達加速門檻（15.0%）",
+      "price_or_fundamental": "—",
+      "top_support_evidence": [
+        "營收年增中位數 13.48%（樣本23檔）",
+        "正成長公司比例 73%",
+        "60日股價中位數報酬 16.7%"
+      ],
+      "top_counter_evidence": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "data_gaps": [
+        "台積電／CSP最新CAPEX展望尚未接入，無法確認需求端最新變化",
+        "經濟部/財政部官方出口統計尚未接入"
+      ],
+      "next_trigger": [
+        "若下一期營收年增中位數轉負或正成長比例跌破50%，判斷可能轉為成長減速"
+      ]
+    },
+    "updated_at": "2026-07-15 15:06:20"
+  }
+}
