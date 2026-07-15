@@ -24,7 +24,63 @@ from zoneinfo import ZoneInfo
 warnings.filterwarnings("ignore")
 
 import attack_engine  # V7 攻擊引擎核心計算層（第一階段，見 attack_engine.py）
+import market_events   # V7 攻擊引擎：盤中價格行為/布林擴張/期貨曝險/證據衝突（見 market_events.py）
+import industry_engine  # V7 攻擊引擎：自動產業情報層（見 industry_engine.py）
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
+
+def get_secret(key, default=""):
+    """
+    安全版 st.secrets 讀取。st.secrets.get(key, default) 有個坑：
+    如果本機/雲端根本沒有 secrets.toml 檔案（不是key不存在，是檔案不存在），
+    Streamlit會直接拋出 StreamlitSecretNotFoundError，而不是乖乖回傳 default。
+    這裡統一包一層 try/except，避免沒設定 secrets.toml 的人點AI功能就整頁崩潰。
+    """
+    try:
+        return st.secrets.get(key, default)
+    except Exception:
+        return default
+
+
+def get_stock_topics_map():
+    """讀取 kg_companies.json，回傳 {stock_id: {topic_id, ...}}（公司↔產業Topic對應）"""
+    try:
+        _path = os.path.join(DATA_DIR, "kg_companies.json")
+        with open(_path, "r", encoding="utf-8") as _f:
+            _d = json.load(_f)
+        _mapping = {}
+        for _row in _d.get("companies", []):
+            if len(_row) < 3:
+                continue
+            _topic_id = _row[1]
+            _stock_id = str(_row[2]).strip()
+            if not _stock_id:
+                continue
+            _mapping.setdefault(_stock_id, set()).add(_topic_id)
+        return _mapping
+    except Exception:
+        return {}
+
+
+def sync_industry_evidence_to_stocks():
+    """
+    【V7第二階段修正】原本這個函式會把產業證據直接灌進個股的 fundamental
+    證據（讓個股基本面憑空+8分），這是錯誤設計：產業層級的判斷不能冒充
+    公司層級的直接證據。
+
+    現在改為單純呼叫 industry_engine.refresh_all_industries()，讓8個
+    Topic 的指標／狀態／證據都留在 Topic 層級（industry_state.json /
+    industry_metrics.json），完全不寫入任何個股的 fundamental 證據。
+    個股要查詢所屬產業背景，請呼叫
+    industry_engine.get_stock_industry_context(stock_id)——這是唯讀查詢，
+    回傳 industry_context_score／industry_state／industry_risks／
+    industry_catalysts，不會疊加進攻擊引擎的40分基本面。
+
+    保留這個函式名稱與呼叫方式是為了向後相容 Tab11 既有按鈕；
+    回傳：{topic_id: 該Topic自動計算結果摘要}（非「受影響個股數」）。
+    """
+    _results = industry_engine.refresh_all_industries()
+    return {t: r["state_record"]["display_state"] for t, r in _results.items()}
 
 # ══════════════════════════════════════════════════════════════
 # ▌ 頁面基礎設定
@@ -3265,7 +3321,7 @@ with tab1:
 
     # ── 1. 大盤估值模組
     with st.expander("📐 大盤估值模組", expanded=True):
-        st.caption("TWSE官方大盤本益比無穩定公開API，此處手動輸入，避免用不可靠來源硬寫死估值位置。")
+        st.caption("目前加權指數自動抓取；官方本益比仍需手動輸入正式數字（原因見下方說明）。")
         _val_col1, _val_col2 = st.columns(2)
         with _val_col1:
             _ae_twii_now = None
@@ -3282,10 +3338,43 @@ with tab1:
                 step=10.0, key="ae_index_now"
             )
         with _val_col2:
+            # 【重要】TWSE OpenAPI沒有「加權指數本益比」這個數字，只有個股本益比。
+            # 個股本益比中位數 ≠ 加權指數本益比：台積電一檔就占加權指數35%+權重，
+            # 中位數是「每家公司權重相等」算出來的，會被大量中小型、本益比較低的
+            # 傳產股拉低，通常比實際加權指數本益比低了一截，不能拿來直接自動帶入，
+            # 否則會讓29/28/26/24倍情境表整個算錯位置。這裡改成只顯示參考、不預填。
+            _pe_proxy = market_events.fetch_market_pe_proxy()
             _ae_pe_now = st.number_input(
-                "官方大盤本益比（TWSE公布）", min_value=0.0, value=0.0, step=0.1,
+                "官方大盤本益比（請手動輸入，見下方原因）", min_value=0.0, value=0.0, step=0.1,
                 key="ae_pe_now", help="查詢：台灣證券交易所 > 統計資料 > 本益比、殖利率"
             )
+            if _pe_proxy.get("pe_median"):
+                st.caption(
+                    f"📡 僅供參考：全市場個股本益比中位數 {_pe_proxy['pe_median']}"
+                    f"（樣本{_pe_proxy['sample']}檔，{_pe_proxy['fetched_at'][:10]}）——"
+                    "**這不是加權指數本益比**，台積電等權值股占加權指數超過35%權重，"
+                    "中位數算法權重相等會被中小型股拉低，通常比真正的加權指數本益比低一截，"
+                    "不能直接當「官方大盤本益比」用，請查TWSE正式數字手動輸入。"
+                )
+
+            if st.button("🤖 用AI搜尋目前大盤本益比", key="btn_ai_search_pe"):
+                with st.spinner("AI搜尋中..."):
+                    _ai_pe_result = market_events.fetch_pe_via_gemini_search(
+                        get_secret("GEMINI_API_KEY", "")
+                    )
+                if _ai_pe_result.get("pe") is not None:
+                    st.session_state["ae_pe_now"] = _ai_pe_result["pe"]
+                    st.success(
+                        f"AI搜尋結果：{_ai_pe_result['pe']}（D級證據，AI搜尋提取，已自動填入，"
+                        "務必自行核對一次再使用，不是官方直接發布數字）"
+                    )
+                    st.rerun()
+                else:
+                    st.warning(f"AI搜尋未能取得明確數字：{_ai_pe_result.get('status', '—')}"
+                               + (f"（AI回覆：{_ai_pe_result.get('raw_text','')[:100]}）"
+                                  if _ai_pe_result.get("raw_text") else ""))
+            else:
+                st.caption(f"⚠️ TWSE OpenAPI自動抓取失敗（{_pe_proxy.get('status','—')}），請手動輸入。")
 
         if _ae_index_now > 0 and _ae_pe_now > 0:
             _ae_earnings_base = _ae_index_now / _ae_pe_now
@@ -3318,8 +3407,8 @@ with tab1:
         else:
             st.info("請輸入官方大盤本益比以啟用估值情境計算（每日手動輸入一次）。")
 
-    # ── 2. 技術風險模組（取自 ^TWII 實際日K，非硬寫死數字）
-    with st.expander("📉 技術風險模組", expanded=True):
+    # ── 2. 技術風險模組 + 盤中價格接受度與布林事件（Part A：market_events.py）
+    with st.expander("📉 技術風險模組 · 盤中價格接受度與布林狀態", expanded=True):
         try:
             import yfinance as _yf_ae2
             _twii_ohlc = _yf_ae2.Ticker("^TWII").history(period="6mo")
@@ -3331,8 +3420,20 @@ with tab1:
                 _ae_close_now = float(_ae_last["Close"])
                 _ae_bb_mid = float(_ae_last["BB_MID"])
                 _ae_lb2 = float(_ae_last["LB2"])
+                _ae_ub2 = float(_ae_last["UB2"])
                 _ae_lb4 = float(_ae_last["LB4"])
-                # 前波低點：近60個交易日、排除最後5日（避免抓到當下正測試的低點）
+                _ae_open_now = float(_ae_last["Open"])
+                _ae_high_now = float(_ae_last["High"])
+                _ae_low_now = float(_ae_last["Low"])
+                _ae_prev_close = float(_twii_ind["Close"].iloc[-2]) if len(_twii_ind) >= 2 else None
+
+                st.caption(
+                    "布林通道定義（既有系統公式，沿用不變）：中軌=20日收盤均線；"
+                    "第一下軌=中軌-2×標準差；第二下軌=中軌-4×標準差。"
+                    "布林計算全程使用『日收盤價』，盤中最低點不直接參與標準差計算。"
+                )
+
+                # 前波低點：近60個交易日、排除最後5日
                 _ae_lookback = (_twii_ind.iloc[-65:-5] if len(_twii_ind) > 70
                                  else _twii_ind.iloc[:-5])
                 _ae_recent_low = (float(_ae_lookback["Close"].min())
@@ -3348,46 +3449,151 @@ with tab1:
                 _tr_c4.metric("近期重要低點", f"{_ae_recent_low:,.0f}",
                               f"{(_ae_close_now-_ae_recent_low)/_ae_recent_low*100:+.1f}%")
 
+                # ── 盤中價格接受度（三類獨立證據之一：盤中價格行為）
+                _me_recovery = market_events.calculate_intraday_recovery_metrics(
+                    previous_close=_ae_prev_close, open_price=_ae_open_now,
+                    high_price=_ae_high_now, low_price=_ae_low_now, close_price=_ae_close_now
+                )
+                _me_reversal_state = market_events.classify_intraday_reversal(_me_recovery)
+
+                st.markdown("##### 盤中價格接受度")
+                _pr_c1, _pr_c2, _pr_c3, _pr_c4 = st.columns(4)
+                _pr_c1.metric("最大盤中跌幅", f"{_me_recovery['max_intraday_drawdown_pct']:+.2f}%"
+                              if _me_recovery["valid"] else "—")
+                _pr_c2.metric("收盤跌幅", f"{_me_recovery['close_return_pct']:+.2f}%"
+                              if _me_recovery["valid"] else "—")
+                _pr_c3.metric("跌幅收復比例", f"{_me_recovery['recovery_ratio']:.0f}%"
+                              if _me_recovery.get("recovery_ratio") is not None else "—")
+                _pr_c4.metric("收盤位置值(0低點~1高點)", f"{_me_recovery['close_location_value']:.2f}"
+                              if _me_recovery.get("close_location_value") is not None else "—")
+                st.info(f"盤中反轉狀態：**{_me_reversal_state}**　"
+                        "（盤中承接屬初步價格證據，仍需後續交易日確認，不等同趨勢反轉）")
+
+                # ── 布林通道擴張判斷（三類獨立證據之二：日線布林）
+                _ae_lb2_prev = float(_twii_ind["LB2"].iloc[-2]) if len(_twii_ind) >= 2 else None
+                _ae_lb2_3d = float(_twii_ind["LB2"].iloc[-4]) if len(_twii_ind) >= 4 else None
+
+                # 連續收盤跌破下軌天數（從既有歷史資料回推，不需另外存狀態）
+                _ae_streak_prev = 0
+                _closes_hist = _twii_ind["Close"]; _lb2_hist = _twii_ind["LB2"]
+                _i = -2
+                while len(_twii_ind) + _i >= 0 and _closes_hist.iloc[_i] < _lb2_hist.iloc[_i]:
+                    _ae_streak_prev += 1
+                    _i -= 1
+                _ae_was_below_recently = bool((_closes_hist.tail(6).iloc[:-1] < _lb2_hist.tail(6).iloc[:-1]).any())
+
+                _me_bb = market_events.calculate_bollinger_extended(
+                    bb_mid_today=_ae_bb_mid, lb1_today=_ae_lb2, lb1_prev=_ae_lb2_prev,
+                    lb1_3d_ago=_ae_lb2_3d, ub1_today=_ae_ub2, low_price_today=_ae_low_now,
+                    close_price_today=_ae_close_now, close_below_streak_prev=_ae_streak_prev
+                )
+                _ae_bw_prev = None
+                if len(_twii_ind) >= 2:
+                    _bb_mid_prev = float(_twii_ind["BB_MID"].iloc[-2])
+                    _ub2_prev = float(_twii_ind["UB2"].iloc[-2])
+                    if _bb_mid_prev:
+                        _ae_bw_prev = (_ub2_prev - _ae_lb2_prev) / _bb_mid_prev
+                _me_bw_change_pct = market_events.update_bandwidth_change(_me_bb["bandwidth"], _ae_bw_prev)
+                _me_expanding = market_events.is_lower_band_expanding(
+                    _me_bb["lower_band_slope_3d"], _me_bw_change_pct or 0, _me_bb["close_below_streak"]
+                )
+                _me_bb_state = market_events.classify_bollinger_event(
+                    low_price=_ae_low_now, close_price=_ae_close_now, lower_band_1=_ae_lb2,
+                    expanding=_me_expanding, close_below_streak=_me_bb["close_below_streak"],
+                    was_below_recently=_ae_was_below_recently
+                )
+
+                st.markdown("##### 布林事件狀態")
+                _bb_c1, _bb_c2, _bb_c3 = st.columns(3)
+                _bb_c1.metric("下軌單日斜率", f"{_me_bb['lower_band_slope_1d']:+.0f}"
+                              if _me_bb.get("lower_band_slope_1d") is not None else "—")
+                _bb_c2.metric("下軌三日斜率", f"{_me_bb['lower_band_slope_3d']:+.0f}"
+                              if _me_bb.get("lower_band_slope_3d") is not None else "—")
+                _bb_c3.metric("布林寬度變化", f"{_me_bw_change_pct:+.1f}%" if _me_bw_change_pct is not None else "—")
+                st.info(f"布林事件狀態：**{_me_bb_state}**　"
+                        f"（下軌是否擴張：{'是' if _me_expanding else '否，尚未確認'}）")
+
                 if _ae_below_lb2:
                     st.warning(f"⚠️ 收盤價 {_ae_close_now:,.0f} 已跌破第一布林下軌 {_ae_lb2:,.0f}。")
                 else:
                     st.success(f"✅ 收盤價 {_ae_close_now:,.0f} 尚未跌破第一布林下軌 {_ae_lb2:,.0f}。")
 
-                _ae_dist_to_lb2 = (_ae_close_now - _ae_lb2) / _ae_lb2
-                _ae_price_ratio = (max(0.0, min(1.0, 1 - abs(_ae_dist_to_lb2) / 0.1))
-                                    if not _ae_below_lb2 else 0.2)
+                # ── 關鍵低點事件追蹤
+                _me_pivot_history = market_events.update_pivot_events(
+                    event_date=_today_ae, intraday_low=_ae_low_now, close_price=_ae_close_now,
+                    previous_close=_ae_prev_close, recovery_metrics=_me_recovery,
+                    bollinger_state=_me_bb_state, futures_posture=None
+                )
+                _me_active_event = market_events.get_active_pivot_event()
+                if _me_active_event:
+                    st.caption(
+                        f"關鍵低點事件：{_me_active_event['event_type']}（{_me_active_event['event_date']}，"
+                        f"低點{_me_active_event['intraday_low']:,.0f}）　"
+                        f"狀態：{_me_active_event['confirmation_status']}　"
+                        f"已{_me_active_event.get('days_without_new_low',0)}日不破低"
+                    )
+
                 _ae_tech_veto = _ae_close_now < _ae_lb4  # 跌破第二布林下軌 → 技術面重度惡化
 
                 _ae_price_value = {
-                    "score_ratio": round(_ae_price_ratio, 2), "close": _ae_close_now,
-                    "bb_mid": _ae_bb_mid, "lb2": _ae_lb2, "lb4": _ae_lb4,
+                    "score_ratio": None,  # 由下方市場籌碼區塊算完期貨後，統一交叉判斷再回填
+                    "close": _ae_close_now, "bb_mid": _ae_bb_mid, "lb2": _ae_lb2, "lb4": _ae_lb4,
                     "recent_low": _ae_recent_low, "below_lb2": _ae_below_lb2,
+                    "intraday_reversal_state": _me_reversal_state,
+                    "bollinger_event_state": _me_bb_state, "lower_band_expanding": _me_expanding,
+                    "recovery_ratio": _me_recovery.get("recovery_ratio"),
+                    "close_location_value": _me_recovery.get("close_location_value"),
                 }
                 if _ae_tech_veto:
                     _ae_price_value["veto"] = True
                     _ae_price_value["veto_reason"] = (
                         f"加權指數收盤 {_ae_close_now:,.0f} 已跌破第二布林下軌 {_ae_lb4:,.0f}"
                     )
-
-                attack_engine.register_evidence(
-                    "market", "price_bollinger", category="price", value=_ae_price_value,
-                    source="^TWII 日K（yfinance）", date=_today_ae, grade="C", ttl_days=1,
-                    note="系統自動計算，C級證據（衍生指標，非官方直接發布數字）"
-                )
+                st.session_state["_ae_price_value_draft"] = _ae_price_value
         except Exception as _ae_tr_e:
             st.caption(f"技術風險模組暫時無法取得資料（{_ae_tr_e}）")
 
-    # ── 3. 市場籌碼（沿用既有大台外資／小台散戶／融資餘額函式，皆為既有真實資料）
-    with st.expander("💰 市場籌碼", expanded=True):
+    # ── 3. 市場籌碼 + 期貨曝險換算 + 結算日降權 + 市場證據衝突（Part A）
+    with st.expander("💰 市場籌碼 · 期貨曝險 · 證據衝突", expanded=True):
         _mc_tx = get_tx_foreign_position()
         _mc_retail = get_mtx_retail_position()
         _mc_margin = get_total_margin_balance()
         _mc_margin_bal = _mc_margin["balance"] if _mc_margin else None
+        _mc_rollover = get_tx_rollover_info()
+        _mc_prev_tx = _mc_tx - _mc_rollover.get("daily_change", 0)
 
-        _mc_c1, _mc_c2, _mc_c3 = st.columns(3)
-        _mc_c1.metric("外資大台淨留倉", f"{_mc_tx:+,}口")
-        _mc_c2.metric("小台散戶淨留倉", f"{_mc_retail:+,}口")
-        _mc_c3.metric("全市場融資餘額", f"{_mc_margin_bal:,.0f}億" if _mc_margin_bal is not None else "—")
+        _ae_price_value = st.session_state.get("_ae_price_value_draft", {})
+        _ae_twii_price_for_fut = _ae_price_value.get("close")
+
+        # 期貨契約等值換算：大中小台不可直接加總口數
+        # 目前系統只有「外資大台」與「散戶小台」，微台與外資小台尚未接入，誠實標示不虛構
+        _fut_norm = market_events.normalize_index_futures_exposure(
+            large_net_lots=_mc_tx, index_price=_ae_twii_price_for_fut,
+            prev_large_net_lots=_mc_prev_tx,
+        )
+
+        _settle_date, _settle_dist = market_events.is_near_futures_settlement()
+        _fut_weight, _fut_is_near = market_events.get_futures_signal_weight(_settle_dist)
+
+        _mc_c1, _mc_c2, _mc_c3, _mc_c4 = st.columns(4)
+        _mc_c1.metric("外資大台原始淨部位", f"{_mc_tx:+,}口",
+                      f"{_fut_norm['large_change_lots']:+,}口" if _fut_norm.get("large_change_lots") is not None else None)
+        _mc_c2.metric("小台散戶原始淨部位(非外資)", f"{_mc_retail:+,}口")
+        _mc_c3.metric("大台等值合計曝險", f"{_fut_norm['large_equivalent_lots']:+.0f}口"
+                      if _fut_norm.get("large_equivalent_lots") is not None else "—")
+        _mc_c4.metric("全市場融資餘額", f"{_mc_margin_bal:,.0f}億" if _mc_margin_bal is not None else "—")
+
+        st.caption(f"外資大台部位判讀：**{_fut_norm['posture']}**　"
+                   f"（微台與外資小台尚未接入資料來源，合計曝險僅含大台，不虛構未接入部位）")
+
+        if _fut_is_near:
+            st.warning(
+                f"⚠️ 接近期貨結算（{_settle_date}，距今{_settle_dist}天），"
+                f"外資期貨訊號已降低權重至 {_fut_weight*100:.0f}%，但原始部位仍完整保留於上方。"
+                "結算日前後可能受轉倉、套利、避險影響，解讀需保守。"
+            )
+        else:
+            st.caption(f"下一個期貨結算日：{_settle_date}（權重100%，非結算日附近）")
 
         _ae_chips_ratio = 0.5
         if _mc_tx is not None:
@@ -3397,15 +3603,80 @@ with tab1:
         if _mc_margin_bal is not None:
             _ae_chips_ratio += 0.1 if _mc_margin_bal < 4500 else -0.1
         _ae_chips_ratio = max(0.0, min(1.0, _ae_chips_ratio))
+        # 結算日訊號降權：往中性值0.5收斂，而非直接忽略
+        _ae_chips_ratio_weighted = 0.5 + (_ae_chips_ratio - 0.5) * _fut_weight
 
         attack_engine.register_evidence(
             "market", "chips_futures_margin", category="chips",
-            value={"score_ratio": round(_ae_chips_ratio, 2), "tx_net": _mc_tx,
-                   "mtx_retail": _mc_retail, "margin_balance_yi": _mc_margin_bal},
+            value={"score_ratio": round(_ae_chips_ratio_weighted, 2), "tx_net": _mc_tx,
+                   "mtx_retail": _mc_retail, "margin_balance_yi": _mc_margin_bal,
+                   "large_equivalent_lots": _fut_norm.get("large_equivalent_lots"),
+                   "posture": _fut_norm["posture"], "settlement_weight": _fut_weight,
+                   "near_settlement": _fut_is_near},
             source="期交所三大法人期貨部位＋證交所信用交易統計（daily_scan排程）",
             date=_today_ae, grade="A", ttl_days=1,
-            note="沿用既有 get_tx_foreign_position / get_mtx_retail_position / get_total_margin_balance"
+            note="沿用既有 get_tx_foreign_position / get_mtx_retail_position / get_total_margin_balance，"
+                 "本輪新增契約等值換算與結算日降權"
         )
+
+        # ── 市場證據衝突（交叉比對價格／布林／籌碼三類獨立證據，不強迫多空）
+        _me_conflict = market_events.evaluate_market_evidence_conflict(
+            intraday_reversal_state=_ae_price_value.get("intraday_reversal_state"),
+            recovery_ratio=_ae_price_value.get("recovery_ratio"),
+            bollinger_event_state=_ae_price_value.get("bollinger_event_state"),
+            lower_band_expanding=_ae_price_value.get("lower_band_expanding", False),
+            foreign_futures_change=_fut_norm.get("large_change_lots"),
+            foreign_cash_flow=None,  # 外資現貨市場級即時數字尚未接入
+            settlement_day_flag=_fut_is_near,
+            fundamental_veto=False,
+        )
+        if _me_conflict["state"] == "證據衝突":
+            st.error("⚖️ **市場證據衝突**：" + "；".join(_me_conflict["conflicts"]))
+        else:
+            st.success("✅ 目前價格／布林／籌碼三類證據無明顯衝突。")
+
+        # ── 價格確認暫定分數（20分拆解，未滿三日不破低一律為暫定）
+        _me_active_event2 = market_events.get_active_pivot_event()
+        _days_no_new_low = (_me_active_event2.get("days_without_new_low", 0)
+                             if _me_active_event2 and not _me_active_event2.get("invalidated") else 0)
+        _me_price_score = market_events.calculate_price_confirmation_score(
+            recovery_ratio=_ae_price_value.get("recovery_ratio"),
+            close_location_value=st.session_state.get("_ae_price_value_draft", {}).get("close_location_value"),
+            pierced_and_reclaimed=(_ae_price_value.get("bollinger_event_state") == "盤中刺穿後收回"),
+            closed_back_above_lb1=(not _ae_price_value.get("below_lb2", False)),
+            days_without_new_low=_days_no_new_low,
+        )
+        _ae_price_value["score_ratio"] = round(_me_price_score["total"] / 20, 2)
+        _ae_price_value["provisional_score_20"] = _me_price_score["total"]
+        _ae_price_value["is_provisional"] = _me_price_score["is_provisional"]
+        _ae_price_value["price_score_detail"] = _me_price_score["detail"]
+        if _me_price_score["is_provisional"]:
+            st.caption(
+                f"⏳ 目前價格確認為**暫定分數 {_me_price_score['total']}/20**"
+                f"（已{_days_no_new_low}日不破低，滿3日才轉為正式分數；跌破當日低點會撤銷此暫定加分）"
+            )
+
+        attack_engine.register_evidence(
+            "market", "price_bollinger", category="price", value=_ae_price_value,
+            source="^TWII 日K（yfinance）＋盤中OHLC", date=_today_ae, grade="C", ttl_days=1,
+            note="系統自動計算，C級證據（衍生指標，非官方直接發布數字）；"
+                 "價格確認分數依market_events.calculate_price_confirmation_score()拆解"
+        )
+
+        # 市場證據衝突獨立存證，不計入四大分項加總，只供Tab7/Tab4讀取顯示
+        attack_engine.register_evidence(
+            "market", "evidence_conflict", category="conflict",
+            value={"state": _me_conflict["state"], "conflicts": _me_conflict["conflicts"],
+                   "near_settlement": _fut_is_near, "settlement_weight": _fut_weight},
+            source="market_events.evaluate_market_evidence_conflict()", date=_today_ae,
+            grade="C", ttl_days=1, note="交叉比對用，不計入四大分項分數"
+        )
+
+        market_events.save_daily_market_event(_today_ae, {
+            "recovery": st.session_state.get("_ae_price_value_draft", {}),
+            "futures": _fut_norm, "conflict": _me_conflict,
+            "price_score": _me_price_score, "settlement": {"date": str(_settle_date), "weight": _fut_weight},
+        })
 
     st.caption(
         "以上三個模組的證據已寫入攻擊引擎（evidence_registry），"
@@ -4704,141 +4975,239 @@ with tab1:
 # ──────────────────────────────────────────────────────────────
 with tab2:
     # ══════════════════════════════════════════════════════════════
-    # ▌ 產業基本面燈號（V7 攻擊引擎 · 產業趨勢證據來源）
-    #   發現：本Tab（UI標籤「🌱 產業趨勢」）原本畫面內容其實是舊版
-    #   「MTFA 狙擊報告」（個股層級的日內警示），並非產業層級判斷。
-    #   保留原內容於下方，這裡新增真正的產業層級模組，沿用 Tab11
-    #   知識圖譜既有的 8 大 Topic 分類（AI_DC/CS/EDGE/MOBILITY/
-    #   POWER/ROBOT/SEMI/WATER），不另建一套新分類。
-    #   TAM/CAPEX/訂單能見度/庫存/產能利用率/客戶展望等屬於分析師
-    #   判斷，無官方即時API，故採人工評估＋證據登記，非全自動。
+    # ▌ 自動產業情報與證據中心（V7 第二階段）
+    #   預設狀態＝自動分析、唯讀呈現。人工輸入只是「進階覆核」，
+    #   不是必要流程。資料責任：官方/公司提供原始數字（rex_scores.json
+    #   來自FinMind官方財報、prices/*.csv來自TWSE/OTC日K）→ 本頁只負責
+    #   計算與分類 → 人工只負責覆核。
+    #   原本的「MTFA 狙擊報告」個股內容保留在下方，完全沒動。
     # ══════════════════════════════════════════════════════════════
-    st.markdown("<div class='sec-title'>🌱 產業基本面燈號</div>", unsafe_allow_html=True)
-    st.caption(
-        "每個 Topic 每次更新都會登記一筆『industry』類證據到攻擊引擎，"
-        "供之後 Tab3/Tab11 串接個股基本面分數使用（本階段先建立資料結構與登記機制）。"
-    )
+    st.markdown("<div class='sec-title'>🌱 自動產業情報與證據中心</div>", unsafe_allow_html=True)
+    st.caption("打開頁面就有結論，不需要自己查資料填表單。狀態由系統自動計算；「進階人工覆核」在頁面最下方，非必要不用填。")
 
-    _IT_PATH = os.path.join(DATA_DIR, "industry_trend.json")
-    _IT_TOPICS = ["AI_DC", "CS", "EDGE", "MOBILITY", "POWER", "ROBOT", "SEMI", "WATER"]
-    _IT_LABELS = {
-        "AI_DC": "AI 資料中心", "CS": "通訊／連接", "EDGE": "邊緣運算",
-        "MOBILITY": "移動載具", "POWER": "電力設備", "ROBOT": "機器人自動化",
-        "SEMI": "半導體／先進封裝", "WATER": "水資源／純水",
-    }
-    _IT_STATUS_OPTIONS = ["需求加速", "需求成長", "成長減速", "估值修正", "景氣反轉", "證據不足"]
-    _IT_CAPEX_OPTIONS = ["真正擴產", "產線轉換", "製程升級", "維持性資本支出", "新產品導入", "折舊壓力", "不適用"]
-
-    def _it_load():
-        if os.path.exists(_IT_PATH):
+    _it_today = datetime.now().strftime("%Y-%m-%d")
+    _it_col_a, _it_col_b = st.columns([3, 1])
+    with _it_col_b:
+        if st.button("🔄 重新整理產業情報", key="btn_refresh_industry_tab2"):
+            with st.spinner("重新計算8個Topic中..."):
+                industry_engine.refresh_all_industries()
+            st.session_state["_industry_refresh_date"] = _it_today
+            st.rerun()
+    if st.session_state.get("_industry_refresh_date") != _it_today:
+        with st.spinner("首次載入，自動計算8個Topic的產業指標中（之後同一天不會再重算）..."):
             try:
-                with open(_IT_PATH, "r", encoding="utf-8") as _f:
-                    return json.load(_f)
-            except Exception:
-                return {}
-        return {}
+                industry_engine.refresh_all_industries()
+                st.session_state["_industry_refresh_date"] = _it_today
+            except Exception as _it_e:
+                st.warning(f"自動計算時發生問題，顯示上次計算結果：{_it_e}")
 
-    def _it_save(data):
-        os.makedirs(DATA_DIR, exist_ok=True)
-        with open(_IT_PATH, "w", encoding="utf-8") as _f:
-            json.dump(data, _f, ensure_ascii=False, indent=2)
+    _it_state_all = industry_engine.load_industry_state()
+    _it_metrics_all = industry_engine.load_industry_metrics()
+    _it_evidence_all = industry_engine.load_industry_evidence()
 
-    _it_data = _it_load()
+    # ── 區塊一：8個Topic總覽
+    st.markdown("#### 📋 產業總覽")
+    _STATE_ICON = {"需求加速": "🚀", "需求成長": "📈", "成長減速": "🐢", "估值修正": "💰",
+                   "景氣反轉": "🔻", "證據衝突": "⚖️", "證據不足": "❓"}
+    _it_cols8 = st.columns(4)
+    for _idx, _topic in enumerate(industry_engine.TOPIC_IDS):
+        _rec = _it_state_all.get(_topic, {})
+        _m = _it_metrics_all.get(_topic, {})
+        _state = _rec.get("display_state", "證據不足")
+        _quality = _rec.get("evidence_quality", 0)
+        _prev = _rec.get("prev_state")
+        with _it_cols8[_idx % 4]:
+            st.markdown(f"**{industry_engine.TOPIC_LABELS.get(_topic, _topic)}**")
+            st.caption(_topic)
+            _delta_txt = f"上期：{_prev}" if _prev and _prev != _state else None
+            st.metric("狀態", f"{_STATE_ICON.get(_state,'')} {_state}", _delta_txt)
+            st.caption(f"證據完整度 {_quality}%　樣本 {_m.get('fundamental_sample','—')}/{_m.get('total_count','—')}")
+            st.caption(f"最新價格資料：{_m.get('latest_price_date','—')}"
+                       + ("（已過期）" if _m.get("is_price_stale") else ""))
+    st.markdown("---")
 
-    _it_pick = st.selectbox(
-        "選擇要評估／更新的產業 Topic",
-        _IT_TOPICS, format_func=lambda t: f"{t}（{_IT_LABELS.get(t, t)}）", key="it_topic_pick"
+    # 選一個Topic深入看
+    _t2_pick = st.selectbox(
+        "查看單一 Topic 詳情", industry_engine.TOPIC_IDS,
+        format_func=lambda t: f"{t}（{industry_engine.TOPIC_LABELS.get(t, t)}）", key="tab2_topic_pick"
     )
-    _it_cur = _it_data.get(_it_pick, {})
+    _t2_m = _it_metrics_all.get(_t2_pick, {})
+    _t2_rec = _it_state_all.get(_t2_pick, {})
+    _t2_ev = _it_evidence_all.get(_t2_pick, {})
+    _t2_summary = _t2_ev.get("summary", {})
+    _t2_state = _t2_rec.get("display_state", "證據不足")
 
-    with st.form(key=f"it_form_{_it_pick}"):
-        _it_c1, _it_c2 = st.columns(2)
-        with _it_c1:
-            _it_status = st.selectbox(
-                "產業狀態", _IT_STATUS_OPTIONS,
-                index=_IT_STATUS_OPTIONS.index(_it_cur.get("status", "證據不足"))
-                if _it_cur.get("status") in _IT_STATUS_OPTIONS else 5,
-                key="it_status_input",
-                help="估值修正≠景氣反轉：股價跌不代表產業真的變差，請分開判斷"
-            )
-        with _it_c2:
-            _it_capex = st.selectbox(
-                "CAPEX雷達分類", _IT_CAPEX_OPTIONS,
-                index=_IT_CAPEX_OPTIONS.index(_it_cur.get("capex_class", "不適用"))
-                if _it_cur.get("capex_class") in _IT_CAPEX_OPTIONS else 6,
-                key="it_capex_input",
-                help="CAPEX增加不等於正面，要分辨是真擴產還是維持性支出"
-            )
+    # ── 區塊二：產業自動摘要
+    st.markdown(f"#### 📝 {_t2_pick} 自動摘要")
+    if (_t2_rec.get("manual_override") or {}).get("active"):
+        st.info(f"⚠️ 目前顯示狀態為人工覆核結果「{_t2_state}」，系統自動判斷原為「{_t2_rec.get('auto_state','—')}」"
+                f"（覆核原因：{_t2_rec['manual_override'].get('reason','—')}）")
+    st.markdown(f"**目前產業狀態：{_STATE_ICON.get(_t2_state,'')} {_t2_state}**"
+                f"（信心：{_t2_rec.get('confidence','—')}）")
+    st.write(f"**為什麼得到這個判斷：** {_t2_summary.get('why', '—')}")
+    st.write(f"**價格修正 vs 基本面反轉：** {_t2_summary.get('price_or_fundamental', '—')}")
+    _t2_col1, _t2_col2 = st.columns(2)
+    with _t2_col1:
+        st.markdown("**最強支持證據**")
+        for _s in _t2_summary.get("top_support_evidence", []) or ["—"]:
+            st.caption(f"• {_s}")
+    with _t2_col2:
+        st.markdown("**最強反對證據／資料缺口**")
+        for _s in _t2_summary.get("top_counter_evidence", []) or ["—"]:
+            st.caption(f"• {_s}")
+    st.markdown("**下一個可能改變判斷的事件**")
+    for _s in _t2_summary.get("next_trigger", []) or ["尚無明確觸發條件"]:
+        st.caption(f"• {_s}")
+    st.markdown("---")
 
-        _it_demand = st.text_input("需求成長率／TAM趨勢", value=_it_cur.get("demand_note", ""), key="it_demand_input")
-        _it_order = st.text_input("訂單能見度", value=_it_cur.get("order_visibility", ""), key="it_order_input")
-        _it_inv_util = st.columns(2)
-        _it_inventory = _it_inv_util[0].text_input("庫存風險", value=_it_cur.get("inventory_risk", ""), key="it_inv_input")
-        _it_utilization = _it_inv_util[1].text_input("產能利用率", value=_it_cur.get("utilization", ""), key="it_util_input")
-        _it_outlook = st.text_input("客戶展望", value=_it_cur.get("customer_outlook", ""), key="it_outlook_input")
-        _it_support = st.text_area("主要支持證據", value=_it_cur.get("support_evidence", ""), key="it_support_input", height=60)
-        _it_counter = st.text_area("主要反證", value=_it_cur.get("counter_evidence", ""), key="it_counter_input", height=60)
-        _it_expiry_days = st.number_input("證據有效天數", min_value=1, max_value=180,
-                                           value=int(_it_cur.get("ttl_days", 30)), key="it_ttl_input")
+    # ── 區塊三：產業數據儀表板
+    st.markdown("#### 📊 產業數據儀表板")
+    _d1, _d2, _d3, _d4 = st.columns(4)
+    _d1.metric("營收年增中位數", f"{_t2_m.get('revenue_yoy_median')}%" if _t2_m.get("revenue_yoy_median") is not None else "—")
+    _d1.metric("正成長公司比例", f"{_t2_m.get('revenue_yoy_positive_ratio')*100:.0f}%" if _t2_m.get("revenue_yoy_positive_ratio") is not None else "—")
+    _d2.metric("EPS年增中位數", f"{_t2_m.get('eps_yoy_median')}%" if _t2_m.get("eps_yoy_median") is not None else "—")
+    _d2.metric("毛利率改善比例", f"{_t2_m.get('gm_improve_ratio')*100:.0f}%" if _t2_m.get("gm_improve_ratio") is not None else "—")
+    _d3.metric("60日股價中位數報酬", f"{_t2_m.get('price_median_ret60')}%" if _t2_m.get("price_median_ret60") is not None else "—")
+    _d3.metric("距高點跌幅中位數", f"{_t2_m.get('dist_from_high_median')}%" if _t2_m.get("dist_from_high_median") is not None else "—")
+    _d4.metric("相對大盤強弱(60日)", f"{_t2_m.get('relative_strength_60d'):+.1f}%" if _t2_m.get("relative_strength_60d") is not None else "—")
+    _d4.metric("站上月線比例", f"{_t2_m.get('above_ma20_ratio')*100:.0f}%" if _t2_m.get("above_ma20_ratio") is not None else "—")
 
-        _it_submitted = st.form_submit_button("💾 儲存本產業評估")
-
-    if _it_submitted:
-        _today_it = datetime.now().strftime("%Y-%m-%d")
-        _it_data[_it_pick] = {
-            "status": _it_status, "capex_class": _it_capex,
-            "demand_note": _it_demand, "order_visibility": _it_order,
-            "inventory_risk": _it_inventory, "utilization": _it_utilization,
-            "customer_outlook": _it_outlook, "support_evidence": _it_support,
-            "counter_evidence": _it_counter, "ttl_days": int(_it_expiry_days),
-            "updated_at": _today_it,
-        }
-        _it_save(_it_data)
-
-        # 狀態 → score_ratio 對照（估值修正與景氣反轉分開處理，不可混為一談）
-        _it_ratio_map = {
-            "需求加速": 1.0, "需求成長": 0.8, "成長減速": 0.5,
-            "估值修正": 0.5, "景氣反轉": 0.15, "證據不足": 0.3,
-        }
-        _it_value = {
-            "score_ratio": _it_ratio_map.get(_it_status, 0.3),
-            "status": _it_status, "capex_class": _it_capex,
-            "demand_note": _it_demand, "order_visibility": _it_order,
-        }
-        if _it_status == "景氣反轉":
-            _it_value["veto"] = True
-            _it_value["veto_reason"] = f"{_IT_LABELS.get(_it_pick, _it_pick)} 產業判斷為景氣反轉"
-
-        attack_engine.register_evidence(
-            f"industry:{_it_pick}", "manual_assessment", category="industry",
-            value=_it_value, source="Rex人工評估", date=_today_it,
-            grade="D", ttl_days=int(_it_expiry_days),
-            note="人工判斷，尚待Tab3/Tab11串接個股基本面分數時使用"
-        )
-        st.success(f"已儲存 {_it_pick} 的產業評估，並登記為攻擊引擎證據（D級，{_it_expiry_days}天後過期）。")
-        st.rerun()
-
-    # 現況總覽表
-    if _it_data:
-        _it_rows = []
-        for _t in _IT_TOPICS:
-            _rec = _it_data.get(_t)
-            if not _rec:
-                continue
-            _it_rows.append({
-                "Topic": _t, "產業": _IT_LABELS.get(_t, _t),
-                "狀態": _rec.get("status", "—"), "CAPEX分類": _rec.get("capex_class", "—"),
-                "更新日期": _rec.get("updated_at", "—"),
-            })
-        if _it_rows:
-            st.dataframe(pd.DataFrame(_it_rows), use_container_width=True, hide_index=True)
+    st.markdown("##### 🇺🇸 美國CSP CAPEX（SEC EDGAR官方申報，自動抓取）")
+    _csp = _t2_m.get("capex_csp") or {}
+    if _csp.get("success"):
+        for _line in _csp.get("lines", []):
+            st.caption(f"✅ {_line}")
+        st.caption(f"資料來源：SEC EDGAR XBRL API　更新時間：{_csp.get('fetched_at', '—')}　證據等級：A")
     else:
-        st.info("尚無任何產業評估紀錄，請從上方選一個 Topic 開始評估。")
+        for _line in _csp.get("lines", ["尚未成功抓取，可能是網路限制或SEC API暫時無回應"]):
+            st.caption(f"⚠️ {_line}")
+
+    st.info(
+        f"**尚未有結構化官方API的資料源**（改為每季人工登錄，不自動解析PDF避免產生假數字）：\n\n"
+        f"- 台積電CAPEX：{_t2_m.get('capex_tsmc', '尚未接入')}\n"
+        f"- 官方出口統計：{_t2_m.get('export_stats', '尚未接入')}\n\n"
+        "可在下方「進階人工覆核」登錄，附上官方來源連結後即為B級證據。"
+    )
+    st.markdown("---")
+
+    # ── 區塊四：相關公司明細
+    st.markdown("#### 🏢 相關公司明細")
+    _fund_map = {r["stock_id"]: r for r in _t2_m.get("fund_rows", [])}
+    _price_map = {r["stock_id"]: r for r in _t2_m.get("price_rows", [])}
+    _all_companies = _t2_m.get("all_companies", [])
+    _t2_rows = []
+    for _c in _all_companies:
+        _sid = _c["stock_id"]
+        _f = _fund_map.get(_sid, {})
+        _p = _price_map.get(_sid, {})
+        _t2_rows.append({
+            "代號": _sid, "名稱": _c.get("name") or _f.get("name") or _p.get("name") or "—",
+            "王者評分": _f.get("king_total"),
+            "月營收年增%": _f.get("revenue_yoy"),
+            "EPS年增%": _f.get("eps_yoy"),
+            "毛利率方向": _f.get("gm_direction") or "—",
+            "距高點跌幅%": _p.get("dist_from_high"),
+            "60日報酬%": _p.get("ret60"),
+            "既有攻擊分數": _f.get("attack_total"),
+            "資料來源": _f.get("source") or ("價格資料" if _p else "尚無資料"),
+        })
+    if _t2_rows:
+        _uncovered = len(_all_companies) - len(_fund_map)
+        st.caption(f"共 {len(_t2_rows)} 家公司（{len(_fund_map)} 家有基本面樣本、{len(_price_map)} 家有價格資料）")
+        if _uncovered > 0:
+            st.caption(
+                f"📡 還有 {_uncovered} 家沒有財報樣本：每次「重新整理產業情報」最多補抓 "
+                f"{industry_engine.MAX_FINMIND_FETCH_PER_TOPIC} 家新公司的月營收（FinMind，有快取不重複打API），"
+                "覆蓋率會隨每次重新整理逐步累積到全部涵蓋，不用一次抓完。"
+            )
+        st.dataframe(pd.DataFrame(_t2_rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("此Topic目前沒有任何公司資料。")
+    st.markdown("---")
+
+    # ── 區塊五：原始證據
+    st.markdown("#### 📚 原始證據")
+    for _src in _t2_ev.get("sources", []):
+        st.caption(f"[{_src['grade']}級] {_src['title']}　來源：{_src['source']}　"
+                   f"日期：{_src['date']}　樣本數：{_src.get('sample', '—')}")
+    st.markdown("---")
+
+    # ── 區塊六：反證與資料缺口
+    st.markdown("#### 🔍 反證與資料缺口")
+    _t2_counter = industry_engine.get_industry_counterevidence(_t2_m, _t2_rec.get("auto_state", "證據不足"))
+    for _g in _t2_counter["data_gaps"]:
+        st.caption(f"📉 資料缺口：{_g}")
+    for _fc in _t2_counter["flip_conditions"]:
+        st.caption(f"🔄 可能翻轉判斷：{_fc}")
+    st.markdown("---")
+
+    # ── 區塊七：進階人工覆核（預設收合，非必要流程）
+    with st.expander("🔧 進階人工覆核（非必要，預設不需要動這裡）", expanded=False):
+        st.caption(
+            "只用來：修正自動分類／補充正式證據／標記資料錯誤／加入研究備註。"
+            "不會直接覆蓋原始自動計算結果，套用後仍可一鍵恢復自動判斷。"
+        )
+        _ov_state = st.selectbox("覆核後狀態", industry_engine.ALLOWED_STATES, key="ov_state_input")
+        _ov_reason = st.text_area("覆核原因（建議附上依據的正式證據來源）", key="ov_reason_input", height=60)
+        _ov_c1, _ov_c2 = st.columns(2)
+        with _ov_c1:
+            if st.button("✅ 套用人工覆核", key="btn_apply_override"):
+                _before_state = _t2_rec.get("display_state")
+                industry_engine.set_manual_override(_t2_pick, state=_ov_state, reason=_ov_reason or "（未填寫原因）")
+                attack_engine.add_manual_review(
+                    subject_key=f"industry:{_t2_pick}", field="display_state",
+                    before=_before_state, after=_ov_state, reason=_ov_reason or "（未填寫原因）"
+                )
+                st.success(f"已套用覆核：{_before_state} → {_ov_state}")
+                st.rerun()
+        with _ov_c2:
+            if (_t2_rec.get("manual_override") or {}).get("active"):
+                if st.button("↩️ 清除覆核，恢復自動判斷", key="btn_clear_override"):
+                    industry_engine.clear_manual_override(_t2_pick)
+                    st.success("已恢復自動判斷結果")
+                    st.rerun()
+
+        st.markdown("---")
+        st.caption("舊版人工填寫紀錄（V7第一輪遺留，僅供查閱／資料遷移，不參與自動分類）：")
+        _legacy = industry_engine._load_legacy_manual_override(_t2_pick)
+        if _legacy:
+            st.json(_legacy)
+        else:
+            st.caption("此 Topic 無舊版人工填寫紀錄。")
+
+        st.markdown("---")
+        st.markdown("**季度CAPEX/出口統計登錄**（台積電法說會、政府統計無結構化API，每季登錄一次即可）")
+        _cx_key = st.selectbox("項目", ["tsmc_capex", "export_stats"],
+                                format_func=lambda k: "台積電CAPEX" if k == "tsmc_capex" else "官方出口統計",
+                                key="cx_key_input")
+        _cx_c1, _cx_c2 = st.columns(2)
+        with _cx_c1:
+            _cx_value = st.text_input("數字/內容（例：2026年CAPEX指引380-420億美元，維持不變）", key="cx_value_input")
+            _cx_quarter = st.text_input("對應期間（例：2026Q2法說會）", key="cx_quarter_input")
+        with _cx_c2:
+            _cx_url = st.text_input("官方來源連結（法說會逐字稿/公開資訊觀測站/政府統計網址）", key="cx_url_input")
+            _cx_direction = st.selectbox("方向", ["上修", "下修", "維持", "—"], key="cx_direction_input")
+        if st.button("💾 登錄本期CAPEX/統計資料", key="btn_save_capex_guidance"):
+            if not _cx_value or not _cx_url:
+                st.warning("請至少填寫數字/內容與官方來源連結。")
+            else:
+                industry_engine.set_capex_guidance(
+                    _cx_key, label=("台積電CAPEX" if _cx_key == "tsmc_capex" else "官方出口統計"),
+                    value_text=_cx_value, source_url=_cx_url, quarter=_cx_quarter or "—",
+                    direction=_cx_direction
+                )
+                st.success("已登錄，下次重新整理產業情報時會顯示在數據儀表板。")
+                st.rerun()
+        _cx_existing = industry_engine.load_capex_guidance().get(_cx_key)
+        if _cx_existing:
+            st.caption(f"目前登錄值：{_cx_existing['value_text']}（{_cx_existing['quarter']}，"
+                       f"{_cx_existing['updated_at'][:10]}登錄）")
 
     st.markdown("---")
 
     st.markdown("<div class='sec-title'>📝 每日作戰總部 · MTFA 狙擊報告</div>",
                 unsafe_allow_html=True)
+
 
     # ── 大小台雙軌聯鎖警示（頂部置頂）
     _alert_lvl_t6, _tx_net_t6, _mtx_retail_t6 = get_dual_alert()
@@ -6656,6 +7025,29 @@ with tab4:
     )
 
     # ══════════════════════════════════════════════════════════════
+    # ▌ 市場層級攻擊引擎提醒（Part A）：單日V形反彈不得直接視為進場訊號
+    #   下方既有的個股 Today's Focus / Rex Priority Score 邏輯不受影響，
+    #   這裡只加一個市場層級的守門提醒。
+    # ══════════════════════════════════════════════════════════════
+    try:
+        _t4_price_evs = attack_engine.get_valid_evidence("market", category="price")
+        _t4_pe = next((e for e in _t4_price_evs if e["id"] == "price_bollinger"), None)
+        _t4_conflict_evs = attack_engine.get_valid_evidence("market", category="conflict")
+        _t4_ce = next((e for e in _t4_conflict_evs if e["id"] == "evidence_conflict"), None)
+        if _t4_pe and _t4_pe.get("value", {}).get("is_provisional"):
+            _t4_active_ev = market_events.get_active_pivot_event()
+            st.warning(
+                "🧭 **市場狀態：建立攻擊準備觀察**（暫不正式視為第一擊／確認加碼／趨勢攻擊）\n\n"
+                f"- 恐慌低點候選：{_t4_active_ev['event_date'] + '　低點' + format(_t4_active_ev['intraday_low'],',.0f') if _t4_active_ev else '—'}\n"
+                f"- 暫定價格確認分數：{_t4_pe['value'].get('provisional_score_20','—')}/20\n"
+                f"- 確認條件：連續三日不再破低、收盤站回布林下軌、下軌未加速向下、外資淨空不再擴大\n"
+                f"- 失效條件：跌破事件低點並收在低檔\n"
+                + (f"- 市場證據衝突：{'、'.join(_t4_ce['value'].get('conflicts', []))}" if _t4_ce and _t4_ce.get("value", {}).get("state") == "證據衝突" else "")
+            )
+    except Exception:
+        pass
+
+    # ══════════════════════════════════════════════════════════════
     # ▌ Today's Focus（每天只看這裡，3檔，30秒決定今天研究誰）
     # ══════════════════════════════════════════════════════════════
     try:
@@ -6938,6 +7330,40 @@ with tab5:
     )
 
     @st.cache_data(ttl=1800, show_spinner="大數據雷達掃描中...")
+    def _load_price_csv_bulk(stock_id):
+        """
+        大數據雷達專用的輕量價格讀取：只讀本機CSV，不做5天新鮮度檢查、
+        不觸發GitHub/yfinance逐檔fallback。
+
+        原因：load_price_csv() 是為「單檔個股顯示」設計的，資料太舊時會
+        依序嘗試GitHub raw、yfinance重抓，這對單一個股沒問題，但大數據
+        雷達要掃過去2000檔股票，若本機85%的prices/*.csv超過5天沒更新
+        （這是實際檢測到的狀況，不是假設），就會觸發近2000次的慢速網路
+        fallback，等於雷達永遠跑不完/跑出空結果。廣泛掃描本來就不需要
+        跟單檔個股一樣的即時精確度，用本機現有資料（哪怕偏舊）掃描，
+        總比因為要求絕對新鮮而完全掃不出結果來得有用。
+        """
+        local = os.path.join("data", "prices", f"{stock_id}.csv")
+        if not os.path.exists(local):
+            return pd.DataFrame(), False, None
+        try:
+            df = pd.read_csv(local)
+            if "date" not in df.columns:
+                return pd.DataFrame(), False, None
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df = df.dropna(subset=["date"]).set_index("date").sort_index()
+            for c in ["Open", "High", "Low", "Close", "Volume"]:
+                matches = [x for x in df.columns if x.lower() == c.lower()]
+                if matches:
+                    df[c] = pd.to_numeric(df[matches[0]], errors="coerce")
+            df = df.dropna(subset=["Close"])
+            if df.empty:
+                return pd.DataFrame(), False, None
+            latest_date = df.index[-1]
+            return df, True, latest_date
+        except Exception:
+            return pd.DataFrame(), False, None
+
     def run_radar():
         """掃描全台股三大雷達，回傳結果 DataFrame"""
         # 載入基礎資料
@@ -6998,12 +7424,20 @@ with tab5:
 
         # 掃描所有股票
         radar1, radar2, radar3 = [], [], []
-        all_sids = df_si["stock_id"].tolist()
+        all_sids = df_si["stock_id"].unique().tolist()  # 【修正】stock_info.csv有76893列但只有2147檔不重複股票，
+                                                          # 原本沒去重，迴圈跑76893次，慢了35倍，這是雷達長期跑不出結果的主因之一
 
+        stale_count = 0
+        fresh_count = 0
         for sid in all_sids:
-            df_p, ok_p = load_price_csv(sid)
+            df_p, ok_p, latest_dt = _load_price_csv_bulk(sid)
             if not ok_p or df_p.empty or len(df_p) < 20:
                 continue
+            if latest_dt is not None:
+                if (pd.Timestamp.now() - latest_dt).days > 5:
+                    stale_count += 1
+                else:
+                    fresh_count += 1
 
             df_p = add_indicators(df_p)
             lt   = df_p.iloc[-1]
@@ -7075,11 +7509,21 @@ with tab5:
 
         return (pd.DataFrame(radar1) if radar1 else pd.DataFrame(),
                 pd.DataFrame(radar2) if radar2 else pd.DataFrame(),
-                pd.DataFrame(radar3) if radar3 else pd.DataFrame())
+                pd.DataFrame(radar3) if radar3 else pd.DataFrame(),
+                fresh_count, stale_count)
 
     # 執行掃描（懶加載：只有快取命中或使用者主動觸發才執行）
     if st.button("🔍 啟動大數據雷達掃描", type="primary", key="radar_scan"):
-        st.cache_data.clear()
+        # 【修正核心bug】run_radar() 這個函式原本被定義了卻從沒被呼叫過，
+        # 按鈕只有 st.cache_data.clear() + st.rerun()，並沒有真的執行掃描，
+        # 這才是「不管按幾次都是0」的真正原因（不只是門檻/資料新鮮度問題）。
+        with st.spinner("大數據雷達掃描中（本機資料，約需10~30秒）..."):
+            _r1, _r2, _r3, _fresh_n, _stale_n = run_radar()
+        st.session_state["radar_r1"] = _r1
+        st.session_state["radar_r2"] = _r2
+        st.session_state["radar_r3"] = _r3
+        st.session_state["radar_fresh_n"] = _fresh_n
+        st.session_state["radar_stale_n"] = _stale_n
         st.rerun()
 
     # 檢查快取是否已有資料（避免每次啟動都重新掃描全台股）
@@ -7089,7 +7533,7 @@ with tab5:
         df_r3 = st.session_state.get("radar_r3", pd.DataFrame())
     else:
         # 第一次或快取清除後，需要使用者主動點按鈕
-        st.info("👆 點擊上方「啟動大數據雷達掃描」開始掃描全台股（約需30~60秒）")
+        st.info("👆 點擊上方「啟動大數據雷達掃描」開始掃描全台股（約需10~30秒）")
         df_r1, df_r2, df_r3 = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
     # 存入 session_state 供 Tab1 使用
@@ -7097,11 +7541,45 @@ with tab5:
     st.session_state["radar_r2"] = df_r2
     st.session_state["radar_r3"] = df_r3
 
+    # 資料新鮮度提醒（本機掃描用現有CSV，不逐檔重抓，所以要讓Rex知道資料多舊）
+    _radar_fresh_n = st.session_state.get("radar_fresh_n")
+    _radar_stale_n = st.session_state.get("radar_stale_n")
+    if _radar_fresh_n is not None and _radar_stale_n is not None:
+        _radar_total = _radar_fresh_n + _radar_stale_n
+        if _radar_total > 0 and _radar_stale_n / _radar_total > 0.3:
+            st.caption(
+                f"📅 掃描了 {_radar_total} 檔有價格資料的股票，其中 {_radar_stale_n} 檔"
+                f"（{_radar_stale_n/_radar_total*100:.0f}%）超過5天沒更新。"
+                "掃描結果基於現有本機資料，較舊的股票判斷可能不夠即時。"
+            )
+
     # 頂部 metric
     m1, m2, m3 = st.columns(3)
     m1.metric("🌊 土洋認養雷達", f"{len(df_r1)} 檔", delta="內外資共振")
     m2.metric("⚡ 黃金窒息量雷達", f"{len(df_r2)} 檔", delta="主力鎖倉惜售")
     m3.metric("💎 大戶硬漢雷達", f"{len(df_r3)} 檔", delta="基本面硬核")
+
+    # 診斷：土洋認養雷達需要「外資+投信」同步大額買超，但投信籌碼資料
+    # 覆蓋率若明顯偏低（例如遠少於外資筆數），代表當天投信買賣超資料
+    # 本身就很稀疏（上游daily_scan/Render relay抓到的投信資料不完整），
+    # 不是篩選條件的程式邏輯有錯——提示出來避免誤判成bug。
+    if df_r1.empty:
+        try:
+            _diag_df_ch, _diag_ok_ch = get_chips()
+            if _diag_ok_ch and not _diag_df_ch.empty:
+                _diag_latest = pd.to_datetime(_diag_df_ch["date"], errors="coerce").max()
+                _diag_day = _diag_df_ch[pd.to_datetime(_diag_df_ch["date"], errors="coerce") == _diag_latest]
+                _diag_f_cnt = _diag_day[_diag_day["name"].astype(str).str.contains("Foreign_Investor", na=False)]["stock_id"].nunique()
+                _diag_t_cnt = _diag_day[_diag_day["name"].astype(str).str.contains("Investment_Trust", na=False)]["stock_id"].nunique()
+                if _diag_t_cnt < _diag_f_cnt * 0.3:
+                    st.caption(
+                        f"ℹ️ 土洋認養雷達今日0檔，主要原因：投信籌碼資料覆蓋率偏低"
+                        f"（{_diag_latest.date()}當天，外資有{_diag_f_cnt}檔資料，投信只有{_diag_t_cnt}檔），"
+                        "同時滿足外資與投信雙買超的股票自然很少。這是上游籌碼資料收集完整度的問題，"
+                        "建議檢查 daily_scan 排程或 Render relay 是否有完整抓到投信買賣超資料，不是篩選邏輯錯誤。"
+                    )
+        except Exception:
+            pass
 
     st.markdown("---")
 
@@ -8340,6 +8818,30 @@ with tab7:
                 else:
                     st.caption("尚無證據（待後續階段串接真實資料來源）")
 
+                if _ae_key == "price":
+                    _ae_price_evs = attack_engine.get_valid_evidence("market", category="price")
+                    _ae_pe = next((e for e in _ae_price_evs if e["id"] == "price_bollinger"), None)
+                    if _ae_pe:
+                        _pv = _ae_pe.get("value", {})
+                        st.markdown("---")
+                        if _pv.get("is_provisional"):
+                            st.caption(f"⏳ 暫定分數：{_pv.get('provisional_score_20','—')}/20"
+                                       "（未滿三日不破低，跌破當日低點會撤銷）")
+                        else:
+                            st.caption(f"✅ 正式分數：{_pv.get('provisional_score_20','—')}/20（已滿三日不破低確認）")
+                        _ae_active_ev = market_events.get_active_pivot_event()
+                        if _ae_active_ev:
+                            st.caption(f"關鍵低點：{_ae_active_ev['intraday_low']:,.0f}"
+                                       f"（{_ae_active_ev['event_date']}）　狀態：{_ae_active_ev['confirmation_status']}"
+                                       f"　已{_ae_active_ev.get('days_without_new_low',0)}日不破低")
+                        _pd = _pv.get("price_score_detail", {})
+                        if _pd:
+                            st.caption(f"盤中承接{_pd.get('intraday_acceptance',0)}/3　"
+                                       f"回到下軌內{_pd.get('back_inside_band',0)}/3　"
+                                       f"低點確認{_pd.get('low_confirmation',0)}/5　"
+                                       f"趨勢修復{_pd.get('trend_repair',0)}/5　"
+                                       f"廣度領先股{_pd.get('breadth_leaders',0)}/4")
+
     # ── 區塊三：硬性否決
     if _ae_market["hard_veto"]:
         st.error("🚫 市場層級硬性否決已觸發，攻擊分數上限鎖定為 49 分，禁止進入第一擊以上階段。")
@@ -8347,6 +8849,21 @@ with tab7:
             st.caption(f"　└ {_ae_r['category']}：{_ae_r['reason']}（{_ae_r['source']}, {_ae_r['date']}）")
     else:
         st.success("✅ 目前無市場層級硬性否決。")
+
+    # ── 區塊三之二：市場證據衝突卡片
+    _ae_conflict_evs = attack_engine.get_valid_evidence("market", category="conflict")
+    _ae_conflict_ev = next((e for e in _ae_conflict_evs if e["id"] == "evidence_conflict"), None)
+    if _ae_conflict_ev:
+        _cv = _ae_conflict_ev.get("value", {})
+        st.markdown("##### ⚖️ 市場證據衝突")
+        if _cv.get("state") == "證據衝突":
+            st.error("整體判定：**證據衝突**（不強迫輸出單一方向）")
+            for _c in _cv.get("conflicts", []):
+                st.caption(f"　└ {_c}")
+        else:
+            st.success("整體判定：目前價格／布林／籌碼三類證據無明顯衝突。")
+        if _cv.get("near_settlement"):
+            st.caption(f"⚠️ 接近期貨結算，訊號權重已降至 {_cv.get('settlement_weight',1.0)*100:.0f}%")
 
     st.markdown("---")
 
@@ -11442,6 +11959,168 @@ with tab10:
 
             st.divider()
 
+            # ══════════════════════════════════════════════════════════════
+            # ▌ 個股直接基本面證據 → 寫入攻擊引擎（V7 Tab10串接）
+            #   這是「company_fundamental」唯一合法來源：該公司自己的月營收/
+            #   財報數字，不是產業背景。資料沿用上面畫圖表的同一批
+            #   _df_fin/_df_rev/_df_bal/_df_cf，不重新呼叫API。
+            #   自動寫入，不需要按按鈕——跟Tab1/Tab2一致的設計原則。
+            # ══════════════════════════════════════════════════════════════
+            st.markdown("**🗡️ 個股直接基本面證據（攻擊引擎）**")
+            try:
+                _cf_ratio = 0.5
+                _cf_detail = {}
+                _cf_veto, _cf_veto_reason = False, None
+
+                # 1. 月營收年增率（最新一筆，直接算，不依賴上面圖表變數避免作用域問題）
+                _rev_yoy_latest = None
+                if not _df_rev.empty and "revenue" in _df_rev.columns:
+                    _rv_df = _df_rev.copy()
+                    for _c in ("revenue_year", "revenue_month", "revenue"):
+                        if _c in _rv_df.columns:
+                            _rv_df[_c] = pd.to_numeric(_rv_df[_c], errors="coerce")
+                    _rv_df = (_rv_df.dropna(subset=["revenue_year", "revenue_month", "revenue"])
+                              .sort_values(["revenue_year", "revenue_month"]))
+                    if len(_rv_df) >= 13:
+                        _latest_row = _rv_df.iloc[-1]
+                        _ly_row = _rv_df[(_rv_df["revenue_year"] == _latest_row["revenue_year"] - 1)
+                                          & (_rv_df["revenue_month"] == _latest_row["revenue_month"])]
+                        if not _ly_row.empty and _ly_row["revenue"].iloc[0]:
+                            _rev_yoy_latest = float(round(
+                                (_latest_row["revenue"] - _ly_row["revenue"].iloc[0])
+                                / _ly_row["revenue"].iloc[0] * 100, 2
+                            ))
+                _cf_detail["revenue_yoy_latest"] = _rev_yoy_latest
+                if _rev_yoy_latest is not None:
+                    if _rev_yoy_latest >= 15: _cf_ratio += 0.15
+                    elif _rev_yoy_latest > 0: _cf_ratio += 0.05
+                    elif _rev_yoy_latest < -10: _cf_ratio -= 0.25
+                    elif _rev_yoy_latest < 0: _cf_ratio -= 0.15
+
+                # 2. EPS年增率（最新季 vs 去年同季，即前4筆）
+                _eps_yoy = None
+                try:
+                    _eps_df10, _ = _prep_fin("EPS")
+                    if _eps_df10 is not None and len(_eps_df10) >= 5:
+                        _eps_sorted = _eps_df10.sort_values("date")
+                        _latest_eps = _eps_sorted.iloc[-1]["value"]
+                        _ly_eps = _eps_sorted.iloc[-5]["value"]
+                        if _ly_eps:
+                            _eps_yoy = float(round((_latest_eps - _ly_eps) / abs(_ly_eps) * 100, 2))
+                except Exception:
+                    pass
+                _cf_detail["eps_yoy_latest"] = _eps_yoy
+                if _eps_yoy is not None:
+                    _cf_ratio += 0.1 if _eps_yoy > 0 else -0.15
+
+                # 3. 毛利率趨勢（最新季 vs 前一季）
+                _gm_direction10 = None
+                try:
+                    _gp10, _ = _prep_fin("GrossProfit")
+                    _rv10, _ = _prep_fin("Revenue")
+                    if _gp10 is not None and _rv10 is not None:
+                        _m10 = (_rv10[["date", "value"]].rename(columns={"value": "rev"})
+                                .merge(_gp10[["date", "value"]].rename(columns={"value": "gp"}), on="date")
+                                .dropna().sort_values("date"))
+                        if len(_m10) >= 2:
+                            _gm_series = _m10["gp"] / _m10["rev"] * 100
+                            _gm_direction10 = ("up" if _gm_series.iloc[-1] > _gm_series.iloc[-2]
+                                                else ("down" if _gm_series.iloc[-1] < _gm_series.iloc[-2] else "flat"))
+                except Exception:
+                    pass
+                _cf_detail["gm_direction"] = _gm_direction10
+                if _gm_direction10 == "up": _cf_ratio += 0.05
+                elif _gm_direction10 == "down": _cf_ratio -= 0.05
+
+                # 4. 營業現金流方向
+                _ocf_sign10 = None
+                try:
+                    _ocf10, _ = _prep_cf("CashFlowsFromOperatingActivities")
+                    if _ocf10 is not None and not _ocf10.empty:
+                        _latest_ocf_val = _ocf10.sort_values("date").iloc[-1]["value"]
+                        _ocf_sign10 = "positive" if _latest_ocf_val > 0 else "negative"
+                except Exception:
+                    pass
+                _cf_detail["ocf_sign"] = _ocf_sign10
+                if _ocf_sign10 == "positive": _cf_ratio += 0.05
+                elif _ocf_sign10 == "negative": _cf_ratio -= 0.1
+
+                # 5. 存貨／應收帳款成長是否明顯快於營收成長（異常訊號）
+                _inv_anomaly10, _ar_anomaly10 = False, False
+                try:
+                    _inv10, _ = _prep_bal("Inventories")
+                    _rv11, _ = _prep_fin("Revenue")
+                    if _inv10 is not None and _rv11 is not None and len(_inv10) >= 5 and len(_rv11) >= 5:
+                        _inv_s = _inv10.sort_values("date"); _rv_s = _rv11.sort_values("date")
+                        _inv_yoy10 = (_inv_s["value"].iloc[-1] - _inv_s["value"].iloc[-5]) / abs(_inv_s["value"].iloc[-5]) * 100
+                        _rev_yoy_q10 = (_rv_s["value"].iloc[-1] - _rv_s["value"].iloc[-5]) / abs(_rv_s["value"].iloc[-5]) * 100
+                        _inv_anomaly10 = bool((_inv_yoy10 - _rev_yoy_q10) > 20)
+                except Exception:
+                    pass
+                try:
+                    _ar10, _ = _prep_bal("AccountsReceivableNet")
+                    _rv12, _ = _prep_fin("Revenue")
+                    if _ar10 is not None and _rv12 is not None and len(_ar10) >= 5 and len(_rv12) >= 5:
+                        _ar_s = _ar10.sort_values("date"); _rv_s2 = _rv12.sort_values("date")
+                        _ar_yoy10 = (_ar_s["value"].iloc[-1] - _ar_s["value"].iloc[-5]) / abs(_ar_s["value"].iloc[-5]) * 100
+                        _rev_yoy_q11 = (_rv_s2["value"].iloc[-1] - _rv_s2["value"].iloc[-5]) / abs(_rv_s2["value"].iloc[-5]) * 100
+                        _ar_anomaly10 = bool((_ar_yoy10 - _rev_yoy_q11) > 20)
+                except Exception:
+                    pass
+                _cf_detail["inventory_anomaly"] = _inv_anomaly10
+                _cf_detail["receivable_anomaly"] = _ar_anomaly10
+                if _inv_anomaly10: _cf_ratio -= 0.1
+                if _ar_anomaly10: _cf_ratio -= 0.1
+
+                _cf_ratio = max(0.0, min(1.0, _cf_ratio))
+
+                if (_rev_yoy_latest is not None and _eps_yoy is not None
+                        and _rev_yoy_latest < -20 and _eps_yoy < -30):
+                    _cf_veto = True
+                    _cf_veto_reason = f"月營收年增{_rev_yoy_latest}%、EPS年增{_eps_yoy}%同步大幅惡化"
+
+                _cf_value = {"score_ratio": round(_cf_ratio, 2), **_cf_detail}
+                if _cf_veto:
+                    _cf_value["veto"] = True
+                    _cf_value["veto_reason"] = _cf_veto_reason
+
+                _has_any_data10 = any(v is not None for v in
+                                       (_rev_yoy_latest, _eps_yoy, _gm_direction10, _ocf_sign10))
+                if _has_any_data10:
+                    attack_engine.register_evidence(
+                        _sel, "company_fundamental", category="fundamental", value=_cf_value,
+                        source="FinMind官方財報/月營收（公開資訊觀測站轉載）",
+                        date=datetime.now().strftime("%Y-%m-%d"), grade="A", ttl_days=45,
+                        note="個股直接證據（唯一合法基本面來源），非產業背景／不受Tab2產業判斷影響"
+                    )
+                    _cf_c1, _cf_c2, _cf_c3, _cf_c4 = st.columns(4)
+                    _cf_c1.metric("月營收年增", f"{_rev_yoy_latest}%" if _rev_yoy_latest is not None else "—")
+                    _cf_c2.metric("EPS年增", f"{_eps_yoy}%" if _eps_yoy is not None else "—")
+                    _cf_c3.metric("毛利率方向", _gm_direction10 or "—")
+                    _cf_c4.metric("營業現金流", _ocf_sign10 or "—")
+                    st.success(f"✅ 已寫入攻擊引擎：個股基本面 {_cf_ratio*40:.0f}/40 分（A級證據，45天有效）")
+                    if _inv_anomaly10:
+                        st.warning("⚠️ 存貨成長明顯快於營收成長，列為異常訊號扣分。")
+                    if _ar_anomaly10:
+                        st.warning("⚠️ 應收帳款成長明顯快於營收成長，列為異常訊號扣分。")
+                    if _cf_veto:
+                        st.error(f"🚫 觸發個股硬性否決：{_cf_veto_reason}")
+                else:
+                    st.info("⚠️ 目前資料不足，無法計算個股直接基本面證據——顯示「直接公司證據不足」，"
+                            "不會用產業背景分數補高。")
+
+                # 產業背景對照（唯讀顯示，明確跟上面的個股直接證據分開，不相加）
+                _ic = industry_engine.get_stock_industry_context(_sel)
+                if _ic["topics"]:
+                    st.caption(
+                        f"📎 產業背景（僅供參考，**不計入**上面40分）："
+                        f"{'、'.join(s['label']+'：'+s['state'] for s in _ic['industry_state'])}"
+                    )
+            except Exception as _cf_outer_e:
+                st.caption(f"個股基本面證據計算時發生問題：{_cf_outer_e}")
+
+            st.divider()
+
             # AI 財報分析
             st.markdown("**🤖 AI 財報分析**")
             if st.button("▶️ 執行分析", key=f"rc_ai_{_sel}"):
@@ -11473,7 +12152,7 @@ with tab10:
                 with st.spinner("AI 分析中..."):
                     try:
                         import requests as _rq
-                        _gemini_key = st.secrets.get("GEMINI_API_KEY", "")
+                        _gemini_key = get_secret("GEMINI_API_KEY", "")
                         _ar2 = _rq.post(
                             f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={_gemini_key}",
                             headers={"Content-Type": "application/json"},
@@ -11510,6 +12189,32 @@ with tab10:
 # ▌ TAB 11：產業知識圖譜 V7.2.2（速度優化版）
 # ══════════════════════════════════════════════════════════════
 with tab11:
+    # ══════════════════════════════════════════════════════════════
+    # ▌ 公司 ↔ Topic 關聯管理（V7第二階段修正）
+    #   產業指標現在由 Tab2 開啟時自動計算（industry_engine.py），
+    #   不再需要手動按這裡的按鈕才能運作。這顆按鈕保留作為
+    #   「重新同步／故障重試」，例如 kg_companies.json 剛更新、
+    #   想立刻重算時使用。
+    #   重要修正：不再把產業證據寫進個股的 fundamental 分數
+    #   （原本+8分是錯誤設計）。個股要查產業背景，改用
+    #   industry_engine.get_stock_industry_context(stock_id) 唯讀查詢。
+    # ══════════════════════════════════════════════════════════════
+    st.markdown("<div class='sec-title'>🔗 公司 ↔ Topic 關聯管理</div>", unsafe_allow_html=True)
+    st.caption(
+        "Tab2「自動產業情報與證據中心」開啟時就會自動重算8個Topic，正常情況不需要按這裡。"
+        "這顆按鈕只是故障重試用，而且已修正：不會再把產業分數直接灌進個股基本面。"
+    )
+    if st.button("🔄 重新同步／故障重試", key="btn_sync_industry_evidence"):
+        with st.spinner("重新計算8個Topic中..."):
+            _sync_result = sync_industry_evidence_to_stocks()
+        st.success("已重新計算，各 Topic 目前狀態：")
+        st.dataframe(
+            pd.DataFrame([{"Topic": k, "目前狀態": v} for k, v in _sync_result.items()]),
+            use_container_width=True, hide_index=True
+        )
+        st.caption("這些結果只留在 Topic 層級，不會寫入任何個股的基本面分數。")
+    st.markdown("---")
+
     import sqlite3 as _sq
     import io as _kg_io
 
@@ -12288,7 +12993,7 @@ with tab11:
                 with st.spinner(f"AI 分析「{_nname_ai}」產業動態中..."):
                     try:
                         import requests as _air
-                        _gkey = st.secrets.get("GEMINI_API_KEY","")
+                        _gkey = get_secret("GEMINI_API_KEY", "")
                         _ar = _air.post(
                             f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={_gkey}",
                             headers={"Content-Type":"application/json"},
@@ -12328,7 +13033,7 @@ with tab11:
                 with st.spinner(f"AI 分析台廠動態中..."):
                     try:
                         import requests as _air2
-                        _gkey2 = st.secrets.get("GEMINI_API_KEY","")
+                        _gkey2 = get_secret("GEMINI_API_KEY", "")
                         _ar2 = _air2.post(
                             f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={_gkey2}",
                             headers={"Content-Type":"application/json"},

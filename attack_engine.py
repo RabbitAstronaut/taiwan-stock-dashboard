@@ -70,11 +70,22 @@ def _load_json(path, default):
         return default
 
 
+def _json_safe_default(obj):
+    """
+    防呆轉換：呼叫端有時會不小心把 numpy/pandas 純量（如 numpy.bool_、
+    numpy.float64）放進 value dict，這些不是原生 json 型別。與其讓整次
+    register_evidence 寫入失敗，這裡統一轉成 Python 原生型別再序列化。
+    """
+    if hasattr(obj, "item"):  # numpy 純量 (bool_, float64, int64 ...) 都有 .item()
+        return obj.item()
+    return str(obj)
+
+
 def _save_json(path, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        json.dump(data, f, ensure_ascii=False, indent=2, default=_json_safe_default)
     os.replace(tmp, path)
     return True
 

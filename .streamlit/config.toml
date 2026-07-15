@@ -1,0 +1,13 @@
+# V7 深色主題設定
+# 在此之前專案沒有這個檔案，st.dataframe等原生元件（不受app.py內injected CSS影響）
+# 會用Streamlit預設的「淺色」佈景主題渲染，跟其他用CSS強制改成深色的區塊不一致，
+# 這就是「表格背景忽白忽黑」的根本原因。加上這個設定檔後，所有原生元件
+# （dataframe、metric、button、sidebar等）都會統一套用這組深色配色，
+# 跟app.py CSS用的既有色票（#060b14 / #0d1826 / #1e3a5f / #e8f4fd）一致。
+[theme]
+base = "dark"
+primaryColor = "#00d4ff"
+backgroundColor = "#060b14"
+secondaryBackgroundColor = "#0d1826"
+textColor = "#e8f4fd"
+font = "sans serif"
