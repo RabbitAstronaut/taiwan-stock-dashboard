@@ -27,6 +27,7 @@ import attack_engine  # V7 攻擊引擎核心計算層（第一階段，見 atta
 import market_events   # V7 攻擊引擎：盤中價格行為/布林擴張/期貨曝險/證據衝突（見 market_events.py）
 import industry_engine  # V7 攻擊引擎：自動產業情報層（見 industry_engine.py）
 import stock_decision   # V7 統一決策資料結構：王者品質/研究優先分/攻擊時機分分開（見 stock_decision.py）
+import leveraged_etf    # V7 槓桿ETF觀察與模擬（見 leveraged_etf.py）
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 
@@ -11355,6 +11356,157 @@ with tab8:
             show_df = df_sector[["產業別", "外資淨買", "投信淨買", "檔數"]].copy()
             show_df.columns = ["產業別", "外資淨買（億）", "投信淨買（億）", "涵蓋檔數"]
             st.markdown(df_to_html(show_df, height=400), unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # ▌ ⚡ 槓桿ETF觀察與模擬（V7 第一階段）
+    #   獨立於上面的ETF退休配息計畫，槓桿ETF不使用王者品質分/營收/
+    #   EPS/產業護城河，全部改用流動性/波動/回撤等獨立指標。
+    #   本輪只做：四檔正2即時觀察卡、四檔比較、一次投入模擬、
+    #   淨值與回撤曲線。分批/自訂/模擬倉/攻擊引擎串接留待第二階段。
+    # ══════════════════════════════════════════════════════════════
+    st.markdown("---")
+    st.markdown("<div class='sec-title'>⚡ 槓桿ETF觀察與模擬</div>", unsafe_allow_html=True)
+    st.caption(
+        "四檔台股正2槓桿ETF。這裡完全不用王者品質分/營收/EPS——"
+        "槓桿ETF看的是流動性、波動、回撤，跟公司基本面是兩回事。"
+    )
+
+    _lev_state = leveraged_etf.get_market_state_note(attack_engine_module=attack_engine)
+    _lev_state_color = {"證據衝突": "#fbbf24", "硬性否決": "#ff4444"}.get(_lev_state["state"], "#7fb3d3")
+    st.markdown(
+        f"<div style='border-left:4px solid {_lev_state_color};border-radius:6px;"
+        f"padding:10px 14px;margin:8px 0;background:rgba(255,255,255,0.02);'>"
+        f"目前市場狀態：<b style='color:{_lev_state_color};'>{_lev_state['state']}</b>　"
+        f"｜　槓桿ETF策略：<b style='color:{_lev_state_color};'>{_lev_state['strategy']}</b><br>"
+        f"<span style='color:#9fb8d4;font-size:.85rem;'>{_lev_state['reason']}</span>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+    # ── 區塊一：四檔即時觀察卡
+    with st.expander("📊 四檔即時觀察卡", expanded=True):
+        _lev_snapshots = leveraged_etf.compare_etfs()
+        _lev_cols = st.columns(4)
+        for _lev_idx, _snap in enumerate(_lev_snapshots):
+            with _lev_cols[_lev_idx]:
+                st.markdown(f"**{_snap['ticker']}**　{_snap['name']}")
+                if not _snap["data_available"]:
+                    st.caption(f"⚠️ {_snap.get('note', '資料尚未接入')}")
+                    continue
+                if _snap.get("data_anomaly"):
+                    st.caption(f"🔀 {_snap.get('note', '偵測到分割事件，已自動改用分割後資料')}")
+                st.metric("最新價格", f"{_snap['latest_price']:.2f}",
+                          f"{_snap['daily_return_pct']:+.2f}%" if _snap["daily_return_pct"] is not None else None)
+                _r20 = f"{_snap['return_20d_pct']}%" if _snap["return_20d_pct"] is not None else "—（分割後資料不足20日）"
+                _dd20 = f"{_snap['max_drawdown_20d_pct']}%" if _snap["max_drawdown_20d_pct"] is not None else "—"
+                _v20 = f"{_snap['volatility_20d_pct']}%" if _snap["volatility_20d_pct"] is not None else "—"
+                _disth = f"{_snap['dist_from_high_pct']}%" if _snap["dist_from_high_pct"] is not None else "—"
+                st.caption(
+                    f"20日報酬：{_r20}　"
+                    f"20日回撤：{_dd20}\n\n"
+                    f"20日波動率：{_v20}　"
+                    f"距高點：{_disth}\n\n"
+                    f"買賣價差／折溢價：資料尚未接入"
+                )
+                st.caption(f"資料日期：{_snap['data_as_of']}" + ("　⚠️已過期" if _snap["is_stale"] else ""))
+
+    # ── 區塊二：四檔橫向比較表
+    with st.expander("📋 四檔橫向比較", expanded=True):
+        st.caption("正2 ETF為每日槓桿重設，區間報酬不等於大盤區間報酬乘以2。")
+        _lev_compare_rows = []
+        for _snap in _lev_snapshots:
+            _lev_compare_rows.append({
+                "代號": _snap["ticker"], "名稱": _snap["name"],
+                "追蹤標的": leveraged_etf.LEVERAGED_ETF_TICKERS.get(_snap["ticker"], {}).get("benchmark", "—"),
+                "現價": _snap.get("latest_price"),
+                "5日報酬%": _snap.get("return_5d_pct"), "20日報酬%": _snap.get("return_20d_pct"),
+                "60日報酬%": _snap.get("return_60d_pct"),
+                "20日波動率%": _snap.get("volatility_20d_pct"),
+                "20日最大回撤%": _snap.get("max_drawdown_20d_pct"),
+                "資料狀態": "🔀分割已調整" if _snap.get("data_anomaly") else "正常",
+                "資料日期": _snap.get("data_as_of"),
+            })
+        st.dataframe(pd.DataFrame(_lev_compare_rows), use_container_width=True, hide_index=True)
+        st.caption("⚠️ 四檔均屬台股正向槓桿商品，分散持有不等於分散市場方向風險。")
+
+    # ── 區塊三：區間損益模擬器（第一階段僅支援「起始日一次買進」）
+    with st.expander("📈 區間損益模擬器（一次投入）", expanded=True):
+        _lev_sim_c1, _lev_sim_c2 = st.columns(2)
+        with _lev_sim_c1:
+            _lev_target = st.selectbox(
+                "模擬標的", list(leveraged_etf.LEVERAGED_ETF_TICKERS.keys()),
+                format_func=lambda t: f"{t} {leveraged_etf.LEVERAGED_ETF_TICKERS[t]['name']}",
+                key="lev_sim_ticker"
+            )
+            _lev_start = st.date_input("起始日期", value=datetime.now() - timedelta(days=90),
+                                        key="lev_sim_start")
+        with _lev_sim_c2:
+            _lev_amount = st.number_input("投入金額", min_value=1000, value=100000, step=1000,
+                                           key="lev_sim_amount")
+            _lev_end = st.date_input("結束日期", value=datetime.now(), key="lev_sim_end")
+
+        st.caption("買進方式：目前僅支援「起始日一次買進」，分批/自訂/訊號進場為下一階段功能。")
+
+        with st.expander("⚙️ 進階設定（手續費／稅金／滑價）", expanded=False):
+            _lev_adv_c1, _lev_adv_c2, _lev_adv_c3 = st.columns(3)
+            with _lev_adv_c1:
+                _lev_fee_discount = st.number_input("手續費折數", min_value=0.1, max_value=1.0,
+                                                     value=leveraged_etf.DEFAULT_FEE_DISCOUNT, step=0.1,
+                                                     key="lev_fee_discount")
+            with _lev_adv_c2:
+                _lev_tax_rate = st.number_input("證交稅率(%)", min_value=0.0, max_value=1.0,
+                                                 value=leveraged_etf.DEFAULT_TAX_RATE * 100, step=0.01,
+                                                 key="lev_tax_rate") / 100
+            with _lev_adv_c3:
+                _lev_slippage = st.number_input("滑價估計(%)", min_value=0.0, max_value=1.0,
+                                                 value=leveraged_etf.DEFAULT_SLIPPAGE_PCT * 100, step=0.05,
+                                                 key="lev_slippage") / 100
+
+        if st.button("▶️ 執行模擬", key="btn_lev_simulate"):
+            _lev_result = leveraged_etf.simulate_lump_sum(
+                _lev_target, str(_lev_start), str(_lev_end), float(_lev_amount),
+                fee_discount=_lev_fee_discount, tax_rate=_lev_tax_rate, slippage_pct=_lev_slippage,
+            )
+            if "error" in _lev_result:
+                st.error(f"⚠️ {_lev_result['error']}")
+            else:
+                st.markdown(f"##### 結果：{_lev_result['ticker']} {_lev_result['name']}"
+                            f"（{_lev_result['start_date']} ～ {_lev_result['end_date']}，"
+                            f"共{_lev_result['trading_days']}個交易日）")
+                _r1, _r2, _r3, _r4 = st.columns(4)
+                _r1.metric("累計投入", f"{_lev_result['cumulative_investment']:,.0f}")
+                _r2.metric("期末市值", f"{_lev_result['final_market_value']:,.0f}")
+                _r3.metric("總損益", f"{_lev_result['total_pnl']:,.0f}",
+                           f"{_lev_result['total_return_pct']:+.1f}%")
+                _r4.metric("最大回撤", f"{_lev_result['max_drawdown_pct']:.1f}%")
+
+                _r5, _r6, _r7, _r8 = st.columns(4)
+                _r5.metric("年化報酬率", f"{_lev_result['annualized_return_pct']:.1f}%"
+                           if _lev_result["annualized_return_pct"] is not None else "—")
+                _r6.metric("年化波動率", f"{_lev_result['annual_volatility_pct']:.1f}%"
+                           if _lev_result["annual_volatility_pct"] is not None else "—")
+                _r7.metric("夏普值", f"{_lev_result['sharpe_ratio']}"
+                           if _lev_result["sharpe_ratio"] is not None else "—")
+                _r8.metric("等值市場曝險", f"{_lev_result['estimated_market_exposure']:,.0f}")
+
+                st.caption(
+                    f"股數：{_lev_result['shares']:.0f}　平均成本：{_lev_result['avg_cost']}　"
+                    f"手續費合計：{_lev_result['fee_total']:,.0f}　"
+                    f"證交稅合計：{_lev_result['tax_total']:,.0f}　"
+                    f"滑價成本：{_lev_result['slippage_total']:,.0f}　"
+                    f"總交易成本：{_lev_result['total_trading_cost']:,.0f}"
+                )
+
+                # 兩張圖分開畫，不用subplot
+                _nav = _lev_result["nav_series"]
+                st.markdown("**模擬資產淨值曲線**")
+                st.line_chart(_nav)
+                st.markdown("**回撤曲線**")
+                _running_max = _nav.cummax()
+                _dd_curve = (_nav - _running_max) / _running_max * 100
+                st.area_chart(_dd_curve)
+
+    st.markdown("---")
 
 
 # ──────────────────────────────────────────────────────────────

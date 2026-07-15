@@ -18,6 +18,7 @@ market_events.py — V7 攻擊引擎：盤中價格行為 / 布林通道擴張 /
 """
 
 import os
+import time
 import json
 from datetime import date, datetime, timedelta
 
@@ -47,12 +48,28 @@ def _json_safe_default(obj):
 
 
 def _save_json(path, data):
+    """
+    【Windows耐用性修正】os.replace() 在Windows上如果目的檔案暫時被別的程式
+    鎖住（防毒軟體掃描、OneDrive同步、另一個還開著的Streamlit進程），會直接
+    拋出PermissionError讓整頁崩潰。改成重試幾次、每次間隔加長，大部分暫時性
+    鎖定都能在幾百毫秒內自然解除，這樣就不會整頁掛掉。
+    """
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2, default=_json_safe_default)
-    os.replace(tmp, path)
-    return True
+    _last_err = None
+    for _attempt, _delay in enumerate((0, 0.2, 0.5, 1.0)):
+        if _delay:
+            time.sleep(_delay)
+        try:
+            os.replace(tmp, path)
+            return True
+        except PermissionError as e:
+            _last_err = e
+            continue
+    # 重試多次仍失敗，放棄替換但不讓整頁崩潰，暫存檔案留著供除錯
+    return False
 
 
 def _now():
