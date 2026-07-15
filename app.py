@@ -5907,13 +5907,14 @@ with tab3:
                     _bias_k  = (_cp_k - _ma20_k) / _ma20_k * 100
                     _disc_k  = (_cp_k - _high_k) / _high_k * 100  # 距高點折扣（負值）
 
-                    # 折扣燈號
+                    # 折扣燈號 → 統一套用 stock_decision.RESEARCH_STATES 標準詞彙，
+                    # 不再用「開始觀察」「重新研究」這種舊有、未列在標準詞彙表裡的用詞
                     if _disc_k >= -3:
-                        _dk_s, _dk_label = "⚪", "正常"
+                        _dk_s, _dk_label = "⚪", "正常追蹤"
                     elif _disc_k >= -8:
-                        _dk_s, _dk_label = "🟡", "開始觀察"
+                        _dk_s, _dk_label = "🟡", "正常追蹤"
                     elif _disc_k >= -15:
-                        _dk_s, _dk_label = "🟠", "重新研究"
+                        _dk_s, _dk_label = "🟠", "優先研究"
                     else:
                         _dk_s, _dk_label = "🔴", "重新估值"
 
@@ -5976,7 +5977,7 @@ with tab3:
             # 摘要：目前有幾檔在重新研究/估值區
             _hot_count = sum(1 for r in _kdm_rows if r["signal"] in ["🟠", "🔴"])
             if _hot_count > 0:
-                st.info(f"👀 目前有 **{_hot_count} 檔** King 類股進入「重新研究／重新估值」區，值得今天花時間看。")
+                st.info(f"👀 目前有 **{_hot_count} 檔** King 類股進入「優先研究／重新估值」區，值得今天花時間看。")
             else:
                 st.caption("✅ 目前所有 King 類股距近期高點折扣不大，暫無特別值得關注的折扣機會。")
 
@@ -7099,6 +7100,42 @@ with tab4:
             )
     except Exception:
         pass
+
+    # ══════════════════════════════════════════════════════════════
+    # ▌ A. 立即處理（持股中需要減碼/退出/停止抄底的即時提醒）
+    # ══════════════════════════════════════════════════════════════
+    st.markdown("#### 🚨 立即處理")
+    try:
+        _t4a_pf = load_portfolio()
+        _t4a_urgent = []
+        for _t4a_sid, _t4a_pos in _t4a_pf.items():
+            if int(_t4a_pos.get("qty", 0)) <= 0:
+                continue
+            _t4a_dec = stock_decision.build_stock_decision(_t4a_sid)
+            if _t4a_dec["recommended_action"] in ("退出", "減碼") or _t4a_dec["hard_veto"]:
+                _t4a_urgent.append(_t4a_dec)
+
+        if not _t4a_urgent:
+            st.success("✅ 目前持股沒有需要立即處理的項目（無硬性否決、無建議退出/減碼的標的）。")
+        else:
+            for _t4a_u in _t4a_urgent:
+                _t4a_color = "#ff4444" if _t4a_u["hard_veto"] else "#fbbf24"
+                st.markdown(
+                    f"<div style='border-left:4px solid {_t4a_color};border-radius:6px;"
+                    f"padding:10px 14px;margin:6px 0;background:rgba(255,68,68,0.06);'>"
+                    f"<b style='color:#e8f4fd;'>{_t4a_u['ticker']} {_t4a_u['name']}</b>　"
+                    f"<span style='color:{_t4a_color};font-weight:600;'>"
+                    f"建議動作：{_t4a_u['recommended_action']}</span><br>"
+                    f"<span style='color:#9fb8d4;font-size:.82rem;'>"
+                    f"攻擊階段：{_t4a_u['attack_stage']}　｜　"
+                    + ("、".join(_t4a_u["invalid_conditions"]) if _t4a_u["invalid_conditions"] else "價格/籌碼條件轉弱")
+                    + f"</span></div>",
+                    unsafe_allow_html=True
+                )
+    except Exception as _t4a_e:
+        st.caption(f"立即處理區塊計算時發生問題：{_t4a_e}")
+
+    st.markdown("---")
 
     # ══════════════════════════════════════════════════════════════
     # ▌ B. 攻擊候選（只依正式攻擊時機分排序，不與研究佇列混在一起）
@@ -8972,43 +9009,47 @@ with tab7:
 
     st.markdown("---")
 
-    # ── 區塊四：持倉攻擊矩陣
+    # ── 區塊四：持倉攻擊矩陣（改用 stock_decision 統一物件，跟Tab3/Tab4資料完全對齊）
     st.markdown("#### 🧭 持倉攻擊矩陣")
     if not _pf:
         st.info("📭 目前無持倉，無法產生持倉攻擊矩陣。")
     else:
-        try:
-            _ae_rex = json.load(open(os.path.join(DATA_DIR, "rex_scores.json"), encoding="utf-8"))
-            _ae_rex_map = {s["stock_id"]: s for s in _ae_rex.get("scores", [])}
-        except Exception:
-            _ae_rex_map = {}
-
         _ae_rows = []
+        _ae_oldest_dates = []
         for _ae_sid, _ae_pos in _pf.items():
             _ae_qty = int(_ae_pos.get("qty", 0))
             if _ae_qty <= 0:
                 continue
-            _ae_stock_score = attack_engine.calculate_stock_attack_state(_ae_sid)
-            _ae_king = _ae_rex_map.get(_ae_sid, {})
-            if _ae_stock_score["hard_veto"]:
+            _ae_dec = stock_decision.build_stock_decision(_ae_sid)
+            if _ae_dec["hard_veto"]:
                 _ae_bucket = "硬性否決禁止抄底"
-            elif not _ae_stock_score["data_sufficient"]:
+            elif _ae_dec["evidence_completeness"] != "完整":
                 _ae_bucket = "資料不足"
-            elif _ae_stock_score["stage"] in ("第一擊", "確認進攻", "趨勢攻擊"):
-                _ae_bucket = "長期王者且可攻擊" if _ae_king.get("stock_class") == "King" else "非核心持股"
+            elif _ae_dec["attack_stage"] in ("第一擊", "確認進攻", "趨勢攻擊"):
+                _ae_bucket = "長期王者且可攻擊" if _ae_dec["quality_tier"] == "King" else "非核心持股"
             else:
-                _ae_bucket = "長期王者但尚未到買點" if _ae_king.get("stock_class") == "King" else "基本面未壞但價格未止穩"
+                _ae_bucket = "長期王者但尚未到買點" if _ae_dec["quality_tier"] == "King" else "基本面未壞但價格未止穩"
+
+            _ae_date_gap = stock_decision.get_oldest_data_date(_ae_dec)
+            if _ae_date_gap != "—":
+                _ae_oldest_dates.append(_ae_date_gap)
+
             _ae_rows.append({
-                "代號": _ae_sid,
-                "名稱": _nm_map.get(_ae_sid, "—"),
+                "代號": _ae_dec["ticker"],
+                "名稱": _nm_map.get(_ae_sid, _ae_dec["name"]),
                 "分類": _ae_bucket,
-                "王者評分": _ae_king.get("king_total", "—"),
-                "攻擊分數": _ae_stock_score["total_score"],
-                "攻擊階段": _ae_stock_score["stage"],
-                "建議動作": "資料不足，暫不建議" if not _ae_stock_score["data_sufficient"] else "—",
+                "王者品質": _ae_dec["king_score"],
+                "研究狀態": _ae_dec["research_state"],
+                "攻擊分數": _ae_dec["attack_score"],
+                "攻擊階段": _ae_dec["attack_stage"],
+                "建議動作": _ae_dec["recommended_action"],
+                "資料日期": _ae_date_gap,
             })
         if _ae_rows:
             st.dataframe(pd.DataFrame(_ae_rows), use_container_width=True, hide_index=True)
+            if _ae_oldest_dates:
+                _ae_stalest = min(_ae_oldest_dates)
+                st.caption(f"📅 最舊資料日期：{_ae_stalest}（不同資料來源日期不同時，以最舊者為準，避免誤判為最新狀態）")
 
     # ── 區塊五：今日攻擊候選（需 Tab6 新星池 + 完整證據後才會有真正候選）
     st.markdown("#### 🎯 今日攻擊候選")
