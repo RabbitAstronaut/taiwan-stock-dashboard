@@ -3344,6 +3344,15 @@ with tab1:
             # 傳產股拉低，通常比實際加權指數本益比低了一截，不能拿來直接自動帶入，
             # 否則會讓29/28/26/24倍情境表整個算錯位置。這裡改成只顯示參考、不預填。
             _pe_proxy = market_events.fetch_market_pe_proxy()
+
+            # 【Streamlit限制修正】number_input已經用key="ae_pe_now"綁定過，
+            # 之後不能在同一次執行內直接寫 st.session_state["ae_pe_now"]=值（會拋
+            # StreamlitAPIException）。改成：抓到新值先存到暫存key，觸發rerun，
+            # 下一次重新執行時、在這個widget建立「之前」把暫存值搬進正式key，
+            # 這樣widget初始化時讀到的就是新值，不會違反Streamlit的限制。
+            if "_ae_pe_pending" in st.session_state:
+                st.session_state["ae_pe_now"] = st.session_state.pop("_ae_pe_pending")
+
             _ae_pe_now = st.number_input(
                 "官方大盤本益比（請手動輸入，見下方原因）", min_value=0.0, value=0.0, step=0.1,
                 key="ae_pe_now", help="查詢：台灣證券交易所 > 統計資料 > 本益比、殖利率"
@@ -3361,9 +3370,9 @@ with tab1:
                 with st.spinner("抓取中..."):
                     _scrape_result = market_events.fetch_market_pe_from_wantgoo()
                 if _scrape_result.get("pe") is not None:
-                    st.session_state["ae_pe_now"] = _scrape_result["pe"]
+                    st.session_state["_ae_pe_pending"] = _scrape_result["pe"]
                     st.success(
-                        f"抓取結果：{_scrape_result['pe']}（B級證據，來源：玩股網加權指數本益比河流圖，"
+                        f"抓取結果：{_scrape_result['pe']}（B級證據，來源：{_scrape_result.get('source','—')}，"
                         f"已自動填入，仍建議快速核對一次）"
                     )
                     st.rerun()
@@ -3374,7 +3383,7 @@ with tab1:
                             get_secret("GEMINI_API_KEY", "")
                         )
                     if _ai_pe_result.get("pe") is not None:
-                        st.session_state["ae_pe_now"] = _ai_pe_result["pe"]
+                        st.session_state["_ae_pe_pending"] = _ai_pe_result["pe"]
                         st.success(
                             f"AI搜尋結果：{_ai_pe_result['pe']}（D級證據，AI搜尋提取，已自動填入，"
                             "務必自行核對一次再使用，不是官方直接發布數字）"
