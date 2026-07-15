@@ -45,6 +45,40 @@ except ImportError:
 # ══════════════════════════════════════════════════════════════
 # ▌ 設定區（請修改這裡）
 # ══════════════════════════════════════════════════════════════
+def get_chips_rotation_subset(full_ids, data_dir, token_present):
+    """
+    輪替制：全市場籌碼資料量太大，單次90分鐘窗口內無法在FinMind額度內跑完，
+    改成把全市場股票分成N組，依「今天是第幾天」輪流只抓其中一組。
+    N組跑完一輪＝全市場都更新過一次，之後重新循環。
+
+    分組大小抓「安全能在時間預算內跑完」的量：
+      - 有Token（600次/小時，6.5秒/次）：約180檔/天，全市場~1700檔 → 約10個交易日一輪
+      - 無Token（300次/小時，12.5秒/次）：約90檔/天，全市場~1700檔 → 約19個交易日一輪
+    這兩個數字都是「三大法人+融資券」兩個API合計抓完可以放進約20-25分鐘
+    （留時間給其他5個模組共用90分鐘總預算）反推回來的。
+
+    分組依「今天日期在年度中的第幾天」對組數取餘數決定，不需要額外存狀態檔，
+    重跑或補跑都會得到同一天固定的組別，具確定性、可重現。
+    """
+    if not full_ids:
+        return full_ids
+
+    group_size = 180 if token_present else 90
+    n_groups = max(1, (len(full_ids) + group_size - 1) // group_size)
+
+    day_index = datetime.today().timetuple().tm_yday  # 今年第幾天
+    group_idx = day_index % n_groups
+
+    sorted_ids = sorted(full_ids)  # 固定排序才能穩定分組
+    subset = [sid for i, sid in enumerate(sorted_ids) if i % n_groups == group_idx]
+
+    log.info(f"  🔄 輪替制：全市場{len(full_ids)}檔分成{n_groups}組（每組約{group_size}檔），"
+             f"今天（第{day_index}天）跑第{group_idx+1}組，共{len(subset)}檔")
+    log.info(f"     完整一輪約需{n_groups}個交易日，約{n_groups/5:.1f}週")
+
+    return subset
+
+
 CONFIG = {
     # FinMind API Token
     # 免費版留空；付費版填入可大幅提升請求限制
@@ -59,10 +93,13 @@ CONFIG = {
     "data_dir":   "data",
     "prices_dir": "data/prices",
 
-    # ── 是否使用全台股模式（付費版用）
-    # True = 從 FinMind stock_info.csv 取得所有上市櫃股票（約1700檔）
-    # False = 只跑 SECTOR_STOCKS 定義的 295 檔
-    "use_full_market": False,
+    # ── 是否使用全台股模式
+    # True = 從 FinMind stock_info.csv 取得所有上市櫃股票（約1700檔），
+    #        搭配 get_chips_rotation_subset() 輪替制，每天只抓其中一組，
+    #        不需要Token也能安全運作（無Token約90檔/天、19個交易日一輪；
+    #        有Token約180檔/天、10個交易日一輪）
+    # False = 只跑 SECTOR_STOCKS 定義的 295 檔（舊行為，涵蓋範圍較小但每天全部更新）
+    "use_full_market": True,
 
     # ── 歷史資料天數（第一次執行）
     "days_chips_first":       60,
@@ -79,14 +116,21 @@ CONFIG = {
     "days_prices_daily":       5,
 
     # ── API 效能（免費版）
-    "request_delay":    0.8,   # 每次請求間隔（秒）
+    # 【修正】FinMind免費版額度為300次/小時=每12秒1次請求才安全，
+    # 原本0.8秒/次（=每小時最多4500次）遠超額度，跑到中途會被FinMind
+    # 直接擋掉(HTTP 402)，造成該次之後的股票資料整批消失（不是逐檔漏，
+    # 是超過額度那一刻之後全部失敗），這是「部分股票完全沒有資料」的
+    # 根本原因之一。改成12.5秒留安全邊際。
+    "request_delay":    12.5,  # 每次請求間隔（秒）＝安全對齊 300次/小時
     "batch_size_first": 150,   # 第一次批次大小
     "batch_size_daily": 999,   # 每日更新不分批
     "batch_pause":       70,   # 批次間暫停（秒）
 
     # ── API 效能（付費版，use_paid=True 時生效）
+    # 【修正】FinMind有Token額度為600次/小時=每6秒1次請求才安全，
+    # 原本0.2秒/次（=每小時最多18000次）同樣遠超額度，同上會被擋掉。
     "use_paid": False,
-    "request_delay_paid":  0.2,   # 付費版請求間隔（秒）
+    "request_delay_paid":  6.5,   # 付費版請求間隔（秒）＝安全對齊 600次/小時
     "batch_size_paid":     999,   # 付費版不分批
     "batch_pause_paid":      5,   # 付費版批次間隔（秒）
 }
@@ -554,8 +598,10 @@ def run_futures(data_dir: str):
 
     if rows:
         combined = pd.concat(rows, ignore_index=True)
+        # 去重欄位：name 可能叫 institutional_investors，動態偵測
+        _name_col = "institutional_investors" if "institutional_investors" in combined.columns else "name"
         save_csv(combined, "futures_data.csv", data_dir,
-                 dedup_cols=["date", "contract", "source", "name"])
+                 dedup_cols=["date", "contract", "source", _name_col])
 
 # ══════════════════════════════════════════════════════════════
 # ▌ 模組五：大戶持股結構（shareholder_data.csv）
@@ -757,12 +803,16 @@ def main():
         CONFIG["fm_token"] = args.token
 
     # 付費版加速設定
-    if args.paid or CONFIG.get("use_paid"):
+    # 【修正】原本要「有Token」還要「另外加 --paid 或 use_paid=True」才會加速，
+    # 容易忘記其中一步，變成有Token卻還在用免費版的極慢延遲。現在只要有Token
+    # 就自動視為付費版（FinMind的Token本身就是拿來提高額度用的，沒有理由
+    # 設定了Token卻不用它對應的額度）。
+    if args.paid or CONFIG.get("use_paid") or CONFIG.get("fm_token"):
         CONFIG["request_delay"] = CONFIG["request_delay_paid"]
         CONFIG["batch_size_first"] = CONFIG["batch_size_paid"]
         CONFIG["batch_size_daily"] = CONFIG["batch_size_paid"]
         CONFIG["batch_pause"]     = CONFIG["batch_pause_paid"]
-        log.info("⚡ 付費版加速模式啟動")
+        log.info("⚡ 付費版加速模式啟動" + ("（偵測到Token自動啟用）" if CONFIG.get("fm_token") and not (args.paid or CONFIG.get("use_paid")) else ""))
 
     today_str  = datetime.today().strftime("%Y-%m-%d")
     data_dir   = CONFIG["data_dir"]
@@ -809,6 +859,26 @@ def main():
         # 預設：使用 SECTOR_STOCKS 定義的清單（295 檔）
         stock_ids = ALL_STOCKS
 
+    # ── 額外合併 watchlist.json 的 manual + reserve 股票
+    # 確保戰備庫和監控清單的股票 K線也會被更新
+    wl_path = Path(data_dir) / "watchlist.json"
+    if wl_path.exists():
+        try:
+            wl = json.loads(wl_path.read_text(encoding="utf-8"))
+            extra = []
+            for item in wl.get("manual", []):
+                extra.append(str(item.get("id", "")))
+            for item in wl.get("reserve", []):
+                extra.append(str(item.get("id", "")))
+            extra = [s for s in extra if s.isdigit() and len(s) == 4]
+            before = len(stock_ids)
+            stock_ids = list(dict.fromkeys(stock_ids + extra))
+            added = len(stock_ids) - before
+            if added > 0:
+                log.info(f"watchlist 補充：{added} 檔（manual+reserve）→ 共 {len(stock_ids)} 檔")
+        except Exception as e:
+            log.warning(f"watchlist.json 讀取失敗：{e}")
+
     log.info(f"股票池 : {len(stock_ids)} 檔")
 
     def _should(module):
@@ -818,6 +888,16 @@ def main():
     if _should("info"):
         run_stock_info(data_dir)
         mark_done("info")
+
+    # 全市場模式下，chips/financials/shareholder 這三個逐檔打FinMind的模組
+    # 共用同一組「今天輪替組」，確保同一天更新的股票，各類資料的時間點一致
+    # （不會今天籌碼更新A組、大戶持股卻更新B組）。K線(yfinance)不受此限制，
+    # 不吃FinMind額度，繼續用完整的 stock_ids。
+    _use_full_market = args.full_market or CONFIG.get("use_full_market")
+    _today_rotation_ids = (
+        get_chips_rotation_subset(stock_ids, data_dir, token_present=bool(CONFIG.get("fm_token")))
+        if _use_full_market else stock_ids
+    )
 
     # ── 2. 三大法人＋融資券（個股 + ETF 動態清單）
     if _should("chips"):
@@ -834,16 +914,17 @@ def main():
                 log.warning(f"  etf_dividend_data.csv 讀取失敗：{e}")
         else:
             log.warning("  etf_dividend_data.csv 不存在，籌碼只更新個股")
-        # 合併個股+ETF清單（去重）
-        chips_ids = list(dict.fromkeys(stock_ids + etf_ids))
-        log.info(f"  籌碼清單：{len(stock_ids)} 個股 + {len(etf_ids)} ETF = {len(chips_ids)} 檔")
+        # 合併「今天輪替組」+ETF清單（去重）；全市場模式下 _today_rotation_ids
+        # 已經是輪替後的子集，SECTOR_STOCKS模式下就是完整的295檔（不需輪替）
+        chips_ids = list(dict.fromkeys(_today_rotation_ids + etf_ids))
+        log.info(f"  籌碼清單：{len(_today_rotation_ids)} 個股 + {len(etf_ids)} ETF = {len(chips_ids)} 檔")
         run_chips(chips_ids, data_dir)
         mark_done("chips")
 
     # ── 3. 財務報表
     if _should("financials"):
         if "financials" not in skip:
-            run_financials(stock_ids, data_dir)
+            run_financials(_today_rotation_ids, data_dir)
         else:
             log.info("  ⏭️  跳過財報（--skip financials）")
         mark_done("financials")
@@ -855,12 +936,18 @@ def main():
 
     # ── 5. 大戶持股
     if _should("shareholder"):
-        run_shareholder(stock_ids, data_dir)
+        run_shareholder(_today_rotation_ids, data_dir)
         mark_done("shareholder")
 
     # ── 6. K 線
     if not args.no_price and _should("prices"):
-        run_prices(stock_ids, prices_dir)
+        # 槓桿ETF（00631L/00685L/00663L/00675L）代號以"00"開頭，
+        # 會被前面的全市場模式過濾邏輯排除（過濾條件特意排除00開頭的ETF代碼），
+        # 這裡明確補回來，讓這四檔也能透過既有yfinance流程每日更新K線，
+        # 不用建立另一套價格來源（見V7槓桿ETF模組規格第十四節）。
+        _leveraged_etf_ids = ["00631L", "00685L", "00663L", "00675L"]
+        _price_stock_ids = list(dict.fromkeys(stock_ids + _leveraged_etf_ids))
+        run_prices(_price_stock_ids, prices_dir)
         mark_done("prices")
 
     # ── 7. yfinance 基本財務（PE/毛利率）
