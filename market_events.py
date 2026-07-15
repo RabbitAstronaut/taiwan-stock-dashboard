@@ -512,41 +512,60 @@ def fetch_market_pe_proxy(force=False):
 
 def fetch_market_pe_from_wantgoo():
     """
-    直接爬取玩股網「加權指數本益比」頁面的即時本益比數字。
-    這個數字在頁面原始HTML就有（伺服器端渲染，不需要執行JS），
-    比靠AI猜測可靠很多，優先用這個方法，失敗才退回Gemini搜尋。
+    直接爬取財經網站的即時大盤本益比數字，依序嘗試多個來源，
+    第一個成功就用，避免卡在單一網站的反爬蟲機制上。
+    這些數字都在頁面原始HTML就有（伺服器端渲染，不需要執行JS），
+    比靠AI猜測可靠，優先用這個方法，全部失敗才退回Gemini搜尋。
     B級證據（非TWSE官方直接發布，是財經網站計算後公開呈現的數字）。
     """
-    try:
-        import requests
-        import re as _re
-        url = "https://www.wantgoo.com/index/0000/price-to-earning-river"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                           "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
-            "Referer": "https://www.wantgoo.com/",
-        }
-        resp = requests.get(url, headers=headers, timeout=15)
-        if resp.status_code != 200:
-            return {"pe": None, "status": f"HTTP {resp.status_code}（可能有反爬蟲機制擋掉自動化請求）",
-                    "source": url}
-        html = resp.text
+    import requests
+    import re as _re
 
-        # 抓「本益比」緊接著的數字（頁面上緣的即時概況區塊），
-        # 排除掉「本益比河流圖」這種後面接的是文字不是數字的連結文案
-        m = _re.search(r"本益比[^\d]{0,20}(\d{1,3}\.\d{1,2})", html)
-        if not m:
-            return {"pe": None, "status": "頁面能連上但抓不到數字，可能頁面結構已變更", "source": url}
+    sources = [
+        {
+            "name": "財報狗",
+            "url": "https://statementdog.com/taiex",
+            "pattern": r"台股本益比[^\d]{0,20}(\d{1,3}\.\d{1,2})",
+            "referer": "https://statementdog.com/",
+        },
+        {
+            "name": "玩股網",
+            "url": "https://www.wantgoo.com/index/0000/price-to-earning-river",
+            "pattern": r"本益比[^\d]{0,20}(\d{1,3}\.\d{1,2})",
+            "referer": "https://www.wantgoo.com/",
+        },
+    ]
 
-        pe = float(m.group(1))
-        if not (5 < pe < 100):  # 合理性檢查
-            return {"pe": None, "status": f"抓到異常數值({pe})，已捨棄", "source": url}
+    headers_base = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+    }
 
-        return {"pe": pe, "status": "已取得", "source": url, "fetched_at": _now()}
-    except Exception as e:
-        return {"pe": None, "status": f"失敗（{type(e).__name__}：{e}）", "source": None}
+    attempts = []
+    for src in sources:
+        try:
+            headers = {**headers_base, "Referer": src["referer"]}
+            resp = requests.get(src["url"], headers=headers, timeout=15)
+            if resp.status_code != 200:
+                attempts.append(f"{src['name']}: HTTP {resp.status_code}")
+                continue
+            m = _re.search(src["pattern"], resp.text)
+            if not m:
+                attempts.append(f"{src['name']}: 連上但抓不到數字（頁面結構可能已變更）")
+                continue
+            pe = float(m.group(1))
+            if not (5 < pe < 100):  # 合理性檢查
+                attempts.append(f"{src['name']}: 抓到異常數值({pe})，已捨棄")
+                continue
+            return {"pe": pe, "status": "已取得", "source": f"{src['name']}（{src['url']}）",
+                    "fetched_at": _now()}
+        except Exception as e:
+            attempts.append(f"{src['name']}: 失敗（{type(e).__name__}）")
+            continue
+
+    return {"pe": None, "status": "所有來源都失敗 → " + "；".join(attempts), "source": None}
 
 
 def fetch_pe_via_gemini_search(gemini_api_key):
