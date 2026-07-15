@@ -32,11 +32,27 @@ CACHE_PATH = os.path.join(DATA_DIR, "leveraged_etf_price_cache.json")
 
 # 目前只做四檔正2（反1商品是另一份規格的第二階段擴充，這裡先不加）
 LEVERAGED_ETF_TICKERS = {
-    "00631L": {"name": "元大台灣50正2", "benchmark": "台灣50指數", "leverage": 2},
-    "00685L": {"name": "群益臺灣加權正2", "benchmark": "臺灣加權指數", "leverage": 2},
-    "00663L": {"name": "國泰臺灣加權正2", "benchmark": "臺灣加權指數", "leverage": 2},
-    "00675L": {"name": "富邦臺灣加權正2", "benchmark": "臺灣加權指數", "leverage": 2},
+    "00631L": {"name": "元大台灣50正2", "benchmark": "台灣50指數", "leverage": 2, "direction": "long"},
+    "00685L": {"name": "群益臺灣加權正2", "benchmark": "臺灣加權指數", "leverage": 2, "direction": "long"},
+    "00663L": {"name": "國泰臺灣加權正2", "benchmark": "臺灣加權指數", "leverage": 2, "direction": "long"},
+    "00675L": {"name": "富邦臺灣加權正2", "benchmark": "臺灣加權指數", "leverage": 2, "direction": "long"},
+    # 反1商品：注意是「單日反向1倍」，不是反向2倍，畫面與計算都不得寫成反2
+    "00632R": {"name": "元大台灣50反1", "benchmark": "台灣50指數", "leverage": -1, "direction": "short"},
+    "00664R": {"name": "國泰臺灣加權反1", "benchmark": "臺灣加權指數", "leverage": -1, "direction": "short"},
+    "00676R": {"name": "富邦臺灣加權反1", "benchmark": "臺灣加權指數", "leverage": -1, "direction": "short"},
+    "00686R": {"name": "群益臺灣加權反1", "benchmark": "臺灣加權指數", "leverage": -1, "direction": "short"},
 }
+
+# 正2／反1配對關係（同一追蹤標的的多空對）
+LONG_SHORT_PAIRS = {
+    "00631L": "00632R",
+    "00663L": "00664R",
+    "00675L": "00676R",
+    "00685L": "00686R",
+}
+
+LONG_TICKERS = [t for t, i in LEVERAGED_ETF_TICKERS.items() if i["direction"] == "long"]
+SHORT_TICKERS = [t for t, i in LEVERAGED_ETF_TICKERS.items() if i["direction"] == "short"]
 
 # 交易成本預設值，集中在這裡設定，不要散落在畫面程式碼裡
 DEFAULT_FEE_RATE = 0.001425      # 券商手續費率（未折扣）
@@ -420,10 +436,16 @@ def get_etf_snapshot(ticker):
     }
 
 
-def compare_etfs():
-    """四檔橫向比較，回傳 list[dict]，供表格顯示"""
+def compare_etfs(tickers=None):
+    """
+    橫向比較，回傳 list[dict]，供表格顯示。
+    tickers=None 時預設只比較四檔正2（向後相容原本Tab8行為）；
+    傳入 LONG_TICKERS/SHORT_TICKERS 可分別取得正2/反1清單。
+    """
+    if tickers is None:
+        tickers = LONG_TICKERS
     rows = []
-    for ticker in LEVERAGED_ETF_TICKERS:
+    for ticker in tickers:
         snap = get_etf_snapshot(ticker)
         rows.append(snap)
     return rows

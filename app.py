@@ -28,6 +28,7 @@ import market_events   # V7 攻擊引擎：盤中價格行為/布林擴張/期�
 import industry_engine  # V7 攻擊引擎：自動產業情報層（見 industry_engine.py）
 import stock_decision   # V7 統一決策資料結構：王者品質/研究優先分/攻擊時機分分開（見 stock_decision.py）
 import leveraged_etf    # V7 槓桿ETF觀察與模擬（見 leveraged_etf.py）
+import direction_strategy  # V7 台股方向型ETF策略：正2/反1/現金（見 direction_strategy.py）
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 
@@ -5061,7 +5062,7 @@ with tab2:
             _delta_txt = f"上期：{_prev}" if _prev and _prev != _state else None
             st.metric("狀態", f"{_STATE_ICON.get(_state,'')} {_state}", _delta_txt)
             st.caption(f"證據完整度 {_quality}%　樣本 {_m.get('fundamental_sample','—')}/{_m.get('total_count','—')}")
-            st.caption(f"最新價格資料：{_m.get('latest_price_date','—')}"
+            st.caption(f"最新價格資料：{_m.get('latest_price_date') or '—'}"
                        + ("（已過期）" if _m.get("is_price_stale") else ""))
     st.markdown("---")
 
@@ -11358,30 +11359,85 @@ with tab8:
             st.markdown(df_to_html(show_df, height=400), unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════════════
-    # ▌ ⚡ 槓桿ETF觀察與模擬（V7 第一階段）
+    # ▌ ⚡ 台股方向型ETF策略：正2／反1／現金（V7 第二階段）
     #   獨立於上面的ETF退休配息計畫，槓桿ETF不使用王者品質分/營收/
     #   EPS/產業護城河，全部改用流動性/波動/回撤等獨立指標。
-    #   本輪只做：四檔正2即時觀察卡、四檔比較、一次投入模擬、
-    #   淨值與回撤曲線。分批/自訂/模擬倉/攻擊引擎串接留待第二階段。
+    #   方向策略只算「市場該偏多、偏空、還是不確定」，完全沿用
+    #   attack_engine的market證據，不重新定義另一套市場判斷邏輯。
     # ══════════════════════════════════════════════════════════════
     st.markdown("---")
-    st.markdown("<div class='sec-title'>⚡ 槓桿ETF觀察與模擬</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sec-title'>⚡ 台股方向型ETF策略：正2／反1／現金</div>", unsafe_allow_html=True)
     st.caption(
-        "四檔台股正2槓桿ETF。這裡完全不用王者品質分/營收/EPS——"
-        "槓桿ETF看的是流動性、波動、回撤，跟公司基本面是兩回事。"
+        "八檔台股方向槓桿ETF（四檔正2＋四檔反1）。完全不用王者品質分/營收/EPS——"
+        "槓桿ETF看的是市場方向、流動性、波動、回撤，跟公司基本面是兩回事。"
+        "注意：反1是單日反向1倍，不是反向2倍。"
     )
 
-    _lev_state = leveraged_etf.get_market_state_note(attack_engine_module=attack_engine)
-    _lev_state_color = {"證據衝突": "#fbbf24", "硬性否決": "#ff4444"}.get(_lev_state["state"], "#7fb3d3")
+    _ds_result = direction_strategy.get_direction_strategy_state(attack_engine, market_events)
+    _ds_state_color = {
+        "正2": "#00e676", "正2模擬觀察": "#66bb6a", "現金觀察": "#7fb3d3",
+        "反1模擬觀察": "#ff8a65", "反1": "#ff5252",
+    }.get(_ds_result["strategy_state"], "#7fb3d3")
+
     st.markdown(
-        f"<div style='border-left:4px solid {_lev_state_color};border-radius:6px;"
-        f"padding:10px 14px;margin:8px 0;background:rgba(255,255,255,0.02);'>"
-        f"目前市場狀態：<b style='color:{_lev_state_color};'>{_lev_state['state']}</b>　"
-        f"｜　槓桿ETF策略：<b style='color:{_lev_state_color};'>{_lev_state['strategy']}</b><br>"
-        f"<span style='color:#9fb8d4;font-size:.85rem;'>{_lev_state['reason']}</span>"
+        f"<div style='border-left:4px solid {_ds_state_color};border-radius:6px;"
+        f"padding:12px 16px;margin:8px 0;background:rgba(255,255,255,0.02);'>"
+        f"市場方向：<b>{_ds_result['direction_band']}</b>　"
+        f"方向分數：<b>{_ds_result['market_direction_score']:+.1f}</b>　"
+        f"訊號可信度：<b>{_ds_result['direction_confidence_score']:.0f}/100</b><br>"
+        f"證據衝突：<b>{'是' if _ds_result['evidence_conflict'] else '否'}</b>　"
+        f"正式策略：<b style='color:{_ds_state_color};font-size:1.1rem;'>{_ds_result['strategy_state']}</b><br>"
+        f"<span style='color:#9fb8d4;font-size:.85rem;'>{_ds_result['strategy_reason']}</span>"
         f"</div>",
         unsafe_allow_html=True
     )
+
+    with st.expander("🔍 方向分數／可信度計算明細", expanded=False):
+        st.caption("五個分項權重：趨勢結構30／價格結構25／市場廣度15／外資籌碼15／估值風險15")
+        st.json(_ds_result["direction_breakdown"])
+        st.caption("可信度加減分明細：")
+        st.json(_ds_result["confidence_breakdown"])
+        if _ds_result["confidence_missing_checks"]:
+            st.caption("⚠️ 以下檢查項目尚未接入結構化證據，未計入可信度分數：")
+            for _mc in _ds_result["confidence_missing_checks"]:
+                st.caption(f"　• {_mc}")
+        if _ds_result["conflict_detail"]:
+            st.caption("證據衝突細節：" + "；".join(_ds_result["conflict_detail"]))
+
+    # ── 正2候選／反1候選 兩組（依規格第十一節）
+    def _fmt_pct(val):
+        """.get(key, '—')在key存在但值是None時不會用到預設值，會印出'None'，這裡統一處理"""
+        return f"{val}%" if val is not None else "—"
+
+    _ds_col_long, _ds_col_short = st.columns(2)
+    with _ds_col_long:
+        st.markdown("##### 📈 正2候選")
+        for _lt in leveraged_etf.LONG_TICKERS:
+            _snap = leveraged_etf.get_etf_snapshot(_lt)
+            if not _snap["data_available"]:
+                st.caption(f"{_lt} {leveraged_etf.LEVERAGED_ETF_TICKERS[_lt]['name']}：資料尚未接入")
+                continue
+            st.caption(
+                f"**{_lt}** {_snap['name']}　現價{_snap['latest_price']:.2f}　"
+                f"20日報酬{_fmt_pct(_snap.get('return_20d_pct'))}　"
+                f"20日回撤{_fmt_pct(_snap.get('max_drawdown_20d_pct'))}　"
+                f"資料日期{_snap['data_as_of']}"
+            )
+    with _ds_col_short:
+        st.markdown("##### 📉 反1候選")
+        for _st_ in leveraged_etf.SHORT_TICKERS:
+            _snap = leveraged_etf.get_etf_snapshot(_st_)
+            if not _snap["data_available"]:
+                st.caption(f"{_st_} {leveraged_etf.LEVERAGED_ETF_TICKERS[_st_]['name']}：資料尚未接入")
+                continue
+            st.caption(
+                f"**{_st_}** {_snap['name']}　現價{_snap['latest_price']:.2f}　"
+                f"20日報酬{_fmt_pct(_snap.get('return_20d_pct'))}　"
+                f"20日回撤{_fmt_pct(_snap.get('max_drawdown_20d_pct'))}　"
+                f"資料日期{_snap['data_as_of']}"
+            )
+    st.caption("⚠️ 商品選擇分數（流動性/買賣價差/追蹤品質/折溢價）尚未接入，以上僅依方向排列，"
+               "不代表已完成商品篩選，實際下單前請自行核對流動性與價差。")
 
     # ── 區塊一：四檔即時觀察卡
     with st.expander("📊 四檔即時觀察卡", expanded=True):
