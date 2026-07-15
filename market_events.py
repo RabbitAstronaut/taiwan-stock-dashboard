@@ -523,17 +523,22 @@ def fetch_market_pe_from_wantgoo():
         url = "https://www.wantgoo.com/index/0000/price-to-earning-river"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                           "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+                           "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+            "Referer": "https://www.wantgoo.com/",
         }
         resp = requests.get(url, headers=headers, timeout=15)
-        resp.raise_for_status()
+        if resp.status_code != 200:
+            return {"pe": None, "status": f"HTTP {resp.status_code}（可能有反爬蟲機制擋掉自動化請求）",
+                    "source": url}
         html = resp.text
 
         # 抓「本益比」緊接著的數字（頁面上緣的即時概況區塊），
         # 排除掉「本益比河流圖」這種後面接的是文字不是數字的連結文案
         m = _re.search(r"本益比[^\d]{0,20}(\d{1,3}\.\d{1,2})", html)
         if not m:
-            return {"pe": None, "status": "頁面結構可能已變更，抓不到數字", "source": url}
+            return {"pe": None, "status": "頁面能連上但抓不到數字，可能頁面結構已變更", "source": url}
 
         pe = float(m.group(1))
         if not (5 < pe < 100):  # 合理性檢查
@@ -541,7 +546,7 @@ def fetch_market_pe_from_wantgoo():
 
         return {"pe": pe, "status": "已取得", "source": url, "fetched_at": _now()}
     except Exception as e:
-        return {"pe": None, "status": f"失敗（{type(e).__name__}）", "source": None}
+        return {"pe": None, "status": f"失敗（{type(e).__name__}：{e}）", "source": None}
 
 
 def fetch_pe_via_gemini_search(gemini_api_key):
@@ -557,10 +562,11 @@ def fetch_pe_via_gemini_search(gemini_api_key):
         import requests
         import re as _re
         prompt = (
-            "請搜尋台灣證券交易所（TWSE）最新公布的「發行量加權股價指數」本益比"
-            "（大盤本益比，不是個股本益比）。只回答一個數字（到小數點第一位），"
-            "不要有任何其他文字說明或單位。如果找不到明確、有來源依據的數字，"
-            "請回答「無法確定」。"
+            "請搜尋台股「加權指數本益比」（大盤本益比，不是個股本益比）目前的數值。"
+            "可以查「玩股網 加權指數 本益比河流圖」「財報狗 台股本益比」"
+            "「CMoney 大盤本益比」這類財經網站，它們通常會有即時的加權指數本益比數字。"
+            "只回答一個數字（到小數點第一位，例如 30.8），不要有任何其他文字說明或單位。"
+            "如果找不到明確、有來源依據的數字，請回答「無法確定」。"
         )
         resp = requests.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
