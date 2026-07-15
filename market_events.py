@@ -510,6 +510,40 @@ def fetch_market_pe_proxy(force=False):
         return result
 
 
+def fetch_market_pe_from_wantgoo():
+    """
+    直接爬取玩股網「加權指數本益比」頁面的即時本益比數字。
+    這個數字在頁面原始HTML就有（伺服器端渲染，不需要執行JS），
+    比靠AI猜測可靠很多，優先用這個方法，失敗才退回Gemini搜尋。
+    B級證據（非TWSE官方直接發布，是財經網站計算後公開呈現的數字）。
+    """
+    try:
+        import requests
+        import re as _re
+        url = "https://www.wantgoo.com/index/0000/price-to-earning-river"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                           "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=15)
+        resp.raise_for_status()
+        html = resp.text
+
+        # 抓「本益比」緊接著的數字（頁面上緣的即時概況區塊），
+        # 排除掉「本益比河流圖」這種後面接的是文字不是數字的連結文案
+        m = _re.search(r"本益比[^\d]{0,20}(\d{1,3}\.\d{1,2})", html)
+        if not m:
+            return {"pe": None, "status": "頁面結構可能已變更，抓不到數字", "source": url}
+
+        pe = float(m.group(1))
+        if not (5 < pe < 100):  # 合理性檢查
+            return {"pe": None, "status": f"抓到異常數值({pe})，已捨棄", "source": url}
+
+        return {"pe": pe, "status": "已取得", "source": url, "fetched_at": _now()}
+    except Exception as e:
+        return {"pe": None, "status": f"失敗（{type(e).__name__}）", "source": None}
+
+
 def fetch_pe_via_gemini_search(gemini_api_key):
     """
     用Gemini的Google Search grounding功能，搜尋當前TWSE公布的加權指數本益比。

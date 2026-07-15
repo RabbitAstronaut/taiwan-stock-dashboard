@@ -3357,22 +3357,33 @@ with tab1:
                     "不能直接當「官方大盤本益比」用，請查TWSE正式數字手動輸入。"
                 )
 
-            if st.button("🤖 用AI搜尋目前大盤本益比", key="btn_ai_search_pe"):
-                with st.spinner("AI搜尋中..."):
-                    _ai_pe_result = market_events.fetch_pe_via_gemini_search(
-                        get_secret("GEMINI_API_KEY", "")
-                    )
-                if _ai_pe_result.get("pe") is not None:
-                    st.session_state["ae_pe_now"] = _ai_pe_result["pe"]
+            if st.button("🔄 自動抓取目前大盤本益比", key="btn_ai_search_pe"):
+                with st.spinner("抓取中..."):
+                    _scrape_result = market_events.fetch_market_pe_from_wantgoo()
+                if _scrape_result.get("pe") is not None:
+                    st.session_state["ae_pe_now"] = _scrape_result["pe"]
                     st.success(
-                        f"AI搜尋結果：{_ai_pe_result['pe']}（D級證據，AI搜尋提取，已自動填入，"
-                        "務必自行核對一次再使用，不是官方直接發布數字）"
+                        f"抓取結果：{_scrape_result['pe']}（B級證據，來源：玩股網加權指數本益比河流圖，"
+                        f"已自動填入，仍建議快速核對一次）"
                     )
                     st.rerun()
                 else:
-                    st.warning(f"AI搜尋未能取得明確數字：{_ai_pe_result.get('status', '—')}"
-                               + (f"（AI回覆：{_ai_pe_result.get('raw_text','')[:100]}）"
-                                  if _ai_pe_result.get("raw_text") else ""))
+                    st.caption(f"⚠️ 直接抓取失敗（{_scrape_result.get('status','—')}），改用AI搜尋備援...")
+                    with st.spinner("AI搜尋中..."):
+                        _ai_pe_result = market_events.fetch_pe_via_gemini_search(
+                            get_secret("GEMINI_API_KEY", "")
+                        )
+                    if _ai_pe_result.get("pe") is not None:
+                        st.session_state["ae_pe_now"] = _ai_pe_result["pe"]
+                        st.success(
+                            f"AI搜尋結果：{_ai_pe_result['pe']}（D級證據，AI搜尋提取，已自動填入，"
+                            "務必自行核對一次再使用，不是官方直接發布數字）"
+                        )
+                        st.rerun()
+                    else:
+                        st.warning(f"AI搜尋也未能取得明確數字：{_ai_pe_result.get('status', '—')}"
+                                   + (f"（AI回覆：{_ai_pe_result.get('raw_text','')[:100]}）"
+                                      if _ai_pe_result.get("raw_text") else ""))
             else:
                 st.caption(f"⚠️ TWSE OpenAPI自動抓取失敗（{_pe_proxy.get('status','—')}），請手動輸入。")
 
@@ -7380,6 +7391,7 @@ with tab5:
         # 整理籌碼
         foreign_net = pd.Series(dtype=float)
         trust_net   = pd.Series(dtype=float)
+        chips_covered_ids = set()  # 記錄哪些股票當天有任何籌碼資料列（不論數值是否為0）
         if ok_ch and not df_ch.empty:
             df_ch["stock_id"] = df_ch["stock_id"].astype(str).str.strip()
             df_ch["net"] = pd.to_numeric(df_ch.get("net", 0), errors="coerce").fillna(0)
@@ -7387,6 +7399,7 @@ with tab5:
                 df_ch["date"] = pd.to_datetime(df_ch["date"], errors="coerce")
                 latest_date = df_ch["date"].max()
                 df_latest = df_ch[df_ch["date"] == latest_date]
+                chips_covered_ids = set(df_latest["stock_id"].unique())  # 這408檔（左右）才有籌碼資料追蹤
                 f_df = df_latest[df_latest["name"].astype(str).str.contains("Foreign_Investor", na=False)]
                 t_df = df_latest[df_latest["name"].astype(str).str.contains("Investment_Trust", na=False)]
                 foreign_net = f_df.groupby("stock_id")["net"].sum() / 1000  # 換算張數
@@ -7457,6 +7470,8 @@ with tab5:
 
             f_net = float(foreign_net.get(sid, 0))
             t_net = float(trust_net.get(sid, 0))
+            has_chips_data = sid in chips_covered_ids  # 這檔股票today是否有籌碼資料（不論數字是否為0）
+            t_net_display = int(t_net) if has_chips_data else "—"  # 沒被追蹤就顯示"—"，不要誤導成"0"
 
             # ── 雷達1：土洋認養
             if (f_net > 1500 and t_net > 800 and
@@ -7489,7 +7504,7 @@ with tab5:
                         "現價": round(close, 1),
                         "量比(vol/VMA5)": round(vol/vma5, 2),
                         "EMA5": round(ema5, 1),
-                        "投信買超(張)": int(t_net),
+                        "投信買超(張)": t_net_display,
                         "AI戰略評語": "🔥 主力鎖倉惜售，噴發前兆，等量縮突破" if close >= sma20 else "🟡 守EMA5，等月線確認"
                     })
 
@@ -7503,7 +7518,7 @@ with tab5:
                     "現價": round(close, 1),
                     "EPS YoY%": round(ey, 1),
                     "千張大戶持股%": round(bp, 1),
-                    "投信買超(張)": int(t_net),
+                    "投信買超(張)": t_net_display,
                     "AI戰略評語": "💎 基本面硬核+股權集中，長線黑馬首選" if bp > 80 else "🟢 大戶穩健持有，基本面支撐強"
                 })
 
@@ -7559,10 +7574,18 @@ with tab5:
     m2.metric("⚡ 黃金窒息量雷達", f"{len(df_r2)} 檔", delta="主力鎖倉惜售")
     m3.metric("💎 大戶硬漢雷達", f"{len(df_r3)} 檔", delta="基本面硬核")
 
-    # 診斷：土洋認養雷達需要「外資+投信」同步大額買超，但投信籌碼資料
-    # 覆蓋率若明顯偏低（例如遠少於外資筆數），代表當天投信買賣超資料
-    # 本身就很稀疏（上游daily_scan/Render relay抓到的投信資料不完整），
-    # 不是篩選條件的程式邏輯有錯——提示出來避免誤判成bug。
+    # 說明：雷達掃描全市場約2000檔股票的價格型態，但籌碼資料
+    # （外資/投信買賣超）只有約408檔精選股票（daily_scan鎖定的
+    # SECTOR_STOCKS清單）才有每日追蹤。不在這408檔裡的股票，
+    # 投信/外資欄位會顯示「—」（沒有資料可查），不是「0」
+    # （真的查過、確認當天沒有買賣超）——這兩者意義不同，混在一起
+    # 顯示會讓人誤以為投信完全沒在動，這裡先講清楚範圍落差。
+    st.caption(
+        "ℹ️ 「投信買超」欄位：只有約408檔精選股票每日有籌碼資料追蹤，其餘股票會顯示「—」"
+        "（代表沒有資料可查，不是真的查過確認為0）。「土洋認養雷達」要求外資與投信同時大額買超，"
+        "門檻本來就高，長期0檔屬正常，不代表程式有誤。"
+    )
+
     if df_r1.empty:
         try:
             _diag_df_ch, _diag_ok_ch = get_chips()
@@ -7571,13 +7594,10 @@ with tab5:
                 _diag_day = _diag_df_ch[pd.to_datetime(_diag_df_ch["date"], errors="coerce") == _diag_latest]
                 _diag_f_cnt = _diag_day[_diag_day["name"].astype(str).str.contains("Foreign_Investor", na=False)]["stock_id"].nunique()
                 _diag_t_cnt = _diag_day[_diag_day["name"].astype(str).str.contains("Investment_Trust", na=False)]["stock_id"].nunique()
-                if _diag_t_cnt < _diag_f_cnt * 0.3:
-                    st.caption(
-                        f"ℹ️ 土洋認養雷達今日0檔，主要原因：投信籌碼資料覆蓋率偏低"
-                        f"（{_diag_latest.date()}當天，外資有{_diag_f_cnt}檔資料，投信只有{_diag_t_cnt}檔），"
-                        "同時滿足外資與投信雙買超的股票自然很少。這是上游籌碼資料收集完整度的問題，"
-                        "建議檢查 daily_scan 排程或 Render relay 是否有完整抓到投信買賣超資料，不是篩選邏輯錯誤。"
-                    )
+                st.caption(
+                    f"（{_diag_latest.date()}當天：外資有{_diag_f_cnt}檔資料，投信有{_diag_t_cnt}檔，"
+                    "同時滿足外資與投信雙買超條件的股票自然很少，這是門檻設計使然。）"
+                )
         except Exception:
             pass
 
