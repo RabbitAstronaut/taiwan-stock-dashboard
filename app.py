@@ -1444,8 +1444,15 @@ def get_total_margin_balance() -> dict:
 # ▌ ETF 現價查詢（全域定義，避免巢狀cache造成tab7載入延遲）
 # ══════════════════════════════════════════════════════════════
 @st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def fetch_etf_price(stock_id: str) -> tuple:
-    """回傳 (現值, 更新時間字串)，快取1小時，timeout 3秒避免卡住"""
+    """
+    回傳 (現值, 更新時間字串)，快取5分鐘，timeout 3秒避免卡住。
+    【修正】原本docstring寫「快取1小時」但實際上完全沒有@st.cache_data裝飾器，
+    每次呼叫都會真的打yfinance，這也是Tab8主清單當初選擇完全不呼叫這個函式、
+    現價欄位永遠顯示「—」的原因（怕被拖慢）。現在補上真正的快取，5分鐘內
+    重複呼叫同一檔ETF不會再重打yfinance，可以安全用在主清單上。
+    """
     try:
         import yfinance as _yf_etf
         sid = str(stock_id).strip().zfill(4)
@@ -10888,13 +10895,38 @@ with tab8:
     st.markdown(f"### 📋 ETF 清單　共 {len(df_menu)} 檔　輸入張數後自動試算")
     st.caption("最新配息/股=最近一次除息　年化配息/股=近1年合計　配息月份=歷史除息月份")
 
-    # ETF 現價改為懶加載，不在啟動時批次抓取（避免數百次yfinance呼叫卡住啟動）
-    # 使用者可點擊個別ETF的「更新現價」按鈕即時抓取
-    price_map = {}  # 預設空，依需求即時查詢
+    # 【修正】price_map 原本永遠是空字典，導致「現股價」欄位永遠顯示「—」。
+    # fetch_etf_price() 現在已經有真正的5分鐘快取（見上方修正）。但清單有82檔，
+    # 每次都全抓會拖慢首次載入，改成：預設只自動抓你已登記張數的ETF（通常較少），
+    # 其餘提供按鈕手動全抓，抓過的5分鐘內都吃快取。
+    price_map = {}
+    _etf_update_times = []
+    _etf_held_ids = {sid for sid, sh in st.session_state.get("etf_shares", {}).items() if sh > 0}
+    _etf_fetch_all = st.session_state.get("_etf_fetch_all_prices", False)
 
-    # 顯示最後更新時間
-    _etf_last_update = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%m/%d %H:%M")
-    st.caption(f"⚡ 現值最後更新：{_etf_last_update}（每5分鐘自動刷新）")
+    _etf_col_a, _etf_col_b = st.columns([3, 1])
+    with _etf_col_b:
+        if st.button("🔄 抓取全部現價", key="btn_etf_fetch_all"):
+            st.session_state["_etf_fetch_all_prices"] = True
+            st.rerun()
+
+    _etf_ids_to_fetch = (
+        set(df_menu["代號"].astype(str)) if _etf_fetch_all else _etf_held_ids
+    )
+    if _etf_ids_to_fetch:
+        with st.spinner(f"抓取 {len(_etf_ids_to_fetch)} 檔ETF現價中..."):
+            for _sid_etf in _etf_ids_to_fetch:
+                _p, _t = fetch_etf_price(_sid_etf)
+                if _p > 0:
+                    price_map[_sid_etf] = _p
+                    if _t:
+                        _etf_update_times.append(_t)
+
+    with _etf_col_a:
+        _etf_last_update = max(_etf_update_times) if _etf_update_times else "尚未抓取"
+        _etf_scope_note = "全部82檔" if _etf_fetch_all else "已登記張數的ETF（其餘按右方按鈕全抓）"
+        st.caption(f"⚡ 現值最後更新：{_etf_last_update}　｜　抓取範圍：{_etf_scope_note}"
+                   f"　｜　快取5分鐘")
 
     # ── 匯出 CSV 按鈕（直接下載，不需額外套件）
     import io as _io
