@@ -525,13 +525,13 @@ def fetch_market_pe_from_wantgoo():
         {
             "name": "財報狗",
             "url": "https://statementdog.com/taiex",
-            "pattern": r"台股本益比[^\d]{0,20}(\d{1,3}\.\d{1,2})",
+            "pattern": r"台股本益比.{0,300}?(\d{1,3}\.\d{1,2}).{0,50}?倍",
             "referer": "https://statementdog.com/",
         },
         {
             "name": "玩股網",
             "url": "https://www.wantgoo.com/index/0000/price-to-earning-river",
-            "pattern": r"本益比[^\d]{0,20}(\d{1,3}\.\d{1,2})",
+            "pattern": r"本益比.{0,300}?(\d{1,3}\.\d{1,2})",
             "referer": "https://www.wantgoo.com/",
         },
     ]
@@ -551,7 +551,7 @@ def fetch_market_pe_from_wantgoo():
             if resp.status_code != 200:
                 attempts.append(f"{src['name']}: HTTP {resp.status_code}")
                 continue
-            m = _re.search(src["pattern"], resp.text)
+            m = _re.search(src["pattern"], resp.text, _re.DOTALL)
             if not m:
                 attempts.append(f"{src['name']}: 連上但抓不到數字（頁面結構可能已變更）")
                 continue
