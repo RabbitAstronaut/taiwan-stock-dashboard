@@ -9119,15 +9119,29 @@ with tab7:
                 continue
             try:
                 _df_pf, _ok_pf = load_price_csv(_sid)
-                _cp = float(_df_pf["Close"].iloc[-1]) if _ok_pf and not _df_pf.empty else _bp
                 # 同步計算 20MA（供異常變盤因果律共用函數使用）
                 if _ok_pf and not _df_pf.empty and len(_df_pf) >= 20:
                     _ma20_pf = float(pd.to_numeric(_df_pf["Close"], errors="coerce").dropna().tail(20).mean())
                 else:
                     _ma20_pf = None
+                _prev_close = float(_df_pf["Close"].iloc[-1]) if _ok_pf and not _df_pf.empty else _bp
+
+                # 【修正】原本_cp直接讀本機CSV的最後一筆收盤價，但CSV只有排程
+                # 收盤後（每天19:00）才更新，代表盤中查看時，這個「現價」其實是
+                # 前一天的收盤價，不是今天的即時報價——會導致損益/停損停利判斷
+                # 出現嚴重落差（可能誤判觸發停損、不小心出場）。改成優先抓即時
+                # 報價，抓不到才退回CSV前收當備援，並標示價格來源。
+                _live_price, _live_time = fetch_etf_price(_sid)
+                if _live_price and _live_price > 0:
+                    _cp = _live_price
+                    _price_source = f"即時({_live_time})"
+                else:
+                    _cp = _prev_close
+                    _price_source = "前一交易日收盤(即時報價抓取失敗)"
             except Exception:
                 _cp = _bp
                 _ma20_pf = None
+                _price_source = "資料異常，暫用成本價"
 
             _cost   = calc_buy_cost(_bp, _qty)
             _inflow = calc_net_inflow(_cp, _qty)
@@ -9148,6 +9162,7 @@ with tab7:
                 "含費成本": round(_cost, 0), "扣稅實收": round(_inflow, 0),
                 "未實現損益": round(_profit, 0), "ROI%": round(_roi, 2),
                 "📉融資增減%": _margin_chg, "📡外資買超張": _foreign_net,
+                "價格來源": _price_source,
                 "_sl": _sl, "_sp": _sp, "_cp": _cp, "_bp": _bp, "_ma20": _ma20_pf,
                 "_strategy": _pos.get("strategy_type", "LONG"),  # 預設長線
             })
@@ -9263,6 +9278,7 @@ with tab7:
                 _r_bp     = _r["_bp"]
                 _r_sl     = _r["_sl"]
                 _r_sp     = _r.get("_sp", 0)
+                _r_price_source = _r.get("價格來源", "—")
                 _r_profit = _r["未實現損益"]
                 _r_roi    = _r["ROI%"]
                 _r_margin = _r.get("📉融資增減%")
@@ -9393,18 +9409,22 @@ with tab7:
                         if _r_sl > 0 and _r_cp <= _r_sl:
                             st.error(
                                 f"🚨 **{_r_sid} 短線突擊隊強制令：停損觸發**\n\n"
-                                f"現價 **{_r_cp:.2f}** 已跌破停損防線 **{_r_sl:.2f}**！"
+                                f"現價 **{_r_cp:.2f}**（{_r_price_source}）已跌破停損防線 **{_r_sl:.2f}**！"
                                 f"虧損 {abs(_r_profit):,.0f} 元。"
                                 f"**請立刻全數清空平倉，嚴禁抱成長期套牢！**"
+                                + ("\n\n⚠️ 這個價格是前一交易日收盤價，不是即時報價，觸發前建議先確認當下實際股價再行動！"
+                                   if "前一交易日" in _r_price_source else "")
                             )
 
                         # 停利觸發
                         elif _r_sp > 0 and _r_cp >= _r_sp:
                             st.warning(
                                 f"🎯 **{_r_sid} 短線突擊隊提款令：停利觸發**\n\n"
-                                f"現價 **{_r_cp:.2f}** 已達停利目標 **{_r_sp:.2f}**！"
+                                f"現價 **{_r_cp:.2f}**（{_r_price_source}）已達停利目標 **{_r_sp:.2f}**！"
                                 f"獲利 {_r_profit:+,.0f} 元（{_r_roi:+.2f}%）。"
                                 f"**請立刻全數平倉出場，落袋為安！**"
+                                + ("\n\n⚠️ 這個價格是前一交易日收盤價，不是即時報價，觸發前建議先確認當下實際股價再行動！"
+                                   if "前一交易日" in _r_price_source else "")
                             )
 
                         # 籌碼分離警告
@@ -9423,7 +9443,7 @@ with tab7:
                             _lower = _r_sl if _r_sl > 0 else round(_r_bp * 0.95, 2)
                             st.info(
                                 f"⚡ **{_r_sid} 短線游擊｜橫盤監控中**\n\n"
-                                f"現價 {_r_cp:.2f}　{('獲利' if _r_profit >= 0 else '虧損')} "
+                                f"現價 {_r_cp:.2f}（{_r_price_source}）　{('獲利' if _r_profit >= 0 else '虧損')} "
                                 f"{abs(_r_profit):,.0f} 元（{_r_roi:+.2f}%）\n\n"
                                 f"🔴 上方壓力：**{_upper:.2f}**　"
                                 f"🟢 下方防守：**{_lower:.2f}**\n\n"
@@ -12520,27 +12540,47 @@ with tab10:
             # ▌ 本益比估值分析（V7新增：目前PE/歷史百分位/PEG/類股比較/評等）
             #   用 FinMind TaiwanStockPER 一次拿歷史序列，不需要每天累積，
             #   第一次查詢就有完整資料。
+            #   【重要】FinMind的PER是收盤後才結算的，不是盤中即時報價。
+            #   同時顯示「官方PE（前一交易日）」與「即時估算PE（用現在股價
+            #   反推）」，避免盤中股價已經大漲大跌，還在用過時數字判斷。
             # ══════════════════════════════════════════════════════════
             st.markdown("**📐 本益比估值分析**")
             try:
                 with st.spinner("計算估值分析中..."):
                     _val_summary = pe_valuation.build_valuation_summary(_sel)
 
-                if _val_summary["current_pe"] is None:
+                if _val_summary["official_pe"] is None:
                     st.info(f"⚠️ {_val_summary['percentile_status']}"
                             "（可能是興櫃股票或FinMind尚未收錄，不產生假數字）")
                 else:
+                    if _val_summary.get("realtime_pe") is not None:
+                        _chg = _val_summary.get("price_change_pct")
+                        st.info(
+                            f"📡 **即時估算PE：{_val_summary['realtime_pe']}**"
+                            f"（用現在股價 {_val_summary['realtime_price']} 反推，"
+                            f"較{_val_summary['official_pe_date']}收盤"
+                            f"{'{:+.2f}'.format(_chg) if _chg is not None else '—'}%）"
+                            f"　｜　官方PE（{_val_summary['official_pe_date']}收盤）：{_val_summary['official_pe']}"
+                        )
+                    else:
+                        st.caption(f"⚠️ 無法計算即時估算PE，以下數字為{_val_summary['official_pe_date']}"
+                                   f"（前一交易日）收盤數字，非即時報價：{_val_summary.get('realtime_note','')}")
+
                     _v1, _v2, _v3, _v4, _v5 = st.columns(5)
-                    _v1.metric("目前PE", f"{_val_summary['current_pe']}")
-                    _v2.metric("歷史百分位",
-                               f"{_val_summary['percentile']}%" if _val_summary["percentile"] is not None else "—")
+                    _v1.metric("官方PE(前收)", f"{_val_summary['official_pe']}")
+                    _v2.metric("歷史百分位(即時)",
+                               f"{_val_summary['realtime_percentile']}%"
+                               if _val_summary.get("realtime_percentile") is not None else "—")
                     _v3.metric("PE均值", f"{_val_summary['pe_mean']}")
                     _v4.metric("PE前值", f"{_val_summary['pe_previous']}")
                     _v5.metric("類股PE", f"{_val_summary['industry_pe_mean']}"
                                if _val_summary["industry_pe_mean"] is not None else "—")
 
-                    st.markdown(f"**系統評等：{_val_summary['rating_label']}**")
-                    if _val_summary["percentile"] is None:
+                    st.markdown(f"**系統評等：{_val_summary['rating_label']}**　"
+                                f"<span style='font-size:.8rem;color:#7fb3d3;'>"
+                                f"（依即時估算PE評等，不是用昨天的前收數字）</span>",
+                                unsafe_allow_html=True)
+                    if _val_summary.get("realtime_percentile") is None:
                         st.caption(f"⚠️ {_val_summary['percentile_status']}")
 
                     _peg_txt = (f"PEG {_val_summary['peg']}（EPS年增{_val_summary['eps_yoy']}%）"
@@ -12548,10 +12588,10 @@ with tab10:
                     _ind_txt = (f"類股PE取樣{_val_summary['industry_peer_count']}檔同Topic公司"
                                 if _val_summary["industry_pe_mean"] is not None else _val_summary["industry_status"])
                     st.caption(f"{_peg_txt}　｜　{_ind_txt}")
-                    st.caption(f"資料日期：{_val_summary['data_as_of']}　"
+                    st.caption(f"官方PE資料日期：{_val_summary['official_pe_date']}　"
                                f"樣本數：{_val_summary['sample_size']}天　"
                                f"來源：FinMind TaiwanStockPER（A級，官方轉載）"
-                               f"／百分位PEG類股比較為系統衍生計算（C級）")
+                               f"／即時估算PE、百分位、PEG、類股比較為系統衍生計算（C級）")
             except Exception as _val_e:
                 st.caption(f"本益比估值分析計算時發生問題：{_val_e}")
 

@@ -47,7 +47,7 @@ def run():
 
     # ── 百分位計算
     result = pv.calculate_pe_percentile("2330")
-    check("目前PE正確抓到最新值(25.0)", result["current_pe"] == 25.0)
+    check("目前PE正確抓到最新值(25.0)", result["official_pe"] == 25.0)
     check("樣本數=100", result["sample_size"] == 100)
     check("百分位有算出來(樣本數足夠)", result["percentile"] is not None)
     check("均值有算出來", result["mean"] is not None)
@@ -69,7 +69,7 @@ def run():
 
     # ── 查無資料的股票
     result_none = pv.calculate_pe_percentile("00000")
-    check("查無資料時current_pe=None", result_none["current_pe"] is None)
+    check("查無資料時current_pe=None", result_none["official_pe"] is None)
     check("查無資料時status有說明", result_none["status"] == "查無本益比歷史資料")
 
     # ── 評等分類
@@ -108,9 +108,39 @@ def run():
 
     # ── 整合摘要
     summary = pv.build_valuation_summary("2330")
-    check("摘要包含目前PE", summary["current_pe"] == 25.0)
+    check("摘要包含目前PE", summary["official_pe"] == 25.0)
     check("摘要包含PEG", summary["peg"] == 1.0)
     check("摘要包含評等星數", summary["rating_stars"] in (0, 1, 2, 3, 4, 5))
+
+    # ── 即時反推PE計算邏輯（用mock取代yfinance，驗證數學公式正確）
+    import unittest.mock as mock
+    with open(pv.PE_CACHE_PATH, "w", encoding="utf-8") as f:
+        json.dump(fake_cache, f)  # 2330的PE快取：最新值25.0
+
+    class FakeHist:
+        def __init__(self, close_val):
+            self.empty = False
+            import pandas as _pd
+            self._df = _pd.DataFrame({"Close": [close_val]})
+        def __getitem__(self, key):
+            return self._df[key]
+
+    class FakeTicker:
+        def __init__(self, symbol):
+            self.symbol = symbol
+        def history(self, **kwargs):
+            # 昨天收盤價100元；即時股價103元（漲3%）
+            if kwargs.get("start"):
+                return FakeHist(100.0)  # 官方PE基準日的收盤價
+            return FakeHist(103.0)  # 即時股價
+
+    fake_yf = mock.MagicMock()
+    fake_yf.Ticker = FakeTicker
+    with mock.patch.dict("sys.modules", {"yfinance": fake_yf}):
+        rt_result = pv.get_realtime_adjusted_pe("2330")
+        check("即時反推PE：官方PE25×(103/100)=25.75", rt_result["realtime_pe"] == 25.75)
+        check("即時反推PE：股價漲幅正確算出+3.0%", rt_result["price_change_pct"] == 3.0)
+        check("即時反推PE：有說明文字", rt_result["note"] is not None and "反推" in rt_result["note"])
 
     shutil.rmtree(tmpdir, ignore_errors=True)
     print(f"\n{passed} 通過, {failed} 失敗")
