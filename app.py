@@ -29,6 +29,7 @@ import industry_engine  # V7 攻擊引擎：自動產業情報層（見 industry
 import stock_decision   # V7 統一決策資料結構：王者品質/研究優先分/攻擊時機分分開（見 stock_decision.py）
 import leveraged_etf    # V7 槓桿ETF觀察與模擬（見 leveraged_etf.py）
 import direction_strategy  # V7 台股方向型ETF策略：正2/反1/現金（見 direction_strategy.py）
+import pe_valuation      # V7 個股本益比估值模組：目前PE/歷史百分位/PEG/類股比較（見 pe_valuation.py）
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 
@@ -9103,6 +9104,10 @@ with tab7:
 
         # 一次性讀取全市場籌碼事實（快取5分鐘，不重複IO）
         _chips_map = get_chips_facts_map()
+        # 【修正】下面迴圈裡呼叫 _gc.collect()，但這個作用域從沒import過gc，
+        # 是既有程式碼的舊bug（_gc 之前只在另一個函式的區域作用域裡匯入過，
+        # 這裡完全不同的作用域看不到那個名稱），補上避免NameError。
+        import gc as _gc
 
         for _sid, _pos in _pf.items():
             _bp  = float(_pos.get("buy_price", 0))
@@ -12508,6 +12513,47 @@ with tab10:
                     )
             except Exception as _cf_outer_e:
                 st.caption(f"個股基本面證據計算時發生問題：{_cf_outer_e}")
+
+            st.divider()
+
+            # ══════════════════════════════════════════════════════════
+            # ▌ 本益比估值分析（V7新增：目前PE/歷史百分位/PEG/類股比較/評等）
+            #   用 FinMind TaiwanStockPER 一次拿歷史序列，不需要每天累積，
+            #   第一次查詢就有完整資料。
+            # ══════════════════════════════════════════════════════════
+            st.markdown("**📐 本益比估值分析**")
+            try:
+                with st.spinner("計算估值分析中..."):
+                    _val_summary = pe_valuation.build_valuation_summary(_sel)
+
+                if _val_summary["current_pe"] is None:
+                    st.info(f"⚠️ {_val_summary['percentile_status']}"
+                            "（可能是興櫃股票或FinMind尚未收錄，不產生假數字）")
+                else:
+                    _v1, _v2, _v3, _v4, _v5 = st.columns(5)
+                    _v1.metric("目前PE", f"{_val_summary['current_pe']}")
+                    _v2.metric("歷史百分位",
+                               f"{_val_summary['percentile']}%" if _val_summary["percentile"] is not None else "—")
+                    _v3.metric("PE均值", f"{_val_summary['pe_mean']}")
+                    _v4.metric("PE前值", f"{_val_summary['pe_previous']}")
+                    _v5.metric("類股PE", f"{_val_summary['industry_pe_mean']}"
+                               if _val_summary["industry_pe_mean"] is not None else "—")
+
+                    st.markdown(f"**系統評等：{_val_summary['rating_label']}**")
+                    if _val_summary["percentile"] is None:
+                        st.caption(f"⚠️ {_val_summary['percentile_status']}")
+
+                    _peg_txt = (f"PEG {_val_summary['peg']}（EPS年增{_val_summary['eps_yoy']}%）"
+                                if _val_summary["peg"] is not None else f"PEG：{_val_summary['peg_status']}")
+                    _ind_txt = (f"類股PE取樣{_val_summary['industry_peer_count']}檔同Topic公司"
+                                if _val_summary["industry_pe_mean"] is not None else _val_summary["industry_status"])
+                    st.caption(f"{_peg_txt}　｜　{_ind_txt}")
+                    st.caption(f"資料日期：{_val_summary['data_as_of']}　"
+                               f"樣本數：{_val_summary['sample_size']}天　"
+                               f"來源：FinMind TaiwanStockPER（A級，官方轉載）"
+                               f"／百分位PEG類股比較為系統衍生計算（C級）")
+            except Exception as _val_e:
+                st.caption(f"本益比估值分析計算時發生問題：{_val_e}")
 
             st.divider()
 
