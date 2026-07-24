@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-07-23",
-  "count": 85,
+  "updated_at": "2026-07-24",
+  "count": 81,
   "data": [
     {
       "stock_id": "00400A",
@@ -275,26 +275,10 @@
       "market": "上市"
     },
     {
-      "stock_id": "2449",
-      "name": "京元電子",
-      "ex_date": "2026-07-23",
-      "cash_div": 1.0,
-      "stock_div": 0.5,
-      "market": "上市"
-    },
-    {
       "stock_id": "2482",
       "name": "連宇",
       "ex_date": "2026-07-24",
       "cash_div": 0.1,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2497",
-      "name": "怡利電",
-      "ex_date": "2026-07-23",
-      "cash_div": 2.0,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -395,6 +379,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "3033",
+      "name": "威健",
+      "ex_date": "2026-08-03",
+      "cash_div": 1.91985618,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "3050",
       "name": "鈺德",
       "ex_date": "2026-08-10",
@@ -407,6 +399,14 @@
       "name": "力特",
       "ex_date": "2026-07-29",
       "cash_div": 0.5,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "3376",
+      "name": "新日興",
+      "ex_date": "2026-08-03",
+      "cash_div": 1.99983254,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -523,14 +523,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "5876",
-      "name": "上海商銀",
-      "ex_date": "2026-07-23",
-      "cash_div": 1.8,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "6024",
       "name": "群益期",
       "ex_date": "2026-07-28",
@@ -559,14 +551,6 @@
       "name": "力成",
       "ex_date": "2026-07-27",
       "cash_div": 4.5,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "6416",
-      "name": "瑞祺電通",
-      "ex_date": "2026-07-23",
-      "cash_div": 2.8,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -603,14 +587,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "6757",
-      "name": "台灣虎航",
-      "ex_date": "2026-07-23",
-      "cash_div": 2.42027,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "6957",
       "name": "裕慶-KY",
       "ex_date": "2026-07-29",
@@ -631,14 +607,6 @@
       "name": "鴻勁",
       "ex_date": "2026-07-27",
       "cash_div": 54.99174679,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "7786",
-      "name": "東方風能",
-      "ex_date": "2026-07-23",
-      "cash_div": 5.6,
       "stock_div": 0.0,
       "market": "上市"
     },
