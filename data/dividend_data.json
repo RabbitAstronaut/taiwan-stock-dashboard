@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-07-30",
-  "count": 56,
+  "updated_at": "2026-07-31",
+  "count": 43,
   "data": [
     {
       "stock_id": "00400A",
@@ -15,30 +15,6 @@
       "name": "元大台灣價值高息",
       "ex_date": "2026-08-06",
       "cash_div": 0.05,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00946",
-      "name": "群益科技高息成長",
-      "ex_date": "2026-07-30",
-      "cash_div": 0.058,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00953B",
-      "name": "群益優選非投等債",
-      "ex_date": "2026-07-30",
-      "cash_div": 0.061,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00985B",
-      "name": "群益ESG投等債0-5",
-      "ex_date": "2026-07-30",
-      "cash_div": 0.048,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -75,14 +51,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "1474",
-      "name": "弘裕",
-      "ex_date": "2026-07-30",
-      "cash_div": 0.25,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "1519",
       "name": "華城",
       "ex_date": "2026-07-31",
@@ -115,30 +83,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "1736",
-      "name": "喬山",
-      "ex_date": "2026-07-30",
-      "cash_div": 4.5,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2348",
-      "name": "海悅",
-      "ex_date": "2026-07-30",
-      "cash_div": 5.0,
-      "stock_div": 0.5,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2351",
-      "name": "順德",
-      "ex_date": "2026-07-30",
-      "cash_div": 1.02883915,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "2375",
       "name": "凱美",
       "ex_date": "2026-08-03",
@@ -147,18 +91,18 @@
       "market": "上市"
     },
     {
-      "stock_id": "2393",
-      "name": "億光",
-      "ex_date": "2026-07-30",
-      "cash_div": 4.14,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "2427",
       "name": "三商電",
       "ex_date": "2026-07-31",
       "cash_div": 0.7,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2476",
+      "name": "鉅祥",
+      "ex_date": "2026-08-10",
+      "cash_div": 1.48656425,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -175,14 +119,6 @@
       "name": "愛山林",
       "ex_date": "2026-08-05",
       "cash_div": 0.62,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2543",
-      "name": "皇昌",
-      "ex_date": "2026-07-30",
-      "cash_div": 1.02767802,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -211,27 +147,19 @@
       "market": "上市"
     },
     {
-      "stock_id": "2812",
-      "name": "台中銀",
-      "ex_date": "2026-07-30",
-      "cash_div": 0.39,
-      "stock_div": 0.67,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2834",
-      "name": "臺企銀",
-      "ex_date": "2026-07-30",
-      "cash_div": 0.3,
-      "stock_div": 0.7,
-      "market": "上市"
-    },
-    {
       "stock_id": "2880",
       "name": "華南金",
       "ex_date": "2026-08-10",
       "cash_div": 1.35,
       "stock_div": 0.1,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2886",
+      "name": "兆豐金",
+      "ex_date": "2026-08-10",
+      "cash_div": 1.75,
+      "stock_div": 0.0,
       "market": "上市"
     },
     {
@@ -299,34 +227,10 @@
       "market": "上市"
     },
     {
-      "stock_id": "3533",
-      "name": "嘉澤",
-      "ex_date": "2026-07-30",
-      "cash_div": 34.93436024,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "3545",
-      "name": "敦泰",
-      "ex_date": "2026-07-30",
-      "cash_div": 1.73605625,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "3605",
       "name": "宏致",
       "ex_date": "2026-08-07",
       "cash_div": 1.57203283,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "4190",
-      "name": "佐登-KY",
-      "ex_date": "2026-07-30",
-      "cash_div": 0.4999533,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -343,6 +247,14 @@
       "name": "光隆精密-KY",
       "ex_date": "2026-08-07",
       "cash_div": 3.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "5203",
+      "name": "訊連",
+      "ex_date": "2026-08-07",
+      "cash_div": 3.69309235,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -379,6 +291,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "6117",
+      "name": "迎廣",
+      "ex_date": "2026-08-10",
+      "cash_div": 0.49986047,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "6201",
       "name": "亞弘電",
       "ex_date": "2026-07-31",
@@ -387,10 +307,10 @@
       "market": "上市"
     },
     {
-      "stock_id": "6209",
-      "name": "今國光",
-      "ex_date": "2026-07-30",
-      "cash_div": 0.49568725,
+      "stock_id": "6202",
+      "name": "盛群",
+      "ex_date": "2026-08-10",
+      "cash_div": 0.68,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -403,26 +323,10 @@
       "market": "上市"
     },
     {
-      "stock_id": "6743",
-      "name": "安普新",
-      "ex_date": "2026-07-30",
-      "cash_div": 0.3,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "6869",
       "name": "雲豹能源",
       "ex_date": "2026-08-05",
       "cash_div": 2.0,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "8404",
-      "name": "百和興業-KY",
-      "ex_date": "2026-07-30",
-      "cash_div": 0.5,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -439,14 +343,6 @@
       "name": "美利達",
       "ex_date": "2026-08-03",
       "cash_div": 2.8,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "9938",
-      "name": "百和",
-      "ex_date": "2026-07-30",
-      "cash_div": 3.0,
       "stock_div": 0.0,
       "market": "上市"
     }
