@@ -1,15 +1,7 @@
 {
-  "updated_at": "2026-07-31",
-  "count": 43,
+  "updated_at": "2026-08-03",
+  "count": 38,
   "data": [
-    {
-      "stock_id": "00400A",
-      "name": "主動國泰動能高息",
-      "ex_date": "2026-07-31",
-      "cash_div": 0.12,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
     {
       "stock_id": "00940",
       "name": "元大台灣價值高息",
@@ -27,18 +19,18 @@
       "market": "上市"
     },
     {
-      "stock_id": "1419",
-      "name": "新紡",
-      "ex_date": "2026-08-03",
-      "cash_div": 1.8,
+      "stock_id": "1339",
+      "name": "昭輝",
+      "ex_date": "2026-08-24",
+      "cash_div": 2.5,
       "stock_div": 0.0,
       "market": "上市"
     },
     {
-      "stock_id": "1437",
-      "name": "勤益控",
-      "ex_date": "2026-07-31",
-      "cash_div": 0.48119183,
+      "stock_id": "1419",
+      "name": "新紡",
+      "ex_date": "2026-08-03",
+      "cash_div": 1.8,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -48,14 +40,6 @@
       "ex_date": "2026-08-03",
       "cash_div": 0.5,
       "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "1519",
-      "name": "華城",
-      "ex_date": "2026-07-31",
-      "cash_div": 11.0,
-      "stock_div": 1.0,
       "market": "上市"
     },
     {
@@ -87,14 +71,6 @@
       "name": "凱美",
       "ex_date": "2026-08-03",
       "cash_div": 1.2,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2427",
-      "name": "三商電",
-      "ex_date": "2026-07-31",
-      "cash_div": 0.7,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -136,14 +112,6 @@
       "ex_date": "2026-08-03",
       "cash_div": 1.80585868,
       "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2801",
-      "name": "彰銀",
-      "ex_date": "2026-07-31",
-      "cash_div": 0.8,
-      "stock_div": 0.25,
       "market": "上市"
     },
     {
@@ -295,14 +263,6 @@
       "name": "迎廣",
       "ex_date": "2026-08-10",
       "cash_div": 0.49986047,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "6201",
-      "name": "亞弘電",
-      "ex_date": "2026-07-31",
-      "cash_div": 3.1,
       "stock_div": 0.0,
       "market": "上市"
     },
