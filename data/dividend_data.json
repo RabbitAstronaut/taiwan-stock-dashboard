@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-08-05",
-  "count": 69,
+  "updated_at": "2026-08-06",
+  "count": 74,
   "data": [
     {
       "stock_id": "00401A",
@@ -31,6 +31,14 @@
       "name": "富邦臺灣優質高息",
       "ex_date": "2026-08-13",
       "cash_div": 0.11,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00731",
+      "name": "復華富時高息低波",
+      "ex_date": "2026-08-14",
+      "cash_div": 0.752,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -119,6 +127,14 @@
       "name": "群益台ESG低碳50",
       "ex_date": "2026-08-13",
       "cash_div": 1.71,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00929",
+      "name": "復華台灣科技優息",
+      "ex_date": "2026-08-14",
+      "cash_div": 0.38,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -235,6 +251,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "009808",
+      "name": "華南永昌優選50",
+      "ex_date": "2026-08-13",
+      "cash_div": 0.57,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "00980A",
       "name": "主動野村臺灣優選",
       "ex_date": "2026-08-13",
@@ -315,10 +339,50 @@
       "market": "上市"
     },
     {
+      "stock_id": "1737",
+      "name": "臺鹽",
+      "ex_date": "2026-08-19",
+      "cash_div": 1.4,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2201",
+      "name": "裕隆",
+      "ex_date": "2026-08-20",
+      "cash_div": 0.56,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "2231",
       "name": "為升",
       "ex_date": "2026-08-12",
       "cash_div": 2.0735739,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2301",
+      "name": "光寶科",
+      "ex_date": "2026-08-14",
+      "cash_div": 2.5,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2363",
+      "name": "矽統",
+      "ex_date": "2026-08-14",
+      "cash_div": 0.60588248,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2374",
+      "name": "佳能",
+      "ex_date": "2026-08-14",
+      "cash_div": 1.99166417,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -363,30 +427,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "2520",
-      "name": "冠德",
-      "ex_date": "2026-08-05",
-      "cash_div": 1.61593395,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2540",
-      "name": "愛山林",
-      "ex_date": "2026-08-05",
-      "cash_div": 0.62,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2546",
-      "name": "根基",
-      "ex_date": "2026-08-05",
-      "cash_div": 4.8,
-      "stock_div": 1.2,
-      "market": "上市"
-    },
-    {
       "stock_id": "2880",
       "name": "華南金",
       "ex_date": "2026-08-10",
@@ -419,18 +459,18 @@
       "market": "上市"
     },
     {
-      "stock_id": "3022",
-      "name": "威強電",
-      "ex_date": "2026-08-13",
-      "cash_div": 3.5,
+      "stock_id": "3017",
+      "name": "奇鋐",
+      "ex_date": "2026-08-14",
+      "cash_div": 17.89851786,
       "stock_div": 0.0,
       "market": "上市"
     },
     {
-      "stock_id": "3023",
-      "name": "信邦",
-      "ex_date": "2026-08-05",
-      "cash_div": 9.1,
+      "stock_id": "3022",
+      "name": "威強電",
+      "ex_date": "2026-08-13",
+      "cash_div": 3.5,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -515,6 +555,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "6177",
+      "name": "達麗",
+      "ex_date": "2026-08-17",
+      "cash_div": 3.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "6202",
       "name": "盛群",
       "ex_date": "2026-08-10",
@@ -539,18 +587,10 @@
       "market": "上市"
     },
     {
-      "stock_id": "6869",
-      "name": "雲豹能源",
-      "ex_date": "2026-08-05",
-      "cash_div": 2.0,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "8478",
-      "name": "東哥遊艇",
-      "ex_date": "2026-08-05",
-      "cash_div": 6.5,
+      "stock_id": "6805",
+      "name": "富世達",
+      "ex_date": "2026-08-17",
+      "cash_div": 10.5,
       "stock_div": 0.0,
       "market": "上市"
     }
