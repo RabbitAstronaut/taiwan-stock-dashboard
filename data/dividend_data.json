@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-08-07",
-  "count": 74,
+  "updated_at": "2026-08-10",
+  "count": 75,
   "data": [
     {
       "stock_id": "00401A",
@@ -323,6 +323,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "1597",
+      "name": "直得",
+      "ex_date": "2026-08-17",
+      "cash_div": 0.7,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "1618",
       "name": "合機",
       "ex_date": "2026-08-12",
@@ -343,6 +351,14 @@
       "name": "臺鹽",
       "ex_date": "2026-08-19",
       "cash_div": 1.4,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2012",
+      "name": "春雨",
+      "ex_date": "2026-08-20",
+      "cash_div": 0.3,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -399,6 +415,14 @@
       "name": "台光電",
       "ex_date": "2026-08-25",
       "cash_div": 25.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2458",
+      "name": "義隆",
+      "ex_date": "2026-08-18",
+      "cash_div": 4.426,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -491,26 +515,10 @@
       "market": "上市"
     },
     {
-      "stock_id": "3605",
-      "name": "宏致",
-      "ex_date": "2026-08-07",
-      "cash_div": 1.57203283,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "4569",
-      "name": "六方科-KY",
-      "ex_date": "2026-08-07",
-      "cash_div": 4.07948414,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "4581",
-      "name": "光隆精密-KY",
-      "ex_date": "2026-08-07",
-      "cash_div": 3.0,
+      "stock_id": "4441",
+      "name": "振大環球",
+      "ex_date": "2026-08-17",
+      "cash_div": 10.8,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -527,14 +535,6 @@
       "name": "十銓",
       "ex_date": "2026-08-12",
       "cash_div": 3.4479617,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "5203",
-      "name": "訊連",
-      "ex_date": "2026-08-07",
-      "cash_div": 3.69309235,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -567,6 +567,14 @@
       "name": "康舒",
       "ex_date": "2026-08-12",
       "cash_div": 0.30005591,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "6666",
+      "name": "羅麗芬-KY",
+      "ex_date": "2026-08-17",
+      "cash_div": 2.0,
       "stock_div": 0.0,
       "market": "上市"
     },
