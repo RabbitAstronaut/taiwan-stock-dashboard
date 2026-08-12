@@ -1,15 +1,7 @@
 {
-  "updated_at": "2026-08-11",
-  "count": 73,
+  "updated_at": "2026-08-12",
+  "count": 77,
   "data": [
-    {
-      "stock_id": "00401A",
-      "name": "主動摩根台灣鑫收",
-      "ex_date": "2026-08-11",
-      "cash_div": null,
-      "stock_div": null,
-      "market": "上市"
-    },
     {
       "stock_id": "00690",
       "name": "兆豐藍籌30",
@@ -323,6 +315,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "1583",
+      "name": "程泰",
+      "ex_date": "2026-08-21",
+      "cash_div": 0.1,
+      "stock_div": 0.9,
+      "market": "上市"
+    },
+    {
       "stock_id": "1597",
       "name": "直得",
       "ex_date": "2026-08-17",
@@ -343,6 +343,14 @@
       "name": "和桐",
       "ex_date": "2026-08-17",
       "cash_div": 0.18,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "1722",
+      "name": "台肥",
+      "ex_date": "2026-08-20",
+      "cash_div": 2.0,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -443,6 +451,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "2468",
+      "name": "華經",
+      "ex_date": "2026-08-19",
+      "cash_div": 1.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "2472",
       "name": "立隆電",
       "ex_date": "2026-08-17",
@@ -531,6 +547,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "5534",
+      "name": "長虹",
+      "ex_date": "2026-08-20",
+      "cash_div": 5.063943,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "6177",
       "name": "達麗",
       "ex_date": "2026-08-17",
@@ -575,6 +599,14 @@
       "name": "富世達",
       "ex_date": "2026-08-17",
       "cash_div": 10.5,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "6873",
+      "name": "泓德能源",
+      "ex_date": "2026-08-20",
+      "cash_div": 2.53772939,
       "stock_div": 0.0,
       "market": "上市"
     },
