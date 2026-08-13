@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-08-12",
-  "count": 77,
+  "updated_at": "2026-08-13",
+  "count": 74,
   "data": [
     {
       "stock_id": "00690",
@@ -14,7 +14,7 @@
       "stock_id": "00701",
       "name": "國泰股利精選30",
       "ex_date": "2026-08-13",
-      "cash_div": 1.8,
+      "cash_div": 1.6,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -43,14 +43,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00775B",
-      "name": "台新投等債15+",
-      "ex_date": "2026-08-12",
-      "cash_div": 0.35,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00850",
       "name": "元大臺灣ESG永續",
       "ex_date": "2026-08-18",
@@ -62,7 +54,7 @@
       "stock_id": "00878",
       "name": "國泰永續高股息",
       "ex_date": "2026-08-13",
-      "cash_div": 0.66,
+      "cash_div": 1.01,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -70,7 +62,7 @@
       "stock_id": "00881",
       "name": "國泰台灣科技龍頭",
       "ex_date": "2026-08-13",
-      "cash_div": 0.55,
+      "cash_div": 4.6,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -147,14 +139,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00936",
-      "name": "台新永續高息中小",
-      "ex_date": "2026-08-12",
-      "cash_div": 0.12,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00938",
       "name": "凱基優選30",
       "ex_date": "2026-08-13",
@@ -199,14 +183,6 @@
       "name": "FT臺灣永續高息",
       "ex_date": "2026-08-13",
       "cash_div": 0.19,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00962",
-      "name": "台新AI優息動能",
-      "ex_date": "2026-08-12",
-      "cash_div": 0.08,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -299,14 +275,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "1477",
-      "name": "聚陽",
-      "ex_date": "2026-08-12",
-      "cash_div": 6.0,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "1537",
       "name": "廣隆",
       "ex_date": "2026-08-14",
@@ -327,14 +295,6 @@
       "name": "直得",
       "ex_date": "2026-08-17",
       "cash_div": 0.7,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "1618",
-      "name": "合機",
-      "ex_date": "2026-08-12",
-      "cash_div": 1.5,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -375,14 +335,6 @@
       "name": "裕隆",
       "ex_date": "2026-08-20",
       "cash_div": 0.56,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2231",
-      "name": "為升",
-      "ex_date": "2026-08-12",
-      "cash_div": 2.0735739,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -439,6 +391,14 @@
       "name": "新巨",
       "ex_date": "2026-08-21",
       "cash_div": 3.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2428",
+      "name": "興勤",
+      "ex_date": "2026-08-24",
+      "cash_div": 5.9,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -539,14 +499,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "4967",
-      "name": "十銓",
-      "ex_date": "2026-08-12",
-      "cash_div": 3.4479617,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "5534",
       "name": "長虹",
       "ex_date": "2026-08-20",
@@ -563,10 +515,10 @@
       "market": "上市"
     },
     {
-      "stock_id": "6282",
-      "name": "康舒",
-      "ex_date": "2026-08-12",
-      "cash_div": 0.30005591,
+      "stock_id": "6216",
+      "name": "居易",
+      "ex_date": "2026-08-21",
+      "cash_div": 0.53225667,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -611,10 +563,34 @@
       "market": "上市"
     },
     {
+      "stock_id": "6914",
+      "name": "阜爾運通",
+      "ex_date": "2026-08-21",
+      "cash_div": 6.0,
+      "stock_div": 2.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "8442",
+      "name": "威宏-KY",
+      "ex_date": "2026-08-21",
+      "cash_div": 3.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "9921",
       "name": "巨大",
       "ex_date": "2026-08-20",
       "cash_div": 1.81855357,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "9946",
+      "name": "三發地產",
+      "ex_date": "2026-08-24",
+      "cash_div": 1.38388807,
       "stock_div": 0.0,
       "market": "上市"
     }
