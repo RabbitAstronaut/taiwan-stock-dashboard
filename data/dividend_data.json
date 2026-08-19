@@ -1,20 +1,12 @@
 {
-  "updated_at": "2026-08-18",
-  "count": 56,
+  "updated_at": "2026-08-19",
+  "count": 66,
   "data": [
     {
-      "stock_id": "00771",
-      "name": "元大US高息特別股",
-      "ex_date": "2026-08-18",
-      "cash_div": 0.21,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00850",
-      "name": "元大臺灣ESG永續",
-      "ex_date": "2026-08-18",
-      "cash_div": 0.85,
+      "stock_id": "00406A",
+      "name": "主動中信台灣收益",
+      "ex_date": "2026-08-28",
+      "cash_div": 0.128,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -23,6 +15,22 @@
       "name": "永豐優息存股",
       "ex_date": "2026-08-20",
       "cash_div": 0.205,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00939",
+      "name": "統一台灣高息動能",
+      "ex_date": "2026-08-27",
+      "cash_div": 0.125,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00946",
+      "name": "群益科技高息成長",
+      "ex_date": "2026-08-28",
+      "cash_div": 0.058,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -115,6 +123,22 @@
       "market": "上市"
     },
     {
+      "stock_id": "1783",
+      "name": "和康生",
+      "ex_date": "2026-08-27",
+      "cash_div": 1.99959865,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "1795",
+      "name": "美時",
+      "ex_date": "2026-08-26",
+      "cash_div": 2.56531681,
+      "stock_div": 0.1300671182,
+      "market": "上市"
+    },
+    {
       "stock_id": "2012",
       "name": "春雨",
       "ex_date": "2026-08-20",
@@ -135,6 +159,14 @@
       "name": "世紀風電",
       "ex_date": "2026-08-25",
       "cash_div": 6.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2101",
+      "name": "南港",
+      "ex_date": "2026-08-25",
+      "cash_div": 0.6,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -219,14 +251,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "2458",
-      "name": "義隆",
-      "ex_date": "2026-08-18",
-      "cash_div": 4.426,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "2468",
       "name": "華經",
       "ex_date": "2026-08-19",
@@ -259,6 +283,22 @@
       "market": "上市"
     },
     {
+      "stock_id": "2845",
+      "name": "遠東銀",
+      "ex_date": "2026-08-28",
+      "cash_div": 0.514,
+      "stock_div": 0.1195,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2889",
+      "name": "國票金",
+      "ex_date": "2026-08-27",
+      "cash_div": 0.5,
+      "stock_div": 0.0890000002,
+      "market": "上市"
+    },
+    {
       "stock_id": "2901",
       "name": "欣欣",
       "ex_date": "2026-08-24",
@@ -288,6 +328,14 @@
       "ex_date": "2026-08-27",
       "cash_div": 0.6,
       "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "3135",
+      "name": "凌航",
+      "ex_date": "2026-08-27",
+      "cash_div": 3.25858436,
+      "stock_div": 0.4768659726,
       "market": "上市"
     },
     {
@@ -327,6 +375,14 @@
       "name": "台耀",
       "ex_date": "2026-08-19",
       "cash_div": 3.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "5243",
+      "name": "乙盛-KY",
+      "ex_date": "2026-09-09",
+      "cash_div": 2.2,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -379,6 +435,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "6534",
+      "name": "正瀚-創",
+      "ex_date": "2026-08-27",
+      "cash_div": 1.00850125,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "6770",
       "name": "力積電",
       "ex_date": "2026-08-24",
@@ -411,6 +475,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "7780",
+      "name": "大研生醫*",
+      "ex_date": "2026-08-31",
+      "cash_div": 0.11658854,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "7822",
       "name": "倍利科",
       "ex_date": "2026-08-25",
@@ -440,6 +512,14 @@
       "ex_date": "2026-08-20",
       "cash_div": 1.81855357,
       "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "9941",
+      "name": "裕融",
+      "ex_date": "2026-08-27",
+      "cash_div": 4.38,
+      "stock_div": 0.2,
       "market": "上市"
     },
     {
