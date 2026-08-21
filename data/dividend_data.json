@@ -1,20 +1,12 @@
 {
-  "updated_at": "2026-08-20",
-  "count": 68,
+  "updated_at": "2026-08-21",
+  "count": 64,
   "data": [
     {
       "stock_id": "00406A",
       "name": "主動中信台灣收益",
       "ex_date": "2026-08-28",
       "cash_div": 0.128,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00907",
-      "name": "永豐優息存股",
-      "ex_date": "2026-08-20",
-      "cash_div": 0.205,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -115,14 +107,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "1722",
-      "name": "台肥",
-      "ex_date": "2026-08-20",
-      "cash_div": 2.0,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "1732",
       "name": "毛寶",
       "ex_date": "2026-08-27",
@@ -147,14 +131,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "2012",
-      "name": "春雨",
-      "ex_date": "2026-08-20",
-      "cash_div": 0.3,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "2059",
       "name": "川湖",
       "ex_date": "2026-08-24",
@@ -175,14 +151,6 @@
       "name": "南港",
       "ex_date": "2026-08-25",
       "cash_div": 0.6,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2201",
-      "name": "裕隆",
-      "ex_date": "2026-08-20",
-      "cash_div": 0.56,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -247,6 +215,14 @@
       "name": "超豐",
       "ex_date": "2026-08-24",
       "cash_div": 3.00907728,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2464",
+      "name": "盟立",
+      "ex_date": "2026-08-28",
+      "cash_div": 0.23570187,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -347,6 +323,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "3661",
+      "name": "世芯-KY",
+      "ex_date": "2026-08-31",
+      "cash_div": 32.55165664,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "3702",
       "name": "大聯大",
       "ex_date": "2026-08-24",
@@ -384,14 +368,6 @@
       "ex_date": "2026-08-25",
       "cash_div": 0.2,
       "stock_div": 1.6,
-      "market": "上市"
-    },
-    {
-      "stock_id": "5534",
-      "name": "長虹",
-      "ex_date": "2026-08-20",
-      "cash_div": 5.063943,
-      "stock_div": 0.0,
       "market": "上市"
     },
     {
@@ -467,14 +443,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "6873",
-      "name": "泓德能源",
-      "ex_date": "2026-08-20",
-      "cash_div": 2.53772939,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "6914",
       "name": "阜爾運通",
       "ex_date": "2026-08-21",
@@ -515,19 +483,19 @@
       "market": "上市"
     },
     {
-      "stock_id": "9105",
-      "name": "泰金寶-DR",
-      "ex_date": "2026-08-26",
+      "stock_id": "8466",
+      "name": "美吉吉-KY",
+      "ex_date": "2026-08-31",
       "cash_div": null,
       "stock_div": null,
       "market": "上市"
     },
     {
-      "stock_id": "9921",
-      "name": "巨大",
-      "ex_date": "2026-08-20",
-      "cash_div": 1.81855357,
-      "stock_div": 0.0,
+      "stock_id": "9105",
+      "name": "泰金寶-DR",
+      "ex_date": "2026-08-26",
+      "cash_div": null,
+      "stock_div": null,
       "market": "上市"
     },
     {
