@@ -1,7 +1,15 @@
 {
-  "updated_at": "2026-08-21",
-  "count": 64,
+  "updated_at": "2026-08-24",
+  "count": 60,
   "data": [
+    {
+      "stock_id": "00400A",
+      "name": "主動國泰動能高息",
+      "ex_date": "2026-09-02",
+      "cash_div": 0.12,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
     {
       "stock_id": "00406A",
       "name": "主動中信台灣收益",
@@ -91,14 +99,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "1583",
-      "name": "程泰",
-      "ex_date": "2026-08-21",
-      "cash_div": 0.1,
-      "stock_div": 0.9,
-      "market": "上市"
-    },
-    {
       "stock_id": "1709",
       "name": "和益",
       "ex_date": "2026-08-25",
@@ -184,14 +184,6 @@
       "ex_date": "2026-08-24",
       "cash_div": 0.48,
       "stock_div": 1.111111111,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2420",
-      "name": "新巨",
-      "ex_date": "2026-08-21",
-      "cash_div": 3.0,
-      "stock_div": 0.0,
       "market": "上市"
     },
     {
@@ -395,14 +387,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "6216",
-      "name": "居易",
-      "ex_date": "2026-08-21",
-      "cash_div": 0.53225667,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "6426",
       "name": "統新",
       "ex_date": "2026-08-28",
@@ -443,14 +427,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "6914",
-      "name": "阜爾運通",
-      "ex_date": "2026-08-21",
-      "cash_div": 6.0,
-      "stock_div": 2.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "7730",
       "name": "暉盛-創",
       "ex_date": "2026-08-25",
@@ -471,14 +447,6 @@
       "name": "倍利科",
       "ex_date": "2026-08-25",
       "cash_div": 6.3854361,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "8442",
-      "name": "威宏-KY",
-      "ex_date": "2026-08-21",
-      "cash_div": 3.0,
       "stock_div": 0.0,
       "market": "上市"
     },
