@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-08-26",
-  "count": 45,
+  "updated_at": "2026-08-27",
+  "count": 42,
   "data": [
     {
       "stock_id": "00400A",
@@ -75,19 +75,19 @@
       "market": "上市"
     },
     {
+      "stock_id": "1438",
+      "name": "三地開發",
+      "ex_date": "2026-09-04",
+      "cash_div": 0.2,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "1466",
       "name": "聚隆",
       "ex_date": "2026-09-02",
       "cash_div": null,
       "stock_div": null,
-      "market": "上市"
-    },
-    {
-      "stock_id": "1531",
-      "name": "高林股",
-      "ex_date": "2026-08-26",
-      "cash_div": 0.4,
-      "stock_div": 0.0,
       "market": "上市"
     },
     {
@@ -104,14 +104,6 @@
       "ex_date": "2026-08-27",
       "cash_div": 1.99959865,
       "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "1795",
-      "name": "美時",
-      "ex_date": "2026-08-26",
-      "cash_div": 2.56531681,
-      "stock_div": 0.1300671182,
       "market": "上市"
     },
     {
@@ -171,18 +163,18 @@
       "market": "上市"
     },
     {
-      "stock_id": "2905",
-      "name": "三商",
-      "ex_date": "2026-08-26",
-      "cash_div": null,
-      "stock_div": null,
-      "market": "上市"
-    },
-    {
       "stock_id": "3052",
       "name": "夆典",
       "ex_date": "2026-08-27",
       "cash_div": 0.6,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "3059",
+      "name": "華晶科",
+      "ex_date": "2026-09-04",
+      "cash_div": 0.99861494,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -192,14 +184,6 @@
       "ex_date": "2026-08-27",
       "cash_div": 3.25858436,
       "stock_div": 0.4768659726,
-      "market": "上市"
-    },
-    {
-      "stock_id": "3209",
-      "name": "全科",
-      "ex_date": "2026-08-26",
-      "cash_div": 2.0,
-      "stock_div": 0.49999998,
       "market": "上市"
     },
     {
@@ -302,8 +286,8 @@
       "stock_id": "6534",
       "name": "正瀚-創",
       "ex_date": "2026-08-27",
-      "cash_div": null,
-      "stock_div": null,
+      "cash_div": 1.00850125,
+      "stock_div": 0.0,
       "market": "上市"
     },
     {
@@ -336,14 +320,6 @@
       "ex_date": "2026-09-03",
       "cash_div": 0.78234504,
       "stock_div": 1.05929433,
-      "market": "上市"
-    },
-    {
-      "stock_id": "9105",
-      "name": "泰金寶-DR",
-      "ex_date": "2026-08-26",
-      "cash_div": null,
-      "stock_div": null,
       "market": "上市"
     },
     {
