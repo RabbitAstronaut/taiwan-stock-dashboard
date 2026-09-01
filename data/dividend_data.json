@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-08-31",
-  "count": 27,
+  "updated_at": "2026-09-01",
+  "count": 25,
   "data": [
     {
       "stock_id": "00400A",
@@ -15,14 +15,6 @@
       "name": "元大台灣價值高息",
       "ex_date": "2026-09-03",
       "cash_div": 0.05,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "1203",
-      "name": "味王",
-      "ex_date": "2026-08-31",
-      "cash_div": 1.0,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -67,6 +59,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "2109",
+      "name": "華豐",
+      "ex_date": "2026-09-22",
+      "cash_div": 0.5,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "2379",
       "name": "瑞昱",
       "ex_date": "2026-09-03",
@@ -80,6 +80,14 @@
       "ex_date": "2026-09-03",
       "cash_div": 2.03186184,
       "stock_div": 0.711151634,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2530",
+      "name": "華建",
+      "ex_date": "2026-09-09",
+      "cash_div": 0.74886978,
+      "stock_div": 0.0,
       "market": "上市"
     },
     {
@@ -119,14 +127,6 @@
       "name": "洋華",
       "ex_date": "2026-09-03",
       "cash_div": 1.6,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "3661",
-      "name": "世芯-KY",
-      "ex_date": "2026-08-31",
-      "cash_div": 32.55165664,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -176,22 +176,6 @@
       "ex_date": "2026-09-07",
       "cash_div": 1.0,
       "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "7780",
-      "name": "大研生醫*",
-      "ex_date": "2026-08-31",
-      "cash_div": 0.11658854,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "8466",
-      "name": "美吉吉-KY",
-      "ex_date": "2026-08-31",
-      "cash_div": null,
-      "stock_div": null,
       "market": "上市"
     },
     {
