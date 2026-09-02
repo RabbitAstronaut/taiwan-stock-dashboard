@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-01",
-  "count": 25,
+  "updated_at": "2026-09-02",
+  "count": 34,
   "data": [
     {
       "stock_id": "00400A",
@@ -11,11 +11,83 @@
       "market": "上市"
     },
     {
+      "stock_id": "00401A",
+      "name": "主動摩根台灣鑫收",
+      "ex_date": "2026-09-09",
+      "cash_div": 0.121,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00918",
+      "name": "大華優利高填息30",
+      "ex_date": "2026-09-15",
+      "cash_div": 1.26,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00919",
+      "name": "群益台灣精選高息",
+      "ex_date": "2026-09-11",
+      "cash_div": 1.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00921",
+      "name": "兆豐龍頭等權重",
+      "ex_date": "2026-09-11",
+      "cash_div": 0.32,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00935",
+      "name": "野村臺灣新科技50",
+      "ex_date": "2026-09-11",
+      "cash_div": 1.2,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "00940",
       "name": "元大台灣價值高息",
       "ex_date": "2026-09-03",
       "cash_div": 0.05,
       "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00943",
+      "name": "兆豐電子高息等權",
+      "ex_date": "2026-09-11",
+      "cash_div": 0.12,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00944",
+      "name": "野村趨勢動能高息",
+      "ex_date": "2026-09-11",
+      "cash_div": 0.109,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00972",
+      "name": "野村日本動能高息",
+      "ex_date": "2026-09-11",
+      "cash_div": 0.22,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00999A",
+      "name": "主動野村臺灣高息",
+      "ex_date": "2026-09-11",
+      "cash_div": null,
+      "stock_div": null,
       "market": "上市"
     },
     {
