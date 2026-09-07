@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-04",
-  "count": 57,
+  "updated_at": "2026-09-07",
+  "count": 54,
   "data": [
     {
       "stock_id": "00401A",
@@ -315,14 +315,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "1438",
-      "name": "三地開發",
-      "ex_date": "2026-09-04",
-      "cash_div": 0.2,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "1517",
       "name": "利奇",
       "ex_date": "2026-09-11",
@@ -379,22 +371,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "3059",
-      "name": "華晶科",
-      "ex_date": "2026-09-04",
-      "cash_div": 0.99861494,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "3706",
-      "name": "神達",
-      "ex_date": "2026-09-04",
-      "cash_div": 3.0,
-      "stock_div": 1.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "4763",
       "name": "材料*-KY",
       "ex_date": "2026-09-11",
@@ -419,19 +395,19 @@
       "market": "上市"
     },
     {
+      "stock_id": "5306",
+      "name": "桂盟",
+      "ex_date": "2026-09-14",
+      "cash_div": 1.07462833,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "5906",
       "name": "台南-KY",
       "ex_date": "2026-09-07",
       "cash_div": 0.2,
       "stock_div": 0.5,
-      "market": "上市"
-    },
-    {
-      "stock_id": "6133",
-      "name": "金橋",
-      "ex_date": "2026-09-04",
-      "cash_div": 1.0,
-      "stock_div": 0.0,
       "market": "上市"
     },
     {
