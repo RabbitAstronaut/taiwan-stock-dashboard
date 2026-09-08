@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-07",
-  "count": 54,
+  "updated_at": "2026-09-08",
+  "count": 49,
   "data": [
     {
       "stock_id": "00401A",
@@ -331,14 +331,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "2062",
-      "name": "橋椿",
-      "ex_date": "2026-09-07",
-      "cash_div": 1.0,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "2109",
       "name": "華豐",
       "ex_date": "2026-09-22",
@@ -379,14 +371,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "4912",
-      "name": "聯德控股-KY",
-      "ex_date": "2026-09-07",
-      "cash_div": 0.80047794,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "5243",
       "name": "乙盛-KY",
       "ex_date": "2026-09-09",
@@ -399,30 +383,6 @@
       "name": "桂盟",
       "ex_date": "2026-09-14",
       "cash_div": 1.07462833,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "5906",
-      "name": "台南-KY",
-      "ex_date": "2026-09-07",
-      "cash_div": 0.2,
-      "stock_div": 0.5,
-      "market": "上市"
-    },
-    {
-      "stock_id": "6504",
-      "name": "南六",
-      "ex_date": "2026-09-07",
-      "cash_div": 1.0,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "9802",
-      "name": "鈺齊-KY",
-      "ex_date": "2026-09-07",
-      "cash_div": 3.1,
       "stock_div": 0.0,
       "market": "上市"
     },
