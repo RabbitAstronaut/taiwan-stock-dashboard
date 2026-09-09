@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-08",
-  "count": 49,
+  "updated_at": "2026-09-09",
+  "count": 50,
   "data": [
     {
       "stock_id": "00401A",
@@ -118,7 +118,7 @@
       "stock_id": "00921",
       "name": "兆豐龍頭等權重",
       "ex_date": "2026-09-11",
-      "cash_div": 0.32,
+      "cash_div": 1.0,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -166,7 +166,7 @@
       "stock_id": "00943",
       "name": "兆豐電子高息等權",
       "ex_date": "2026-09-11",
-      "cash_div": 0.12,
+      "cash_div": 0.25,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -286,8 +286,8 @@
       "stock_id": "00982T",
       "name": "平衡兆豐台美動能",
       "ex_date": "2026-09-11",
-      "cash_div": null,
-      "stock_div": null,
+      "cash_div": 1.0,
+      "stock_div": 0.0,
       "market": "上市"
     },
     {
@@ -375,6 +375,14 @@
       "name": "乙盛-KY",
       "ex_date": "2026-09-09",
       "cash_div": 2.2,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "5258",
+      "name": "虹堡",
+      "ex_date": "2026-09-18",
+      "cash_div": 1.00732658,
       "stock_div": 0.0,
       "market": "上市"
     },
