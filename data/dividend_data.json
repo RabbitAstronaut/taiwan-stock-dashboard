@@ -1,15 +1,7 @@
 {
-  "updated_at": "2026-09-09",
-  "count": 50,
+  "updated_at": "2026-09-10",
+  "count": 51,
   "data": [
-    {
-      "stock_id": "00401A",
-      "name": "主動摩根台灣鑫收",
-      "ex_date": "2026-09-09",
-      "cash_div": 0.121,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
     {
       "stock_id": "00404A",
       "name": "主動聯博動能50",
@@ -315,6 +307,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "1442",
+      "name": "名軒",
+      "ex_date": "2026-09-18",
+      "cash_div": 2.4,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "1517",
       "name": "利奇",
       "ex_date": "2026-09-11",
@@ -339,18 +339,18 @@
       "market": "上市"
     },
     {
-      "stock_id": "2330",
-      "name": "台積電",
-      "ex_date": "2026-09-11",
-      "cash_div": 7.00000137,
+      "stock_id": "2323",
+      "name": "中環",
+      "ex_date": "2026-09-24",
+      "cash_div": 0.2,
       "stock_div": 0.0,
       "market": "上市"
     },
     {
-      "stock_id": "2530",
-      "name": "華建",
-      "ex_date": "2026-09-09",
-      "cash_div": 0.74886978,
+      "stock_id": "2330",
+      "name": "台積電",
+      "ex_date": "2026-09-11",
+      "cash_div": 7.00000137,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -363,18 +363,18 @@
       "market": "上市"
     },
     {
+      "stock_id": "2614",
+      "name": "東森",
+      "ex_date": "2026-10-01",
+      "cash_div": 0.4,
+      "stock_div": 0.8,
+      "market": "上市"
+    },
+    {
       "stock_id": "4763",
       "name": "材料*-KY",
       "ex_date": "2026-09-11",
       "cash_div": 3.05,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "5243",
-      "name": "乙盛-KY",
-      "ex_date": "2026-09-09",
-      "cash_div": 2.2,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -391,6 +391,14 @@
       "name": "桂盟",
       "ex_date": "2026-09-14",
       "cash_div": 1.07462833,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "7631",
+      "name": "聚賢研發-創",
+      "ex_date": "2026-09-22",
+      "cash_div": 0.8,
       "stock_div": 0.0,
       "market": "上市"
     },
