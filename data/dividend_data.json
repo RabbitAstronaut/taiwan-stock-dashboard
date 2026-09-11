@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-10",
-  "count": 51,
+  "updated_at": "2026-09-11",
+  "count": 49,
   "data": [
     {
       "stock_id": "00404A",
@@ -78,8 +78,8 @@
       "stock_id": "00900",
       "name": "富邦特選高股息30",
       "ex_date": "2026-09-11",
-      "cash_div": 0.075,
-      "stock_div": 0.0,
+      "cash_div": null,
+      "stock_div": null,
       "market": "上市"
     },
     {
@@ -147,14 +147,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00936",
-      "name": "台新永續高息中小",
-      "ex_date": "2026-09-10",
-      "cash_div": 0.12,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00943",
       "name": "兆豐電子高息等權",
       "ex_date": "2026-09-11",
@@ -195,14 +187,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00962",
-      "name": "台新AI優息動能",
-      "ex_date": "2026-09-10",
-      "cash_div": 0.16,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00963",
       "name": "中信全球高股息",
       "ex_date": "2026-09-11",
@@ -231,14 +215,6 @@
       "name": "富邦旗艦50",
       "ex_date": "2026-09-11",
       "cash_div": 0.198,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "009803",
-      "name": "玉山市值動能50",
-      "ex_date": "2026-09-10",
-      "cash_div": 0.5,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -391,6 +367,14 @@
       "name": "桂盟",
       "ex_date": "2026-09-14",
       "cash_div": 1.07462833,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "6108",
+      "name": "競國",
+      "ex_date": "2026-10-02",
+      "cash_div": 1.0,
       "stock_div": 0.0,
       "market": "上市"
     },
