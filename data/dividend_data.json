@@ -1,31 +1,7 @@
 {
-  "updated_at": "2026-09-14",
-  "count": 21,
+  "updated_at": "2026-09-15",
+  "count": 16,
   "data": [
-    {
-      "stock_id": "00710B",
-      "name": "復華彭博非投等債",
-      "ex_date": "2026-09-14",
-      "cash_div": 0.31,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00711B",
-      "name": "復華彭博新興債",
-      "ex_date": "2026-09-14",
-      "cash_div": 0.2,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00712",
-      "name": "復華富時不動產",
-      "ex_date": "2026-09-14",
-      "cash_div": 0.235,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
     {
       "stock_id": "00713",
       "name": "元大台灣高息低波",
@@ -38,7 +14,7 @@
       "stock_id": "00728",
       "name": "第一金工業30",
       "ex_date": "2026-09-15",
-      "cash_div": 0.66,
+      "cash_div": 0.77,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -47,14 +23,6 @@
       "name": "大華優利高填息30",
       "ex_date": "2026-09-15",
       "cash_div": 1.26,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00929",
-      "name": "復華台灣科技優息",
-      "ex_date": "2026-09-14",
-      "cash_div": 0.38,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -70,7 +38,7 @@
       "stock_id": "00994A",
       "name": "主動第一金台股優",
       "ex_date": "2026-09-15",
-      "cash_div": 0.462,
+      "cash_div": 0.257,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -135,14 +103,6 @@
       "name": "虹堡",
       "ex_date": "2026-09-18",
       "cash_div": 1.00732658,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "5306",
-      "name": "桂盟",
-      "ex_date": "2026-09-14",
-      "cash_div": 1.07462833,
       "stock_div": 0.0,
       "market": "上市"
     },
