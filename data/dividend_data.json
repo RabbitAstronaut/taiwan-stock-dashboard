@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-15",
-  "count": 16,
+  "updated_at": "2026-09-16",
+  "count": 13,
   "data": [
     {
       "stock_id": "00713",
@@ -11,34 +11,10 @@
       "market": "上市"
     },
     {
-      "stock_id": "00728",
-      "name": "第一金工業30",
-      "ex_date": "2026-09-15",
-      "cash_div": 0.77,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00918",
-      "name": "大華優利高填息30",
-      "ex_date": "2026-09-15",
-      "cash_div": 1.26,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00930",
       "name": "永豐ESG低碳高息",
       "ex_date": "2026-09-18",
       "cash_div": 0.25,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00994A",
-      "name": "主動第一金台股優",
-      "ex_date": "2026-09-15",
-      "cash_div": 0.257,
       "stock_div": 0.0,
       "market": "上市"
     },
