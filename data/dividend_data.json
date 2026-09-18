@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-17",
-  "count": 13,
+  "updated_at": "2026-09-18",
+  "count": 15,
   "data": [
     {
       "stock_id": "00406A",
@@ -15,6 +15,22 @@
       "name": "永豐ESG低碳高息",
       "ex_date": "2026-09-18",
       "cash_div": 0.25,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00939",
+      "name": "統一台灣高息動能",
+      "ex_date": "2026-09-30",
+      "cash_div": 0.125,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00984D",
+      "name": "主動聯博全球非投",
+      "ex_date": "2026-09-30",
+      "cash_div": 0.085,
       "stock_div": 0.0,
       "market": "上市"
     },
