@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-18",
-  "count": 15,
+  "updated_at": "2026-09-21",
+  "count": 11,
   "data": [
     {
       "stock_id": "00406A",
@@ -11,18 +11,18 @@
       "market": "上市"
     },
     {
-      "stock_id": "00930",
-      "name": "永豐ESG低碳高息",
-      "ex_date": "2026-09-18",
-      "cash_div": 0.25,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00939",
       "name": "統一台灣高息動能",
       "ex_date": "2026-09-30",
       "cash_div": 0.125,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00946",
+      "name": "群益科技高息成長",
+      "ex_date": "2026-10-02",
+      "cash_div": 0.058,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -43,22 +43,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "1442",
-      "name": "名軒",
-      "ex_date": "2026-09-18",
-      "cash_div": 2.4,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "1808",
-      "name": "潤隆",
-      "ex_date": "2026-09-18",
-      "cash_div": 1.5,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "2109",
       "name": "華豐",
       "ex_date": "2026-09-22",
@@ -75,27 +59,11 @@
       "market": "上市"
     },
     {
-      "stock_id": "2542",
-      "name": "興富發",
-      "ex_date": "2026-09-18",
-      "cash_div": 4.0,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "2614",
       "name": "東森",
       "ex_date": "2026-10-01",
       "cash_div": 0.4,
       "stock_div": 0.8,
-      "market": "上市"
-    },
-    {
-      "stock_id": "5258",
-      "name": "虹堡",
-      "ex_date": "2026-09-18",
-      "cash_div": 1.00732658,
-      "stock_div": 0.0,
       "market": "上市"
     },
     {
