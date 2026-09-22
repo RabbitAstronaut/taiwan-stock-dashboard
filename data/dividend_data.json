@@ -1,7 +1,15 @@
 {
-  "updated_at": "2026-09-21",
-  "count": 11,
+  "updated_at": "2026-09-22",
+  "count": 14,
   "data": [
+    {
+      "stock_id": "00400A",
+      "name": "主動國泰動能高息",
+      "ex_date": "2026-10-05",
+      "cash_div": 0.12,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
     {
       "stock_id": "00406A",
       "name": "主動中信台灣收益",
@@ -19,10 +27,26 @@
       "market": "上市"
     },
     {
+      "stock_id": "00940",
+      "name": "元大台灣價值高息",
+      "ex_date": "2026-10-02",
+      "cash_div": 0.055,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "00946",
       "name": "群益科技高息成長",
       "ex_date": "2026-10-02",
       "cash_div": 0.058,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00953B",
+      "name": "群益優選非投等債",
+      "ex_date": "2026-10-02",
+      "cash_div": 0.067,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -35,11 +59,11 @@
       "market": "上市"
     },
     {
-      "stock_id": "1235",
-      "name": "興泰",
-      "ex_date": "2026-09-21",
-      "cash_div": 0.5,
-      "stock_div": 0.5,
+      "stock_id": "00985B",
+      "name": "群益ESG投等債0-5",
+      "ex_date": "2026-10-02",
+      "cash_div": 0.053,
+      "stock_div": 0.0,
       "market": "上市"
     },
     {
