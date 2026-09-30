@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-29",
-  "count": 10,
+  "updated_at": "2026-09-30",
+  "count": 11,
   "data": [
     {
       "stock_id": "00400A",
@@ -63,6 +63,14 @@
       "name": "群益ESG投等債0-5",
       "ex_date": "2026-10-02",
       "cash_div": 0.053,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "1463",
+      "name": "強盛新",
+      "ex_date": "2026-10-12",
+      "cash_div": 0.1273,
       "stock_div": 0.0,
       "market": "上市"
     },
