@@ -1,12 +1,76 @@
 {
-  "updated_at": "2026-10-01",
-  "count": 9,
+  "updated_at": "2026-10-02",
+  "count": 24,
   "data": [
     {
       "stock_id": "00400A",
       "name": "主動國泰動能高息",
       "ex_date": "2026-10-05",
       "cash_div": 0.12,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00401A",
+      "name": "主動摩根台灣鑫收",
+      "ex_date": "2026-10-12",
+      "cash_div": 0.125,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00730",
+      "name": "富邦臺灣優質高息",
+      "ex_date": "2026-10-14",
+      "cash_div": 0.11,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00733",
+      "name": "富邦臺灣中小",
+      "ex_date": "2026-10-14",
+      "cash_div": 0.578,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00900",
+      "name": "富邦特選高股息30",
+      "ex_date": "2026-10-14",
+      "cash_div": 0.075,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00904",
+      "name": "台新臺灣半導體30",
+      "ex_date": "2026-10-13",
+      "cash_div": 0.68,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00922",
+      "name": "國泰台灣領袖50",
+      "ex_date": "2026-10-14",
+      "cash_div": 2.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00927",
+      "name": "群益半導體收益",
+      "ex_date": "2026-10-14",
+      "cash_div": 1.88,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00936",
+      "name": "台新永續高息中小",
+      "ex_date": "2026-10-13",
+      "cash_div": 0.16,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -19,10 +83,34 @@
       "market": "上市"
     },
     {
+      "stock_id": "00943",
+      "name": "兆豐電子高息等權",
+      "ex_date": "2026-10-14",
+      "cash_div": 0.25,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00944",
+      "name": "野村趨勢動能高息",
+      "ex_date": "2026-10-14",
+      "cash_div": 0.109,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "00946",
       "name": "群益科技高息成長",
       "ex_date": "2026-10-02",
       "cash_div": 0.058,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00947",
+      "name": "台新臺灣IC設計",
+      "ex_date": "2026-10-13",
+      "cash_div": 0.3,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -35,11 +123,43 @@
       "market": "上市"
     },
     {
+      "stock_id": "00962",
+      "name": "台新AI優息動能",
+      "ex_date": "2026-10-13",
+      "cash_div": 0.25,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00985A",
+      "name": "主動野村台灣50",
+      "ex_date": "2026-10-14",
+      "cash_div": null,
+      "stock_div": null,
+      "market": "上市"
+    },
+    {
       "stock_id": "00985B",
       "name": "群益ESG投等債0-5",
       "ex_date": "2026-10-02",
       "cash_div": 0.053,
       "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00992A",
+      "name": "主動群益科技創新",
+      "ex_date": "2026-10-14",
+      "cash_div": 0.47,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00996A",
+      "name": "主動兆豐台灣豐收",
+      "ex_date": "2026-10-14",
+      "cash_div": null,
+      "stock_div": null,
       "market": "上市"
     },
     {
@@ -51,11 +171,11 @@
       "market": "上市"
     },
     {
-      "stock_id": "2614",
-      "name": "東森",
-      "ex_date": "2026-10-01",
-      "cash_div": 0.4,
-      "stock_div": 0.8,
+      "stock_id": "4155",
+      "name": "訊映",
+      "ex_date": "2026-10-15",
+      "cash_div": 0.3,
+      "stock_div": 0.0,
       "market": "上市"
     },
     {
