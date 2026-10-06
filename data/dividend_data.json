@@ -1,15 +1,7 @@
 {
-  "updated_at": "2026-10-05",
+  "updated_at": "2026-10-06",
   "count": 43,
   "data": [
-    {
-      "stock_id": "00400A",
-      "name": "主動國泰動能高息",
-      "ex_date": "2026-10-05",
-      "cash_div": 0.12,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
     {
       "stock_id": "00401A",
       "name": "主動摩根台灣鑫收",
@@ -135,6 +127,14 @@
       "name": "群益半導體收益",
       "ex_date": "2026-10-14",
       "cash_div": 1.88,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00929",
+      "name": "復華台灣科技優息",
+      "ex_date": "2026-10-16",
+      "cash_div": 0.38,
       "stock_div": 0.0,
       "market": "上市"
     },
