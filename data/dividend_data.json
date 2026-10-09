@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-08",
-  "count": 44,
+  "updated_at": "2026-10-09",
+  "count": 45,
   "data": [
     {
       "stock_id": "00401A",
@@ -327,6 +327,14 @@
       "name": "強盛新",
       "ex_date": "2026-10-12",
       "cash_div": 0.1273,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2028",
+      "name": "威致",
+      "ex_date": "2026-10-20",
+      "cash_div": 0.2,
       "stock_div": 0.0,
       "market": "上市"
     },
