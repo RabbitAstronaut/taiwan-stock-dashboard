@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-09",
+  "updated_at": "2026-10-12",
   "count": 45,
   "data": [
     {
@@ -158,7 +158,7 @@
       "stock_id": "00943",
       "name": "兆豐電子高息等權",
       "ex_date": "2026-10-14",
-      "cash_div": 0.25,
+      "cash_div": 0.36,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -318,8 +318,8 @@
       "stock_id": "00996A",
       "name": "主動兆豐台灣豐收",
       "ex_date": "2026-10-14",
-      "cash_div": null,
-      "stock_div": null,
+      "cash_div": 0.73,
+      "stock_div": 0.0,
       "market": "上市"
     },
     {
