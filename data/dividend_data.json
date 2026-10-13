@@ -1,15 +1,7 @@
 {
-  "updated_at": "2026-10-12",
-  "count": 45,
+  "updated_at": "2026-10-13",
+  "count": 43,
   "data": [
-    {
-      "stock_id": "00401A",
-      "name": "主動摩根台灣鑫收",
-      "ex_date": "2026-10-12",
-      "cash_div": 0.125,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
     {
       "stock_id": "00408A",
       "name": "主動第一金優股息",
@@ -319,14 +311,6 @@
       "name": "主動兆豐台灣豐收",
       "ex_date": "2026-10-14",
       "cash_div": 0.73,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "1463",
-      "name": "強盛新",
-      "ex_date": "2026-10-12",
-      "cash_div": 0.1273,
       "stock_div": 0.0,
       "market": "上市"
     },
