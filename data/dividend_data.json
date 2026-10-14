@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-13",
-  "count": 43,
+  "updated_at": "2026-10-14",
+  "count": 37,
   "data": [
     {
       "stock_id": "00408A",
@@ -51,26 +51,10 @@
       "market": "上市"
     },
     {
-      "stock_id": "00851",
-      "name": "台新全球AI",
-      "ex_date": "2026-10-13",
-      "cash_div": 1.7,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00900",
       "name": "富邦特選高股息30",
       "ex_date": "2026-10-14",
       "cash_div": 0.075,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00904",
-      "name": "台新臺灣半導體30",
-      "ex_date": "2026-10-13",
-      "cash_div": 0.68,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -110,7 +94,7 @@
       "stock_id": "00922",
       "name": "國泰台灣領袖50",
       "ex_date": "2026-10-14",
-      "cash_div": 2.0,
+      "cash_div": 2.1,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -139,14 +123,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00936",
-      "name": "台新永續高息中小",
-      "ex_date": "2026-10-13",
-      "cash_div": 0.16,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00943",
       "name": "兆豐電子高息等權",
       "ex_date": "2026-10-14",
@@ -167,14 +143,6 @@
       "name": "凱基美國非投等債",
       "ex_date": "2026-10-14",
       "cash_div": 0.097,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00947",
-      "name": "台新臺灣IC設計",
-      "ex_date": "2026-10-13",
-      "cash_div": 0.3,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -211,14 +179,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00962",
-      "name": "台新AI優息動能",
-      "ex_date": "2026-10-13",
-      "cash_div": 0.25,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00963",
       "name": "中信全球高股息",
       "ex_date": "2026-10-14",
@@ -231,14 +191,6 @@
       "name": "中信亞太高股息",
       "ex_date": "2026-10-14",
       "cash_div": 0.2,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "009805",
-      "name": "台新美國電力基建",
-      "ex_date": "2026-10-13",
-      "cash_div": 0.1,
       "stock_div": 0.0,
       "market": "上市"
     },
