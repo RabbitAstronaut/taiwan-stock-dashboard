@@ -1,13 +1,13 @@
 {
-  "updated_at": "2026-10-15",
-  "count": 11,
+  "updated_at": "2026-10-16",
+  "count": 10,
   "data": [
     {
       "stock_id": "00408A",
       "name": "主動第一金優股息",
       "ex_date": "2026-10-16",
-      "cash_div": null,
-      "stock_div": null,
+      "cash_div": 0.21,
+      "stock_div": 0.0,
       "market": "上市"
     },
     {
@@ -32,14 +32,6 @@
       "ex_date": "2026-10-16",
       "cash_div": 0.38,
       "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00991B",
-      "name": "貝萊德A級公司債",
-      "ex_date": "2026-10-15",
-      "cash_div": null,
-      "stock_div": null,
       "market": "上市"
     },
     {
