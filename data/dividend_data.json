@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-10-16",
+  "updated_at": "2026-10-19",
   "count": 10,
   "data": [
     {
-      "stock_id": "00408A",
-      "name": "主動第一金優股息",
-      "ex_date": "2026-10-16",
-      "cash_div": 0.21,
+      "stock_id": "00406A",
+      "name": "主動中信台灣收益",
+      "ex_date": "2026-10-29",
+      "cash_div": 0.138,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -23,14 +23,6 @@
       "name": "永豐優息存股",
       "ex_date": "2026-10-21",
       "cash_div": 0.24,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00929",
-      "name": "復華台灣科技優息",
-      "ex_date": "2026-10-16",
-      "cash_div": 0.38,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -71,6 +63,14 @@
       "name": "遠雄",
       "ex_date": "2026-10-23",
       "cash_div": 1.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "6165",
+      "name": "浪凡",
+      "ex_date": "2026-10-28",
+      "cash_div": 5.0,
       "stock_div": 0.0,
       "market": "上市"
     },
