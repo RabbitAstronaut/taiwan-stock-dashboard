@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-20",
-  "count": 12,
+  "updated_at": "2026-10-21",
+  "count": 13,
   "data": [
     {
       "stock_id": "00406A",
@@ -35,6 +35,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "00953B",
+      "name": "群益優選非投等債",
+      "ex_date": "2026-10-30",
+      "cash_div": 0.067,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "00984D",
       "name": "主動聯博全球非投",
       "ex_date": "2026-10-29",
@@ -43,10 +51,10 @@
       "market": "上市"
     },
     {
-      "stock_id": "2028",
-      "name": "威致",
-      "ex_date": "2026-10-20",
-      "cash_div": 0.2,
+      "stock_id": "00985B",
+      "name": "群益ESG投等債0-5",
+      "ex_date": "2026-10-30",
+      "cash_div": 0.053,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -91,10 +99,10 @@
       "market": "上市"
     },
     {
-      "stock_id": "6931",
-      "name": "青松健康",
-      "ex_date": "2026-10-20",
-      "cash_div": 0.12,
+      "stock_id": "8467",
+      "name": "波力-KY",
+      "ex_date": "2026-10-30",
+      "cash_div": 2.0,
       "stock_div": 0.0,
       "market": "上市"
     }
