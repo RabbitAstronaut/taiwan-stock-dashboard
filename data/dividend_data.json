@@ -1,20 +1,20 @@
 {
-  "updated_at": "2026-10-21",
+  "updated_at": "2026-10-22",
   "count": 13,
   "data": [
+    {
+      "stock_id": "00400A",
+      "name": "主動國泰動能高息",
+      "ex_date": "2026-11-03",
+      "cash_div": 0.12,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
     {
       "stock_id": "00406A",
       "name": "主動中信台灣收益",
       "ex_date": "2026-10-29",
       "cash_div": 0.138,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00907",
-      "name": "永豐優息存股",
-      "ex_date": "2026-10-21",
-      "cash_div": 0.24,
       "stock_div": 0.0,
       "market": "上市"
     },
