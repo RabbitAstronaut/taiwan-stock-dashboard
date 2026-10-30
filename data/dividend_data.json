@@ -1,28 +1,12 @@
 {
-  "updated_at": "2026-10-29",
-  "count": 9,
+  "updated_at": "2026-10-30",
+  "count": 6,
   "data": [
     {
       "stock_id": "00400A",
       "name": "主動國泰動能高息",
       "ex_date": "2026-11-03",
       "cash_div": 0.12,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00406A",
-      "name": "主動中信台灣收益",
-      "ex_date": "2026-10-29",
-      "cash_div": 0.138,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00939",
-      "name": "統一台灣高息動能",
-      "ex_date": "2026-10-29",
-      "cash_div": 0.125,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -47,14 +31,6 @@
       "name": "群益優選非投等債",
       "ex_date": "2026-10-30",
       "cash_div": 0.067,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00984D",
-      "name": "主動聯博全球非投",
-      "ex_date": "2026-10-29",
-      "cash_div": 0.085,
       "stock_div": 0.0,
       "market": "上市"
     },
