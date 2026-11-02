@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-30",
-  "count": 6,
+  "updated_at": "2026-11-02",
+  "count": 2,
   "data": [
     {
       "stock_id": "00400A",
@@ -15,38 +15,6 @@
       "name": "元大台灣價值高息",
       "ex_date": "2026-11-05",
       "cash_div": 0.055,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00946",
-      "name": "群益科技高息成長",
-      "ex_date": "2026-10-30",
-      "cash_div": 0.058,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00953B",
-      "name": "群益優選非投等債",
-      "ex_date": "2026-10-30",
-      "cash_div": 0.067,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00985B",
-      "name": "群益ESG投等債0-5",
-      "ex_date": "2026-10-30",
-      "cash_div": 0.053,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "8467",
-      "name": "波力-KY",
-      "ex_date": "2026-10-30",
-      "cash_div": 2.0,
       "stock_div": 0.0,
       "market": "上市"
     }
