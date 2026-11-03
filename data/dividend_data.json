@@ -1,12 +1,20 @@
 {
-  "updated_at": "2026-11-02",
-  "count": 2,
+  "updated_at": "2026-11-03",
+  "count": 3,
   "data": [
     {
       "stock_id": "00400A",
       "name": "主動國泰動能高息",
       "ex_date": "2026-11-03",
       "cash_div": 0.12,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00401A",
+      "name": "主動摩根台灣鑫收",
+      "ex_date": "2026-11-10",
+      "cash_div": 0.131,
       "stock_div": 0.0,
       "market": "上市"
     },
