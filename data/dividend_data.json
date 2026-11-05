@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-11-04",
-  "count": 37,
+  "updated_at": "2026-11-05",
+  "count": 41,
   "data": [
     {
       "stock_id": "00401A",
@@ -55,6 +55,14 @@
       "name": "富邦臺灣優質高息",
       "ex_date": "2026-11-12",
       "cash_div": 0.11,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00731",
+      "name": "復華富時高息低波",
+      "ex_date": "2026-11-13",
+      "cash_div": 1.458,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -131,6 +139,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "00929",
+      "name": "復華台灣科技優息",
+      "ex_date": "2026-11-13",
+      "cash_div": 0.38,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "00930",
       "name": "永豐ESG低碳高息",
       "ex_date": "2026-11-19",
@@ -203,6 +219,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "00949",
+      "name": "復華日本龍頭",
+      "ex_date": "2026-11-13",
+      "cash_div": null,
+      "stock_div": null,
+      "market": "上市"
+    },
+    {
       "stock_id": "00951",
       "name": "台新日本半導體",
       "ex_date": "2026-11-11",
@@ -247,6 +271,14 @@
       "name": "中信亞太高股息",
       "ex_date": "2026-11-12",
       "cash_div": 0.2,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "009808",
+      "name": "華南永昌優選50",
+      "ex_date": "2026-11-12",
+      "cash_div": 0.57,
       "stock_div": 0.0,
       "market": "上市"
     },
