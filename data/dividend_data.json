@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-05",
+  "updated_at": "2026-11-06",
   "count": 41,
   "data": [
     {
@@ -187,14 +187,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00940",
-      "name": "元大台灣價值高息",
-      "ex_date": "2026-11-05",
-      "cash_div": 0.055,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00943",
       "name": "兆豐電子高息等權",
       "ex_date": "2026-11-12",
@@ -327,6 +319,14 @@
       "name": "貝萊德A級公司債",
       "ex_date": "2026-11-13",
       "cash_div": 0.067,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2344",
+      "name": "華邦電",
+      "ex_date": "2026-11-13",
+      "cash_div": 2.0,
       "stock_div": 0.0,
       "market": "上市"
     }
