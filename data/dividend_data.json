@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-09",
+  "updated_at": "2026-11-10",
   "count": 41,
   "data": [
     {
@@ -38,7 +38,7 @@
       "stock_id": "00690",
       "name": "兆豐藍籌30",
       "ex_date": "2026-11-12",
-      "cash_div": 2.19,
+      "cash_div": 2.0,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -190,7 +190,7 @@
       "stock_id": "00943",
       "name": "兆豐電子高息等權",
       "ex_date": "2026-11-12",
-      "cash_div": 0.36,
+      "cash_div": 0.35,
       "stock_div": 0.0,
       "market": "上市"
     },
