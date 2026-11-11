@@ -1,15 +1,7 @@
 {
-  "updated_at": "2026-11-10",
-  "count": 41,
+  "updated_at": "2026-11-11",
+  "count": 40,
   "data": [
-    {
-      "stock_id": "00401A",
-      "name": "主動摩根台灣鑫收",
-      "ex_date": "2026-11-10",
-      "cash_div": 0.131,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
     {
       "stock_id": "0051",
       "name": "元大中型100",
