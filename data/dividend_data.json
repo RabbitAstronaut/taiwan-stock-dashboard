@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-11-11",
-  "count": 40,
+  "updated_at": "2026-11-12",
+  "count": 37,
   "data": [
     {
       "stock_id": "0051",
@@ -67,14 +67,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00775B",
-      "name": "台新投等債15+",
-      "ex_date": "2026-11-11",
-      "cash_div": 0.35,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00850",
       "name": "元大臺灣ESG永續",
       "ex_date": "2026-11-17",
@@ -86,7 +78,7 @@
       "stock_id": "00878",
       "name": "國泰永續高股息",
       "ex_date": "2026-11-12",
-      "cash_div": 1.01,
+      "cash_div": 1.25,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -163,14 +155,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00936",
-      "name": "台新永續高息中小",
-      "ex_date": "2026-11-11",
-      "cash_div": 0.16,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00938",
       "name": "凱基優選30",
       "ex_date": "2026-11-12",
@@ -211,14 +195,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00951",
-      "name": "台新日本半導體",
-      "ex_date": "2026-11-11",
-      "cash_div": 0.16,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00952",
       "name": "凱基台灣AI50",
       "ex_date": "2026-11-12",
@@ -231,14 +207,6 @@
       "name": "FT臺灣永續高息",
       "ex_date": "2026-11-12",
       "cash_div": 0.09,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00962",
-      "name": "台新AI優息動能",
-      "ex_date": "2026-11-11",
-      "cash_div": 0.25,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -319,6 +287,14 @@
       "name": "華邦電",
       "ex_date": "2026-11-13",
       "cash_div": 2.0,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "6655",
+      "name": "科定",
+      "ex_date": "2026-11-19",
+      "cash_div": 2.6,
       "stock_div": 0.0,
       "market": "上市"
     }
