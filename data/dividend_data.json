@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-11-12",
-  "count": 37,
+  "updated_at": "2026-11-13",
+  "count": 15,
   "data": [
     {
       "stock_id": "0051",
@@ -15,38 +15,6 @@
       "name": "元大MSCI金融",
       "ex_date": "2026-11-17",
       "cash_div": 1.25,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "006208",
-      "name": "富邦台50",
-      "ex_date": "2026-11-12",
-      "cash_div": 4.75,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00690",
-      "name": "兆豐藍籌30",
-      "ex_date": "2026-11-12",
-      "cash_div": 2.0,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00692",
-      "name": "富邦公司治理",
-      "ex_date": "2026-11-12",
-      "cash_div": 1.92,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00730",
-      "name": "富邦臺灣優質高息",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.11,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -75,46 +43,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00878",
-      "name": "國泰永續高股息",
-      "ex_date": "2026-11-12",
-      "cash_div": 1.25,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00891",
-      "name": "中信關鍵半導體",
-      "ex_date": "2026-11-12",
-      "cash_div": 1.55,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00892",
-      "name": "富邦台灣半導體",
-      "ex_date": "2026-11-12",
-      "cash_div": 2.46,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00894",
-      "name": "中信小資高價30",
-      "ex_date": "2026-11-12",
-      "cash_div": 2.05,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00900",
-      "name": "富邦特選高股息30",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.075,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00901",
       "name": "永豐智能車供應鏈",
       "ex_date": "2026-11-19",
@@ -139,54 +67,6 @@
       "market": "上市"
     },
     {
-      "stock_id": "00932",
-      "name": "兆豐永續高息等權",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.23,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00934",
-      "name": "中信成長高股息",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.5,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00938",
-      "name": "凱基優選30",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.32,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00943",
-      "name": "兆豐電子高息等權",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.35,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00944",
-      "name": "野村趨勢動能高息",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.109,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00945B",
-      "name": "凱基美國非投等債",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.097,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
       "stock_id": "00949",
       "name": "復華日本龍頭",
       "ex_date": "2026-11-13",
@@ -195,83 +75,11 @@
       "market": "上市"
     },
     {
-      "stock_id": "00952",
-      "name": "凱基台灣AI50",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.12,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00961",
-      "name": "FT臺灣永續高息",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.09,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00963",
-      "name": "中信全球高股息",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.1,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00964",
-      "name": "中信亞太高股息",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.2,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "009808",
-      "name": "華南永昌優選50",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.57,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00980A",
-      "name": "主動野村臺灣優選",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.638,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00981T",
-      "name": "平衡凱基雙核收息",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.082,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00982A",
-      "name": "主動群益台灣強棒",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.64,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00982D",
-      "name": "主動富邦動態入息",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.052,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00983D",
-      "name": "主動富邦複合收益",
-      "ex_date": "2026-11-12",
-      "cash_div": 0.061,
-      "stock_div": 0.0,
+      "stock_id": "009817",
+      "name": "國泰日本不動產",
+      "ex_date": "2026-11-23",
+      "cash_div": null,
+      "stock_div": null,
       "market": "上市"
     },
     {
@@ -279,6 +87,14 @@
       "name": "貝萊德A級公司債",
       "ex_date": "2026-11-13",
       "cash_div": 0.067,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "1437",
+      "name": "勤益控",
+      "ex_date": "2026-11-30",
+      "cash_div": 0.62465299,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -295,6 +111,14 @@
       "name": "科定",
       "ex_date": "2026-11-19",
       "cash_div": 2.6,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "7780",
+      "name": "大研生醫*",
+      "ex_date": "2026-12-01",
+      "cash_div": 0.14137263,
       "stock_div": 0.0,
       "market": "上市"
     }
