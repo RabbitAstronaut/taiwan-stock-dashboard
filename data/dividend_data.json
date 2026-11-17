@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-11-16",
-  "count": 10,
+  "updated_at": "2026-11-17",
+  "count": 11,
   "data": [
     {
       "stock_id": "0051",
@@ -63,6 +63,14 @@
       "name": "勤益控",
       "ex_date": "2026-11-30",
       "cash_div": 0.62465299,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "2543",
+      "name": "皇昌",
+      "ex_date": "2026-11-25",
+      "cash_div": 0.5,
       "stock_div": 0.0,
       "market": "上市"
     },
