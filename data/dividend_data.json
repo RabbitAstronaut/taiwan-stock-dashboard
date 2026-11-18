@@ -1,36 +1,12 @@
 {
-  "updated_at": "2026-11-17",
-  "count": 11,
+  "updated_at": "2026-11-18",
+  "count": 10,
   "data": [
     {
-      "stock_id": "0051",
-      "name": "元大中型100",
-      "ex_date": "2026-11-17",
-      "cash_div": 3.0,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "0055",
-      "name": "元大MSCI金融",
-      "ex_date": "2026-11-17",
-      "cash_div": 1.25,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00771",
-      "name": "元大US高息特別股",
-      "ex_date": "2026-11-17",
-      "cash_div": 0.21,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "00850",
-      "name": "元大臺灣ESG永續",
-      "ex_date": "2026-11-17",
-      "cash_div": 0.85,
+      "stock_id": "00406A",
+      "name": "主動中信台灣收益",
+      "ex_date": "2026-11-27",
+      "cash_div": 0.138,
       "stock_div": 0.0,
       "market": "上市"
     },
@@ -51,11 +27,27 @@
       "market": "上市"
     },
     {
+      "stock_id": "00939",
+      "name": "統一台灣高息動能",
+      "ex_date": "2026-11-26",
+      "cash_div": 0.15,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "009817",
       "name": "國泰日本不動產",
       "ex_date": "2026-11-23",
       "cash_div": null,
       "stock_div": null,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00984D",
+      "name": "主動聯博全球非投",
+      "ex_date": "2026-11-26",
+      "cash_div": 0.085,
+      "stock_div": 0.0,
       "market": "上市"
     },
     {
