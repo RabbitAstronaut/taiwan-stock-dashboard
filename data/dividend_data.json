@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-11-18",
-  "count": 10,
+  "updated_at": "2026-11-19",
+  "count": 11,
   "data": [
     {
       "stock_id": "00406A",
@@ -31,6 +31,14 @@
       "name": "統一台灣高息動能",
       "ex_date": "2026-11-26",
       "cash_div": 0.15,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "00946",
+      "name": "群益科技高息成長",
+      "ex_date": "2026-11-30",
+      "cash_div": 0.058,
       "stock_div": 0.0,
       "market": "上市"
     },
