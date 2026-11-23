@@ -1,7 +1,15 @@
 {
-  "updated_at": "2026-11-20",
-  "count": 11,
+  "updated_at": "2026-11-23",
+  "count": 13,
   "data": [
+    {
+      "stock_id": "00400A",
+      "name": "主動國泰動能高息",
+      "ex_date": "2026-12-03",
+      "cash_div": 0.12,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
     {
       "stock_id": "00406A",
       "name": "主動中信台灣收益",
@@ -79,6 +87,14 @@
       "name": "大眾控",
       "ex_date": "2026-12-01",
       "cash_div": 0.19989298,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "6277",
+      "name": "宏正",
+      "ex_date": "2026-12-03",
+      "cash_div": 2.3,
       "stock_div": 0.0,
       "market": "上市"
     },
