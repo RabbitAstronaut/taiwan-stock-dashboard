@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-11-23",
-  "count": 13,
+  "updated_at": "2026-11-24",
+  "count": 12,
   "data": [
     {
       "stock_id": "00400A",
@@ -40,14 +40,6 @@
       "ex_date": "2026-11-30",
       "cash_div": 0.067,
       "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "009817",
-      "name": "國泰日本不動產",
-      "ex_date": "2026-11-23",
-      "cash_div": null,
-      "stock_div": null,
       "market": "上市"
     },
     {
