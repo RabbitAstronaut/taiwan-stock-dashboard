@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-11-24",
-  "count": 12,
+  "updated_at": "2026-11-25",
+  "count": 14,
   "data": [
     {
       "stock_id": "00400A",
@@ -67,6 +67,14 @@
       "market": "上市"
     },
     {
+      "stock_id": "1817",
+      "name": "凱撒衛",
+      "ex_date": "2026-12-16",
+      "cash_div": 1.8,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
       "stock_id": "2543",
       "name": "皇昌",
       "ex_date": "2026-11-25",
@@ -79,6 +87,14 @@
       "name": "大眾控",
       "ex_date": "2026-12-01",
       "cash_div": 0.19989298,
+      "stock_div": 0.0,
+      "market": "上市"
+    },
+    {
+      "stock_id": "4414",
+      "name": "如興",
+      "ex_date": "2026-12-03",
+      "cash_div": 0.00915,
       "stock_div": 0.0,
       "market": "上市"
     },
