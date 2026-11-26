@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-11-25",
-  "count": 14,
+  "updated_at": "2026-11-26",
+  "count": 13,
   "data": [
     {
       "stock_id": "00400A",
@@ -71,14 +71,6 @@
       "name": "凱撒衛",
       "ex_date": "2026-12-16",
       "cash_div": 1.8,
-      "stock_div": 0.0,
-      "market": "上市"
-    },
-    {
-      "stock_id": "2543",
-      "name": "皇昌",
-      "ex_date": "2026-11-25",
-      "cash_div": 0.5,
       "stock_div": 0.0,
       "market": "上市"
     },
